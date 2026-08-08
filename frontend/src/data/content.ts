@@ -1,12 +1,59 @@
-export const navLinks = [
-  { href: "#overview", label: "Overview" },
-  { href: "#architecture", label: "Architecture" },
-  { href: "#roles", label: "Roles" },
-  { href: "#agentic-ai", label: "Agentic AI" },
-  { href: "#stack", label: "Stack" },
+export interface NavLink {
+  to: string;
+  label: string;
+}
+
+export interface Commitment {
+  num: string;
+  title: string;
+  body: string;
+}
+
+export interface Role {
+  index: string;
+  name: string;
+  client: string;
+  blurb: string;
+  privileges: string;
+}
+
+export interface Agent {
+  node: string;
+  name: string;
+  body: string;
+  tools: string[];
+}
+
+export interface FunctionGroup {
+  id: string;
+  name: string;
+  body: string;
+}
+
+export interface StackItem {
+  name: string;
+  detail: string;
+}
+
+export interface HeroStat {
+  value: string;
+  label: string;
+}
+
+export interface TeamMember {
+  name: string;
+  role: string;
+}
+
+export const navLinks: NavLink[] = [
+  { to: "/", label: "Home" },
+  { to: "/platform", label: "Platform" },
+  { to: "/roles", label: "Roles" },
+  { to: "/agentic-ai", label: "Agentic AI" },
+  { to: "/about", label: "About" },
 ];
 
-export const commitments = [
+export const commitments: Commitment[] = [
   {
     num: "01",
     title: "Identification is physical",
@@ -24,7 +71,7 @@ export const commitments = [
   },
 ];
 
-export const roles = [
+export const roles: Role[] = [
   {
     index: "A",
     name: "Department Staff",
@@ -55,7 +102,7 @@ export const roles = [
   },
 ];
 
-export const agents = [
+export const agents: Agent[] = [
   {
     node: "01",
     name: "Planner",
@@ -82,21 +129,21 @@ export const agents = [
   },
 ];
 
-export const agentMay = [
+export const agentMay: string[] = [
   "Read data through allow-listed, read-only tools",
   "Produce a plan and delegate to specialised agents",
   "Recommend an action and explain the factors behind it",
   "Record a safe, explicit failure",
 ];
 
-export const agentMayNot = [
+export const agentMayNot: string[] = [
   "Write, update or delete any business record",
   "Approve its own recommendation",
   "Invent or override an organisation policy",
   "Execute a high-impact action without human approval",
 ];
 
-export const functionGroups = [
+export const functionGroups: FunctionGroup[] = [
   { id: "F1", name: "Identity & access", body: "Asgardeo auth, RBAC, protected routes, session lifecycle." },
   { id: "F2", name: "Platform configuration", body: "Departments, locations, categories, types, custom attributes." },
   { id: "F3", name: "Asset registry & ID", body: "Registration, search, lifecycle status, QR generation & scan." },
@@ -108,7 +155,7 @@ export const functionGroups = [
   { id: "F9", name: "Analytics & notification", body: "Role dashboards, exportable reports, transactional email." },
 ];
 
-export const stack = [
+export const stack: StackItem[] = [
   { name: "ASP.NET Core", detail: ".NET 8 · sole public backend" },
   { name: "PostgreSQL", detail: "via EF Core migrations only" },
   { name: "React", detail: "management & control centre" },
@@ -117,9 +164,38 @@ export const stack = [
   { name: "WSO2 Asgardeo", detail: "OIDC · organisations · SCIM 2.0" },
 ];
 
-export const heroStats = [
+export const heroStats: HeroStat[] = [
   { value: "05", label: "Cooperating system parts" },
   { value: "04", label: "Role-scoped user classes" },
   { value: "04", label: "Distinct autonomous agents" },
   { value: "01", label: "Mandatory human checkpoint" },
+];
+
+export const inScope: string[] = [
+  "Organisation, department & location configuration",
+  "Asset categories, types & custom attributes",
+  "Registration, amendment & lifecycle status tracking",
+  "QR generation & QR-based field identification",
+  "Maintenance request, assignment & completion",
+  "Transfer request, approval & physical confirmation",
+  "Condemnation & evidenced disposal approval",
+  "Verification campaigns & discrepancy resolution",
+  "Immutable audit logging & role-based access control",
+  "Four-agent lifecycle workflow with human approval",
+];
+
+export const outOfScope: string[] = [
+  "Autonomous execution of high-impact actions by the AI",
+  "Production-scale multi-tenancy with per-tenant billing",
+  "ERP / national financial system integration",
+  "Trained predictive ML models for failure forecasting",
+  "Computer-vision damage assessment from photographs",
+  "Offline synchronisation with conflict resolution",
+];
+
+export const team: TeamMember[] = [
+  { name: "Hasitha Erandika", role: "Group Lead · Component D — Audit & Compliance, Policy Agent" },
+  { name: "Jayashan Guruge", role: "Component A — Asset Registry & QR Identification, Planner Agent" },
+  { name: "Seneja Ramanayaka", role: "Component B — Maintenance Management, Maintenance Analysis Agent" },
+  { name: "Bhanuka Samarasinghe", role: "Component C — Transfer & Disposal, Budget Analysis Agent" },
 ];

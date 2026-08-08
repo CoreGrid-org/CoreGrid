@@ -1,4 +1,4 @@
-import { stack } from "../data/content.js";
+import { stack } from "../data/content";
 
 export default function Stack() {
   return (

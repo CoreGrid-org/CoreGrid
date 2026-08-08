@@ -1,4 +1,4 @@
-import { functionGroups } from "../data/content.js";
+import { functionGroups } from "../data/content";
 
 export default function Capabilities() {
   return (

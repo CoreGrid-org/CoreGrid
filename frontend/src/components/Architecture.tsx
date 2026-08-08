@@ -3,9 +3,9 @@ export default function Architecture() {
     <section className="section section-shaded" id="architecture">
       <div className="wrap">
         <p className="section-kicker">§02 — System Architecture</p>
-        <h2 className="section-title">
+        <h1 className="section-title">
           One authoritative API. No client touches the data or the agents directly.
-        </h2>
+        </h1>
         <p className="section-lede">
           Both client applications talk only to the ASP.NET Core Web API, and the agentic service is
           reachable only from that API on a private network path. No client holds a database connection

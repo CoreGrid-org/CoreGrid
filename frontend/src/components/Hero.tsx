@@ -1,4 +1,6 @@
-import { heroStats } from "../data/content.js";
+import { Link } from "react-router-dom";
+import { heroStats } from "../data/content";
+import HeroGraphic from "./HeroGraphic";
 
 export default function Hero() {
   return (
@@ -25,12 +27,12 @@ export default function Hero() {
             AI workflow when a lifecycle decision is too consequential to leave to a spreadsheet.
           </p>
           <div className="hero-actions">
-            <a href="#architecture" className="btn btn-primary">
-              <span className="btn-arrow" aria-hidden="true">→</span> Explore the architecture
-            </a>
-            <a href="#agentic-ai" className="btn btn-ghost">
+            <Link to="/platform" className="btn btn-primary">
+              <span className="btn-arrow" aria-hidden="true">→</span> Explore the platform
+            </Link>
+            <Link to="/agentic-ai" className="btn btn-ghost">
               See the agent workflow
-            </a>
+            </Link>
           </div>
           <dl className="hero-stats">
             {heroStats.map((stat) => (
@@ -44,7 +46,7 @@ export default function Hero() {
 
         <div className="hero-art" aria-hidden="true">
           <div className="hero-art-frame">
-            <img src="/CoreGrid.png" alt="" width="420" height="420" />
+            <HeroGraphic />
             <span className="corner corner-tl"></span>
             <span className="corner corner-tr"></span>
             <span className="corner corner-bl"></span>

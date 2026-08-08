@@ -1,11 +1,12 @@
-import { roles } from "../data/content.js";
+import { roles } from "../data/content";
+import PublicNotice from "./PublicNotice";
 
 export default function Roles() {
   return (
     <section className="section" id="roles">
       <div className="wrap">
         <p className="section-kicker">§03 — User Classes</p>
-        <h2 className="section-title">Four roles, genuinely different permissions.</h2>
+        <h1 className="section-title">Four roles, genuinely different permissions.</h1>
         <p className="section-lede">
           The separation between the officer who records physical facts and the auditor who independently
           verifies them is the control that makes the audit trail meaningful.
@@ -30,6 +31,8 @@ export default function Roles() {
           confidential client credential, holds a narrowly scoped read-and-report permission set, and is
           explicitly denied every permission that changes business state.
         </p>
+
+        <PublicNotice />
       </div>
     </section>
   );

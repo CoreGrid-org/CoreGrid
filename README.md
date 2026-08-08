@@ -14,7 +14,7 @@ CoreGrid registers, identifies, maintains, transfers and disposes of an organisa
 
 | Path | Contents |
 |---|---|
-| `frontend/` | Marketing/landing site (React + Vite) — see [`frontend/README.md`](frontend/README.md) |
+| `frontend/` | Marketing/landing site (React + Vite) - see [`frontend/README.md`](frontend/README.md) |
 | `doc/SRS/` | Baselined Software Requirements Specification |
 | `LICENSE` | MIT License |
 

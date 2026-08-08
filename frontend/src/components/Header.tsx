@@ -1,31 +1,29 @@
 import { useState } from "react";
-import { navLinks } from "../data/content.js";
-import { useActiveSection } from "../hooks/useActiveSection.js";
-
-const sectionIds = navLinks.map((link) => link.href.replace("#", ""));
+import { NavLink } from "react-router-dom";
+import { navLinks } from "../data/content";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
-  const activeId = useActiveSection(sectionIds);
 
   return (
-    <header className="site-header" id="top">
+    <header className="site-header">
       <div className="wrap header-row">
-        <a className="brand" href="#top" onClick={() => setOpen(false)}>
+        <NavLink className="brand" to="/" onClick={() => setOpen(false)}>
           <img src="/CoreGrid.png" alt="CoreGrid" className="brand-mark" width="36" height="36" />
           <span className="brand-word">CoreGrid</span>
-        </a>
+        </NavLink>
 
         <nav className={`site-nav ${open ? "is-open" : ""}`} aria-label="Primary">
           {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.to === "/"}
               onClick={() => setOpen(false)}
-              className={activeId === link.href.replace("#", "") ? "is-active" : ""}
+              className={({ isActive }) => (isActive ? "is-active" : "")}
             >
               {link.label}
-            </a>
+            </NavLink>
           ))}
           <a
             className="nav-cta"

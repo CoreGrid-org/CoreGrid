@@ -1,13 +1,13 @@
-import { agents, agentMay, agentMayNot } from "../data/content.js";
+import { agents, agentMay, agentMayNot } from "../data/content";
 
 export default function AgenticAI() {
   return (
     <section className="section section-dark" id="agentic-ai">
       <div className="wrap">
         <p className="section-kicker section-kicker-light">§04 — Agentic Decision Support</p>
-        <h2 className="section-title section-title-light">
+        <h1 className="section-title section-title-light">
           Four agents assemble the evidence. A human still decides.
-        </h2>
+        </h1>
         <p className="section-lede section-lede-light">
           Given everything the organisation knows about an asset, should it be repaired, replaced,
           transferred or disposed of — and does the answer comply with policy? The workflow assembles
