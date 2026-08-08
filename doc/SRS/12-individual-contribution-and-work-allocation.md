@@ -1,0 +1,22 @@
+# 12. Individual Contribution and Work Allocation
+
+The assignment requires that each student take primary ownership of one business component and contribute technically across the backend, database, React, Flutter, testing, Git and the agentic subsystem, with a distinct agentic contribution. The allocation below is designed so that each owner's work is separable enough to be individually assessed, yet integrated enough that no owner can complete their component without the others.
+
+|  | Student 1 | Student 2 | Student 3 | Student 4 |
+|---|---|---|---|---|
+| Business component | Asset Registry & QR Identification | Maintenance Management | Transfer & Disposal | Audit & Compliance |
+| Requirements owned | FR-016 to FR-032 | FR-033 to FR-042, FR-077 to FR-080 | FR-043 to FR-055 | FR-010 to FR-015, FR-056 to FR-066 |
+| Backend | Asset, type, category, attribute and location controllers and services; code and QR generation; verification operation. | Maintenance controller and service; state guards; attachment handling; notification service and provider integration. | Transfer and disposal controllers and services; transactional state transitions; approval precondition engine. | Campaign, verification, discrepancy and audit-log controllers; reporting service; policy configuration; user administration and SCIM client. |
+| Database | Assets, AssetTypes, AssetCategories, AssetAttributeDefinitions, AssetAttributeValues, Locations, AssetHistory; attribute indexing. | MaintenanceRecords, MaintenanceAttachments, Notifications; cumulative-cost derivation. | AssetTransfers, DisposalRequests; transaction design and concurrency handling. | VerificationCampaigns, AuditVerifications, Discrepancies, AuditLogs, OrganizationPolicies; append-only enforcement. |
+| React | Asset list, detail, create and edit; dynamic attribute forms; configuration screens for categories, types and attributes. | Maintenance list, detail, assignment and completion; notification centre. | Transfer and disposal queues, approval screens with evidence display. | Audit dashboard, campaign management, discrepancy resolution, reports and exports, user administration. |
+| Flutter | QR scanner, asset lookup, asset detail, condition update, manual code entry. | Fault reporting with photograph capture; maintenance task list and progress update. | Transfer task list and scan-based receipt confirmation. | Verification task list and the field verification flow; agent status display. |
+| Agentic contribution | Planner Agent — objective interpretation, scope rejection, typed plan generation, delegation contract. | Maintenance Analysis Agent — history tooling, failure statistics, cost projection, data-quality reporting. | Budget Analysis Agent — depreciation, residual value, repair-to-replace comparison, option ranking. | Policy Compliance Agent, the deterministic rule engine, the human-approval checkpoint and safe-failure handling. |
+| Testing | Asset service unit tests; attribute validation tests; QR resolution integration test; React asset component tests; Flutter scanner widget test. | Maintenance state-machine tests; completion transaction test; notification failure-isolation test; Flutter form validation tests. | Transfer and disposal precondition tests; separation-of-duties authorisation tests; concurrency conflict test. | Audit append-only test; discrepancy resolution tests; agent golden cases; prompt-injection resistance test; CI workflow ownership. |
+
+## 12.1 Contribution Evidence Requirements
+
+- Each owner works on feature branches named for their component, opens a pull request per feature, and has that pull request reviewed by at least one other member before merge.
+- Each requirement identifier in this document is referenced in the GitHub issue that implements it and in the commit or pull-request description, so that FR-051 can be traced to code, to tests and to a reviewer.
+- Each owner is individually accountable for explaining, modifying and debugging their contribution at the viva; work that an owner cannot explain will be treated as not delivered, consistent with SE3090 §3.
+- Each owner maintains an individual AI usage log recording date, tool and model, the task, what the tool produced, what was changed or rejected, and how the result was verified.
+- No member holds a project-management-only, testing-only or documentation-only role; every member delivers backend, database, web, mobile, test and agentic work.
