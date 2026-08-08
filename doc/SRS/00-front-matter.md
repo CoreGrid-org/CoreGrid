@@ -14,7 +14,8 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | Programme | BSc (Hons) in Information Technology, specialising in Software Engineering / Artificial Intelligence |
 | Academic period | Year 3, Semester 1, 2026 |
 | Group | SE3090_G<NN>  (to be completed by group leader) |
-| Team members | Student 1 — Component A<br>Student 2 — Component B<br>Student 3 — Component C<br>Student 4 — Component D |
+| Author | Hasitha Erandika (Group Leader) |
+| Team members | Hasitha Erandika — Component D (Group Leader)<br>Jayashan Guruge — Component A<br>Seneja Ramanayaka — Component B<br>Bhanuka Samarasinghe — Component C |
 | Identity provider | WSO2 Asgardeo (OIDC / OAuth 2.0, organisation-scoped users) |
 | Mandatory stack | ASP.NET Core Web API · PostgreSQL · React · Flutter · Agentic AI (LangGraph) |
 | Status | Approved baseline for implementation |
@@ -25,21 +26,21 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 
 | Version | Date | Author | Summary of change | Status |
 |---|---|---|---|---|
-| 0.1 | 2026-08-01 | Group SE3090_G<NN> | Initial scope, objectives and domain analysis drafted from the CoreGrid architecture and feasibility study. | Draft |
-| 0.2 | 2026-08-04 | Group SE3090_G<NN> | React / Flutter responsibility boundary, four business components and agent roles added. | Draft |
-| 0.3 | 2026-08-06 | Group SE3090_G<NN> | Configurable asset-type and custom-attribute platform model incorporated. | Draft |
-| 0.4 | 2026-08-07 | Group SE3090_G<NN> | Identity and access management re-based on WSO2 Asgardeo with organisation-scoped users. | Draft |
-| 1.0 | 2026-08-08 | Group SE3090_G<NN> | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
+| 0.1 | 2026-08-01 | Hasitha Erandika | Initial scope, objectives and domain analysis drafted from the CoreGrid architecture and feasibility study. | Draft |
+| 0.2 | 2026-08-04 | Hasitha Erandika | React / Flutter responsibility boundary, four business components and agent roles added. | Draft |
+| 0.3 | 2026-08-06 | Hasitha Erandika | Configurable asset-type and custom-attribute platform model incorporated. | Draft |
+| 0.4 | 2026-08-07 | Hasitha Erandika | Identity and access management re-based on WSO2 Asgardeo with organisation-scoped users. | Draft |
+| 1.0 | 2026-08-08 | Hasitha Erandika | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
 
 ### Approval
 
 | Role | Name | Responsibility | Signature / Date |
 |---|---|---|---|
-| Group Leader | <Name> | Owns the consolidated submission, baseline control and evaluator access. | |
-| Component A Owner | <Name> | Asset Registry & QR Identification; Planner Agent. | |
-| Component B Owner | <Name> | Maintenance Management; Maintenance Analysis Agent. | |
-| Component C Owner | <Name> | Transfer & Disposal; Budget Analysis Agent. | |
-| Component D Owner | <Name> | Audit & Compliance; Policy Agent and human-approval checkpoint. | |
+| Group Leader | Hasitha Erandika | Owns the consolidated submission, baseline control and evaluator access. | |
+| Component A Owner | Jayashan Guruge | Asset Registry & QR Identification; Planner Agent. | |
+| Component B Owner | Seneja Ramanayaka | Maintenance Management; Maintenance Analysis Agent. | |
+| Component C Owner | Bhanuka Samarasinghe | Transfer & Disposal; Budget Analysis Agent. | |
+| Component D Owner | Hasitha Erandika | Audit & Compliance; Policy Agent and human-approval checkpoint. | |
 | Lecturer-in-Charge | <Name> | Scope confirmation and any approved variation to group size or agent count. | |
 
 ### Purpose of Baselining
@@ -71,6 +72,7 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 15. [Risks and Descope Order](15-risks-and-descope-order.md)
 16. [Traceability](16-traceability.md)
 17. [Future Enhancements](17-future-enhancements.md)
+18. [Team Roster and Individual Work Allocation](18-team-roster-and-work-allocation.md)
 - [Appendix A — Status and Enumeration Reference](appendix-a-status-and-enumeration-reference.md)
 - [Appendix B — Route-Level Authorisation Map](appendix-b-route-level-authorisation-map.md)
 - [Appendix C — Asgardeo Configuration Checklist](appendix-c-asgardeo-configuration-checklist.md)
