@@ -1,22 +1,107 @@
-# Set Up ThunderID
+# ThunderID Integration
 
-CoreGrid delegates authentication and user-directory management to ThunderID (ADR-002, [SRS §4](../SRS/04-identity-and-access-management.md)). This guide walks through starting it, creating the roles and organisations CoreGrid needs, and connecting the frontend and backend applications to it.
+CoreGrid delegates authentication and identity storage to [ThunderID](https://github.com/thunder-id), an external OIDC provider. This document explains how the integration actually works, then walks through setting it up from scratch.
 
-**Most of this guide is one-time infrastructure setup**, done once per instance in the ThunderID console: starting the containers, the `CoreGridUser` type, the four roles, the frontend application, CORS, and the backend's service credential. The first Administrator account and the first organisation are **not** created by hand here — that's what the app's own Setup wizard (`/setup`, [`frontend/src/pages/Setup.tsx`](../../frontend/src/pages/Setup.tsx)) is for, backed by `POST /api/setup/complete` ([`backend/Features/Setup`](../../backend/Features/Setup)). See [CONTRIBUTING.md](../../CONTRIBUTING.md) for that end-to-end flow.
+> **Deployment model:** CoreGrid is **self-hosted, one full stack per government department** — each department runs its own CoreGrid frontend/backend, its own Postgres, and its own ThunderID instance (the same `docker-compose.yml` bundle this guide sets up). It is not a shared multi-tenant SaaS platform serving multiple departments from one deployment. SRS §4.2 and ADR-002 have been updated to reflect this; see below for what that means for ThunderID specifically.
 
-> **One section below (the API's audience/scope registration) describes ThunderID configuration that CoreGrid's SRS specifies but that hasn't been walked through end-to-end against a running console.** Everything else in this guide — starting the containers, user types, roles, the frontend application, CORS, the backend service application — mirrors a configuration that's been run and confirmed working.
->
-> **The Setup wizard itself is real and reachable, but organisation creation doesn't actually work yet.** `GET /api/setup/status` genuinely checks the database; `POST /api/setup/complete` genuinely writes the local `Organizations`/`Users` rows — but the ThunderID-provisioning call it depends on (`backend/Identity/ThunderIdIdentityDirectory.cs`) throws `NotImplementedException` until someone confirms ThunderID's actual organisation/user-management API contract and implements it there. That's the next piece of this integration to build, not a bug in the wizard.
+## How It Works
+
+ThunderID is used for exactly two things:
+
+1. **Signing users in.** The React frontend redirects to ThunderID's own hosted login (authorization code + PKCE), and gets back a JWT access token. The backend validates that token on incoming API requests — it never sees a password.
+2. **Creating accounts.** When CoreGrid needs to create a new ThunderID account (currently: only the first Administrator, via the Setup wizard), the backend calls ThunderID's management API directly, authenticating as its own registered application (`client_credentials`) rather than as any user.
+
+### One Department, One Deployment, One ThunderID Organisation Unit
+
+Because each department gets its own dedicated deployment, there is nothing for ThunderID to isolate — every user who ever signs into a given deployment belongs to that same one department. ThunderID is therefore run with a single organisation unit per deployment, and every user is created inside it. This isn't CoreGrid's database doing the isolation work instead of ThunderID (a design compensating for a missing per-tenant boundary) — there's simply only ever one tenant per deployment, so no boundary is needed in the first place.
+
+CoreGrid's own `Organizations` table still exists — Setup creates exactly one row per deployment and refuses to create a second (`backend/Features/Setup/SetupController.cs`) — but it represents *this deployment's* department, not a list of separate customers sharing infrastructure. `User.OrganizationId` and the EF Core global query filter that reads it remain in place as good practice, not as the thing standing between two different governments' data.
+
+```mermaid
+flowchart LR
+    Browser["React Frontend<br/>(@thunderid/react)"]
+    API["CoreGrid API<br/>(ASP.NET Core)"]
+    PG[("CoreGrid Postgres<br/>Organizations, Users")]
+    TID["ThunderID<br/>(single org unit)"]
+
+    Browser -- "1. sign-in (PKCE)" --> TID
+    Browser -- "2. Bearer access token" --> API
+    API -- "3. validate: issuer + JWKS" --> TID
+    API -- "4. read/write tenant data" --> PG
+    API -- "5. create users (client_credentials)" --> TID
+```
+
+### Sign-In Flow
+
+The browser talks to ThunderID directly for the OAuth dance — the backend is only involved once a token already exists.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend (Browser)
+    participant TID as ThunderID
+    participant API as CoreGrid API
+
+    U->>FE: Click "Sign In"
+    FE->>TID: Redirect to /oauth2/authorize (PKCE)
+    U->>TID: Authenticate
+    TID->>FE: Redirect back with auth code
+    FE->>TID: POST /oauth2/token (code + verifier)
+    TID-->>FE: Access token (email, given_name,<br/>family_name, roles claims)
+    FE->>API: Request with Authorization: Bearer <token>
+    API->>TID: Fetch JWKS (cached, from<br/>/.well-known/openid-configuration)
+    API->>API: Validate issuer + RS256 signature<br/>(AddJwtBearer, Program.cs)
+    API-->>FE: Response, authorized by `roles` claim
+```
+
+### Setup / First-Administrator Provisioning Flow
+
+This is the one place the backend creates a ThunderID account, via `ThunderIdIdentityDirectory` (`backend/Identity/ThunderIdIdentityDirectory.cs`).
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend (Setup wizard)
+    participant API as SetupController
+    participant TID as ThunderIdIdentityDirectory
+    participant IDP as ThunderID
+    participant PG as CoreGrid Postgres
+
+    FE->>API: GET /api/setup/status
+    API->>PG: Any Organizations?
+    PG-->>API: No
+    API-->>FE: needs_setup = true
+
+    FE->>API: POST /api/setup/complete<br/>(org name, admin email/name/password)
+    API->>PG: Any Organizations? (still none — proceed)
+    API->>TID: ProvisionAdministratorAsync(...)
+    TID->>IDP: POST /oauth2/token<br/>(client_credentials, ScimClientId/Secret,<br/>scope=user-management, resource=...)
+    IDP-->>TID: access token
+    TID->>IDP: POST /users (ouId, type=CoreGridUser, attributes)
+    IDP-->>TID: ThunderID user id
+    TID->>IDP: POST /roles/{AdministratorRoleId}/assignments/add
+    IDP-->>TID: 204 No Content
+    TID-->>API: ThunderID user id (ExternalSubjectId)
+
+    API->>PG: Insert Organization (local only, no ThunderID link)
+    API->>PG: Insert User (OrganizationId, ExternalSubjectId, Role=Administrator)
+    API-->>FE: 200 OK { organisation_id }
+```
+
+Note what's *not* in this flow: no ThunderID organisation is created, and no `ExternalOrgId` is stored — `Organization` (`backend/Domain/Organization.cs`) has no ThunderID-side counterpart at all.
+
+## One-Time Console Setup
+
+Everything below is done once per ThunderID instance, in the console. It does not need repeating per tenant.
 
 ### Start ThunderID and PostgreSQL
 
-**If this is a brand-new machine — nothing for this project has been pulled or started before — do it in two steps.** Pull and bootstrap ThunderID on its own first:
+**Brand-new machine — nothing pulled or started before:** pull and bootstrap ThunderID on its own first —
 
 ```bash
 docker compose -f oci://ghcr.io/thunder-id/thunderid-quick-start:latest -p coregrid up -d
 ```
 
-This is the one path that's actually been run end-to-end: it pulls the (large — expect several minutes, not a hang) ThunderID image, runs its one-shot `thunderid-db-init` and `thunderid-setup` containers (these exit after running, that's normal, not an error), and starts the server, all under the `coregrid` project name. The container ends up named `coregrid-thunderid-1` (Compose's default `<project>-<service>-<index>` naming).
+This pulls the (large — several minutes, not a hang) ThunderID image, runs its one-shot `thunderid-db-init` and `thunderid-setup` containers (they exit after running — normal, not an error), and starts the server under the `coregrid` project name. The container ends up named `coregrid-thunderid-1`.
 
 Then, from the repo root, bring up CoreGrid's own database alongside it:
 
@@ -24,13 +109,11 @@ Then, from the repo root, bring up CoreGrid's own database alongside it:
 docker compose up -d
 ```
 
-Because [`docker-compose.yml`](../../docker-compose.yml) pins the same project name (`coregrid`) and includes the same ThunderID bundle, Compose recognises the containers that already exist from the step above and only creates what's missing — `coregrid-postgres`, CoreGrid's own application database, on host port `5433`.
+`docker-compose.yml` pins the same project name (`coregrid`) and includes the same ThunderID bundle, so Compose only creates what's missing — `coregrid-postgres`, on host port `5433`.
 
-**If ThunderID is genuinely not running anywhere yet**, `docker compose up -d` alone, from the repo root, should be sufficient — its `include:` pulls the same ThunderID bundle and, per `docker compose config`, correctly renames the container to `coregrid-thunderid` via this file's `container_name` override. That single-command path hasn't been run start-to-finish in practice, though, only validated statically — if it doesn't behave as expected, fall back to the two-step sequence above, which has.
+**To restart later, don't re-run `up -d`** — use `docker compose start`, or `docker start coregrid-thunderid-1` / `coregrid-postgres` individually. Re-running `up -d` re-executes the one-shot `thunderid-setup` container against the already-initialized volume; its bootstrap isn't idempotent and fails with a user-type conflict, which also keeps `thunderid` itself from starting.
 
-**To restart later, don't re-run either `up -d` command** — use `docker compose start` instead (or `docker start coregrid-thunderid-1` / `coregrid-postgres` individually). Resuming existing containers is safe; re-running `up -d` re-executes the one-shot `thunderid-setup` container against the already-initialized volume, and its bootstrap step isn't idempotent — it fails with a user-type name conflict, and since `thunderid` won't start until `thunderid-setup` completes successfully, the server never comes up either.
-
-**Important: the admin password is not `admin`.** It's randomly generated the first time setup runs, and printed once to the setup container's own logs:
+**The admin password is not `admin`.** It's randomly generated on first setup and printed once to the setup container's own logs:
 
 ```
 Admin credentials:
@@ -38,22 +121,20 @@ Admin credentials:
   Password: <random string>
 ```
 
-You can change this later inside the console. It's shown exactly once.
+Retrieve it any time after the fact with `docker logs coregrid-thunderid-setup-1` (the container stays around after exiting). Console: `https://localhost:8090/console`.
 
-Access the console at `https://localhost:8090/console` using that username and password.
+### Create the CoreGridUser Type
 
-### Create the CoreGrid User Type
-
-Go to **User Types** in the left sidebar and create one type covering all four CoreGrid roles — the SRS's claim contract ([§4.4](../SRS/04-identity-and-access-management.md#44-token-model-and-claim-contract)) is uniform across Staff, Officer, Auditor and Administrator, so unlike a product with per-role attribute schemas, CoreGrid doesn't need a separate user type per role.
+**User Types** → create one type covering all four CoreGrid roles (the claim contract, [SRS §4.4](../SRS/04-identity-and-access-management.md#44-token-model-and-claim-contract), is uniform across them, so one shared type is enough):
 
 | Field | Value |
 |---|---|
 | Name | CoreGridUser |
 | Self-Registration | Disabled |
 
-Self-registration is disabled because FR-013 makes an Administrator invite the only path a user enters CoreGrid by — there is no public sign-up.
+Self-registration is disabled — FR-013 makes an Administrator invite the only path a user enters CoreGrid by.
 
-Attributes — this covers exactly the identity claims CoreGrid's claim contract needs (`email`, `given_name`, `family_name`), plus a credential:
+Attributes:
 
 | Property Name | Display Name | Type | Required | Unique | Credential |
 |---|---|---|---|---|---|
@@ -62,61 +143,45 @@ Attributes — this covers exactly the identity claims CoreGrid's claim contract
 | family_name | Last Name | String | Yes | No | No |
 | password | Password | String | Yes | No | Yes |
 
-Don't reuse the console's built-in `Person` type for real CoreGrid accounts — `Person` accounts can't be added to an application's Allowed User Types and will never pick up app roles.
+Don't reuse the console's built-in `Person` type — `Person` accounts can't be added to an application's Allowed User Types and never pick up app roles.
 
-### Organisations Are Created By the App, Not Here
+**Note down the User Type's ID** (shown in the console alongside its name) — this is `ThunderID:UserType` below.
 
-CoreGrid isolates tenant institutions using ThunderID organisations ([SRS §4.2](../SRS/04-identity-and-access-management.md#42-organisation-and-user-model)): one root organisation for the CoreGrid platform itself, and one sub-organisation per tenant institution. Users are created inside their institution's sub-organisation, never in the root.
+### Note the Organisation Unit ID
 
-Unlike the platform-level setup elsewhere in this guide, **sub-organisations are not created by hand in the console.** The root organisation is implicit in the ThunderID instance itself — everything registered below (the user type, the roles, the two applications) is registered against it once. Each tenant institution's sub-organisation, and its first Administrator's account inside it, gets created when someone completes the app's Setup wizard at `/setup`, which calls `POST /api/setup/complete` on the backend, which — once `ThunderIdIdentityDirectory` is implemented — calls ThunderID using the backend's own service credential from "Create the Backend Service Application" below. That's also why the React SPA doesn't need a fixed `organizationHandle` in its config: it's registered once, serves every tenant, and ThunderID resolves each signed-in user's own sub-organisation from their account rather than from anything the frontend sends.
+Go to **Organisations**, open the root organisation (it exists by default — nothing to create), and note its **Organisation Unit ID**. This is `ThunderID:OuId` — every `POST /users` call uses it, since there's only ever the one OU.
 
-If you want to create an additional organisation or a test user without going through the wizard — e.g. to test multi-tenant isolation locally — that's still possible directly in the console under **Organisations**, it just isn't the normal path once the app is running.
+### Create the Four CoreGrid Roles
 
-### Create Roles
-
-Go to **Roles** in the left sidebar and create:
+**Roles** → create:
 
 - Administrator
 - InventoryOfficer
 - Auditor
 - Staff
 
-These are plain business roles used by CoreGrid's own policy layer ([SRS §4.6](../SRS/04-identity-and-access-management.md#46-role-and-permission-model), [Appendix B](../SRS/appendix-b-route-level-authorisation-map.md)) — the role name must exactly match what the API's claim-mapping component expects, since it's compared against the literal `roles` claim value on every request. A role named anything else will never satisfy a policy.
+These are plain business roles CoreGrid's own policy layer reads from the `roles` claim ([SRS §4.6](../SRS/04-identity-and-access-management.md#46-role-and-permission-model), [Appendix B](../SRS/appendix-b-route-level-authorisation-map.md)). The **name** must exactly match `CoreGridRole` (`backend/Domain/CoreGridRole.cs`) — `Staff`, `InventoryOfficer`, `Auditor`, `Administrator` — since the backend does a literal string comparison. `Admin` or any other spelling never matches.
 
-**These are separate from ThunderID's own built-in `Administrator` role**, which is dealt with separately below. CoreGrid happens to also name one of its business roles "Administrator" — don't confuse the two. ThunderID's built-in `Administrator` role controls who can call ThunderID's own management API (creating/managing ThunderID accounts); CoreGrid's custom `Administrator` role controls who can approve transfers, manage configuration, etc. inside CoreGrid itself.
+**Note down each role's ID** as you create it — `ThunderIdIdentityDirectory` assigns roles by ID (`POST /roles/{roleId}/assignments/add`), not name, so the backend needs `ThunderID:RoleIds:*` for each. Only `Administrator` is consumed by code so far (the Setup wizard is the only thing that assigns a role today); record the others now so they're ready when Officer/Auditor/Staff account creation is built.
 
-There is no ThunderID role for the agent service principal — see "The Agent Service Doesn't Register With ThunderID" below.
+**These are not the same object as ThunderID's own built-in `Administrator` role** (step 7 below assigns that one to the *backend application*, not to any CoreGrid user). Both happen to be named "Administrator." Confirm which one you're looking at by checking whether it appears in **your** list of four roles you just created (custom) versus a separate built-in-roles list, and whether it has a description — ThunderID's built-in role typically has one ("System administrator role with full permissions" or similar); a role you created yourself won't.
 
 ### Create the Frontend Application
 
-Go to **Applications** and create a new application for the React frontend.
+**Applications** → new application, web/browser type:
 
-- Choose a web/browser application type
-- Note down the Application ID
-- Set the Application URL to `http://localhost:5173`
-- Set the redirect URI to `http://localhost:5173`
-- Also set the **post-logout redirect URI** to `http://localhost:5173`. This is a separate whitelist from the sign-in redirect URI above — if it's missing, `/oauth2/logout` rejects the request with `invalid post_logout_redirect_uri` and the ThunderID SDK's `signOut()` fails to send the user back to the app.
-
-**Set Allowed User Types.** In the **Access** section of the application, add `CoreGridUser` to Allowed User Types. This step is easy to miss, but without it, no user attributes or roles will be added to tokens for anyone signing into this app, no matter what you configure elsewhere. This is also why you can't test with the built-in console admin — that account is type `Person`, which isn't and can't be added to this list.
-
-Go to **Token Attributes and Response** for this application and add the following attributes to the **Access Token**, matching CoreGrid's claim contract ([SRS §4.4](../SRS/04-identity-and-access-management.md#44-token-model-and-claim-contract)):
-
-- email
-- given_name
-- family_name
-- roles
-- org_id
-- org_name
-
-Go to **Available Scopes** and activate: `roles` (along with the default `openid`, `profile`, `email`). CoreGrid's claim contract doesn't call for a phone number, so there's no need to activate `phone` here the way a product with SMS notifications would.
-
-Go to **Flows** and assign the default authentication flow to the application.
+- **Note down the Client ID** — not the Application ID. The console shows both per application; only the Client ID is a valid OAuth `client_id`. Using the Application ID here fails sign-in with `invalid_client`.
+- Application URL: `http://localhost:5173`
+- Redirect URI: `http://localhost:5173`
+- **Post-logout redirect URI**: also `http://localhost:5173` — a separate whitelist from the sign-in redirect URI. If missing, `/oauth2/logout` rejects the request with `invalid post_logout_redirect_uri` and `signOut()` fails to return the user to the app.
+- **Allowed User Types** (under Access): add `CoreGridUser`. Easy to miss — without it, no attributes or roles land in tokens for anyone signing in, regardless of anything else configured. This is also why the built-in console admin (`Person` type) can't be used to test sign-in.
+- **Token Attributes and Response** → Access Token: add `email`, `given_name`, `family_name`, `roles`. (Not `org_id`/`org_name` — there's only ever one department per deployment, so there's no organisation concept to put in them; see "One Department, One Deployment" above.)
+- **Available Scopes**: activate `roles`, alongside the default `openid`/`profile`/`email`.
+- **Flows**: assign the default authentication flow.
 
 ### Allow the Frontend Origin (CORS)
 
-The React app calls ThunderID's `/oauth2/token`, `/flow/meta`, and related endpoints **directly from the browser** (that's how PKCE token exchange works for a public SPA client) — this is separate from the backend API's own `Cors__AllowedOrigins` setting ([SRS §14.2](../SRS/14-deployment-and-operations.md), satisfying SEC-ID-08), which only covers requests to the ASP.NET Core API. Without this step ThunderID has no allowed origins by default, so every one of those browser requests is blocked by CORS and sign-in silently fails.
-
-Update the `cors` server-config section (there's no console page for this yet — use the API with an admin token):
+The browser calls ThunderID's `/oauth2/token` and `/flow/meta` directly (PKCE requires this for a public SPA client) — separate from the backend API's own `Cors:AllowedOrigins` (SEC-ID-08), which only covers calls to the ASP.NET Core API. There's no console page for this yet — set it via the API with an admin token:
 
 ```bash
 curl -k -X PUT "https://localhost:8090/server-config/cors" \
@@ -125,83 +190,98 @@ curl -k -X PUT "https://localhost:8090/server-config/cors" \
   -d '{"allowedOrigins": ["http://localhost:5173"]}'
 ```
 
-This takes effect immediately — no restart needed. Add any other origin the frontend is served from (a deployed domain, a different dev port, etc.) to the same array.
+Takes effect immediately, no restart. Add every other origin the frontend is served from to the same array.
 
 ### Create the Backend Service Application
 
-This is the "confidential service credential" [SRS §4.7](../SRS/04-identity-and-access-management.md#47-user-provisioning-and-the-local-mirror) refers to — the credential the ASP.NET Core API uses to create/manage ThunderID accounts when an Administrator invites a user.
+The confidential credential the API uses to create/manage ThunderID accounts ([SRS §4.7](../SRS/04-identity-and-access-management.md#47-user-provisioning-and-the-local-mirror)).
 
-Go to **Applications** and create a new Backend Service application.
+**Applications** → new Backend Service application:
 
 - Name: CoreGrid Backend
 - Grant Type: `client_credentials`
-- Token Endpoint Auth Method: `client_secret_post`
-- Note down the Client ID and Client Secret
+- **Token Endpoint Auth Method: `client_secret_post`** — must actually be saved as this, not just selected during creation. The backend sends `client_id`/`client_secret` as form fields, not HTTP Basic Auth. Left on `client_secret_basic`, every request fails with `unauthorized_client: Client is not allowed to use the specified authentication method` even with correct credentials. Double-check this value after saving.
+- Note down the Client ID and Client Secret.
+- **Available Scopes**: add a `user-management` custom scope, activate it.
 
-Go to **Available Scopes**, add a `user-management` custom scope, and activate it.
+### Register the CoreGrid API as a Protected Resource
 
-### Assign Administrator Role to the Backend Application
+[Appendix C](../SRS/appendix-c-thunderid-configuration-checklist.md) item 5 calls for this, and it's not optional: `client_credentials` token requests fail with `invalid_target: No resource parameter supplied and no default resource server is configured` without it.
 
-Go to **Roles**, open the built-in **Administrator** role, go to the **Assignments** tab, and assign the CoreGrid Backend application to it.
+Go to **Resource Servers** in the console and find (or create) the resource server that the `user-management` scope from step 7 belongs to — **not** any unrelated built-in resource server the instance ships with (e.g. one for MCP tooling). Note its **Identifier** — this is `ThunderID:Resource`, sent as the `resource` form field on every `client_credentials` request `ThunderIdIdentityDirectory` makes.
 
-This allows the backend to create and manage users in ThunderID programmatically. Without this step, the backend app can still request an access token successfully, but every management API call (like creating a user) will fail with a `403 Forbidden`.
+> **Open item:** the exact console path for this — whether `user-management` already belongs to a resource server by default, or needs one created for it — hasn't been fully walked end-to-end yet. If `user-management` isn't listed under any existing resource server, it likely needs one created for it explicitly.
+
+### Assign ThunderID's Built-In Administrator Role to the Backend Application
+
+**Roles** → built-in **Administrator** → **Assignments** tab → add the CoreGrid Backend application.
+
+Without this, the backend app can still get an access token, but every management call (e.g. creating a user) fails with `403 Forbidden`.
 
 ### The Agent Service Doesn't Register With ThunderID
 
-Unlike the React frontend and the backend's service credential above, the LangGraph agent service is **not** registered as a ThunderID application. [SRS §4.3](../SRS/04-identity-and-access-management.md#43-application-registration-and-grant-types) allows either a ThunderID client-credentials client or "an equivalently protected internal shared secret over the private network path" for the agent service principal, and [§14.2](../SRS/14-deployment-and-operations.md) settles on the latter: the agent authenticates to the API with `AgentService__SharedSecret`, a plain secret generated locally (e.g. `openssl rand -hex 32`) and set identically on both sides — never issued by ThunderID. The API's own authentication pipeline is what recognises that secret and grants the "Agent principal" permissions from [§4.6](../SRS/04-identity-and-access-management.md#46-role-and-permission-model); ThunderID plays no part in it, since the agent service is never reachable from the public internet in the first place.
+The LangGraph agent service is not a ThunderID application. [SRS §4.3](../SRS/04-identity-and-access-management.md#43-application-registration-and-grant-types) allows either a ThunderID client-credentials client or "an equivalently protected internal shared secret over the private network path" for it, and [§14.2](../SRS/14-deployment-and-operations.md) settles on the latter: `AgentService__SharedSecret`, a locally generated secret (`openssl rand -hex 32`) set identically on both sides, recognised by the API's own auth pipeline. ThunderID plays no part in it.
 
-### The First Administrator and Organisation
+## Environment Variables
 
-There's no manual user-creation step here — see "Organisations Are Created By the App, Not Here" above. Once `ThunderIdIdentityDirectory` is implemented, the first Administrator account and its organisation come from completing the Setup wizard at `http://localhost:5173/setup` (see [CONTRIBUTING.md §7](../../CONTRIBUTING.md#7-try-it-out)).
-
-### Environment Variables
-
-With the applications, roles and organisation(s) created above, add their values to the backend's and frontend's configuration. CoreGrid's env var names are already fixed in [SRS §14.2](../SRS/14-deployment-and-operations.md) — use those exact names, not new ones.
-
-**Backend** (`backend/appsettings.Development.json` or environment variables — the backend has no ThunderID wiring yet, this is what it'll need):
+**Backend** (`backend/appsettings.Development.json` for non-secrets, `dotnet user-secrets` for the client secret):
 
 ```dotenv
 ThunderID__Issuer=https://localhost:8090
-ThunderID__Audience=<see note below>
-ThunderID__ScimClientId=<Backend Service Client ID from above>
-ThunderID__ScimClientSecret=<Backend Service Client Secret from above>
+ThunderID__Resource=<Resource Server Identifier from step 8>
+ThunderID__OuId=<Organisation Unit ID from step 3>
+ThunderID__UserType=<CoreGridUser type's ID from step 2>
+ThunderID__RoleIds__Administrator=<CoreGrid's custom Administrator role ID from step 4>
+ThunderID__RoleIds__InventoryOfficer=<InventoryOfficer role ID>
+ThunderID__RoleIds__Auditor=<Auditor role ID>
+ThunderID__RoleIds__Staff=<Staff role ID>
+ThunderID__ScimClientId=<Backend Service Client ID from step 7>
+ThunderID__ScimClientSecret=<Backend Service Client Secret from step 7>
 ```
 
-- Everything is `https://`, not `http://`. ThunderID doesn't serve plain HTTP by default.
+- Everything is `https://` — ThunderID doesn't serve plain HTTP by default.
 - `ThunderID__Issuer` is the bare server URL only, no path.
-- There's no separate JWKS or token URL to configure — ASP.NET Core's JWT bearer middleware resolves both from the issuer's `/.well-known/openid-configuration` document automatically, per [SRS §4.5](../SRS/04-identity-and-access-management.md#45-token-validation-in-aspnet-core) step 2.
-- `ThunderID__Audience`: unlike the frontend application above, [Appendix C](../SRS/appendix-c-thunderid-configuration-checklist.md) calls for registering the API "as a protected resource" with its own audience identifier — the OpenSchool-derived steps this guide is otherwise built on never needed that (their backend used a `resource` parameter on the token request instead of a separate registration). Confirm which of the two applies to your ThunderID instance once you wire up `AddJwtBearer` in the backend, and correct this line.
-- If your backend's JWKS client verifies TLS certificates strictly, relax that only for local development against ThunderID's self-signed certificate, and only when running locally, never in production.
-- **`Token Endpoint Auth Method` must actually be `client_secret_post` on the saved application, not just selected during creation.** The backend's client sends `client_id`/`client_secret` as form body fields, not an HTTP Basic Auth header. If the app ends up on `client_secret_basic`, every `client_credentials` request fails with `unauthorized_client: Client is not allowed to use the specified authentication method`, even though the client ID/secret are correct. Double-check this value in the console after saving.
+- No separate JWKS or token URL to configure — `AddJwtBearer` resolves both from the issuer's `/.well-known/openid-configuration` automatically.
+- **No `ThunderID__Audience`.** Inbound token validation (`Program.cs`, `AddJwtBearer`) checks only issuer and RS256 signature — `ValidateAudience = false`. `ThunderID__Resource` above is unrelated: it's for the backend's own *outbound* `client_credentials` calls only.
+- `ThunderID__ScimClientSecret` must never go in `appsettings.Development.json` (it's committed to git) — `dotnet user-secrets set "ThunderID:ScimClientSecret" "<value>"` from `backend/` instead.
+- Relax TLS verification for ThunderID's self-signed cert only in Development — `Program.cs` already does this, gated on `IsDevelopment()`.
 
-**Frontend** (`frontend/.env.local` — copy from `.env.example`):
+**Frontend** (`frontend/.env.local`, copy from `.env.example`):
 
 ```dotenv
-VITE_THUNDERID_CLIENT_ID=<frontend Application ID from above>
+VITE_THUNDERID_CLIENT_ID=<frontend Client ID from step 5>
 VITE_THUNDERID_BASE_URL=https://localhost:8090
 VITE_THUNDERID_SCOPES="openid profile email roles"
 VITE_THUNDERID_AFTER_SIGN_IN_URL=http://localhost:5173
 VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 ```
 
-- `VITE_THUNDERID_AFTER_SIGN_IN_URL` and `VITE_THUNDERID_AFTER_SIGN_OUT_URL` must exactly match the redirect URI you set on the application's config above, including scheme and trailing slash (or lack of one).
-- `VITE_THUNDERID_SCOPES` should match whatever you activated under Available Scopes for this application.
-- These are already wired into `ThunderIDProvider` in `frontend/src/main.tsx`.
+`VITE_THUNDERID_AFTER_SIGN_IN_URL` / `_SIGN_OUT_URL` must exactly match the redirect URI on the application (step 5), including scheme and trailing slash. `VITE_THUNDERID_SCOPES` should match whatever's activated under Available Scopes. Already wired into `ThunderIDProvider` in `frontend/src/main.tsx`.
 
-### Troubleshooting quick reference
+## Known Gaps
+
+- **`ThunderID:Resource`** — step 8's console path isn't fully confirmed end-to-end yet. Confirmed so far: it must be an absolute URI (`invalid_target: Invalid resource parameter: must be an absolute URI` if it isn't) — a scope name or bare identifier will not work.
+- **`ThunderID:UserType`** — set to the User Type's ID rather than the literal name `CoreGridUser`, following the pattern every other ThunderID resource in this guide uses (name + separate ID, ID required at the API boundary). Not yet confirmed against a successful `POST /users` call.
+- **Local-identity fallback** (SRS §4.10) isn't built — `IIdentityDirectory` exists as the seam for it, but only `ThunderIdIdentityDirectory` exists today.
+- **Only Administrator provisioning is wired up.** `ThunderIdIdentityDirectory.ProvisionAdministratorAsync` is only called by the Setup wizard. Creating InventoryOfficer/Auditor/Staff accounts (e.g. via an Administrator's invite) isn't built yet.
+
+## Troubleshooting Quick Reference
 
 | Symptom | Likely cause |
 |---|---|
-| Server won't start, `ouId or ouHandle is required` | A resource is missing its organisation unit reference |
-| `403 Forbidden` calling any management API as the backend app | Backend app hasn't been assigned the built-in ThunderID Administrator role |
-| Login succeeds but `roles` claim is missing from the token | Application's Allowed User Types isn't set, or the signed-in user has no role assignment |
+| Setup fails with `invalid_target: No resource parameter supplied and no default resource server is configured` | `ThunderID:Resource` is missing/empty — see step 8 |
+| Setup fails with `invalid_target: Invalid resource parameter: must be an absolute URI` | `ThunderID:Resource` is set to something other than the resource server's Identifier (a scope name, a GUID, etc.) — it must be the absolute-URI Identifier value, see step 8 |
+| `403 Forbidden` calling any management API as the backend app | Backend app hasn't been assigned the built-in ThunderID Administrator role — step 9 |
+| `roles` claim present but Administrator-only routes/policies still reject the user | CoreGrid's custom Administrator role isn't named exactly `Administrator` (e.g. created as `Admin`) — `CoreGridRole` does an exact string match |
+| Login succeeds but `roles` claim is missing from the token | Allowed User Types isn't set on the frontend application, or the user has no role assignment |
+| Frontend sign-in fails with `invalid_client` | `VITE_THUNDERID_CLIENT_ID` is the application's internal Application ID, not its Client ID |
 | Backend gets `key not found` / endless JWKS retries | Issuer is `http://` instead of `https://` |
-| Backend gets `certificate signed by unknown authority` | TLS verification needs to be relaxed for local dev against the self-signed cert |
-| Backend gets `token has invalid issuer` | Issuer value includes a path; it should be just the bare server URL |
-| All users/roles/data disappeared after a restart | `docker compose down -v` was used, or the whole stack (including the one-time database init container) was recreated instead of just restarting the running containers |
-| `thunderid-setup` fails with a user-type conflict after a restart, and/or `thunderid` never comes back up | `docker compose up -d` was re-run against an already-initialized volume instead of `docker compose start` — see "Start ThunderID and PostgreSQL" above |
-| Console itself won't load — `/oauth2/authorize` redirects to an error page, even for the built-in `CONSOLE` client | An aborted `thunderid-setup` re-run partially applied before it hit the conflict and died, deleting default resources without recreating them. There's no clean recovery from this — `docker compose down -v`, then `docker compose up -d` fresh |
-| Multiple ThunderID stacks running or half-remembered, credentials rejected with `invalid_client` | This repo's `docker-compose.yml` pins its project name to `coregrid` (the top-level `name:` field), so running it from anywhere always targets the same stack — but a *different* stack started elsewhere with `-p coregrid` targets the same name too and will collide with it. `docker compose ls`, then `docker ps -a \| grep coregrid` and `docker volume ls \| grep coregrid` to see what actually exists, and consolidate down to one |
-| Sign-in silently fails; console shows CORS errors on `/oauth2/token` or `/flow/meta`, ends up back on the sign-in page | Frontend origin isn't in the `cors` server-config's `allowedOrigins` — see "Allow the Frontend Origin (CORS)" above |
-| Signing out doesn't return the user to the app (stuck on ThunderID, or an error page) | The application's post-logout redirect URI isn't set — see "Create the Frontend Application" above |
-| Backend gets a schema-validation error creating a user | The user type's field name in the console doesn't match what the backend sends — check **User Types → CoreGridUser → schema** for typos against `email` / `given_name` / `family_name` / `password` |
+| Backend gets `certificate signed by unknown authority` | TLS verification needs relaxing for local dev against the self-signed cert |
+| Backend gets `token has invalid issuer` | Issuer value includes a path; should be the bare server URL |
+| Backend gets a schema-validation error creating a user | User type field name mismatch — check **User Types → CoreGridUser → schema** against `email`/`given_name`/`family_name`/`password` |
+| Sign-in silently fails; CORS errors on `/oauth2/token` or `/flow/meta` | Frontend origin isn't in the `cors` server-config's `allowedOrigins` — step 6 |
+| Signing out doesn't return to the app | Application's post-logout redirect URI isn't set — step 5 |
+| All users/roles/data disappeared after a restart | `docker compose down -v` was used, or the stack was recreated instead of restarted |
+| `thunderid-setup` fails with a user-type conflict after a restart | `docker compose up -d` was re-run against an already-initialized volume — use `docker compose start` instead |
+| Console won't load, `/oauth2/authorize` redirects to an error page | An aborted `thunderid-setup` re-run partially applied. No clean recovery — `docker compose down -v`, then `docker compose up -d` fresh |
+| Multiple ThunderID stacks, `invalid_client` for no obvious reason | `docker-compose.yml` pins project name `coregrid`; a *different* stack started elsewhere with `-p coregrid` collides with it. `docker compose ls`, `docker ps -a \| grep coregrid`, `docker volume ls \| grep coregrid` to find and consolidate |

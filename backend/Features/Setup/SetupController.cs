@@ -27,19 +27,19 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
         CancellationToken cancellationToken)
     {
         // Setup is a one-time operation — once any organisation exists, this
-        // endpoint refuses to create another one. Further organisations are
-        // out of scope for the baseline (SRS's tenant institutions are
-        // provisioned by CoreGrid engineering, not self-service).
+        // endpoint refuses to create another one. This is deliberate, not a
+        // missing feature: CoreGrid is self-hosted once per department (SRS
+        // §2.4, §4.2), so a given deployment only ever has one Organization.
         if (await db.Organizations.AnyAsync(cancellationToken))
         {
             return Conflict("This CoreGrid instance is already set up.");
         }
 
-        // Creates the ThunderID sub-organisation and the admin's ThunderID
-        // account inside it (SRS §4.2, §4.7). Throws until that integration
-        // is wired up — see Identity/ThunderIdIdentityDirectory.cs.
-        var provisioned = await identityDirectory.ProvisionOrganizationAdministratorAsync(
-            request.Organisation.Name,
+        // Creates the admin's ThunderID account (SRS §4.7). This deployment's
+        // ThunderID instance is single-tenant too — the Organization row
+        // below is CoreGrid's own record of this deployment's department,
+        // with no ThunderID-side counterpart.
+        var externalSubjectId = await identityDirectory.ProvisionAdministratorAsync(
             request.Admin.Email,
             request.Admin.GivenName,
             request.Admin.FamilyName,
@@ -49,7 +49,6 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
         var organization = new Organization
         {
             Id = Guid.NewGuid(),
-            ExternalOrgId = provisioned.ExternalOrgId,
             Name = request.Organisation.Name,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -58,7 +57,7 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
         {
             Id = Guid.NewGuid(),
             OrganizationId = organization.Id,
-            ExternalSubjectId = provisioned.ExternalSubjectId,
+            ExternalSubjectId = externalSubjectId,
             Email = request.Admin.Email,
             GivenName = request.Admin.GivenName,
             FamilyName = request.Admin.FamilyName,

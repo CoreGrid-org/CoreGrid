@@ -84,7 +84,7 @@ A fifth, non-human actor is recognised for authorisation purposes: the Agent Ser
 | React web application | Modern evergreen browsers (Chrome, Edge, Firefox, Safari — current and previous major version). Built with Vite and served as static assets from a hosting platform configured to call the deployed API. |
 | Flutter mobile application | Android 8.0 (API 26) and above; release APK produced for evaluation. Requires camera permission for QR scanning and photo capture, and network connectivity for all business operations. |
 | LangGraph agent service | Python 3.11 or later, containerised, reachable only from the API over a private network path or a shared-secret-authenticated internal endpoint; no public ingress. |
-| Identity provider | ThunderID cloud tenant (free developer tier), with one root organisation and one sub-organisation per tenant institution. |
+| Identity provider | ThunderID, self-hosted alongside the API and database as part of each department's own deployment (one ThunderID instance per deployment, single organisation unit — Section 4.2). |
 | Email provider | Transactional email API on a free tier, invoked only from the backend, with credentials held in server-side configuration. |
 
 ## 2.5 Design and Implementation Constraints
@@ -117,7 +117,7 @@ A fifth, non-human actor is recognised for authorisation purposes: the Agent Ser
 
 | ID | Assumption or dependency | Impact if invalid |
 |---|---|---|
-| A-01 | ThunderID's free developer tier remains available and supports organisation-scoped users, application roles and the authorisation-code-with-PKCE flow for public clients. | Identity must fall back to the contingency in Section 4.10; ADR-002 would be revised and the fallback path implemented within the stabilisation week. |
+| A-01 | ThunderID's self-hosted quick-start distribution remains available to deploy and supports application roles and the authorisation-code-with-PKCE flow for public clients. | Identity must fall back to the contingency in Section 4.10; ADR-002 would be revised and the fallback path implemented within the stabilisation week. |
 | A-02 | Every asset in scope can carry a durable, scannable QR label affixed at registration. | Field verification would require manual code entry; FR-041 provides this fallback so the workflow degrades rather than fails. |
 | A-03 | Field officers have network connectivity at the point of scanning for the demonstrated scenarios. | Offline capture and deferred synchronisation would be required; this is explicitly a roadmap item (Section 17) and not baseline scope. |
 | A-04 | Depreciation for residual value may be computed on a straight-line basis from acquisition cost, acquisition date and a per-asset-type useful life. | A more elaborate depreciation model would be needed; the calculation is isolated behind a single service so the change is local. |
@@ -152,7 +152,7 @@ The agentic-AI subsystem provides decision support and workflow orchestration. I
 | Excluded capability | Rationale |
 |---|---|
 | Autonomous execution of high-impact actions by the AI | Contradicts the human-approval control that is central to the system's trustworthiness and to the assignment's acceptance criteria. |
-| Production-scale multi-tenancy with per-tenant billing | The organisation model supports future isolation, but tenant billing, plan management and per-tenant schema separation are commercial concerns outside the academic release. |
+| Shared multi-tenant SaaS delivery and billing | CoreGrid's deployment model is one self-hosted instance per department (Section 2.4), not a shared platform serving multiple departments from one system — there is no cross-tenant boundary to bill or manage. A shared-SaaS model is a hypothetical future pivot, not a planned one; it would require reintroducing per-department identity-provider organisations (Section 4.2) that the current design deliberately does not have. |
 | Integration with enterprise resource-planning or national financial systems | Requires credentials, contracts and interface specifications that cannot be obtained within the delivery window; introduces unbounded schedule risk. |
 | Trained predictive machine-learning models for failure forecasting | The Maintenance Analysis Agent derives its projections from recorded history using deterministic statistics; model training and validation is a separate research effort. |
 | Computer-vision assessment of damage from captured photographs | Photographs are stored as evidence only. Automated condition inference is a roadmap item. |

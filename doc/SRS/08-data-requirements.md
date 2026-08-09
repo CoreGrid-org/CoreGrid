@@ -4,8 +4,8 @@
 
 ```
                         ┌───────────────┐
-                        │ Organizations │  (mirrors an ThunderID sub-org)
-                        └───┬───────┬───┘
+                        │ Organizations │  (exactly one row per deployment —
+                        └───┬───────┬───┘   no ThunderID counterpart, §4.2)
            ┌────────────────┘       └────────────────┐
            ▼                                         ▼
     ┌─────────────┐                            ┌───────────┐
@@ -54,7 +54,7 @@ Figure 9 — Conceptual entity relationships. The full ER diagram with attribute
 
 | Entity | Purpose | Key relationships | Owner |
 |---|---|---|---|
-| Organizations | Tenant record mirroring an ThunderID sub-organisation; the root of every query filter. | 1:N Departments, Users, AssetCategories, OrganizationPolicies | Shared |
+| Organizations | This deployment's own department record (Section 4.2) — one row per self-hosted deployment, no ThunderID counterpart; the root of every query filter. | 1:N Departments, Users, AssetCategories, OrganizationPolicies | Shared |
 | Users | Local mirror of an ThunderID identity; holds no credentials. | N:1 Organization, N:1 Department; referenced by every lifecycle record | Shared |
 | Departments | Business unit that owns assets and holds budget. | N:1 Organization; 1:N Locations, Assets, Users | Shared |
 | Locations | Physical place where an asset is held. | N:1 Department; 1:N Assets | Student 1 |

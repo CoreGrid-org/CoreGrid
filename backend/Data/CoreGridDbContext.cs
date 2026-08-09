@@ -10,11 +10,6 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Organization>(entity =>
-        {
-            entity.HasIndex(o => o.ExternalOrgId).IsUnique();
-        });
-
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(u => u.ExternalSubjectId).IsUnique();

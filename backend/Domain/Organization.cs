@@ -1,13 +1,13 @@
 namespace CoreGrid.Api.Domain;
 
-// Tenant record mirroring a ThunderID sub-organisation (SRS §4.2, §8.2).
-// CoreGrid never stores credentials here — this is a local mirror only.
+// This deployment's own department record (SRS §4.2, §8.2). CoreGrid is
+// self-hosted once per department, so a given deployment has exactly one
+// row here — Setup creates it once and refuses to create a second. There is
+// no ThunderID-side identifier to mirror: this deployment's ThunderID
+// instance is single-tenant too, so it has nothing to mirror.
 public class Organization
 {
     public Guid Id { get; set; }
-
-    // The ThunderID sub-organisation identifier this record mirrors.
-    public required string ExternalOrgId { get; set; }
 
     public required string Name { get; set; }
 

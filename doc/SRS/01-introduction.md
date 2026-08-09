@@ -11,7 +11,7 @@ The specification defines what CoreGrid must do and the quality attributes it mu
 - Functional requirements are identified as FR-nnn and are grouped by business component. Non-functional requirements are identified as NFR-nn. Agentic-AI requirements carry the prefix AI-nn. Interface requirements carry the prefix IF-nn. Data requirements carry the prefix DR-nn.
 - The key words shall, should and may are used in the RFC 2119 sense. "Shall" denotes a mandatory requirement whose absence constitutes a defect. "Should" denotes a strongly recommended requirement that may be traded off against schedule with recorded justification. "May" denotes an optional capability.
 - Every requirement carries a priority: Must (required for the baseline release and for the assignment demonstration), Should (planned for the baseline release but may be descoped with a recorded decision), or Could (deferred to the future-enhancement roadmap in Section 17).
-- Identifiers written in a monospaced font — for example `/api/assets/{id}/verify` or `org_id` — denote literal API routes, database columns, token claims or configuration keys.
+- Identifiers written in a monospaced font — for example `/api/assets/{id}/verify` or `OrganizationId` — denote literal API routes, database columns, token claims or configuration keys.
 - Where a requirement is satisfied differently by the web client and the mobile client, the responsible client is stated explicitly. Where a requirement is enforced by the backend regardless of client, it is marked "API".
 
 ## 1.3 Intended Audience and Reading Suggestions
@@ -42,7 +42,7 @@ The initial release configures and demonstrates a single departmental domain end
 |---|---|
 | Agent | A component of the agentic-AI subsystem with an identifiable responsibility, a defined input and output contract, an explicit allow-list of tools it may call, and visible participation in the workflow graph. |
 | Agentic workflow | A stateful, multi-step execution graph that receives a domain objective, produces a plan, delegates steps to distinct agents, calls controlled tools, validates results deterministically and pauses for human approval before a high-impact action. |
-| ThunderID | ThunderID — the cloud identity-as-a-service provider used by CoreGrid for authentication, user management and organisation modelling. |
+| ThunderID | ThunderID — the identity provider used by CoreGrid for authentication and user management, self-hosted as part of each department's own deployment (Section 2.4). |
 | Asset | A uniquely identified physical item under lifecycle management, owned by a department and located at a location. |
 | Asset type | A configurable classification (for example Bus, MRI Machine, Locomotive) that determines which custom attributes an asset of that type must carry. |
 | Attribute definition | A configurable field declaration attached to an asset type, specifying name, data type, required flag, validation rule and display order. |
@@ -55,12 +55,11 @@ The initial release configures and demonstrates a single departmental domain end
 | IdP | Identity provider. In CoreGrid this is ThunderID. |
 | JWKS | JSON Web Key Set — the public keys published by the IdP and used by the API to verify token signatures. |
 | LangGraph | The Python framework used to express the agentic workflow as an explicit directed graph with persisted state and interrupt points. |
-| Organisation | The top-level tenant of a CoreGrid deployment. Modelled in ThunderID as an organisation and mirrored locally; every user, department and asset belongs to exactly one organisation. |
+| Organisation | The department a self-hosted CoreGrid deployment serves (Section 4.2). Held only in CoreGrid's own database — one deployment has exactly one; every user, department and asset within it belongs to it. |
 | PKCE | Proof Key for Code Exchange — the OAuth 2.0 extension required for public clients (the React SPA and the Flutter application). |
 | Residual value | The current book value of an asset after depreciation, used as one input to the repair-versus-replace decision. |
 | Safe failure | A terminal workflow state in which the agentic subsystem has failed but has recorded the failure, changed no business state, and surfaced the cause to the operator. |
 | SCIM 2.0 | System for Cross-domain Identity Management — the standard REST interface used to read and provision users in ThunderID. |
-| Sub-organisation | An ThunderID organisation nested beneath the root organisation, used by CoreGrid to isolate the users of one tenant institution. |
 | Tool | A named, schema-validated function an agent is permitted to invoke. Tools are the only mechanism by which an agent may read or compute over system data. |
 | Workflow state | The durable record of a workflow run: identifier, objective, plan, completed steps, tool results, validation results, errors, approval status and final outcome. |
 
