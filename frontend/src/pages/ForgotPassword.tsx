@@ -59,7 +59,7 @@ export default function ForgotPassword() {
           <p className="cg-setup-card__subtitle">
             You can now sign in with your new password.
           </p>
-          <Button as={Link} to="/" className="cg-full-width-btn">
+          <Button as={Link} to="/signin" className="cg-full-width-btn">
             Go to Sign In
           </Button>
         </div>
@@ -165,7 +165,7 @@ export default function ForgotPassword() {
         )}
 
         <p style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.875rem" }}>
-          <Link to="/">Back to sign in</Link>
+          <Link to="/signin">Back to sign in</Link>
         </p>
       </div>
     </div>

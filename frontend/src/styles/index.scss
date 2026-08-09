@@ -1,4 +1,10 @@
-@use "@carbon/react";
+// Carbon's own @font-face rules resolve IBM Plex from a webpack-only "~"
+// path alias that Vite can't follow (that's the font-decode/OTS-parsing
+// console errors) — disabled here since IBM Plex is already loaded via
+// Google Fonts in index.html.
+@use "@carbon/react" with (
+  $css--font-face: false
+);
 @use "sass:color";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────

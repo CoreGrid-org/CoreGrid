@@ -1,10 +1,31 @@
+import { Navigate } from "react-router-dom";
 import { SignInButton, useThunderID } from "@thunderid/react";
 import { Button } from "@carbon/react";
+import { WarningAltFilled } from "@carbon/icons-react";
+import { useSetupStatus } from "../queries/useSetup";
+import { getErrorMessage } from "../lib/errorMessage";
+import StatusView from "../components/common/StatusView";
 
 export default function SignIn() {
-  const { isLoading } = useThunderID();
+  const { isSignedIn, isLoading } = useThunderID();
+  const { data: setupStatus, isLoading: setupLoading, isError: setupError, error, refetch } = useSetupStatus();
 
-  if (isLoading) return <div style={{ minHeight: "100vh" }} />;
+  if (isLoading || setupLoading) return <div style={{ minHeight: "100vh" }} />;
+
+  if (setupError) {
+    return (
+      <StatusView
+        variant="fullscreen"
+        icon={WarningAltFilled}
+        title="Can't reach CoreGrid"
+        subtitle={getErrorMessage(error, "The backend isn't responding. Make sure it's running, then try again.")}
+        actions={<Button onClick={refetch}>Try again</Button>}
+      />
+    );
+  }
+
+  if (isSignedIn) return <Navigate to="/" replace />;
+  if (setupStatus?.needs_setup) return <Navigate to="/setup" replace />;
 
   return (
     <div className="cg-signin-wrapper">

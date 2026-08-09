@@ -10,6 +10,9 @@ createRoot(document.getElementById("root") as HTMLElement).render(
     <ThunderIDProvider
       baseUrl={import.meta.env.VITE_THUNDERID_BASE_URL || undefined}
       clientId={import.meta.env.VITE_THUNDERID_CLIENT_ID || undefined}
+      scopes={import.meta.env.VITE_THUNDERID_SCOPES || undefined}
+      afterSignInUrl={import.meta.env.VITE_THUNDERID_AFTER_SIGN_IN_URL || undefined}
+      afterSignOutUrl={import.meta.env.VITE_THUNDERID_AFTER_SIGN_OUT_URL || undefined}
     >
       <BrowserRouter>
         <App />
