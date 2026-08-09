@@ -2,7 +2,7 @@
 ## CoreGrid
 ### A Configurable, Agentic-AI-Assisted Asset Lifecycle Management Platform
 
-**Version 1.0  |  Baseline Release**
+**Version 1.1  |  Baseline Release**
 
 Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specification practice
 
@@ -17,7 +17,7 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | Author | Hasitha Erandika (Group Leader) |
 | Team members | Hasitha Erandika — Component D (Group Leader)<br>Jayashan Guruge — Component A<br>Seneja Ramanayaka — Component B<br>Bhanuka Samarasinghe — Component C |
 | Identity provider | ThunderID (OIDC / OAuth 2.0, organisation-scoped users) |
-| Mandatory stack | ASP.NET Core Web API · PostgreSQL · React · Flutter · Agentic AI (LangGraph) |
+| Mandatory stack | ASP.NET Core Web API · PostgreSQL · React (IBM Carbon Design System) · Flutter · Agentic AI (LangGraph) |
 | Status | Approved baseline for implementation |
 
 ## Document Control
@@ -31,6 +31,7 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | 0.3 | 2026-08-06 | Hasitha Erandika | Configurable asset-type and custom-attribute platform model incorporated. | Draft |
 | 0.4 | 2026-08-07 | Hasitha Erandika | Identity and access management re-based on ThunderID with organisation-scoped users. | Draft |
 | 1.0 | 2026-08-08 | Hasitha Erandika | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
+| 1.1 | 2026-08-09 | Hasitha Erandika | React client design system mandated as IBM Carbon Design System (ADR-008); backend target environment corrected to .NET 10. | Draft |
 
 ### Approval
 

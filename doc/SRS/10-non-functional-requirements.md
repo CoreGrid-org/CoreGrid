@@ -51,6 +51,8 @@ Non-functional requirements are stated so that each is verifiable. Where a thres
 | NFR-28 | Every operation lasting more than 300 ms shall display a loading state, and every failure shall present an actionable message rather than a technical code. | Must |
 | NFR-29 | Interface text shall be externalised from components to permit later translation, though only English is delivered in the baseline. | Could |
 
+The React client is built on the IBM Carbon Design System (Section 3.6, ADR-008); its components are WCAG 2.1 AA compliant by construction, which is the primary mechanism by which NFR-26 is satisfied without bespoke accessibility work.
+
 ## 10.5 Maintainability
 
 | ID | Requirement | Priority |

@@ -11,3 +11,4 @@ Each decision is documented on a single page recording context, options consider
 | ADR-005 | LangGraph as the agentic framework and orchestration method. | Microsoft Agent Framework; a custom orchestrator in C#; a linear prompt chain. |
 | ADR-006 | Attribute-value tables for custom asset attributes; JSONB for agent workflow state. | JSONB for both; typed columns per domain; a document database alongside PostgreSQL. |
 | ADR-007 | Deployment platform and container strategy for the five components. | Alternative no-cost hosting platforms; a single combined deployment; local-only execution. |
+| ADR-008 | IBM Carbon Design System as the React client's component library and visual language. | A custom component library; Material UI; Tailwind CSS with hand-built components; Ant Design. |
