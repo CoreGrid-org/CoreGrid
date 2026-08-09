@@ -1,4 +1,4 @@
-# Appendix C — Asgardeo Configuration Checklist
+# Appendix C — ThunderID Configuration Checklist
 
 | # | Configuration step | Verification |
 |---|---|---|

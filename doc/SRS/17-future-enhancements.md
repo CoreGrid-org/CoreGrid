@@ -14,4 +14,4 @@ The capabilities below are deliberately excluded from the baseline. They are rec
 | Medium | Computer-vision condition assessment from captured photographs. | Photographs are already captured, compressed and associated with maintenance records. |
 | Far | Enterprise resource-planning and financial-system integration. | All external access is mediated by the API behind interfaces; no client would be affected. |
 | Far | Sovereign-cloud deployment for public-sector data residency. | No provider-proprietary service is used, and every component is container-ready with environment-supplied configuration. |
-| Far | Delegated administration hierarchies and access-review governance. | Asgardeo's organisation model supports deeper nesting than the baseline uses. |
+| Far | Delegated administration hierarchies and access-review governance. | ThunderID's organisation model supports deeper nesting than the baseline uses. |

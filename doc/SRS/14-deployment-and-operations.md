@@ -4,9 +4,9 @@
 
 | Environment | Purpose | Data | Identity |
 |---|---|---|---|
-| Local development | Feature development and unit testing. | Seeded local PostgreSQL; agent service run locally. | Asgardeo development application with localhost redirect URIs. |
+| Local development | Feature development and unit testing. | Seeded local PostgreSQL; agent service run locally. | ThunderID development application with localhost redirect URIs. |
 | Continuous integration | Automated verification on every push and pull request. | Ephemeral PostgreSQL service container, migrated and seeded per run. | Not required; the agent service and identity are stubbed. |
-| Deployed evaluation | Evaluator access, demonstration and performance measurement. | Managed PostgreSQL with restricted credentials and the demonstration seed. | Asgardeo production application with the deployed origins registered. |
+| Deployed evaluation | Evaluator access, demonstration and performance measurement. | Managed PostgreSQL with restricted credentials and the demonstration seed. | ThunderID production application with the deployed origins registered. |
 
 ## 14.2 Startup Order and Configuration
 
@@ -16,20 +16,20 @@
   3  Seed data applied               → idempotent seeder on first start
   4  Agent service started           → model credentials, API base URL,
                                        shared secret configured
-  5  ASP.NET Core API started        → Asgardeo issuer, audience, SCIM
+  5  ASP.NET Core API started        → ThunderID issuer, audience, SCIM
                                        credential, agent URL + secret,
                                        email API key, CORS origins
-  6  React static build published    → API base URL, Asgardeo client id,
+  6  React static build published    → API base URL, ThunderID client id,
                                        redirect URI baked at build time
-  7  Flutter APK built               → API base URL, Asgardeo client id,
+  7  Flutter APK built               → API base URL, ThunderID client id,
                                        custom-scheme redirect
 
   Required environment variables (names only; values never committed):
-    ConnectionStrings__CoreGrid        Asgardeo__Issuer
-    Asgardeo__Audience                 Asgardeo__ScimClientId
-    Asgardeo__ScimClientSecret         AgentService__BaseUrl
-    AgentService__SharedSecret         Email__ApiKey
-    Email__FromAddress                 Cors__AllowedOrigins
+    ConnectionStrings__CoreGrid     ThunderID__Issuer
+    ThunderID__Audience             ThunderID__ScimClientId
+    ThunderID__ScimClientSecret     AgentService__BaseUrl
+    AgentService__SharedSecret      Email__ApiKey
+    Email__FromAddress              Cors__AllowedOrigins
     Model__ApiKey  (agent service only)
 ```
 

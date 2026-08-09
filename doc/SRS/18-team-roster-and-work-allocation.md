@@ -75,7 +75,7 @@ Per §12.1, no member holds a project-management-only, testing-only or documenta
 
 ## 18.6 Required Individual Evidence — Hasitha Erandika, Group Leader (Component D)
 
-**Backend** — Department, Location and Policy controllers (FR-010 to FR-012, FR-015); user administration and the Asgardeo SCIM client for invite/role-change/deactivate (FR-013, FR-014); verification campaign, task generation and assignment (FR-056, FR-057); automatic discrepancy raising on mismatch (FR-060); manual discrepancy raising (FR-061, Should); the resolution operation `POST /api/discrepancies/{id}/resolve` (FR-062) covering all five resolution types with BR1–BR3; append-only `AuditLogs` (FR-063, FR-064, DR-12); campaign reporting with PDF/CSV export (FR-065, FR-084, FR-085); campaign progress dashboard feed (FR-066, FR-081, FR-082, FR-086).
+**Backend** — Department, Location and Policy controllers (FR-010 to FR-012, FR-015); user administration and the ThunderID SCIM client for invite/role-change/deactivate (FR-013, FR-014); verification campaign, task generation and assignment (FR-056, FR-057); automatic discrepancy raising on mismatch (FR-060); manual discrepancy raising (FR-061, Should); the resolution operation `POST /api/discrepancies/{id}/resolve` (FR-062) covering all five resolution types with BR1–BR3; append-only `AuditLogs` (FR-063, FR-064, DR-12); campaign reporting with PDF/CSV export (FR-065, FR-084, FR-085); campaign progress dashboard feed (FR-066, FR-081, FR-082, FR-086).
 
 **Database** — `Departments` (shared entity, §8.2), `VerificationCampaigns`, `AuditVerifications`, `Discrepancies`, `AuditLogs`, `OrganizationPolicies`, `Users` (§8.2). Owns and documents the global `OrganizationId` query filter (DR-04) centrally, since every other component's tenant isolation depends on it being correct.
 
@@ -120,7 +120,7 @@ This is a suggested pacing, not a new requirement — it operationalises the sev
 
 | Week | Every owner, in parallel |
 |---|---|
-| 1 | Vertical slice: own entity, one CRUD endpoint, one React screen, one Flutter screen, wired to real Asgardeo auth and deployed, however minimally (R-01, R-08). Agent contracts in §7.3 frozen (§18.8). |
+| 1 | Vertical slice: own entity, one CRUD endpoint, one React screen, one Flutter screen, wired to real ThunderID auth and deployed, however minimally (R-01, R-08). Agent contracts in §7.3 frozen (§18.8). |
 | 2 | Full CRUD with search/filter/sort/pagination for the owned component. |
 | 3 | Owned state machine implemented with guarded transitions and negative tests. |
 | 4 | Owned business-specific operation (verify / complete / approve-disposal / resolve-discrepancy) working end to end with its transaction and audit trail. |

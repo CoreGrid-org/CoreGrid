@@ -4,13 +4,13 @@
 
 CoreGrid is a new, self-contained product rather than a replacement component within an existing system. It comprises five cooperating parts: an ASP.NET Core Web API that is the sole authoritative application layer; a PostgreSQL relational database; a React single-page application used as the management and control centre; a Flutter mobile application used for field operations; and a Python LangGraph service that executes the agentic workflow as an internal, non-public service.
 
-Two external services sit outside the product boundary but are essential to it. WSO2 Asgardeo provides identity: it authenticates every human user, holds the organisation and user directory, and issues the OpenID Connect tokens that the API validates. A transactional email provider delivers notifications triggered by business events. Both are reached over HTTPS, and the email provider is reached exclusively through the backend so that credentials never leave the server boundary.
+Two external services sit outside the product boundary but are essential to it. ThunderID provides identity: it authenticates every human user, holds the organisation and user directory, and issues the OpenID Connect tokens that the API validates. A transactional email provider delivers notifications triggered by business events. Both are reached over HTTPS, and the email provider is reached exclusively through the backend so that credentials never leave the server boundary.
 
 The architectural invariant of the product — the constraint from which most other design decisions follow — is that both client applications communicate only with the ASP.NET Core Web API, and that the agentic-AI service is reachable only from that API on a private network path. No client holds a database connection string, an AI service address or a third-party API key. This is what allows a single, consistent set of business rules, authorisation checks and audit records to apply regardless of which client initiated an action.
 
 ```
                           ┌──────────────────────────────┐
-                          │   WSO2 ASGARDEO  (external)  │
+                          │      THUNDERID  (external)   │
                           │  Organisations · Users ·     │
                           │  Roles · OIDC tokens · SCIM  │
                           └───────┬──────────────┬───────┘
@@ -52,7 +52,7 @@ At the highest level of abstraction CoreGrid provides nine function groups. Each
 
 | # | Function group | Summary |
 |---|---|---|
-| F1 | Identity and access | Organisation-scoped authentication through Asgardeo, role-based authorisation, protected routes and screens, session and token lifecycle management, and a local user mirror for referential integrity. |
+| F1 | Identity and access | Organisation-scoped authentication through ThunderID, role-based authorisation, protected routes and screens, session and token lifecycle management, and a local user mirror for referential integrity. |
 | F2 | Platform configuration | Administration of departments, locations, asset categories, asset types and the custom attribute definitions that determine what data each asset type captures. |
 | F3 | Asset registry and identification | Registration, amendment, search and lifecycle-status tracking of assets, with QR code generation and scan-based lookup from the field. |
 | F4 | Maintenance management | Fault reporting from the field with photographic evidence, maintenance record creation, assignment, progress tracking, cost capture and completion. |
@@ -79,12 +79,12 @@ A fifth, non-human actor is recognised for authorisation purposes: the Agent Ser
 
 | Component | Target environment |
 |---|---|
-| ASP.NET Core Web API | .NET 8 LTS, deployed to a managed container or app-service platform on a no-cost or institution-provided tier; Linux runtime; HTTPS enforced; Swagger/OpenAPI and a health endpoint exposed. |
+| ASP.NET Core Web API | .NET 10 LTS, deployed to a managed container or app-service platform on a no-cost or institution-provided tier; Linux runtime; HTTPS enforced; Swagger/OpenAPI and a health endpoint exposed. |
 | PostgreSQL | PostgreSQL 15 or later, managed instance with restricted network access and credentials supplied only through environment configuration; schema managed exclusively by EF Core migrations. |
 | React web application | Modern evergreen browsers (Chrome, Edge, Firefox, Safari — current and previous major version). Built with Vite and served as static assets from a hosting platform configured to call the deployed API. |
 | Flutter mobile application | Android 8.0 (API 26) and above; release APK produced for evaluation. Requires camera permission for QR scanning and photo capture, and network connectivity for all business operations. |
 | LangGraph agent service | Python 3.11 or later, containerised, reachable only from the API over a private network path or a shared-secret-authenticated internal endpoint; no public ingress. |
-| Identity provider | WSO2 Asgardeo cloud tenant (free developer tier), with one root organisation and one sub-organisation per tenant institution. |
+| Identity provider | ThunderID cloud tenant (free developer tier), with one root organisation and one sub-organisation per tenant institution. |
 | Email provider | Transactional email API on a free tier, invoked only from the backend, with credentials held in server-side configuration. |
 
 ## 2.5 Design and Implementation Constraints
@@ -98,7 +98,7 @@ A fifth, non-human actor is recognised for authorisation purposes: the Agent Ser
 | C-05 | React and Flutter shall communicate only with the ASP.NET Core Web API. Neither client may call the agentic-AI service, the database or a third-party service directly. | SE3090 §2 mandatory backend rule |
 | C-06 | The agentic-AI service shall run as an internal service invoked by ASP.NET Core, and shall implement at least four distinct agents with controlled tools, persisted state, deterministic validation and human approval. | SE3090 §9 |
 | C-07 | Both clients shall share one user identity, one permission model and one set of business rules. | SE3090 §1 integrated-system rule |
-| C-08 | Authentication and user management shall be delegated to WSO2 Asgardeo using OpenID Connect; CoreGrid shall not store user passwords or password hashes. | Project decision ADR-002 |
+| C-08 | Authentication and user management shall be delegated to ThunderID using OpenID Connect; CoreGrid shall not store user passwords or password hashes. | Project decision ADR-002 |
 | C-09 | The system shall be deliverable using institution-provided or no-cost services; no paid subscription may be required to build, deploy or evaluate it. | SE3090 §14 |
 | C-10 | The database schema shall be created and evolved only through EF Core migrations committed to the repository; no manual schema change is permitted in any environment. | Project decision |
 | C-11 | Secrets — client secrets, database credentials, email API keys, agent-service shared secrets — shall never be committed to the repository and shall be supplied through environment variables. | SE3090 §18.2, OWASP |
@@ -117,7 +117,7 @@ A fifth, non-human actor is recognised for authorisation purposes: the Agent Ser
 
 | ID | Assumption or dependency | Impact if invalid |
 |---|---|---|
-| A-01 | Asgardeo's free developer tier remains available and supports organisation-scoped users, application roles and the authorisation-code-with-PKCE flow for public clients. | Identity must fall back to the contingency in Section 4.10; ADR-002 would be revised and the fallback path implemented within the stabilisation week. |
+| A-01 | ThunderID's free developer tier remains available and supports organisation-scoped users, application roles and the authorisation-code-with-PKCE flow for public clients. | Identity must fall back to the contingency in Section 4.10; ADR-002 would be revised and the fallback path implemented within the stabilisation week. |
 | A-02 | Every asset in scope can carry a durable, scannable QR label affixed at registration. | Field verification would require manual code entry; FR-041 provides this fallback so the workflow degrades rather than fails. |
 | A-03 | Field officers have network connectivity at the point of scanning for the demonstrated scenarios. | Offline capture and deferred synchronisation would be required; this is explicitly a roadmap item (Section 17) and not baseline scope. |
 | A-04 | Depreciation for residual value may be computed on a straight-line basis from acquisition cost, acquisition date and a per-asset-type useful life. | A more elaborate depreciation model would be needed; the calculation is isolated behind a single service so the change is local. |
@@ -158,6 +158,6 @@ The agentic-AI subsystem provides decision support and workflow orchestration. I
 | Computer-vision assessment of damage from captured photographs | Photographs are stored as evidence only. Automated condition inference is a roadmap item. |
 | Comprehensive offline synchronisation with conflict resolution | Requires a local store, a synchronisation protocol and a merge strategy — a substantial subsystem in its own right. |
 | Payment, procurement or auction execution | Disposal produces an authorised, evidenced decision; the financial transaction that follows is executed outside CoreGrid. |
-| Full enterprise identity governance (access reviews, delegated administration hierarchies, custom identity federation) | Asgardeo provides authentication, the organisation directory and role assignment; governance workflows beyond this are not required by the baseline. |
+| Full enterprise identity governance (access reviews, delegated administration hierarchies, custom identity federation) | ThunderID provides authentication, the organisation directory and role assignment; governance workflows beyond this are not required by the baseline. |
 | Native iOS release | The Flutter codebase is cross-platform, but only an Android APK is produced and evidenced for the baseline. |
 | Localisation into languages other than English | Interface strings are externalised to permit later translation, but no additional locale is delivered. |

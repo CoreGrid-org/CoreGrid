@@ -30,7 +30,7 @@ Every requirement in this document is verifiable by one of four methods, and the
 One scenario is designated the golden workflow. It is the demonstration centrepiece and the primary evidence for the assignment's end-to-end requirement.
 
 ```
-  1  Officer signs into FLUTTER through Asgardeo (PKCE, external agent).
+  1  Officer signs into FLUTTER through ThunderID (PKCE, external agent).
   2  Officer scans AST-00042 → GET /api/assets/qr/AST-00042.
   3  Officer taps "Evaluate lifecycle" → POST /api/workflows/asset-evaluation.
   4  API authorises, validates asset state, persists AgentWorkflow, returns id.

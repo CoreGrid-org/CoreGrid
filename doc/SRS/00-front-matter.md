@@ -16,7 +16,7 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | Group | SE3090_G<NN>  (to be completed by group leader) |
 | Author | Hasitha Erandika (Group Leader) |
 | Team members | Hasitha Erandika — Component D (Group Leader)<br>Jayashan Guruge — Component A<br>Seneja Ramanayaka — Component B<br>Bhanuka Samarasinghe — Component C |
-| Identity provider | WSO2 Asgardeo (OIDC / OAuth 2.0, organisation-scoped users) |
+| Identity provider | ThunderID (OIDC / OAuth 2.0, organisation-scoped users) |
 | Mandatory stack | ASP.NET Core Web API · PostgreSQL · React · Flutter · Agentic AI (LangGraph) |
 | Status | Approved baseline for implementation |
 
@@ -29,7 +29,7 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | 0.1 | 2026-08-01 | Hasitha Erandika | Initial scope, objectives and domain analysis drafted from the CoreGrid architecture and feasibility study. | Draft |
 | 0.2 | 2026-08-04 | Hasitha Erandika | React / Flutter responsibility boundary, four business components and agent roles added. | Draft |
 | 0.3 | 2026-08-06 | Hasitha Erandika | Configurable asset-type and custom-attribute platform model incorporated. | Draft |
-| 0.4 | 2026-08-07 | Hasitha Erandika | Identity and access management re-based on WSO2 Asgardeo with organisation-scoped users. | Draft |
+| 0.4 | 2026-08-07 | Hasitha Erandika | Identity and access management re-based on ThunderID with organisation-scoped users. | Draft |
 | 1.0 | 2026-08-08 | Hasitha Erandika | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
 
 ### Approval
@@ -58,7 +58,7 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 1. [Introduction](01-introduction.md)
 2. [Overall Description](02-overall-description.md)
 3. [System Architecture](03-system-architecture.md)
-4. [Identity and Access Management with WSO2 Asgardeo](04-identity-and-access-management.md)
+4. [Identity and Access Management with ThunderID](04-identity-and-access-management.md)
 5. [External Interface Requirements](05-external-interface-requirements.md)
 6. [Functional Requirements](06-functional-requirements.md)
 7. [Agentic AI Subsystem Requirements](07-agentic-ai-subsystem-requirements.md)
@@ -75,6 +75,6 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 18. [Team Roster and Individual Work Allocation](18-team-roster-and-work-allocation.md)
 - [Appendix A — Status and Enumeration Reference](appendix-a-status-and-enumeration-reference.md)
 - [Appendix B — Route-Level Authorisation Map](appendix-b-route-level-authorisation-map.md)
-- [Appendix C — Asgardeo Configuration Checklist](appendix-c-asgardeo-configuration-checklist.md)
+- [Appendix C — ThunderID Configuration Checklist](appendix-c-thunderid-configuration-checklist.md)
 - [Appendix D — Architecture Decision Record Index](appendix-d-architecture-decision-record-index.md)
 - [Appendix E — AI Usage Disclosure](appendix-e-ai-usage-disclosure.md)

@@ -4,7 +4,7 @@
 
 ```
                         ┌───────────────┐
-                        │ Organizations │  (mirrors an Asgardeo sub-org)
+                        │ Organizations │  (mirrors an ThunderID sub-org)
                         └───┬───────┬───┘
            ┌────────────────┘       └────────────────┐
            ▼                                         ▼
@@ -54,8 +54,8 @@ Figure 9 — Conceptual entity relationships. The full ER diagram with attribute
 
 | Entity | Purpose | Key relationships | Owner |
 |---|---|---|---|
-| Organizations | Tenant record mirroring an Asgardeo sub-organisation; the root of every query filter. | 1:N Departments, Users, AssetCategories, OrganizationPolicies | Shared |
-| Users | Local mirror of an Asgardeo identity; holds no credentials. | N:1 Organization, N:1 Department; referenced by every lifecycle record | Shared |
+| Organizations | Tenant record mirroring an ThunderID sub-organisation; the root of every query filter. | 1:N Departments, Users, AssetCategories, OrganizationPolicies | Shared |
+| Users | Local mirror of an ThunderID identity; holds no credentials. | N:1 Organization, N:1 Department; referenced by every lifecycle record | Shared |
 | Departments | Business unit that owns assets and holds budget. | N:1 Organization; 1:N Locations, Assets, Users | Shared |
 | Locations | Physical place where an asset is held. | N:1 Department; 1:N Assets | Student 1 |
 | AssetCategories | Top-level grouping for reporting. | N:1 Organization; 1:N AssetTypes | Student 1 |

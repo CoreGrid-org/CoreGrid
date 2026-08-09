@@ -1,21 +1,21 @@
-# 4. Identity and Access Management with WSO2 Asgardeo
+# 4. Identity and Access Management with ThunderID
 
 ## 4.1 Decision and Rationale
 
-CoreGrid delegates authentication and user directory management to WSO2 Asgardeo and retains authorisation within the ASP.NET Core API. This is recorded as ADR-002 and is the single most consequential architectural decision in the identity domain, so its reasoning is set out here in full.
+CoreGrid delegates authentication and user directory management to ThunderID and retains authorisation within the ASP.NET Core API. This is recorded as ADR-002 and is the single most consequential architectural decision in the identity domain, so its reasoning is set out here in full.
 
 - Credential risk is removed rather than mitigated. CoreGrid stores no passwords and no password hashes. The most damaging class of breach for a system of record — credential disclosure — is structurally impossible because the credentials never enter the application boundary.
-- The organisation construct is a first-class primitive. CoreGrid's platform model requires that every user belong to exactly one tenant organisation and that a user of one organisation can never be presented with the data of another. Asgardeo models organisations natively and emits the organisation identity as a token claim, so tenant isolation is asserted by the identity provider and enforced by the API rather than inferred from application data.
-- Standards, not proprietary integration. Authentication uses OpenID Connect over OAuth 2.0. The API validates tokens against a published JWKS endpoint. Nothing in the API depends on Asgardeo-specific behaviour beyond claim names, which are isolated in a single mapping component — so the contingency in Section 4.10 is a small change, not a rewrite.
-- Capabilities that would otherwise consume schedule. Multi-factor authentication, password policy, account recovery, account lockout and session termination are configuration in Asgardeo. Building even acceptable versions of these would consume a substantial fraction of a seven-week window and would still be weaker than a managed provider's.
-- Separation of concerns matches the trust model. Asgardeo answers "who is this person, and which organisation do they belong to". CoreGrid answers "may this person perform this operation on this record". The second question depends on CoreGrid domain state — department ownership, asset status, workflow position — and therefore cannot be delegated.
+- The organisation construct is a first-class primitive. CoreGrid's platform model requires that every user belong to exactly one tenant organisation and that a user of one organisation can never be presented with the data of another. ThunderID models organisations natively and emits the organisation identity as a token claim, so tenant isolation is asserted by the identity provider and enforced by the API rather than inferred from application data.
+- Standards, not proprietary integration. Authentication uses OpenID Connect over OAuth 2.0. The API validates tokens against a published JWKS endpoint. Nothing in the API depends on ThunderID-specific behaviour beyond claim names, which are isolated in a single mapping component — so the contingency in Section 4.10 is a small change, not a rewrite.
+- Capabilities that would otherwise consume schedule. Multi-factor authentication, password policy, account recovery, account lockout and session termination are configuration in ThunderID. Building even acceptable versions of these would consume a substantial fraction of a seven-week window and would still be weaker than a managed provider's.
+- Separation of concerns matches the trust model. ThunderID answers "who is this person, and which organisation do they belong to". CoreGrid answers "may this person perform this operation on this record". The second question depends on CoreGrid domain state — department ownership, asset status, workflow position — and therefore cannot be delegated.
 
 ## 4.2 Organisation and User Model
 
-Asgardeo organisations are the mechanism by which CoreGrid isolates tenants. A root organisation represents the CoreGrid platform itself and hosts the application registrations. Beneath it, each tenant institution is provisioned as a sub-organisation, and users are created inside that sub-organisation. A user therefore exists in the context of an organisation, not globally, which is precisely the property the platform model requires.
+ThunderID organisations are the mechanism by which CoreGrid isolates tenants. A root organisation represents the CoreGrid platform itself and hosts the application registrations. Beneath it, each tenant institution is provisioned as a sub-organisation, and users are created inside that sub-organisation. A user therefore exists in the context of an organisation, not globally, which is precisely the property the platform model requires.
 
 ```
-   ASGARDEO ROOT ORGANISATION  —  "CoreGrid"
+   THUNDERID ROOT ORGANISATION  —  "CoreGrid"
    │   application registrations · shared branding · platform administrators
    │
    ├── SUB-ORGANISATION  "Ministry of Transport"        ← CoreGrid Organisation #1
@@ -32,27 +32,27 @@ Asgardeo organisations are the mechanism by which CoreGrid isolates tenants. A r
    COREGRID DATABASE (mirror, not source of truth for identity)
    Organizations ──1:N── Departments ──1:N── Locations
         │                     │
-        └──1:N── Users ───────┘   (Users.ExternalSubjectId = Asgardeo "sub")
+        └──1:N── Users ───────┘   (Users.ExternalSubjectId = ThunderID "sub")
                    │
                    └── UserRoles (effective role snapshot, refreshed at sign-in)
 ```
 
-Figure 5 — Organisation-scoped users in Asgardeo, mirrored into CoreGrid for referential integrity.
+Figure 5 — Organisation-scoped users in ThunderID, mirrored into CoreGrid for referential integrity.
 
 Departments are deliberately not modelled as further nested organisations. Departments are business structure — they own assets, they hold budgets, they appear in transfer and approval rules — and they change far more often than tenants do. Modelling them as CoreGrid data keeps them configurable by an administrator without an identity-provider operation, while organisation membership, which is a security boundary, remains under the identity provider's control.
 
 | Concept | Owned by | Reason |
 |---|---|---|
-| Organisation (tenant) | Asgardeo sub-organisation, mirrored in CoreGrid | It is a security boundary; isolation must be asserted by the identity provider and carried in the token. |
-| User identity and credentials | Asgardeo exclusively | Credentials must not enter the application boundary. |
-| Role assignment | Asgardeo, mirrored at sign-in | Roles are identity facts that must be consistent across both clients and available at token-validation time. |
+| Organisation (tenant) | ThunderID sub-organisation, mirrored in CoreGrid | It is a security boundary; isolation must be asserted by the identity provider and carried in the token. |
+| User identity and credentials | ThunderID exclusively | Credentials must not enter the application boundary. |
+| Role assignment | ThunderID, mirrored at sign-in | Roles are identity facts that must be consistent across both clients and available at token-validation time. |
 | Department and location | CoreGrid database | Business structure, frequently reconfigured, referenced by business rules and foreign keys. |
 | Department membership of a user | CoreGrid database | It determines data scope and approval routing — a business rule, not an identity fact. |
-| Effective permission for an operation | CoreGrid API policy layer | Depends on domain state (asset status, workflow position, ownership) that Asgardeo does not hold. |
+| Effective permission for an operation | CoreGrid API policy layer | Depends on domain state (asset status, workflow position, ownership) that ThunderID does not hold. |
 
 ## 4.3 Application Registration and Grant Types
 
-| Client | Asgardeo application type | Grant / flow | Token storage |
+| Client | ThunderID application type | Grant / flow | Token storage |
 |---|---|---|---|
 | React SPA | Single-page application (public client) | Authorisation Code with PKCE; refresh token rotation enabled | Access token in memory only; refresh handled by the OIDC SDK. No token in localStorage. |
 | Flutter application | Mobile / native application (public client) | Authorisation Code with PKCE via an external user agent, per RFC 8252; custom scheme redirect | Refresh token in flutter_secure_storage (Android Keystore); access token in memory. |
@@ -63,15 +63,15 @@ Both public clients use PKCE without a client secret, because a secret embedded 
 
 ## 4.4 Token Model and Claim Contract
 
-The API depends on a defined set of claims. This is the contract between Asgardeo configuration and application code; if a claim is renamed in the identity provider, exactly one class in the API changes.
+The API depends on a defined set of claims. This is the contract between ThunderID configuration and application code; if a claim is renamed in the identity provider, exactly one class in the API changes.
 
 | Claim | Purpose in CoreGrid | Handling |
 |---|---|---|
-| `iss` | Issuer. Must exactly match the configured Asgardeo organisation issuer. | Validated on every request. Mismatch rejects with 401. |
+| `iss` | Issuer. Must exactly match the configured ThunderID organisation issuer. | Validated on every request. Mismatch rejects with 401. |
 | `aud` | Audience. Must contain the CoreGrid API identifier. | Validated on every request. |
 | `exp` / `nbf` / `iat` | Token lifetime. | Validated with a clock skew tolerance of no more than 60 seconds. |
 | `sub` | Stable subject identifier of the authenticated user. | Primary key for the local user mirror (`Users.ExternalSubjectId`). Never reassigned. |
-| `org_id` | Identifier of the Asgardeo sub-organisation the user signed into. | Mapped to `Organizations.ExternalOrgId`. Every query in every repository is filtered by the resulting `OrganizationId`. A token without this claim is rejected. |
+| `org_id` | Identifier of the ThunderID sub-organisation the user signed into. | Mapped to `Organizations.ExternalOrgId`. Every query in every repository is filtered by the resulting `OrganizationId`. A token without this claim is rejected. |
 | `org_name` | Human-readable organisation name. | Displayed in the client header; never used for authorisation. |
 | `roles` (or `groups`) | The application roles assigned to the user within that organisation. | Mapped to CoreGrid role constants and projected into `ClaimsPrincipal` role claims for policy evaluation. |
 | `email`, `given_name`, `family_name` | Display identity and notification addressing. | Mirrored to the local user record; treated as personal data under Section 10.8. |
@@ -88,7 +88,7 @@ Validation is configured once in the composition root and applies to every prote
 
 ```
   1  Extract bearer token from the Authorization header.
-  2  Verify RS256 signature against the JWKS published by the Asgardeo
+  2  Verify RS256 signature against the JWKS published by the ThunderID
      organisation issuer (keys cached, refreshed on unknown kid).
   3  Validate issuer, audience, expiry, not-before, and clock skew ≤ 60s.
   4  Require the org_id claim; resolve it to a CoreGrid OrganizationId.
@@ -108,7 +108,7 @@ Step 9 is the control that makes cross-organisation data disclosure a structural
 
 ## 4.6 Role and Permission Model
 
-CoreGrid uses four application roles, defined in Asgardeo and assigned per user per organisation. Authorisation in the API is policy-based rather than role-attribute-based: endpoints declare a required policy, and the policy expresses the permission in domain terms. This keeps the mapping from role to capability in one auditable place and permits a permission to depend on record state where necessary.
+CoreGrid uses four application roles, defined in ThunderID and assigned per user per organisation. Authorisation in the API is policy-based rather than role-attribute-based: endpoints declare a required policy, and the policy expresses the permission in domain terms. This keeps the mapping from role to capability in one auditable place and permits a permission to depend on record state where necessary.
 
 | Permission | Staff | Officer | Auditor | Admin | Agent principal |
 |---|---|---|---|---|---|
@@ -146,9 +146,9 @@ CoreGrid maintains a local `Users` table. It is not a second identity store: it 
 |---|---|
 | First sign-in of a new user | The API creates the mirror record from the token claims on the first authenticated request, assigns the default department if one is configured, and records a `UserProvisioned` audit event. |
 | Subsequent sign-in | Email, display name and roles are refreshed from the token if they differ. A role change is recorded as a `RoleChanged` audit event. |
-| Administrator invites a user | The API calls the Asgardeo SCIM 2.0 endpoint using a confidential service credential to create the user within the correct sub-organisation and assign the requested role; Asgardeo sends the invitation. The mirror record is created immediately in a Pending state. |
+| Administrator invites a user | The API calls the ThunderID SCIM 2.0 endpoint using a confidential service credential to create the user within the correct sub-organisation and assign the requested role; ThunderID sends the invitation. The mirror record is created immediately in a Pending state. |
 | Administrator deactivates a user | The local mirror is marked inactive and the corresponding SCIM record is disabled. Deactivation takes effect at the API on the next request regardless of token validity, because step 5 of Section 4.5 checks local status. |
-| User is deleted in Asgardeo | The mirror record is retained and marked inactive. It is never hard-deleted, because audit and lifecycle history reference it. |
+| User is deleted in ThunderID | The mirror record is retained and marked inactive. It is never hard-deleted, because audit and lifecycle history reference it. |
 | Department assignment | Held only in CoreGrid and changed by an Administrator; never sourced from the identity provider. |
 
 ## 4.8 Session and Token Lifecycle
@@ -157,7 +157,7 @@ CoreGrid maintains a local `Users` table. It is not a second identity store: it 
 - Refresh tokens are rotated on use. A replayed refresh token invalidates the family, which limits the value of a stolen token on a lost device.
 - The React client holds the access token in memory only. It is never written to localStorage or sessionStorage, so a cross-site scripting defect cannot exfiltrate a durable credential.
 - The Flutter client holds the refresh token in platform secure storage backed by the Android Keystore, and never writes tokens to shared preferences or application logs.
-- Sign-out clears local state, revokes the refresh token at Asgardeo and terminates the identity-provider session, so that a subsequent sign-in genuinely re-authenticates.
+- Sign-out clears local state, revokes the refresh token at ThunderID and terminates the identity-provider session, so that a subsequent sign-in genuinely re-authenticates.
 - The API is stateless with respect to sessions. It maintains no server-side session store, which is what allows both clients and any number of API instances to share one identity without affinity.
 - Expiry during an in-flight request produces a single transparent refresh-and-retry in both clients; a second failure returns the user to the sign-in screen with their unsaved input preserved where practical.
 
@@ -175,16 +175,16 @@ CoreGrid maintains a local `Users` table. It is not a second identity store: it 
 | SEC-ID-08 | CORS shall permit only the configured origins of the deployed React application. | Must |
 | SEC-ID-09 | All authentication and authorisation outcomes — success, failure and denial — shall be recorded with subject, organisation, endpoint and timestamp. | Must |
 | SEC-ID-10 | The agent service principal shall be denied every write permission by policy, and this denial shall be covered by an automated authorisation test. | Must |
-| SEC-ID-11 | Multi-factor authentication shall be available for the Administrator role through Asgardeo configuration. | Should |
+| SEC-ID-11 | Multi-factor authentication shall be available for the Administrator role through ThunderID configuration. | Should |
 | SEC-ID-12 | A deactivated local user shall be denied access on their next request even if their token remains within its validity period. | Must |
 
 ## 4.10 Compliance Note and Contingency
 
-The SE3090 specification lists "JWT authentication, role-based authorization, protected endpoints, password hashing and secure configuration" among the backend security requirements. CoreGrid satisfies JWT authentication, role-based authorisation, protected endpoints and secure configuration directly. Password hashing is satisfied by delegation: CoreGrid handles no passwords, and Asgardeo applies its own credential-protection regime. Delegating credential handling to a standards-based identity provider is the stronger engineering position, and it is the position the group will defend at the viva.
+The SE3090 specification lists "JWT authentication, role-based authorization, protected endpoints, password hashing and secure configuration" among the backend security requirements. CoreGrid satisfies JWT authentication, role-based authorisation, protected endpoints and secure configuration directly. Password hashing is satisfied by delegation: CoreGrid handles no passwords, and ThunderID applies its own credential-protection regime. Delegating credential handling to a standards-based identity provider is the stronger engineering position, and it is the position the group will defend at the viva.
 
 Two provisions guard against the risk that this delegation is judged not to evidence the requirement, or that the identity provider is unavailable during evaluation.
 
 - **Evidence provision.** ADR-002 records the decision, the alternatives considered (ASP.NET Core Identity with local credential storage; a custom JWT issuer) and the consequences, including this exact compliance consideration. The group can demonstrate the full token lifecycle end to end during the viva and explain each validation step in Section 4.5.
-- **Contingency provision.** The API defines an `IIdentityDirectory` abstraction and validates tokens through the standard ASP.NET Core JWT bearer pipeline. A fallback local identity module — ASP.NET Core Identity with an appropriately configured password hasher, issuing tokens with the same claim set — can therefore be enabled by configuration without changing any controller, policy, service or client. This fallback is implemented and covered by tests during the stabilisation week, and is used if Asgardeo is unavailable at evaluation time. Any outage will be evidenced to the evaluator as permitted by SE3090 §14.
+- **Contingency provision.** The API defines an `IIdentityDirectory` abstraction and validates tokens through the standard ASP.NET Core JWT bearer pipeline. A fallback local identity module — ASP.NET Core Identity with an appropriately configured password hasher, issuing tokens with the same claim set — can therefore be enabled by configuration without changing any controller, policy, service or client. This fallback is implemented and covered by tests during the stabilisation week, and is used if ThunderID is unavailable at evaluation time. Any outage will be evidenced to the evaluator as permitted by SE3090 §14.
 
 The contingency is not a parallel implementation maintained indefinitely; it is a configuration-selectable authentication handler behind a stable claims contract, and it exists so that a dependency outside the group's control cannot prevent the system from being demonstrated.

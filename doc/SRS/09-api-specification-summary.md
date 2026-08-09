@@ -17,7 +17,7 @@ The complete, authoritative contract is published as Swagger/OpenAPI at the depl
 | `GET, POST, PUT, DELETE /api/asset-types/{id}/attributes` | Manage attribute definitions for a type. | `config:manage` |
 | `GET, PUT /api/policies` | Read and set organisation policy thresholds. | `config:manage` |
 | `GET /api/users` | List users in the organisation. | `user:manage` |
-| `POST /api/users/invite` | Provision a user through Asgardeo SCIM and create the mirror. | `user:manage` |
+| `POST /api/users/invite` | Provision a user through ThunderID SCIM and create the mirror. | `user:manage` |
 | `PUT /api/users/{id}` | Change department or role assignment. | `user:manage` |
 | `POST /api/users/{id}/deactivate` | Deactivate a user locally and in the directory. | `user:manage` |
 

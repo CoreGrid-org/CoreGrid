@@ -22,7 +22,7 @@ The specification defines what CoreGrid must do and the quality attributes it mu
 | Module evaluator / lecturer-in-charge | Verification that the system meets the assignment specification and the marking rubric. | Sections 1.4, 2.8, 3, 7, 16.2, then Section 13 (verification) and Section 14 (deployment). |
 | Test engineer role (shared across owners) | Derivation of test cases and acceptance evidence. | Sections 6, 7, 10, 13 and the FR-to-test traceability table in Section 16.3. |
 | Prospective institutional stakeholder | Understanding of the business problem, scope boundary and roadmap. | Sections 1.4, 2, 2.8, 17. |
-| Security and identity reviewer | Assessment of the Asgardeo-based identity architecture and access controls. | Sections 4, 5.3, 10.2, Appendix B and Appendix D. |
+| Security and identity reviewer | Assessment of the ThunderID-based identity architecture and access controls. | Sections 4, 5.3, 10.2, Appendix B and Appendix D. |
 
 ## 1.4 Product Scope
 
@@ -42,7 +42,7 @@ The initial release configures and demonstrates a single departmental domain end
 |---|---|
 | Agent | A component of the agentic-AI subsystem with an identifiable responsibility, a defined input and output contract, an explicit allow-list of tools it may call, and visible participation in the workflow graph. |
 | Agentic workflow | A stateful, multi-step execution graph that receives a domain objective, produces a plan, delegates steps to distinct agents, calls controlled tools, validates results deterministically and pauses for human approval before a high-impact action. |
-| Asgardeo | WSO2 Asgardeo — the cloud identity-as-a-service provider used by CoreGrid for authentication, user management and organisation modelling. |
+| ThunderID | ThunderID — the cloud identity-as-a-service provider used by CoreGrid for authentication, user management and organisation modelling. |
 | Asset | A uniquely identified physical item under lifecycle management, owned by a department and located at a location. |
 | Asset type | A configurable classification (for example Bus, MRI Machine, Locomotive) that determines which custom attributes an asset of that type must carry. |
 | Attribute definition | A configurable field declaration attached to an asset type, specifying name, data type, required flag, validation rule and display order. |
@@ -52,15 +52,15 @@ The initial release configures and demonstrates a single departmental domain end
 | Discrepancy | A recorded difference between the register and physical reality: missing, surplus, location mismatch, condition mismatch or data mismatch. |
 | Golden case | A fixed, versioned test scenario with a known-correct expected outcome, used to evaluate the agentic workflow deterministically. |
 | HITL | Human-in-the-loop: the mandatory pause point at which an authorised user approves, rejects or requests revision of an agent recommendation. |
-| IdP | Identity provider. In CoreGrid this is Asgardeo. |
+| IdP | Identity provider. In CoreGrid this is ThunderID. |
 | JWKS | JSON Web Key Set — the public keys published by the IdP and used by the API to verify token signatures. |
 | LangGraph | The Python framework used to express the agentic workflow as an explicit directed graph with persisted state and interrupt points. |
-| Organisation | The top-level tenant of a CoreGrid deployment. Modelled in Asgardeo as an organisation and mirrored locally; every user, department and asset belongs to exactly one organisation. |
+| Organisation | The top-level tenant of a CoreGrid deployment. Modelled in ThunderID as an organisation and mirrored locally; every user, department and asset belongs to exactly one organisation. |
 | PKCE | Proof Key for Code Exchange — the OAuth 2.0 extension required for public clients (the React SPA and the Flutter application). |
 | Residual value | The current book value of an asset after depreciation, used as one input to the repair-versus-replace decision. |
 | Safe failure | A terminal workflow state in which the agentic subsystem has failed but has recorded the failure, changed no business state, and surfaced the cause to the operator. |
-| SCIM 2.0 | System for Cross-domain Identity Management — the standard REST interface used to read and provision users in Asgardeo. |
-| Sub-organisation | An Asgardeo organisation nested beneath the root organisation, used by CoreGrid to isolate the users of one tenant institution. |
+| SCIM 2.0 | System for Cross-domain Identity Management — the standard REST interface used to read and provision users in ThunderID. |
+| Sub-organisation | An ThunderID organisation nested beneath the root organisation, used by CoreGrid to isolate the users of one tenant institution. |
 | Tool | A named, schema-validated function an agent is permitted to invoke. Tools are the only mechanism by which an agent may read or compute over system data. |
 | Workflow state | The durable record of a workflow run: identifier, objective, plan, completed steps, tool results, validation results, errors, approval status and final outcome. |
 
@@ -76,7 +76,7 @@ The initial release configures and demonstrates a single departmental domain end
 | R6 | ISO/IEC/IEEE 29148:2018 — Systems and software engineering: life-cycle processes, requirements engineering. |
 | R7 | IEEE Std 830-1998 — Recommended Practice for Software Requirements Specifications (structural guidance). |
 | R8 | OpenID Connect Core 1.0 and OAuth 2.0 (RFC 6749), OAuth 2.0 for Native Apps (RFC 8252), PKCE (RFC 7636), JSON Web Token (RFC 7519). |
-| R9 | WSO2 Asgardeo product documentation — organisations, application onboarding, roles and SCIM 2.0 user management. |
+| R9 | ThunderID product documentation — organisations, application onboarding, roles and SCIM 2.0 user management. |
 | R10 | OWASP Application Security Verification Standard and OWASP Top 10 for Large Language Model Applications. |
 | R11 | Personal Data Protection Act No. 9 of 2022 (Sri Lanka) — obligations relevant to the processing of user personal data. |
 | R12 | Perkins, Furze, Roe & MacVaugh (2024) — The AI Assessment Scale and the CLEAR Framework, as applied by the SE3090 module. |
