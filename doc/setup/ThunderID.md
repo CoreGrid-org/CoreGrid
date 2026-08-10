@@ -2,7 +2,7 @@
 
 CoreGrid delegates authentication and identity storage to [ThunderID](https://github.com/thunder-id), an external OIDC provider. This document explains how the integration actually works, then walks through setting it up from scratch.
 
-> **Deployment model:** CoreGrid is **self-hosted, one full stack per government department** — each department runs its own CoreGrid frontend/backend, its own Postgres, and its own ThunderID instance (the same `docker-compose.yml` bundle this guide sets up). It is not a shared multi-tenant SaaS platform serving multiple departments from one deployment. SRS §4.2 and ADR-002 have been updated to reflect this; see below for what that means for ThunderID specifically.
+> **Deployment model:** CoreGrid's M0 is **self-hosted, one full stack per customer organisation** — each customer runs its own CoreGrid frontend/backend, its own Postgres, and its own ThunderID instance (the same `docker-compose.yml` bundle this guide sets up). It is not a shared multi-tenant SaaS platform serving multiple customers from one deployment — that's M1, a later stage of the product roadmap (SRS §17). SRS §4.2 and ADR-002 describe M0; see below for what that means for ThunderID specifically.
 
 ## How It Works
 
@@ -11,11 +11,11 @@ ThunderID is used for exactly two things:
 1. **Signing users in.** The React frontend redirects to ThunderID's own hosted login (authorization code + PKCE), and gets back a JWT access token. The backend validates that token on incoming API requests — it never sees a password.
 2. **Creating accounts.** When CoreGrid needs to create a new ThunderID account (currently: only the first Administrator, via the Setup wizard), the backend calls ThunderID's management API directly, authenticating as its own registered application (`client_credentials`) rather than as any user.
 
-### One Department, One Deployment, One ThunderID Organisation Unit
+### One Customer, One Deployment, One ThunderID Organisation Unit
 
-Because each department gets its own dedicated deployment, there is nothing for ThunderID to isolate — every user who ever signs into a given deployment belongs to that same one department. ThunderID is therefore run with a single organisation unit per deployment, and every user is created inside it. This isn't CoreGrid's database doing the isolation work instead of ThunderID (a design compensating for a missing per-tenant boundary) — there's simply only ever one tenant per deployment, so no boundary is needed in the first place.
+Because each customer gets its own dedicated deployment in M0, there is nothing for ThunderID to isolate — every user who ever signs into a given deployment belongs to that same one customer. ThunderID is therefore run with a single organisation unit per deployment, and every user is created inside it. This isn't CoreGrid's database doing the isolation work instead of ThunderID (a design compensating for a missing per-tenant boundary) — there's simply only ever one tenant per deployment, so no boundary is needed in the first place.
 
-CoreGrid's own `Organizations` table still exists — Setup creates exactly one row per deployment and refuses to create a second (`backend/Features/Setup/SetupController.cs`) — but it represents *this deployment's* department, not a list of separate customers sharing infrastructure. `User.OrganizationId` and the EF Core global query filter that reads it remain in place as good practice, not as the thing standing between two different governments' data.
+CoreGrid's own `Organizations` table still exists — Setup creates exactly one row per deployment and refuses to create a second (`backend/Features/Setup/SetupController.cs`) — but it represents *this deployment's* customer, not a list of separate customers sharing infrastructure. `User.OrganizationId` and the EF Core global query filter that reads it remain in place as good practice, not as the thing standing between two different customers' data — and it's exactly what M1 (SRS §17) repurposes to isolate many customers in one shared deployment instead.
 
 ```mermaid
 flowchart LR
@@ -74,9 +74,9 @@ sequenceDiagram
     FE->>API: POST /api/setup/complete<br/>(org name, admin email/name/password)
     API->>PG: Any Organizations? (still none — proceed)
     API->>TID: ProvisionAdministratorAsync(...)
-    TID->>IDP: POST /oauth2/token<br/>(client_credentials, ScimClientId/Secret,<br/>scope=user-management, resource=...)
+    TID->>IDP: POST /oauth2/token<br/>(client_credentials, ScimClientId/Secret,<br/>scope=system, resource=https://localhost:8090/mcp)
     IDP-->>TID: access token
-    TID->>IDP: POST /users (ouId, type=CoreGridUser, attributes)
+    TID->>IDP: POST /users (ouId, type="CoreGridUser" name, attributes)
     IDP-->>TID: ThunderID user id
     TID->>IDP: POST /roles/{AdministratorRoleId}/assignments/add
     IDP-->>TID: 204 No Content
@@ -145,7 +145,7 @@ Attributes:
 
 Don't reuse the console's built-in `Person` type — `Person` accounts can't be added to an application's Allowed User Types and never pick up app roles.
 
-**Note down the User Type's ID** (shown in the console alongside its name) — this is `ThunderID:UserType` below.
+**`ThunderID:UserType` is the literal name `CoreGridUser`, not its ID.** Confirmed against a live `POST /users` call: ThunderID's user-creation API takes the type's name in the `type` field, not its console-assigned UUID (passing the ID fails with `USR-1021: user_type_not_found`, even though the ID is valid — it's simply the wrong field). This matches every other ThunderID-backed project's client code that creates users this way.
 
 ### Note the Organisation Unit ID
 
@@ -175,7 +175,7 @@ These are plain business roles CoreGrid's own policy layer reads from the `roles
 - Redirect URI: `http://localhost:5173`
 - **Post-logout redirect URI**: also `http://localhost:5173` — a separate whitelist from the sign-in redirect URI. If missing, `/oauth2/logout` rejects the request with `invalid post_logout_redirect_uri` and `signOut()` fails to return the user to the app.
 - **Allowed User Types** (under Access): add `CoreGridUser`. Easy to miss — without it, no attributes or roles land in tokens for anyone signing in, regardless of anything else configured. This is also why the built-in console admin (`Person` type) can't be used to test sign-in.
-- **Token Attributes and Response** → Access Token: add `email`, `given_name`, `family_name`, `roles`. (Not `org_id`/`org_name` — there's only ever one department per deployment, so there's no organisation concept to put in them; see "One Department, One Deployment" above.)
+- **Token Attributes and Response** → Access Token: add `email`, `given_name`, `family_name`, `roles`. (Not `org_id`/`org_name` — there's only ever one customer per deployment, so there's no organisation concept to put in them; see "One Customer, One Deployment" above.)
 - **Available Scopes**: activate `roles`, alongside the default `openid`/`profile`/`email`.
 - **Flows**: assign the default authentication flow.
 
@@ -202,15 +202,13 @@ The confidential credential the API uses to create/manage ThunderID accounts ([S
 - Grant Type: `client_credentials`
 - **Token Endpoint Auth Method: `client_secret_post`** — must actually be saved as this, not just selected during creation. The backend sends `client_id`/`client_secret` as form fields, not HTTP Basic Auth. Left on `client_secret_basic`, every request fails with `unauthorized_client: Client is not allowed to use the specified authentication method` even with correct credentials. Double-check this value after saving.
 - Note down the Client ID and Client Secret.
-- **Available Scopes**: add a `user-management` custom scope, activate it.
+- **Available Scopes**: add `system` as a custom scope, activate it.
 
-### Register the CoreGrid API as a Protected Resource
+### The Resource: ThunderID's Built-In `System` Resource Server
 
-[Appendix C](../SRS/appendix-c-thunderid-configuration-checklist.md) item 5 calls for this, and it's not optional: `client_credentials` token requests fail with `invalid_target: No resource parameter supplied and no default resource server is configured` without it.
+[Appendix C](../SRS/appendix-c-thunderid-configuration-checklist.md) item 5 calls for a `resource` value, and it's not optional: `client_credentials` token requests fail with `invalid_target: No resource parameter supplied and no default resource server is configured` without it.
 
-Go to **Resource Servers** in the console and find (or create) the resource server that the `user-management` scope from step 7 belongs to — **not** any unrelated built-in resource server the instance ships with (e.g. one for MCP tooling). Note its **Identifier** — this is `ThunderID:Resource`, sent as the `resource` form field on every `client_credentials` request `ThunderIdIdentityDirectory` makes.
-
-> **Open item:** the exact console path for this — whether `user-management` already belongs to a resource server by default, or needs one created for it — hasn't been fully walked end-to-end yet. If `user-management` isn't listed under any existing resource server, it likely needs one created for it explicitly.
+**Use ThunderID's built-in `System` resource server — do not create a new one for this.** Go to **Resource Servers**, open the built-in `System` resource server, and note its **Identifier** (`https://<host>/mcp` by default, e.g. `https://localhost:8090/mcp` for local development) — this is `ThunderID:Resource`. It's named after MCP tooling, but it's the resource server the built-in `Administrator` role's `system` permission is actually bound to (confirmed by inspecting ThunderID's own bootstrap data and database), so it's also what any `client_credentials` caller needs as its `resource` to pick up that permission. Creating a separate custom resource server and granting it its own permissions is unnecessary extra work — the built-in role and this built-in resource server already do the job together.
 
 ### Assign ThunderID's Built-In Administrator Role to the Backend Application
 
@@ -228,9 +226,9 @@ The LangGraph agent service is not a ThunderID application. [SRS §4.3](../SRS/0
 
 ```dotenv
 ThunderID__Issuer=https://localhost:8090
-ThunderID__Resource=<Resource Server Identifier from step 8>
+ThunderID__Resource=https://localhost:8090/mcp
 ThunderID__OuId=<Organisation Unit ID from step 3>
-ThunderID__UserType=<CoreGridUser type's ID from step 2>
+ThunderID__UserType=CoreGridUser
 ThunderID__RoleIds__Administrator=<CoreGrid's custom Administrator role ID from step 4>
 ThunderID__RoleIds__InventoryOfficer=<InventoryOfficer role ID>
 ThunderID__RoleIds__Auditor=<Auditor role ID>
@@ -260,8 +258,6 @@ VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 
 ## Known Gaps
 
-- **`ThunderID:Resource`** — step 8's console path isn't fully confirmed end-to-end yet. Confirmed so far: it must be an absolute URI (`invalid_target: Invalid resource parameter: must be an absolute URI` if it isn't) — a scope name or bare identifier will not work.
-- **`ThunderID:UserType`** — set to the User Type's ID rather than the literal name `CoreGridUser`, following the pattern every other ThunderID resource in this guide uses (name + separate ID, ID required at the API boundary). Not yet confirmed against a successful `POST /users` call.
 - **Local-identity fallback** (SRS §4.10) isn't built — `IIdentityDirectory` exists as the seam for it, but only `ThunderIdIdentityDirectory` exists today.
 - **Only Administrator provisioning is wired up.** `ThunderIdIdentityDirectory.ProvisionAdministratorAsync` is only called by the Setup wizard. Creating InventoryOfficer/Auditor/Staff accounts (e.g. via an Administrator's invite) isn't built yet.
 
@@ -269,9 +265,10 @@ VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 
 | Symptom | Likely cause |
 |---|---|
-| Setup fails with `invalid_target: No resource parameter supplied and no default resource server is configured` | `ThunderID:Resource` is missing/empty — see step 8 |
-| Setup fails with `invalid_target: Invalid resource parameter: must be an absolute URI` | `ThunderID:Resource` is set to something other than the resource server's Identifier (a scope name, a GUID, etc.) — it must be the absolute-URI Identifier value, see step 8 |
-| `403 Forbidden` calling any management API as the backend app | Backend app hasn't been assigned the built-in ThunderID Administrator role — step 9 |
+| Setup fails with `invalid_target: No resource parameter supplied and no default resource server is configured` | `ThunderID:Resource` is missing/empty — see "The Resource" above |
+| Setup fails with `invalid_target: Invalid resource parameter: must be an absolute URI` | `ThunderID:Resource` is set to something other than the built-in `System` resource server's Identifier (a scope name, a GUID, etc.) — it must be the absolute-URI Identifier value, see "The Resource" above |
+| `403 Forbidden` calling any management API as the backend app | Either the backend app hasn't been assigned the built-in ThunderID Administrator role (see "Assign ThunderID's Built-In Administrator Role"), or the token request used `scope=user-management`/some other scope instead of `scope=system` — only `system` matches the permission that role actually grants |
+| Creating a user fails with `USR-1021: user_type_not_found`, even though the type's ID is correct | `type` in the `POST /users` body (and `ThunderID:UserType`) must be the type's literal name (`CoreGridUser`), not its ID |
 | `roles` claim present but Administrator-only routes/policies still reject the user | CoreGrid's custom Administrator role isn't named exactly `Administrator` (e.g. created as `Admin`) — `CoreGridRole` does an exact string match |
 | Login succeeds but `roles` claim is missing from the token | Allowed User Types isn't set on the frontend application, or the user has no role assignment |
 | Frontend sign-in fails with `invalid_client` | `VITE_THUNDERID_CLIENT_ID` is the application's internal Application ID, not its Client ID |

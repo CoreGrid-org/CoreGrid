@@ -5,45 +5,46 @@
 CoreGrid delegates authentication and user directory management to ThunderID and retains authorisation within the ASP.NET Core API. This is recorded as ADR-002 and is the single most consequential architectural decision in the identity domain, so its reasoning is set out here in full.
 
 - Credential risk is removed rather than mitigated. CoreGrid stores no passwords and no password hashes. The most damaging class of breach for a system of record — credential disclosure — is structurally impossible because the credentials never enter the application boundary.
-- Tenant isolation is honoured by the deployment model itself, not built as a boundary inside a shared system. CoreGrid's platform model requires that one department's data can never be presented to another. Rather than run one shared system for every department and rely on a boundary within it, CoreGrid is deployed once per department (Section 2.4) — its own ASP.NET Core API, its own PostgreSQL database, its own ThunderID instance. There is no cross-tenant boundary to get wrong, because no two departments ever share infrastructure. Section 4.2 sets out what this means for identity specifically.
+- Tenant isolation is honoured by the deployment model itself, not built as a boundary inside a shared system. CoreGrid's M0 platform model requires that one customer organisation's data can never be presented to another. Rather than run one shared system for every customer and rely on a boundary within it, CoreGrid is deployed once per customer organisation (Section 2.4) — its own ASP.NET Core API, its own PostgreSQL database, its own ThunderID instance. There is no cross-tenant boundary to get wrong, because no two customers ever share infrastructure. Section 4.2 sets out what this means for identity specifically, and Section 17 sets out how M1 changes it.
 - Standards, not proprietary integration. Authentication uses OpenID Connect over OAuth 2.0. The API validates tokens against a published JWKS endpoint. Nothing in the API depends on ThunderID-specific behaviour beyond claim names, which are isolated in a single mapping component — so the contingency in Section 4.10 is a small change, not a rewrite.
 - Capabilities that would otherwise consume schedule. Multi-factor authentication, password policy, account recovery, account lockout and session termination are configuration in ThunderID. Building even acceptable versions of these would consume a substantial fraction of a seven-week window and would still be weaker than a managed provider's.
 - Separation of concerns matches the trust model. ThunderID answers "who is this person, and which organisation do they belong to". CoreGrid answers "may this person perform this operation on this record". The second question depends on CoreGrid domain state — department ownership, asset status, workflow position — and therefore cannot be delegated.
 
 ## 4.2 Organisation and User Model
 
-CoreGrid is deployed once per government department (Section 2.4): each department's ThunderID instance, PostgreSQL database and API instance are its own, self-hosted, and never shared with any other department. Within one deployment there is exactly one CoreGrid `Organizations` row — Setup creates it once and refuses to create a second (Section 4.7) — and one ThunderID organisation unit. Every user who ever signs into a given deployment belongs to that one department, so there is nothing for either ThunderID or CoreGrid's database to isolate *between* — isolation between departments is a property of them never sharing a running system, not of a boundary enforced within one.
+In M0, CoreGrid is deployed once per customer organisation (Section 2.4): each customer's ThunderID instance, PostgreSQL database and API instance are its own, self-hosted, and never shared with any other customer. A customer receives the code, deploys their own stack, and runs Setup themselves to create their own `Organizations` row and Administrator account. Within one deployment there is exactly one CoreGrid `Organizations` row — Setup creates it once and refuses to create a second (Section 4.7) — and one ThunderID organisation unit. Every user who ever signs into a given deployment belongs to that one customer, so there is nothing for either ThunderID or CoreGrid's database to isolate *between* — isolation between customers is a property of them never sharing a running system, not of a boundary enforced within one. Section 17 describes M1, where a single shared deployment serves many customer organisations instead.
 
 ```
-   ONE DEPLOYMENT — self-hosted per department: its own API, its own
-   PostgreSQL, its own ThunderID instance, never shared with another department.
+   ONE DEPLOYMENT (M0) — self-hosted per customer organisation: its own
+   API, its own PostgreSQL, its own ThunderID instance, never shared
+   with another customer.
 
-   THUNDERID ORGANISATION UNIT  (single — this department only)
+   THUNDERID ORGANISATION UNIT  (single — this customer only)
    │   application registrations · shared branding
    │
-   └── Users:  a.perera · s.silva · n.fernando · …
+   └── Users:  a.silva · j.fernando · n.perera · …
          Role assignments (Section 4.6): Administrator · InventoryOfficer · Auditor · Staff
 
    COREGRID DATABASE
-   Organizations  (exactly one row — this department)
+   Organizations  (exactly one row — this customer)
         │
         ├──1:N── Departments ──1:N── Locations
         └──1:N── Users   (Users.ExternalSubjectId = ThunderID "sub")
                    │
                    └── UserRoles (effective role snapshot, refreshed at sign-in)
 
-   A second government department ("Provincial Health Services", "Railway
-   Department", …) is a second, independent deployment of this same
+   A second customer organisation ("Acme Logistics Pte Ltd", "Northern
+   Fleet Services", …) is a second, independent deployment of this same
    diagram — not a second Organizations row inside this one.
 ```
 
-Figure 5 — One self-hosted deployment per department; each has exactly one `Organizations` row and one ThunderID organisation unit. A second department means a second deployment, not a second row.
+Figure 5 — One self-hosted deployment per customer organisation (M0); each has exactly one `Organizations` row and one ThunderID organisation unit. A second customer means a second deployment, not a second row.
 
-Departments (the business unit — owns assets, holds budgets, appears in transfer and approval rules) are deliberately not modelled as organisation structure inside ThunderID; they change far more often than a deployment's single tenant does, and keeping them as CoreGrid data lets an Administrator reconfigure them without any identity-provider operation. `Organizations` itself is not a mechanism for separating this department's data from another's — no other department's data is ever in this database. It exists so the schema has a stable root for the global query filter (Section 4.5, step 9), and so a department could model internal sub-units under it later if it ever wanted to.
+Departments (the business unit — owns assets, holds budgets, appears in transfer and approval rules) are deliberately not modelled as organisation structure inside ThunderID; they change far more often than a deployment's single tenant does, and keeping them as CoreGrid data lets an Administrator reconfigure them without any identity-provider operation. `Organizations` itself is not a mechanism for separating this customer's data from another's — no other customer's data is ever in this database. It exists so the schema has a stable root for the global query filter (Section 4.5, step 9), and so a customer could model internal sub-units under it later if it ever wanted to — the same root that lets M1 (Section 17) hold many customers' rows side by side without changing this filter at all.
 
 | Concept | Owned by | Reason |
 |---|---|---|
-| Organisation (this deployment's department) | CoreGrid database exclusively | Retained as the schema's root and the query filter's scope (Section 4.5); not a boundary between different tenants, since one deployment never holds more than one. |
+| Organisation (this deployment's customer) | CoreGrid database exclusively | Retained as the schema's root and the query filter's scope (Section 4.5); in M0 not a boundary between different tenants, since one deployment never holds more than one — in M1 (Section 17) this same column is what does hold that boundary. |
 | User identity and credentials | ThunderID exclusively | Credentials must not enter the application boundary. |
 | Role assignment | ThunderID, mirrored at sign-in | Roles are identity facts that must be consistent across both clients and available at token-validation time. |
 | Department and location | CoreGrid database | Business structure, frequently reconfigured, referenced by business rules and foreign keys. |

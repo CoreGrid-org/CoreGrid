@@ -5,10 +5,11 @@ namespace CoreGrid.Api.Identity;
 // so the contingency local-identity fallback in §4.10 is a swap of this
 // implementation, not a rewrite of the setup/user-management endpoints.
 //
-// CoreGrid is self-hosted once per department (SRS §2.4, §4.2), and this
-// deployment's ThunderID instance is single-tenant to match: every user is
-// created in the same organisation unit. There is no cross-department
-// isolation to enforce here, because no two departments share a deployment.
+// In M0, CoreGrid is self-hosted once per customer organisation (SRS §2.4,
+// §4.2), and this deployment's ThunderID instance is single-tenant to
+// match: every user is created in the same organisation unit. There is no
+// cross-customer isolation to enforce here, because no two customers share
+// a deployment.
 public interface IIdentityDirectory
 {
     // Creates the ThunderID account for this deployment's first

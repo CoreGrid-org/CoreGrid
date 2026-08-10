@@ -16,7 +16,7 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | Group | SE3090_G<NN>  (to be completed by group leader) |
 | Author | Hasitha Erandika (Group Leader) |
 | Team members | Hasitha Erandika — Component D (Group Leader)<br>Jayashan Guruge — Component A<br>Seneja Ramanayaka — Component B<br>Bhanuka Samarasinghe — Component C |
-| Identity provider | ThunderID (OIDC / OAuth 2.0, organisation-scoped users) |
+| Identity provider | ThunderID (OIDC / OAuth 2.0); organisation scoping is done in CoreGrid's own database, not ThunderID (Section 4.2) |
 | Mandatory stack | ASP.NET Core Web API · PostgreSQL · React (IBM Carbon Design System) · Flutter · Agentic AI (LangGraph) |
 | Status | Approved baseline for implementation |
 
@@ -32,6 +32,7 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | 0.4 | 2026-08-07 | Hasitha Erandika | Identity and access management re-based on ThunderID with organisation-scoped users. | Draft |
 | 1.0 | 2026-08-08 | Hasitha Erandika | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
 | 1.1 | 2026-08-09 | Hasitha Erandika | React client design system mandated as IBM Carbon Design System (ADR-008); backend target environment corrected to .NET 10. | Draft |
+| 1.2 | 2026-08-10 | Hasitha Erandika | Generalised deployment and identity sections from government/ministry-specific language to a generic customer organisation, and documented the product's two-stage delivery plan: M0 (self-hosted, current baseline) and M1 (multi-tenant hosted SaaS, Section 17). Corrected an inaccurate claim that M1 would require per-tenant ThunderID organisations. | Draft |
 
 ### Approval
 

@@ -34,7 +34,7 @@ CoreGrid replaces that fragmented process with a single, role-controlled digital
 - Second, the platform is domain-configurable rather than domain-hardcoded. Asset categories, asset types, the custom attributes each type requires, departments, locations and selected workflow behaviour are configuration, not code. The same deployment therefore serves a transport fleet, a hospital biomedical inventory or a railway rolling-stock register without a new build.
 - Third, intelligence is advisory and auditable. A multi-agent workflow assembles the evidence for a lifecycle decision, produces a structured recommendation and explains the factors behind it — but it never changes business state on its own. Deterministic rules validate the recommendation, and a defined high-impact action pauses until an authorised human approves, rejects or requests revision.
 
-The initial release configures and demonstrates a single departmental domain end to end, while proving through configuration that additional domains require no application code. The commercial extension of the platform — multi-tenant SaaS delivery, enterprise resource-planning integration and sovereign-cloud hosting — is described in the roadmap in Section 17 and is explicitly outside the baseline scope.
+The initial release configures and demonstrates a single departmental domain end to end, while proving through configuration that additional domains require no application code. The product is sold in two stages: M0 is this baseline — self-hosted software a customer deploys and administers as their own organisation; M1 turns the same architecture into a multi-tenant hosted SaaS. Enterprise resource-planning integration and sovereign-cloud hosting are further roadmap items. Both are described in Section 17 and are explicitly outside the baseline scope.
 
 ## 1.5 Definitions, Acronyms and Abbreviations
 
@@ -42,7 +42,7 @@ The initial release configures and demonstrates a single departmental domain end
 |---|---|
 | Agent | A component of the agentic-AI subsystem with an identifiable responsibility, a defined input and output contract, an explicit allow-list of tools it may call, and visible participation in the workflow graph. |
 | Agentic workflow | A stateful, multi-step execution graph that receives a domain objective, produces a plan, delegates steps to distinct agents, calls controlled tools, validates results deterministically and pauses for human approval before a high-impact action. |
-| ThunderID | ThunderID — the identity provider used by CoreGrid for authentication and user management, self-hosted as part of each department's own deployment (Section 2.4). |
+| ThunderID | ThunderID — the identity provider used by CoreGrid for authentication and user management, self-hosted as part of each customer organisation's own deployment (M0, Section 2.4). |
 | Asset | A uniquely identified physical item under lifecycle management, owned by a department and located at a location. |
 | Asset type | A configurable classification (for example Bus, MRI Machine, Locomotive) that determines which custom attributes an asset of that type must carry. |
 | Attribute definition | A configurable field declaration attached to an asset type, specifying name, data type, required flag, validation rule and display order. |
@@ -55,7 +55,7 @@ The initial release configures and demonstrates a single departmental domain end
 | IdP | Identity provider. In CoreGrid this is ThunderID. |
 | JWKS | JSON Web Key Set — the public keys published by the IdP and used by the API to verify token signatures. |
 | LangGraph | The Python framework used to express the agentic workflow as an explicit directed graph with persisted state and interrupt points. |
-| Organisation | The department a self-hosted CoreGrid deployment serves (Section 4.2). Held only in CoreGrid's own database — one deployment has exactly one; every user, department and asset within it belongs to it. |
+| Organisation | The customer a CoreGrid deployment serves (Section 4.2). Held only in CoreGrid's own database — in M0 one deployment has exactly one; every user, department and asset within it belongs to it. |
 | PKCE | Proof Key for Code Exchange — the OAuth 2.0 extension required for public clients (the React SPA and the Flutter application). |
 | Residual value | The current book value of an asset after depreciation, used as one input to the repair-versus-replace decision. |
 | Safe failure | A terminal workflow state in which the agentic subsystem has failed but has recorded the failure, changed no business state, and surfaced the cause to the operator. |
@@ -68,7 +68,7 @@ The initial release configures and demonstrates a single departmental domain end
 | Ref | Source |
 |---|---|
 | R1 | SE3090 — Software Engineering Frameworks, Assignment 1 Specification, Year 3 Semester 1, 2026. SLIIT Faculty of Computing, Department of Software Engineering. |
-| R2 | CoreGrid Strategic Architecture and Feasibility Report — Intelligent Public Sector Asset Lifecycle Management System (internal project document). |
+| R2 | CoreGrid Strategic Architecture and Feasibility Report — Intelligent Asset Lifecycle Management System (internal project document). |
 | R3 | CoreGrid Delivery Plan — seven-week implementation plus one-week stabilisation schedule (internal project document). |
 | R4 | CoreGrid Application Boundary Analysis — React management layer versus Flutter field layer (internal project document). |
 | R5 | CoreGrid Platform Configurability Analysis — configurable asset types, attributes and workflows (internal project document). |
@@ -77,5 +77,5 @@ The initial release configures and demonstrates a single departmental domain end
 | R8 | OpenID Connect Core 1.0 and OAuth 2.0 (RFC 6749), OAuth 2.0 for Native Apps (RFC 8252), PKCE (RFC 7636), JSON Web Token (RFC 7519). |
 | R9 | ThunderID product documentation — organisations, application onboarding, roles and SCIM 2.0 user management. |
 | R10 | OWASP Application Security Verification Standard and OWASP Top 10 for Large Language Model Applications. |
-| R11 | Personal Data Protection Act No. 9 of 2022 (Sri Lanka) — obligations relevant to the processing of user personal data. |
+| R11 | Personal Data Protection Act No. 9 of 2022 (Sri Lanka) — the data-protection law applicable to the current baseline/demonstration deployment's jurisdiction; a deployment for a different customer complies with whatever law applies in its own jurisdiction under the same architecture. |
 | R12 | Perkins, Furze, Roe & MacVaugh (2024) — The AI Assessment Scale and the CLEAR Framework, as applied by the SE3090 module. |

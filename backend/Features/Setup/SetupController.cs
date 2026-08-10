@@ -28,8 +28,10 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
     {
         // Setup is a one-time operation — once any organisation exists, this
         // endpoint refuses to create another one. This is deliberate, not a
-        // missing feature: CoreGrid is self-hosted once per department (SRS
-        // §2.4, §4.2), so a given deployment only ever has one Organization.
+        // missing feature: in M0, CoreGrid is self-hosted once per customer
+        // organisation (SRS §2.4, §4.2), so a given deployment only ever has
+        // one Organization. M1 (SRS §17) lifts this restriction in favour of
+        // self-service signup — this check is the one line that changes.
         if (await db.Organizations.AnyAsync(cancellationToken))
         {
             return Conflict("This CoreGrid instance is already set up.");
@@ -37,7 +39,7 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
 
         // Creates the admin's ThunderID account (SRS §4.7). This deployment's
         // ThunderID instance is single-tenant too — the Organization row
-        // below is CoreGrid's own record of this deployment's department,
+        // below is CoreGrid's own record of this deployment's customer,
         // with no ThunderID-side counterpart.
         var externalSubjectId = await identityDirectory.ProvisionAdministratorAsync(
             request.Admin.Email,

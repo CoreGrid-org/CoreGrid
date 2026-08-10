@@ -222,7 +222,7 @@ export default function Setup() {
             <TextInput
               id="setup-org-name"
               labelText="Organisation Name"
-              helperText="The tenant institution this deployment serves, e.g. “Ministry of Transport”."
+              helperText="The organisation this deployment serves, e.g. “Acme Logistics Pte Ltd”."
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               onBlur={() => markTouched("orgName")}

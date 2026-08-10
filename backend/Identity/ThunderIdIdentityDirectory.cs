@@ -48,7 +48,7 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
                 ["grant_type"] = "client_credentials",
                 ["client_id"] = clientId,
                 ["client_secret"] = clientSecret,
-                ["scope"] = "user-management",
+                ["scope"] = "system",
                 ["resource"] = resource,
             }),
         };

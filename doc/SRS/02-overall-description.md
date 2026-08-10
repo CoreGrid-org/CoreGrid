@@ -4,15 +4,15 @@
 
 CoreGrid is a new, self-contained product rather than a replacement component within an existing system. It comprises five cooperating parts: an ASP.NET Core Web API that is the sole authoritative application layer; a PostgreSQL relational database; a React single-page application used as the management and control centre; a Flutter mobile application used for field operations; and a Python LangGraph service that executes the agentic workflow as an internal, non-public service.
 
-Two external services sit outside the product boundary but are essential to it. ThunderID provides identity: it authenticates every human user, holds the organisation and user directory, and issues the OpenID Connect tokens that the API validates. A transactional email provider delivers notifications triggered by business events. Both are reached over HTTPS, and the email provider is reached exclusively through the backend so that credentials never leave the server boundary.
+Two external services sit outside the product boundary but are essential to it. ThunderID provides identity: it authenticates every human user, holds the user directory, and issues the OpenID Connect tokens that the API validates. A transactional email provider delivers notifications triggered by business events. Both are reached over HTTPS, and the email provider is reached exclusively through the backend so that credentials never leave the server boundary.
 
 The architectural invariant of the product — the constraint from which most other design decisions follow — is that both client applications communicate only with the ASP.NET Core Web API, and that the agentic-AI service is reachable only from that API on a private network path. No client holds a database connection string, an AI service address or a third-party API key. This is what allows a single, consistent set of business rules, authorisation checks and audit records to apply regardless of which client initiated an action.
 
 ```
                           ┌──────────────────────────────┐
                           │      THUNDERID  (external)   │
-                          │  Organisations · Users ·     │
-                          │  Roles · OIDC tokens · SCIM  │
+                          │  Users · Roles · OIDC        │
+                          │  tokens · SCIM                │
                           └───────┬──────────────┬───────┘
             OIDC auth-code + PKCE │              │ JWKS / SCIM 2.0
         ┌─────────────────────────┘              └──────────────┐
@@ -84,7 +84,7 @@ A fifth, non-human actor is recognised for authorisation purposes: the Agent Ser
 | React web application | Modern evergreen browsers (Chrome, Edge, Firefox, Safari — current and previous major version). Built with Vite and served as static assets from a hosting platform configured to call the deployed API. |
 | Flutter mobile application | Android 8.0 (API 26) and above; release APK produced for evaluation. Requires camera permission for QR scanning and photo capture, and network connectivity for all business operations. |
 | LangGraph agent service | Python 3.11 or later, containerised, reachable only from the API over a private network path or a shared-secret-authenticated internal endpoint; no public ingress. |
-| Identity provider | ThunderID, self-hosted alongside the API and database as part of each department's own deployment (one ThunderID instance per deployment, single organisation unit — Section 4.2). |
+| Identity provider | ThunderID, self-hosted alongside the API and database as part of each customer organisation's own deployment (M0: one ThunderID instance per deployment, single organisation unit — Section 4.2). |
 | Email provider | Transactional email API on a free tier, invoked only from the backend, with credentials held in server-side configuration. |
 
 ## 2.5 Design and Implementation Constraints
@@ -152,7 +152,7 @@ The agentic-AI subsystem provides decision support and workflow orchestration. I
 | Excluded capability | Rationale |
 |---|---|
 | Autonomous execution of high-impact actions by the AI | Contradicts the human-approval control that is central to the system's trustworthiness and to the assignment's acceptance criteria. |
-| Shared multi-tenant SaaS delivery and billing | CoreGrid's deployment model is one self-hosted instance per department (Section 2.4), not a shared platform serving multiple departments from one system — there is no cross-tenant boundary to bill or manage. A shared-SaaS model is a hypothetical future pivot, not a planned one; it would require reintroducing per-department identity-provider organisations (Section 4.2) that the current design deliberately does not have. |
+| Shared multi-tenant SaaS delivery and billing | This is M1 of the product's planned two-stage delivery (Section 17), not the M0 baseline this SRS specifies. CoreGrid's M0 deployment model is one self-hosted instance per customer organisation (Section 2.4) — there is no cross-tenant boundary to bill or manage yet because `Organizations` is currently restricted to one row per deployment and there is no self-service signup or billing flow. Unlike an earlier assumption, M1 does *not* require reintroducing per-tenant identity-provider organisations: ThunderID has no organisation construct in either stage (Section 4.2), and the existing `OrganizationId` global query filter (Section 4.5) already isolates any number of tenants — M1 only needs the row-count restriction lifted and a signup/billing layer added. |
 | Integration with enterprise resource-planning or national financial systems | Requires credentials, contracts and interface specifications that cannot be obtained within the delivery window; introduces unbounded schedule risk. |
 | Trained predictive machine-learning models for failure forecasting | The Maintenance Analysis Agent derives its projections from recorded history using deterministic statistics; model training and validation is a separate research effort. |
 | Computer-vision assessment of damage from captured photographs | Photographs are stored as evidence only. Automated condition inference is a roadmap item. |
