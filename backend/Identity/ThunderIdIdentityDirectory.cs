@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Identity;
 
@@ -15,20 +16,21 @@ namespace CoreGrid.Api.Identity;
 // password, no username).
 public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration configuration) : IIdentityDirectory
 {
-    public async Task<string> ProvisionAdministratorAsync(
+    public async Task<string> ProvisionUserAsync(
         string email,
         string givenName,
         string familyName,
         string password,
+        CoreGridRole role,
         CancellationToken cancellationToken)
     {
         var accessToken = await GetAccessTokenAsync(cancellationToken);
         var ouId = RequireConfig("ThunderID:OuId");
         var userType = configuration["ThunderID:UserType"] ?? "CoreGridUser";
-        var administratorRoleId = RequireConfig("ThunderID:RoleIds:Administrator");
+        var roleId = RequireConfig($"ThunderID:RoleIds:{role}");
 
         var userId = await CreateUserAsync(accessToken, ouId, userType, email, givenName, familyName, password, cancellationToken);
-        await AssignRoleAsync(accessToken, administratorRoleId, userId, cancellationToken);
+        await AssignRoleAsync(accessToken, roleId, userId, cancellationToken);
 
         return userId;
     }

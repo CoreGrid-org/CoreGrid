@@ -76,14 +76,14 @@ Schema is managed exclusively by these EF Core migrations (SRS §2.3, C-02) — 
 
 ### Configure ThunderID Credentials
 
-`backend/appsettings.Development.json` already has the local Postgres connection string and the frontend's CORS origin filled in — nothing to do there. The backend doesn't validate ThunderID tokens or call ThunderID's management API yet (that wiring is still to be built), but when it is, it'll read these from the environment rather than a committed file, matching SRS §14.2's naming:
+`backend/appsettings.Development.json` already has the local Postgres connection string, the frontend's CORS origin, and every non-secret ThunderID value filled in (`Issuer`, `Resource`, `OuId`, `UserType`, `RoleIds`, `ScimClientId`) — nothing to fill in there yourself unless you set up a fresh ThunderID instance. The one secret, `ScimClientSecret`, is never committed — set it with `dotnet user-secrets`, matching SRS §14.2's naming:
 
 ```bash
-export ThunderID__Issuer=https://localhost:8090
-export ThunderID__Audience=<see doc/setup/ThunderID.md>
-export ThunderID__ScimClientId=<Backend Service Client ID from doc/setup/ThunderID.md>
-export ThunderID__ScimClientSecret=<Backend Service Client Secret from doc/setup/ThunderID.md>
+cd backend
+dotnet user-secrets set "ThunderID:ScimClientSecret" "<Backend Service Client Secret from doc/setup/ThunderID.md>"
 ```
+
+See [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md) for what each of these values is and where it comes from in the console — including the `username` attribute `CoreGridUser` needs for sign-in to resolve at all, a common first-time gotcha.
 
 ### Start the Backend
 
@@ -100,10 +100,10 @@ The backend runs on `http://localhost:5083`. Swagger UI is available at `http://
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local
+cp .env.example .env
 ```
 
-Fill in `.env.local` with the values from your ThunderID frontend application (see [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md)) — `VITE_API_URL` is already correct as-is for a default local backend:
+Fill in `.env` with the values from your ThunderID frontend application (see [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md)) — `VITE_API_URL` is already correct as-is for a default local backend:
 
 ```env
 VITE_API_URL=http://localhost:5083/api
@@ -114,7 +114,7 @@ VITE_THUNDERID_AFTER_SIGN_IN_URL=http://localhost:5173
 VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 ```
 
-These are read by `ThunderIDProvider` in `frontend/src/main.tsx`.
+These are read by `ThunderIDProvider` in `frontend/src/main.tsx`. `.env` is gitignored, same as `.env.local` would be — either name works with Vite, but `.env` is what the rest of the team actually uses, so stick with it for consistency.
 
 Start the frontend:
 
@@ -142,8 +142,64 @@ The frontend runs on `http://localhost:5173`.
 
 1. Go to `http://localhost:5173`.
 2. On a fresh database, you'll be redirected through sign-in straight to `/setup` — `GET /api/setup/status` genuinely checks whether any organisation exists yet.
-3. Fill in the admin account and organisation details and submit. **This will currently fail with an error, and that's expected**: the endpoint creates the local `Organizations`/`Users` rows, but the ThunderID-provisioning step it depends on (`Identity/ThunderIdIdentityDirectory.cs`) isn't implemented yet — see the note at the top of [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md). That's the next piece to build.
-4. Once that's wired up, completing setup signs you in and lands you on the dashboard at `/`.
+3. Fill in the admin account and organisation details and submit. This provisions a real ThunderID account (`Identity/ThunderIdIdentityDirectory.cs`) and creates the matching `Organizations`/`Users` rows locally.
+4. Sign in with that account. `/` resolves your role from the `roles` claim and sends you to the matching dashboard — an Administrator lands on `/admin`. Other roles aren't provisionable through the UI yet (see [`doc/PROGRESS.md`](./doc/PROGRESS.md)), so `/admin` is the only one worth exercising today.
+5. From `/admin` → **Users & Roles**, an Administrator can invite further users by email and role (FR-013) — everything else on the Admin Dashboard is a mock/placeholder page; see [Project Structure](#project-structure) below for which parts are real.
+
+---
+
+## Project Structure
+
+### Backend (`backend/`)
+
+Feature-folder layout, one folder per business capability:
+
+```
+backend/
+  Domain/                    Entities and enums (User, Organization, CoreGridRole) — no behaviour
+  Data/                      CoreGridDbContext, EF Core model configuration
+  Identity/                  IIdentityDirectory + ThunderIdIdentityDirectory (the ThunderID management-API client)
+  Features/
+    Setup/                   SetupController + SetupModels — the one unauthenticated write path
+    Users/                   UsersController + UsersModels — Administrator-only user administration
+  Migrations/                EF Core migrations — the schema source of truth (SRS §2.3, C-02)
+  db/                        Generated, readable SQL exports of the migrations — see db/README.md; never hand-edited
+```
+
+A new business component (Assets, Maintenance, Transfers, Disposals, Audit) gets its own `Features/<Name>/` folder with a `<Name>Controller.cs` and a `<Name>Models.cs`, following `Features/Users/` as the template. Add its entities to `Domain/`, register them as `DbSet`s in `CoreGridDbContext`, then run a migration (below).
+
+### Frontend (`frontend/src/`)
+
+```
+frontend/src/
+  app/App.tsx                The route table — the composition root
+  features/
+    auth/                    Sign-in, role routing/guards, the CoreGridRole type
+      components/  hooks/  lib/  pages/  services/
+    setup/                   First-run organisation + admin setup
+    dashboard/                Post-login landing + per-role dashboards
+    users/                   Real Users & Roles feature (list + invite)
+  shared/                     Cross-feature reusable pieces
+    components/  hooks/  lib/  pages/
+  styles/index.scss           Carbon overrides + CoreGrid's own BEM-ish classes (cg-*)
+  main.tsx                    Vite entry point — ThunderIDProvider + BrowserRouter
+```
+
+A new feature gets its own `features/<name>/` folder with the same internal shape (`components/`, `hooks/`, `pages/`, `services/`) as `features/users/` — copy that one as the template.
+
+**Import convention:** the `@/` alias (configured in `tsconfig.app.json` and `vite.config.ts`) maps to `frontend/src/`. Use relative imports (`../hooks/useX`) for anything inside the same feature folder; use the `@/` alias (`@/shared/...`, `@/features/auth/...`) whenever you're crossing into another feature or into `shared/` — it keeps cross-boundary dependencies visible at a glance instead of buried in `../../../` chains.
+
+---
+
+## Code Comments
+
+Default to **no comments** — a well-named function, variable and file already say what the code does. Add one only when it captures something the code can't say for itself:
+
+- a non-obvious **why** (a constraint from ThunderID, an SRS requirement, a workaround for a specific bug)
+- a hidden **invariant** a future change could silently break
+- something genuinely surprising about the behaviour
+
+Don't write a comment that just restates what the next line does, and don't reference the current ticket, PR, or "fix" in a comment — that belongs in the commit message and goes stale the moment the code moves on. If you're tempted to explain *what* a block does, that's usually a sign it should be a better-named function instead.
 
 ---
 
@@ -162,12 +218,23 @@ The frontend runs on `http://localhost:5173`.
 1. Add or update a controller under `backend/Features/`.
 2. That's it — Swagger picks up new routes automatically from the controller, no separate generation step.
 
+### Before You Push
+
+All of these should pass before you open or update a PR — none of them are optional:
+
+1. `dotnet build` from `backend/` — zero warnings, zero errors.
+2. `npx tsc -b --force` from `frontend/` — zero errors.
+3. `npm run build` from `frontend/` — the production build has to actually succeed, not just type-check.
+4. **Exercise the change in a real browser** against a running backend + ThunderID. A green build proves the code compiles, not that the feature works — click through the actual flow you changed.
+5. If your change completes or advances an item in [`doc/PROGRESS.md`](./doc/PROGRESS.md), tick it in the same PR.
+6. Reference the requirement ID (e.g. `FR-013`) your change implements in the commit message or PR description, per [SRS §12.1](./doc/SRS/12-individual-contribution-and-work-allocation.md#121-contribution-evidence-requirements) — that's what lets a requirement be traced to code, tests and a reviewer.
+
 ### Branch and PR conventions
 
-- Create a feature branch from `development`: `feature/your-feature-name`.
+- Create a feature branch from `development`, named for your component: `feature/<component>-<short-description>` (e.g. `feature/assets-qr-generation`).
 - All PRs target the `development` branch.
-- Make sure `dotnet build` (from `backend/`) and `npx tsc -b` (from `frontend/`) both pass before submitting.
 - Use the PR template ([`.github/pull_request_template.md`](./.github/pull_request_template.md)) — it's applied automatically when you open a PR on GitHub.
+- Every PR needs at least one review from another member before merge (SRS §12.1) — no self-merging.
 
 ---
 
@@ -175,3 +242,4 @@ The frontend runs on `http://localhost:5173`.
 
 - Open an [issue](https://github.com/CoreGrid-org/CoreGrid/issues)
 - See the full [SRS](./doc/SRS/00-front-matter.md) for the system's requirements and architecture
+- See [`doc/PROGRESS.md`](./doc/PROGRESS.md) for what's actually built versus still planned

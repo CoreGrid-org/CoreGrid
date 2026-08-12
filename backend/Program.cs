@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +12,10 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+        // CoreGridRole reads/writes as its member name ("Administrator", not
+        // 3) — matches ThunderID's `roles` claim strings and the frontend's
+        // own CoreGridRole string union (frontend/src/features/auth/lib/roles.ts).
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();

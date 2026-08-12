@@ -41,11 +41,12 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
         // ThunderID instance is single-tenant too — the Organization row
         // below is CoreGrid's own record of this deployment's customer,
         // with no ThunderID-side counterpart.
-        var externalSubjectId = await identityDirectory.ProvisionAdministratorAsync(
+        var externalSubjectId = await identityDirectory.ProvisionUserAsync(
             request.Admin.Email,
             request.Admin.GivenName,
             request.Admin.FamilyName,
             request.Admin.Password,
+            CoreGridRole.Administrator,
             cancellationToken);
 
         var organization = new Organization

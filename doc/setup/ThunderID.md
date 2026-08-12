@@ -50,12 +50,12 @@ Attributes:
 | Property Name | Display Name | Type | Required | Unique | Credential |
 |---|---|---|---|---|---|
 | email | Email Address | String | Yes | Yes | No |
-| username | Email Address | String | Yes | Yes | No |
+| username | Username | String | Yes | Yes | No |
 | given_name | First Name | String | Yes | No | No |
 | family_name | Last Name | String | Yes | No | No |
 | password | Password | String | Yes | No | Yes |
 
-**`username` is required even though `email` is the real identifier.** ThunderID's built-in "Username & Password" sign-in method doesn't dynamically pick whichever attribute is marked Unique — its default flow looks up the literal attribute key `username` (ThunderID's own Go source, `internal/flow/executor/constants.go` / `credentials_auth_executor.go` / `internal/authnprovider/defaultprovider/default_authn_provider.go`). Without a `username` attribute present, that lookup never matches and sign-in fails as "user not found" even for a user that genuinely exists. Give it the same Display Name as `email` ("Email Address") so the sign-in form still reads correctly — the user only ever sees and types one value. `ThunderIdIdentityDirectory` mirrors `email` into `username` on every user it creates (`backend/Identity/ThunderIdIdentityDirectory.cs`); if you create a user by hand in the console instead, set `username` to the same value as `email` yourself.
+**`username` is required even though `email` is the real identifier.** ThunderID's built-in "Username & Password" sign-in method doesn't dynamically pick whichever attribute is marked Unique — its default flow looks up the literal attribute key `username` (ThunderID's own Go source, `internal/flow/executor/constants.go` / `credentials_auth_executor.go` / `internal/authnprovider/defaultprovider/default_authn_provider.go`). Without a `username` attribute present, that lookup never matches and sign-in fails as "user not found" even for a user that genuinely exists. Its Display Name stays "Username" — the sign-in form's "Username" field is where the user types their email address, since CoreGrid has no separate username of its own. Leave its pattern/regex constraint blank; a restrictive default (e.g. alphanumeric-only) will reject email-shaped values with a schema validation error. `ThunderIdIdentityDirectory` mirrors `email` into `username` on every user it creates (`backend/Identity/ThunderIdIdentityDirectory.cs`); if you create a user by hand in the console instead, set `username` to the same value as `email` yourself.
 
 Don't reuse the built-in `Person` type — it can't be added to an application's Allowed User Types and never picks up app roles.
 
@@ -84,8 +84,8 @@ Then, in order:
 - **Note the Client ID, not the Application ID** — only the Client ID is a valid OAuth `client_id`.
 - Application URL / Redirect URI / Post-logout redirect URI: all `http://localhost:5173`.
 - **Allowed User Types** (Access) → `CoreGridUser`, if not already carried over from the details screen.
-- **Token Attributes and Response** → Access Token: add `email`, `given_name`, `family_name`, `roles`.
-- **Scopes**: under **Token → User → Scopes & User Attribute Mappings** — not a separate "Scopes" tab. `openid`/`profile`/`email` are pre-added; add `roles` too (type it in if it's not offered as a suggestion). This entirely determines what lands in the token — the frontend has no client-side scopes config to match it against (`@thunderid/react`'s `scopes` prop isn't wired to anything in the installed SDK version).
+- **Token Attributes and Response** → Access Token: add `email`, `given_name`, `family_name`, `roles`. `roles` here is for the **backend** (step 6's `[Authorize(Roles = ...)]` checks, via `RoleClaimType` in `Program.cs`) — the **frontend** doesn't read a `roles` claim from ThunderID at all. It resolves the signed-in user's role from `GET /api/me`, which reads CoreGrid's own `Users.Role` column (`backend/Features/Me/MeController.cs`), specifically so frontend routing doesn't depend on ThunderID's own claim/token wiring being exactly right.
+- **Scopes**: under **Token → User → Scopes & User Attribute Mappings** — not a separate "Scopes" tab. `openid`/`profile`/`email` are pre-added; add `roles` too (type it in if it's not offered as a suggestion) — still needed so the *backend's* client_credentials-independent, per-request bearer tokens carry it. This entirely determines what lands in the token; the frontend has no client-side scopes config to match it against (`@thunderid/react`'s `scopes` prop isn't wired to anything in the installed SDK version).
 - **Flows**: assign the default authentication flow.
 
 ### 5. Allow the Frontend Origin (CORS)
@@ -117,7 +117,7 @@ Two unrelated, same-named concepts — keep them apart:
 
 | | Assigned to | Assigned via | Used by |
 |---|---|---|---|
-| **CoreGrid roles** (`Administrator`, `InventoryOfficer`, `Auditor`, `Staff` — step 3) | **Users** (frontend sign-ins) | **Roles** → role → **Assignments** → add the user | Lands in the `roles` claim, read by the React app and the backend's authorization checks |
+| **CoreGrid roles** (`Administrator`, `InventoryOfficer`, `Auditor`, `Staff` — step 3) | **Users** (frontend sign-ins) | **Roles** → role → **Assignments** → add the user | Lands in the `roles` claim, read by the backend's `[Authorize(Roles = ...)]` checks. The frontend does **not** read this claim — see step 4's note on `GET /api/me` |
 | ThunderID's built-in **Administrator** role | **Applications** (the backend service app, step 6, only) | **Roles** → built-in Administrator → **Assignments** → add the application | Grants the backend's `client_credentials` token its `system` permission |
 
 The frontend application itself never gets a role — only the users who sign into it do. Today only the first Administrator is provisioned with one, during Setup (`POST /users` then `POST /roles/{roleId}/assignments/add`, see `ThunderIdIdentityDirectory.cs`); assigning `InventoryOfficer`/`Auditor`/`Staff` to a user is manual for now (see Known Gaps).
@@ -182,8 +182,9 @@ VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 | `403 Forbidden` calling any management API as the backend app | Backend app isn't assigned the built-in Administrator role, or the token request used a scope other than `system` — step 6 |
 | `USR-1021: user_type_not_found`, even though the type's ID looks right | `type` in `POST /users` (and `ThunderID:UserType`) must be the type's **name** (`CoreGridUser`), not its ID |
 | Sign-in says the user can't be found, but the account genuinely exists | `CoreGridUser` is missing its `username` attribute, or the user's `username` value wasn't set — ThunderID's built-in sign-in method looks up the literal `username` key, not `email` (step 1) |
-| `roles` claim present but Administrator-only routes still reject the user | CoreGrid's custom role isn't named exactly `Administrator` (e.g. `Admin`) — exact string match |
-| Login succeeds but `roles` claim is missing | Allowed User Types isn't set on the frontend application, or the user has no role assignment |
+| `roles` claim present but Administrator-only backend routes still reject the caller | CoreGrid's custom role isn't named exactly `Administrator` (e.g. `Admin`) — exact string match |
+| Backend management calls get `403 Forbidden` even with the right scope | Allowed User Types isn't set on the frontend application, or the user has no role assignment — `roles` claim ends up empty |
+| Sign-in succeeds but the frontend always lands on `/access-restricted` | The frontend reads role from `GET /api/me`, not from ThunderID — check `Users.Role` for that user in CoreGrid's own database, not the ThunderID console. If `/api/me` 404s, the user's `ExternalSubjectId` doesn't match any `Users` row — they weren't provisioned through Setup or `POST /api/users` |
 | Sign-in page says the user can't be found, right after Setup created it | Try again after a `docker restart coregrid-thunderid-1` — the in-memory identifier cache can lag a just-created account |
 | `invalid_client` on sign-in | `VITE_THUNDERID_CLIENT_ID` is the Application ID, not the Client ID |
 | `key not found` / endless JWKS retries | Issuer is `http://` instead of `https://` |

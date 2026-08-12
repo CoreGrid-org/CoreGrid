@@ -5,98 +5,48 @@
 );
 
 START TRANSACTION;
+CREATE TABLE "Organizations" (
+    "Id" uuid NOT NULL,
+    "ExternalOrgId" text NOT NULL,
+    "Name" text NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_Organizations" PRIMARY KEY ("Id")
+);
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809062238_InitialCreate') THEN
-    CREATE TABLE "Organizations" (
-        "Id" uuid NOT NULL,
-        "ExternalOrgId" text NOT NULL,
-        "Name" text NOT NULL,
-        "CreatedAt" timestamp with time zone NOT NULL,
-        CONSTRAINT "PK_Organizations" PRIMARY KEY ("Id")
-    );
-    END IF;
-END $EF$;
+CREATE TABLE "Users" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "ExternalSubjectId" text NOT NULL,
+    "Email" text NOT NULL,
+    "GivenName" text NOT NULL,
+    "FamilyName" text NOT NULL,
+    "Role" integer NOT NULL,
+    "IsActive" boolean NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_Users" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_Users_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT
+);
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809062238_InitialCreate') THEN
-    CREATE TABLE "Users" (
-        "Id" uuid NOT NULL,
-        "OrganizationId" uuid NOT NULL,
-        "ExternalSubjectId" text NOT NULL,
-        "Email" text NOT NULL,
-        "GivenName" text NOT NULL,
-        "FamilyName" text NOT NULL,
-        "Role" integer NOT NULL,
-        "IsActive" boolean NOT NULL,
-        "CreatedAt" timestamp with time zone NOT NULL,
-        CONSTRAINT "PK_Users" PRIMARY KEY ("Id"),
-        CONSTRAINT "FK_Users_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT
-    );
-    END IF;
-END $EF$;
+CREATE UNIQUE INDEX "IX_Organizations_ExternalOrgId" ON "Organizations" ("ExternalOrgId");
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809062238_InitialCreate') THEN
-    CREATE UNIQUE INDEX "IX_Organizations_ExternalOrgId" ON "Organizations" ("ExternalOrgId");
-    END IF;
-END $EF$;
+CREATE UNIQUE INDEX "IX_Users_Email" ON "Users" ("Email");
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809062238_InitialCreate') THEN
-    CREATE UNIQUE INDEX "IX_Users_Email" ON "Users" ("Email");
-    END IF;
-END $EF$;
+CREATE UNIQUE INDEX "IX_Users_ExternalSubjectId" ON "Users" ("ExternalSubjectId");
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809062238_InitialCreate') THEN
-    CREATE UNIQUE INDEX "IX_Users_ExternalSubjectId" ON "Users" ("ExternalSubjectId");
-    END IF;
-END $EF$;
+CREATE INDEX "IX_Users_OrganizationId" ON "Users" ("OrganizationId");
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809062238_InitialCreate') THEN
-    CREATE INDEX "IX_Users_OrganizationId" ON "Users" ("OrganizationId");
-    END IF;
-END $EF$;
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260809062238_InitialCreate', '10.0.10');
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809062238_InitialCreate') THEN
-    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
-    VALUES ('20260809062238_InitialCreate', '10.0.10');
-    END IF;
-END $EF$;
 COMMIT;
 
 START TRANSACTION;
+DROP INDEX "IX_Organizations_ExternalOrgId";
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809130913_RemoveOrganizationExternalId') THEN
-    DROP INDEX "IX_Organizations_ExternalOrgId";
-    END IF;
-END $EF$;
+ALTER TABLE "Organizations" DROP COLUMN "ExternalOrgId";
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809130913_RemoveOrganizationExternalId') THEN
-    ALTER TABLE "Organizations" DROP COLUMN "ExternalOrgId";
-    END IF;
-END $EF$;
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260809130913_RemoveOrganizationExternalId', '10.0.10');
 
-DO $EF$
-BEGIN
-    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260809130913_RemoveOrganizationExternalId') THEN
-    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
-    VALUES ('20260809130913_RemoveOrganizationExternalId', '10.0.10');
-    END IF;
-END $EF$;
 COMMIT;
 
