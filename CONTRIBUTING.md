@@ -108,9 +108,8 @@ Fill in `.env.local` with the values from your ThunderID frontend application (s
 ```env
 VITE_API_URL=http://localhost:5083/api
 
-VITE_THUNDERID_CLIENT_ID=<frontend Application ID>
+VITE_THUNDERID_CLIENT_ID=<frontend Client ID>
 VITE_THUNDERID_BASE_URL=https://localhost:8090
-VITE_THUNDERID_SCOPES="openid profile email roles"
 VITE_THUNDERID_AFTER_SIGN_IN_URL=http://localhost:5173
 VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 ```

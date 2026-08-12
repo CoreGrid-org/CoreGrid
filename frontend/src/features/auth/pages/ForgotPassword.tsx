@@ -9,9 +9,9 @@ import {
   InlineNotification,
 } from "@carbon/react";
 import { CheckmarkFilled } from "@carbon/icons-react";
-import { useForgotPassword, useResetPassword } from "../queries/useAuth";
+import { useForgotPassword, useResetPassword } from "../hooks/useAuth";
 import type { SelfServiceResetRole } from "../services/auth";
-import { getErrorMessage } from "../lib/errorMessage";
+import { getErrorMessage } from "@/shared/lib/errorMessage";
 
 const ROLES: { value: SelfServiceResetRole; label: string; secretLabel: string; secretHelp: string }[] = [
   { value: "department-staff", label: "Department Staff", secretLabel: "Employee ID", secretHelp: "Your employee ID, as set when your account was created." },

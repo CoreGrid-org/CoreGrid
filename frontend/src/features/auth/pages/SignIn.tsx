@@ -2,9 +2,9 @@ import { Navigate } from "react-router-dom";
 import { SignInButton, useThunderID } from "@thunderid/react";
 import { Button } from "@carbon/react";
 import { WarningAltFilled } from "@carbon/icons-react";
-import { useSetupStatus } from "../queries/useSetup";
-import { getErrorMessage } from "../lib/errorMessage";
-import StatusView from "../components/common/StatusView";
+import { useSetupStatus } from "@/features/setup/hooks/useSetup";
+import { getErrorMessage } from "@/shared/lib/errorMessage";
+import StatusView from "@/shared/components/StatusView";
 
 export default function SignIn() {
   const { isSignedIn, isLoading } = useThunderID();

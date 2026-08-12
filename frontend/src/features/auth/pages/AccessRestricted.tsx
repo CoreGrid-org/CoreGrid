@@ -1,7 +1,7 @@
 import { useThunderID } from "@thunderid/react";
 import { Button } from "@carbon/react";
 import { Locked } from "@carbon/icons-react";
-import StatusView from "../components/common/StatusView";
+import StatusView from "@/shared/components/StatusView";
 
 export default function AccessRestricted() {
   const { signOut } = useThunderID();

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useStubMutation } from "./useStubMutation";
+import { useStubMutation } from "@/shared/hooks/useStubMutation";
 import { getSetupStatus, completeSetup } from "../services/setup";
 import type { SetupStatus, CompleteSetupRequest, CompleteSetupResponse } from "../services/setup";
 

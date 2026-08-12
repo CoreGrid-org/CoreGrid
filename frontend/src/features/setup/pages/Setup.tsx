@@ -11,10 +11,10 @@ import {
   Stack,
 } from "@carbon/react";
 import { CheckmarkFilled, WarningAltFilled } from "@carbon/icons-react";
-import { useSetupStatus, useCompleteSetup } from "../queries/useSetup";
-import { getErrorMessage } from "../lib/errorMessage";
-import { silentProgressStatus } from "../lib/carbonA11y";
-import StatusView from "../components/common/StatusView";
+import { useSetupStatus, useCompleteSetup } from "../hooks/useSetup";
+import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { silentProgressStatus } from "@/shared/lib/carbonA11y";
+import StatusView from "@/shared/components/StatusView";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

@@ -1,19 +1,19 @@
-import { Navigate } from "react-router-dom";
 import { SignOutButton, useThunderID } from "@thunderid/react";
-import { Button, Tile } from "@carbon/react";
+import { Button, Tag, Tile } from "@carbon/react";
+import { getRoleLabel } from "@/features/auth/lib/roles";
 
-export default function Dashboard() {
-  const { isSignedIn, isLoading, user } = useThunderID();
-
-  if (isLoading) return <div style={{ minHeight: "100vh" }} />;
-  if (!isSignedIn) return <Navigate to="/signin" replace />;
+export default function AdminDashboard() {
+  const { user } = useThunderID();
 
   return (
     <div className="cg-topnav-content">
       <div className="cg-page">
         <div className="cg-page__header">
           <div className="cg-page__header-left">
-            <h1 className="cg-page__title">Dashboard</h1>
+            <div className="cg-page__title-row">
+              <h1 className="cg-page__title">Admin Dashboard</h1>
+              <Tag type="blue">{getRoleLabel("Administrator")}</Tag>
+            </div>
             <p className="cg-page__subtitle">
               {user?.given_name ? `Welcome, ${user.given_name}.` : "Welcome."}
             </p>

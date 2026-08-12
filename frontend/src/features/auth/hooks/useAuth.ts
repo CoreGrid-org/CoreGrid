@@ -1,4 +1,4 @@
-import { useStubMutation } from "./useStubMutation";
+import { useStubMutation } from "@/shared/hooks/useStubMutation";
 import { forgotPassword, resetPassword } from "../services/auth";
 import type { ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest } from "../services/auth";
 

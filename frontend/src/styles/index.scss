@@ -384,6 +384,13 @@ html, body, #root {
 
   &__header-left { flex: 1; min-width: 0; }
 
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
   &__title {
     font-size: 1.5rem;
     font-weight: 400;

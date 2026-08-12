@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@carbon/react";
 import { Rocket } from "@carbon/icons-react";
-import StatusView from "../components/common/StatusView";
+import StatusView from "./StatusView";
 
 interface ComingSoonProps {
   feature: string;

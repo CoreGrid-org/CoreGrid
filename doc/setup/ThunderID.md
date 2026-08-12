@@ -64,21 +64,25 @@ Don't reuse the built-in `Person` type — it can't be added to an application's
 
 ### 3. Create the Four CoreGrid Roles
 
-**Roles** → create: `Administrator`, `InventoryOfficer`, `Auditor`, `Staff`.
+**First, rename ThunderID's built-in `Administrator` role to `Admin`**: **Roles** → built-in **Administrator** → **Edit**. Purely cosmetic — assignments are keyed by ID, not name — but it stops you confusing it with the CoreGrid role of the same name you're about to create. (If you'd rather not rename it, tell them apart by description instead: the built-in one has one, "System administrator role with full permissions"; the CoreGrid one below doesn't.)
 
-The name must exactly match `CoreGridRole` (`backend/Domain/CoreGridRole.cs`) — the backend does a literal string comparison. **Note down each role's ID** — `ThunderID:RoleIds:*` needs them; only `Administrator` is consumed today.
+**Roles** → create: `Administrator`, `InventoryOfficer`, `Auditor`, `Staff`. The names must exactly match `CoreGridRole` (`backend/Domain/CoreGridRole.cs`) — a literal string comparison. **Note down each role's ID** — `ThunderID:RoleIds:*` needs them; only `Administrator` is consumed today.
 
-These are **not** the same object as ThunderID's own built-in `Administrator` role (used in step 6 below, assigned to the *backend application*, not a CoreGrid user). Tell them apart by description: the built-in one has one ("System administrator role with full permissions"); the one you just created doesn't.
+These are CoreGrid's own roles, assigned to **users**. They're a separate object from the built-in role you just renamed, which instead gets assigned to the *backend application* in step 6 (see [Role Assignments](#role-assignments-users-vs-applications) below).
 
 ### 4. Create the Frontend Application
 
-**Applications** → new web/browser application:
+**Applications** → **New Application** → **Choose a type** → **Single-Page Application**. The React app is a public PKCE client (SRS §4.4), not a confidential/server-rendered one — the wrong type here changes which fields the rest of the wizard offers.
 
+Then, in order:
+
+- **Details screen**: Name & Logo → **CoreGrid Frontend** (paired with **CoreGrid Backend**, step 6). Leave **Allow all user types** **off** and select **CoreGridUser** explicitly — the reason that type exists (step 1).
+- **Sign-in method screen**: check **Username & Password** only — it matches `CoreGridUser`'s `password` attribute. Leave Passwordless/Social/Multi-Factor Login unchecked; none are wired up yet.
 - **Note the Client ID, not the Application ID** — only the Client ID is a valid OAuth `client_id`.
 - Application URL / Redirect URI / Post-logout redirect URI: all `http://localhost:5173`.
-- **Allowed User Types** (Access) → add `CoreGridUser`. Without this, no attributes or roles land in tokens for anyone.
+- **Allowed User Types** (Access) → `CoreGridUser`, if not already carried over from the details screen.
 - **Token Attributes and Response** → Access Token: add `email`, `given_name`, `family_name`, `roles`.
-- **Available Scopes**: activate `roles` alongside the default `openid`/`profile`/`email`.
+- **Scopes**: under **Token → User → Scopes & User Attribute Mappings** — not a separate "Scopes" tab. `openid`/`profile`/`email` are pre-added; add `roles` too (type it in if it's not offered as a suggestion). This entirely determines what lands in the token — the frontend has no client-side scopes config to match it against (`@thunderid/react`'s `scopes` prop isn't wired to anything in the installed SDK version).
 - **Flows**: assign the default authentication flow.
 
 ### 5. Allow the Frontend Origin (CORS)
@@ -96,17 +100,32 @@ Takes effect immediately.
 
 ### 6. Create the Backend Service Application
 
-**Applications** → new Backend Service application:
+**Applications** → **New Application** → **Choose a type** → **Backend Service** (a confidential, server-to-server client — Single-Page/Native app types won't offer `client_credentials`).
 
-- Name: CoreGrid Backend, Grant Type: `client_credentials`.
-- **Token Endpoint Auth Method: `client_secret_post`** — must be *saved* as this, not just selected. Left on `client_secret_basic`, every request fails with `unauthorized_client`.
+- Name: **CoreGrid Backend** — paired with **CoreGrid Frontend** (step 4). Grant Type: `client_credentials`.
+- **Token Endpoint Auth Method: `client_secret_post`**, and *saved* as such, not just selected — left on `client_secret_basic`, every request fails with `unauthorized_client`.
 - Note the Client ID and Client Secret.
-- **Available Scopes**: add `system` as a custom scope, activate it.
-- **Roles** → built-in **Administrator** → **Assignments** → add this application. Without this, every management call fails with `403 Forbidden`.
+- **No scopes to configure here.** This application type has no per-app scope list in the console — don't go looking for a `system` scope to create or activate. `ThunderIdIdentityDirectory` sends `scope=system` on the token request regardless (`backend/Identity/ThunderIdIdentityDirectory.cs`), but what actually authorizes the token is the resource/audience it's issued against (step 7) plus the role assignment below.
+- **Roles** → built-in **Administrator** (`Admin`, if renamed in step 3) → **Assignments** → add this application. Without this, every management call fails with `403 Forbidden`.
 
-### 7. The Resource: ThunderID's Built-In `System` Resource Server
+### Role Assignments: Users vs. Applications
 
-**Use the built-in `System` resource server — do not create a new one.** `client_credentials` requests fail with `invalid_target` without a `resource`. Go to **Resource Servers**, open the built-in `System` one, and note its **Identifier** (`https://<host>/mcp`, e.g. `https://localhost:8090/mcp` locally) — this is `ThunderID:Resource`. Despite the MCP-sounding name, it's the resource server the built-in Administrator role's `system` permission is actually bound to.
+Two unrelated, same-named concepts — keep them apart:
+
+| | Assigned to | Assigned via | Used by |
+|---|---|---|---|
+| **CoreGrid roles** (`Administrator`, `InventoryOfficer`, `Auditor`, `Staff` — step 3) | **Users** (frontend sign-ins) | **Roles** → role → **Assignments** → add the user | Lands in the `roles` claim, read by the React app and the backend's authorization checks |
+| ThunderID's built-in **Administrator** role | **Applications** (the backend service app, step 6, only) | **Roles** → built-in Administrator → **Assignments** → add the application | Grants the backend's `client_credentials` token its `system` permission |
+
+The frontend application itself never gets a role — only the users who sign into it do. Today only the first Administrator is provisioned with one, during Setup (`POST /users` then `POST /roles/{roleId}/assignments/add`, see `ThunderIdIdentityDirectory.cs`); assigning `InventoryOfficer`/`Auditor`/`Staff` to a user is manual for now (see Known Gaps).
+
+### 7. The Resource: Built-In `System` Resource Server, or a Custom One
+
+**Resource Servers** define what `resource`/`audience` a token can be issued for. List columns: **Name**, **Type** (`System` = built-in, `Custom` = yours), **Identifier** (an absolute URI — becomes the `aud` claim), and **Actions** (just the row's Edit/Delete buttons, not permissions, despite the name — permissions live inside a resource server's own **Resources** tab). `client_credentials` requests fail with `invalid_target` without a `resource` matching one of these Identifiers.
+
+**Default: reuse the built-in `System` resource server — don't create a new one.** Open it, note its **Identifier** (`https://<host>/mcp`, e.g. `https://localhost:8090/mcp`) — this is `ThunderID:Resource`. It's what the built-in Administrator role's `system` permission is bound to, so reusing it is what makes step 6's role assignment take effect.
+
+**Only create a custom resource server** if you deliberately want the backend's permissions scoped away from ThunderID's built-in semantics: **Resource Servers** → new → **Type: Custom** → Name + Identifier (any absolute URI, e.g. `https://api.coregrid.local/backend`) → define permissions in its **Resources** tab. Then point the backend application's Default Audience (or the `resource` it requests) and `ThunderID__Resource` at the new Identifier instead. More setup for no functional gain in the current single-tenant M0 deployment — stick with the default.
 
 ### The Agent Service Doesn't Register With ThunderID
 
@@ -140,7 +159,6 @@ ThunderID__ScimClientSecret=<Backend Client Secret, step 6>
 ```dotenv
 VITE_THUNDERID_CLIENT_ID=<frontend Client ID, step 4>
 VITE_THUNDERID_BASE_URL=https://localhost:8090
-VITE_THUNDERID_SCOPES="openid profile email roles"
 VITE_THUNDERID_AFTER_SIGN_IN_URL=http://localhost:5173
 VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 ```
