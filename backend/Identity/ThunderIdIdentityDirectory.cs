@@ -83,6 +83,11 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
                 new Dictionary<string, string>
                 {
                     ["email"] = email,
+                    // ThunderID's built-in "Username & Password" sign-in method looks
+                    // up the literal attribute key `username`, not whichever attribute
+                    // is marked Unique — see doc/setup/ThunderID.md's CoreGridUser Type
+                    // note. Mirroring email into it is what makes sign-in resolvable.
+                    ["username"] = email,
                     ["given_name"] = givenName,
                     ["family_name"] = familyName,
                     ["password"] = password,

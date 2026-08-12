@@ -50,9 +50,12 @@ Attributes:
 | Property Name | Display Name | Type | Required | Unique | Credential |
 |---|---|---|---|---|---|
 | email | Email Address | String | Yes | Yes | No |
+| username | Email Address | String | Yes | Yes | No |
 | given_name | First Name | String | Yes | No | No |
 | family_name | Last Name | String | Yes | No | No |
 | password | Password | String | Yes | No | Yes |
+
+**`username` is required even though `email` is the real identifier.** ThunderID's built-in "Username & Password" sign-in method doesn't dynamically pick whichever attribute is marked Unique — its default flow looks up the literal attribute key `username` (ThunderID's own Go source, `internal/flow/executor/constants.go` / `credentials_auth_executor.go` / `internal/authnprovider/defaultprovider/default_authn_provider.go`). Without a `username` attribute present, that lookup never matches and sign-in fails as "user not found" even for a user that genuinely exists. Give it the same Display Name as `email` ("Email Address") so the sign-in form still reads correctly — the user only ever sees and types one value. `ThunderIdIdentityDirectory` mirrors `email` into `username` on every user it creates (`backend/Identity/ThunderIdIdentityDirectory.cs`); if you create a user by hand in the console instead, set `username` to the same value as `email` yourself.
 
 Don't reuse the built-in `Person` type — it can't be added to an application's Allowed User Types and never picks up app roles.
 
@@ -178,6 +181,7 @@ VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 | `invalid_target: ...must be an absolute URI` | `ThunderID:Resource` isn't the `System` resource server's Identifier — step 7 |
 | `403 Forbidden` calling any management API as the backend app | Backend app isn't assigned the built-in Administrator role, or the token request used a scope other than `system` — step 6 |
 | `USR-1021: user_type_not_found`, even though the type's ID looks right | `type` in `POST /users` (and `ThunderID:UserType`) must be the type's **name** (`CoreGridUser`), not its ID |
+| Sign-in says the user can't be found, but the account genuinely exists | `CoreGridUser` is missing its `username` attribute, or the user's `username` value wasn't set — ThunderID's built-in sign-in method looks up the literal `username` key, not `email` (step 1) |
 | `roles` claim present but Administrator-only routes still reject the user | CoreGrid's custom role isn't named exactly `Administrator` (e.g. `Admin`) — exact string match |
 | Login succeeds but `roles` claim is missing | Allowed User Types isn't set on the frontend application, or the user has no role assignment |
 | Sign-in page says the user can't be found, right after Setup created it | Try again after a `docker restart coregrid-thunderid-1` — the in-memory identifier cache can lag a just-created account |
