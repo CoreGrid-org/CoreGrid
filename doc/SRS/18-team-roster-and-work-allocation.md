@@ -8,16 +8,34 @@ Component A (Asset Registry & QR Identification) was claimed first and is fixed 
 
 ## 18.2 Roster
 
-| Role | Name | Primary component | Requirement range owned (§12) | Agent owned (§7.3) | Business-specific operation (§6) |
-|---|---|---|---|---|---|
-| Student 1 | **Jayashan Guruge** | A — Asset Registry & QR Identification | FR-016 to FR-032 | Planner Agent | `POST /api/assets/{id}/verify` (FR-031) |
-| Student 2 | **Seneja Ramanayaka** | B — Maintenance Management | FR-033 to FR-042, FR-077 to FR-080 | Maintenance Analysis Agent | `POST /api/maintenance/{id}/complete` (FR-038) |
-| Student 3 | **Bhanuka Samarasinghe** | C — Transfer & Disposal | FR-043 to FR-055 | Budget Analysis Agent | `POST /api/disposals/{id}/approve` (FR-051) |
-| Student 4 | **Hasitha Erandika** (Group Leader) | D — Audit & Compliance, plus organisation configuration and user administration | FR-010 to FR-015, FR-056 to FR-066 | Policy Compliance Agent + human-approval checkpoint | `POST /api/discrepancies/{id}/resolve` (FR-062) |
+| Role | Name | GitHub username | Branch prefix | Primary component | Requirement range owned (§12) | Agent owned (§7.3) | Business-specific operation (§6) |
+|---|---|---|---|---|---|---|---|
+| Student 1 | **Jayashan Guruge** | `<github-handle>` | `feature/asset-*` | A — Asset Registry & QR Identification | FR-016 to FR-032 | Planner Agent | `POST /api/assets/{id}/verify` (FR-031) |
+| Student 2 | **Seneja Ramanayaka** | `<github-handle>` | `feature/maintenance-*` | B — Maintenance Management | FR-033 to FR-042, FR-077 to FR-080 | Maintenance Analysis Agent | `POST /api/maintenance/{id}/complete` (FR-038) |
+| Student 3 | **Bhanuka Samarasinghe** | `<github-handle>` | `feature/transfer-*`, `feature/disposal-*` | C — Transfer & Disposal | FR-043 to FR-055 | Budget Analysis Agent | `POST /api/disposals/{id}/approve` (FR-051) |
+| Student 4 | **Hasitha Erandika** (Group Leader) | `<github-handle>` | `feature/audit-*`, `feature/config-*`, `feature/ci-*` | D — Audit & Compliance, plus organisation configuration and user administration | FR-010 to FR-015, FR-056 to FR-066 | Policy Compliance Agent + human-approval checkpoint | `POST /api/discrepancies/{id}/resolve` (FR-062) |
 
 Component D absorbs organisation configuration (departments, locations, users, policy parameters — FR-010 to FR-015) in addition to audit and compliance, exactly as allocated in §12. Giving this range to the Group Leader is a deliberate, not incidental, choice: the leader already carries the CI pipeline, the consolidated submission and cross-cutting authorisation testing (§18.5 below), and organisation configuration is the one component every other owner's demonstration data depends on, so it benefits from being built and stabilised early by whoever is coordinating the schedule.
 
 Per §12.1, no member holds a project-management-only, testing-only or documentation-only role. Every row below delivers backend, database, React, Flutter, tests, Git evidence, documentation and a distinct agentic contribution.
+
+### 18.2.1 What a Complete Roster Row Must Capture
+
+The roster is not just a name-to-component lookup — it is the thing an evaluator, a teammate resuming after a break, or the admin dashboard's own "who owns this" documentation all point to. A row is incomplete unless every one of the following is present and kept current, and the front-matter summary table (§00, "Team Roster") must never drift from it:
+
+| Field | Why it is required |
+|---|---|
+| Full name and student number | Ties the row to the university's own roll, required for individual marking under SE3090 §3. |
+| GitHub username | Makes pull-request review assignment (§12.1, R-06) and commit attribution mechanical rather than inferred from a display name. |
+| Contact email | The address the Group Leader and Lecturer-in-Charge use for scheduling and scope-change approval (§00, Purpose of Baselining). |
+| Primary component and requirement range | Fixes accountability for every FR listed against the member — this is what makes "work an owner cannot explain is treated as not delivered" (§18.10) enforceable. |
+| Branch prefix(es) | Lets CI, code review and the Git-evidence audit (§12.1) filter a member's contribution mechanically instead of by memory. |
+| Agent owned and its tool allow-list (§7.3, §7.4) | Every member's agentic contribution must be distinct and traceable; the roster is where that distinctness is asserted, not just implied by the pipeline diagram. |
+| Business-specific operation owned (§6) | Each component's one operation beyond CRUD (verify / complete / approve-disposal / resolve-discrepancy) is the single clearest demonstration artefact for that member's viva — the roster row is where a marker finds it without searching. |
+| Database entities owned (§8.2) | Needed so that a schema change (see the physical design in [`system.md`](system.md)) is reviewed by the right person before merge. |
+| Golden-case ownership (§18.7) | A member's agentic contribution is only demonstrable if at least one golden case exercises it; the roster is the place that mapping is asserted per member, not just per case. |
+
+A roster row missing any of these is not "mostly done" — from a marking-evidence standpoint it is the same as not having named an owner at all, because the missing field is exactly the thing an evaluator asks for first.
 
 ## 18.3 Required Individual Evidence — Jayashan Guruge (Component A)
 
@@ -138,3 +156,12 @@ These carry forward from §12.1 unchanged and apply to every row above without e
 - Each owner individually accountable at the viva for explaining, modifying and debugging their own contribution; work an owner cannot explain is treated as not delivered (SE3090 §3).
 - Each owner maintains an individual AI usage log per Appendix E — date, tool and model, task, what was produced, what was changed or rejected, how it was verified.
 - No member holds a project-management-only, testing-only or documentation-only role.
+
+## 18.11 Keeping the Roster Current
+
+The roster is a live document, not a one-time submission artefact — it must reflect reality at every checkpoint in §18.9, not just at baseline.
+
+- **Component ownership never changes; delivery status does.** [`doc/PROGRESS.md`](../PROGRESS.md) is the up-to-date record of what each owner has actually landed against the requirement range in §18.2; this file records who is accountable, not what is finished. If PROGRESS.md shows an item as ❌ past the week it was due in §18.9, that is a schedule risk to raise, not a roster edit.
+- **The front-matter Team Roster table (§00) is a derived view of §18.2.** Whenever a name, GitHub username, component, or contact detail changes here, update it there in the same edit — do not let the two tables disagree about who owns what.
+- **A scope-change to who owns what** (a component reassigned, a member added or dropped) is itself a scope change under the rule in §00's "Purpose of Baselining": raise it as a GitHub issue labelled `scope-change`, get group approval, and record it in the SRS revision history before editing this section's tables.
+- **Golden-case ownership (§18.7) and agent ownership (§7.3) are cross-checked against §18.2 at week 5–6** (§18.9) — the point at which every agent should be wired into the graph — so that no agent or golden case is left without a named, accountable owner going into the final two weeks.

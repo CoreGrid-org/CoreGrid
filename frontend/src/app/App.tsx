@@ -11,7 +11,13 @@ import InventoryDashboard from "@/features/dashboard/pages/InventoryDashboard";
 import AuditDashboard from "@/features/dashboard/pages/AuditDashboard";
 import StaffDashboard from "@/features/dashboard/pages/StaffDashboard";
 import UsersPage from "@/features/users/pages/UsersPage";
-import ComingSoon from "@/shared/components/ComingSoon";
+import AssetsPage from "@/features/assets/pages/AssetsPage";
+import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
+import TransfersPage from "@/features/transfers/pages/TransfersPage";
+import AuditPage from "@/features/audit/pages/AuditPage";
+import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
+import ReportsPage from "@/features/reports/pages/ReportsPage";
+import SettingsPage from "@/features/settings/pages/SettingsPage";
 import NotFound from "@/shared/pages/NotFound";
 
 export default function App() {
@@ -28,14 +34,14 @@ export default function App() {
         }
       >
         <Route index element={<AdminDashboard />} />
-        <Route path="assets" element={<ComingSoon feature="Asset Registry" />} />
-        <Route path="maintenance" element={<ComingSoon feature="Maintenance Management" />} />
-        <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
-        <Route path="audit" element={<ComingSoon feature="Audit & Compliance" />} />
-        <Route path="workflows" element={<ComingSoon feature="Agentic Workflows" />} />
+        <Route path="assets" element={<AssetsPage />} />
+        <Route path="maintenance" element={<MaintenancePage />} />
+        <Route path="transfers" element={<TransfersPage />} />
+        <Route path="audit" element={<AuditPage />} />
+        <Route path="workflows" element={<WorkflowsPage />} />
         <Route path="users" element={<UsersPage />} />
-        <Route path="reports" element={<ComingSoon feature="Reports" />} />
-        <Route path="settings" element={<ComingSoon feature="Organisation Settings" />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       <Route

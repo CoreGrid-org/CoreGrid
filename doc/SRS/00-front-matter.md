@@ -15,7 +15,20 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | Academic period | Year 3, Semester 1, 2026 |
 | Group | SE3090_G<NN>  (to be completed by group leader) |
 | Author | Hasitha Erandika (Group Leader) |
-| Team members | Hasitha Erandika — Component D (Group Leader)<br>Jayashan Guruge — Component A<br>Seneja Ramanayaka — Component B<br>Bhanuka Samarasinghe — Component C |
+| Team members | See the full roster below; §18 is the authoritative, per-member breakdown of ownership and evidence. |
+
+### Team Roster
+
+The single-line team-members field above names who is on the group; this table is the quick-reference version of it. It exists so a reader (or an evaluator) does not have to open §18 just to find out who owns what — every column here is drawn from, and must stay consistent with, the fuller record in [§18](18-team-roster-and-work-allocation.md#182-roster). If the two ever disagree, §18 is authoritative and this table is stale and should be corrected in the same edit.
+
+| Student # | Name | Student ID | GitHub username | Email | Component owned | Group role |
+|---|---|---|---|---|---|---|
+| Student 1 | Jayashan Guruge | `<ID>` | `<github-handle>` | `<email>` | A — Asset Registry & QR Identification | Member |
+| Student 2 | Seneja Ramanayaka | `<ID>` | `<github-handle>` | `<email>` | B — Maintenance Management | Member |
+| Student 3 | Bhanuka Samarasinghe | `<ID>` | `<github-handle>` | `<email>` | C — Transfer & Disposal | Member |
+| Student 4 | Hasitha Erandika | `<ID>` | `<github-handle>` | `<email>` | D — Audit & Compliance, org configuration, user administration | Group Leader |
+
+Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named student to fill in — they are not invented here. See [§18.2](18-team-roster-and-work-allocation.md#182-roster) for what a complete roster row must capture and why each field is required, and [§18.11](18-team-roster-and-work-allocation.md#1811-keeping-the-roster-current) for how this table is kept in sync as the project proceeds.
 | Identity provider | ThunderID (OIDC / OAuth 2.0); organisation scoping is done in CoreGrid's own database, not ThunderID (Section 4.2) |
 | Mandatory stack | ASP.NET Core Web API · PostgreSQL · React (IBM Carbon Design System) · Flutter · Agentic AI (LangGraph) |
 | Status | Approved baseline for implementation |
@@ -80,3 +93,4 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 - [Appendix C — ThunderID Configuration Checklist](appendix-c-thunderid-configuration-checklist.md)
 - [Appendix D — Architecture Decision Record Index](appendix-d-architecture-decision-record-index.md)
 - [Appendix E — AI Usage Disclosure](appendix-e-ai-usage-disclosure.md)
+- [Appendix F — Full Physical Database Schema (Reference Design)](system.md)
