@@ -53,7 +53,7 @@ Status as of 2026-08-12: cross-cutting identity/admin slice is up; none of the f
 | Area | Status |
 |---|---|
 | Backend (transfer/disposal controllers, approval preconditions P1–P6) | ❌ |
-| Database (`AssetTransfers`, `DisposalRequests`) | ❌ |
+| Database (`AssetTransfers`, `DisposalRequests`) | ✅ |
 | React (transfer/disposal queues, precondition checklist) | ❌ |
 | Flutter (transfer request, scan-to-confirm receipt, condemnation) | ❌ |
 | Budget Analysis Agent | ❌ |
