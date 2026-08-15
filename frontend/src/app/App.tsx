@@ -12,6 +12,9 @@ import AuditDashboard from "@/features/dashboard/pages/AuditDashboard";
 import StaffDashboard from "@/features/dashboard/pages/StaffDashboard";
 import UsersPage from "@/features/users/pages/UsersPage";
 import AssetsPage from "@/features/assets/pages/AssetsPage";
+import AssetRegisterPage from "@/features/assets/pages/AssetRegisterPage";
+import AssetScanPage from "@/features/assets/pages/AssetScanPage";
+import AssetConfigPage from "@/features/assets/pages/AssetConfigPage";
 import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
 import TransfersPage from "@/features/transfers/pages/TransfersPage";
 import AuditPage from "@/features/audit/pages/AuditPage";
@@ -35,6 +38,9 @@ export default function App() {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="assets" element={<AssetsPage />} />
+        <Route path="assets/new" element={<AssetRegisterPage />} />
+        <Route path="assets/scan" element={<AssetScanPage />} />
+        <Route path="assets/config" element={<AssetConfigPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="transfers" element={<TransfersPage />} />
         <Route path="audit" element={<AuditPage />} />

@@ -1,189 +1,232 @@
-import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button, Accordion, AccordionItem } from "@carbon/react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Tag, Button, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
 import { Add, Search } from "@carbon/icons-react";
-import MockNotice from "@/shared/components/MockNotice";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
-import { MOCK_ASSETS, MOCK_ASSET_CATEGORIES, MOCK_ASSET_TYPES } from "../data/mockAssets";
+import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
+import AssetDetailModal from "../components/AssetDetailModal";
+import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetQueryParameters } from "../types/asset";
+import { formatCurrency } from "../utils/format";
 
-const DATA_TYPE_COLOR: Record<string, "gray" | "blue" | "purple" | "teal" | "magenta"> = {
-  TEXT: "gray",
-  NUMBER: "blue",
-  DATE: "purple",
-  BOOLEAN: "teal",
-  SELECT: "magenta",
-};
-
+// The asset register — GET /api/assets with server-side search/filter/pagination.
+// Categories and Types & Attributes management live on the separate Asset
+// Config page (sidebar: Assets > Asset Config).
 export default function AssetsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [assetTypeId, setAssetTypeId] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [status, setStatus] = useState("");
+  const [condition, setCondition] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | undefined>(
+    (location.state as { openAssetId?: string } | null)?.openAssetId,
+  );
+
+  const { data: assetTypes } = useAssetTypes();
+  const { data: departments } = useDepartments();
+  const { data: locations } = useLocations(departmentId || undefined);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, assetTypeId, departmentId, locationId, status, condition]);
+
+  useEffect(() => {
+    setLocationId("");
+  }, [departmentId]);
+
+  // Clear the navigation state once consumed, so a browser refresh doesn't
+  // keep re-opening the modal for an asset the user may have since closed.
+  useEffect(() => {
+    if ((location.state as { openAssetId?: string } | null)?.openAssetId) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+  }, []);
+
+  const params: AssetQueryParameters = {
+    search: search || undefined,
+    assetTypeId: assetTypeId || undefined,
+    departmentId: departmentId || undefined,
+    locationId: locationId || undefined,
+    status: status || undefined,
+    condition: condition || undefined,
+    page,
+    pageSize,
+  };
+
+  const { data, isLoading, isError, error, refetch } = useAssetsList(params);
+
   return (
     <div className="cg-page">
       <div className="cg-page__header">
         <div className="cg-page__header-left">
-          <h1 className="cg-page__title">Asset Registry</h1>
-          <p className="cg-page__subtitle">Register, classify and track assets by QR code (FR-016 to FR-032).</p>
+          <h1 className="cg-page__title">Asset Register</h1>
+          <p className="cg-page__subtitle">Every asset in the organisation, searchable and filterable (FR-021 to FR-025).</p>
         </div>
-        <Button renderIcon={Add}>Register asset</Button>
+        <Button renderIcon={Add} onClick={() => navigate("/admin/assets/new")}>
+          Register asset
+        </Button>
       </div>
 
-      <Tabs>
-        <TabList aria-label="Asset registry sections">
-          <Tab>Asset Register</Tab>
-          <Tab>Categories</Tab>
-          <Tab>Types & Attributes</Tab>
-        </TabList>
-        <TabPanels>
-          {/* ── Asset Register ─────────────────────────────────────────── */}
-          <TabPanel>
-            <MockNotice requirements={["FR-021", "FR-025", "FR-028"]}>
-              The real tab lists every asset in the organisation via GET /api/assets, with server-side
-              search, filter and pagination; rows link through to a detail view with history, QR label and
-              the Verify action.
-            </MockNotice>
+      {isError && (
+        <InlineNotification
+          kind="error"
+          title="Could not load assets"
+          subtitle={getErrorMessage(error, "Something went wrong. Please try again.")}
+          lowContrast
+          hideCloseButton
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        />
+      )}
 
-            <div className="cg-section">
-              <div className="cg-toolbar">
-                <div className="cg-search">
-                  <Search size={16} className="cg-search__icon" />
-                  <input className="cg-search__input" placeholder="Search by code, name or attribute…" disabled />
-                </div>
-              </div>
-              <table className="cg-table cg-table--no-hover">
-                <thead>
-                  <tr>
-                    <th>Asset code</th>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Department</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Condition</th>
-                    <th>Acquisition cost</th>
+      <div className="cg-section">
+        <div className="cg-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
+          <div className="cg-search">
+            <Search size={16} className="cg-search__icon" />
+            <input
+              className="cg-search__input"
+              placeholder="Search by code or name…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
+          <div style={{ minWidth: "10rem" }}>
+            <Select
+              id="asset-filter-type"
+              labelText="Type"
+              hideLabel
+              value={assetTypeId}
+              onChange={(e) => setAssetTypeId(e.target.value)}
+            >
+              <SelectItem value="" text="All types" />
+              {assetTypes?.map((t) => <SelectItem key={t.id} value={t.id} text={t.name} />)}
+            </Select>
+          </div>
+          <div style={{ minWidth: "10rem" }}>
+            <Select
+              id="asset-filter-department"
+              labelText="Department"
+              hideLabel
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+            >
+              <SelectItem value="" text="All departments" />
+              {departments?.map((d) => <SelectItem key={d.id} value={d.id} text={d.name} />)}
+            </Select>
+          </div>
+          <div style={{ minWidth: "10rem" }}>
+            <Select
+              id="asset-filter-location"
+              labelText="Location"
+              hideLabel
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+            >
+              <SelectItem value="" text="All locations" />
+              {locations?.map((l) => <SelectItem key={l.id} value={l.id} text={l.name} />)}
+            </Select>
+          </div>
+          <div style={{ minWidth: "10rem" }}>
+            <Select
+              id="asset-filter-status"
+              labelText="Status"
+              hideLabel
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <SelectItem value="" text="All statuses" />
+              {ASSET_STATUSES.map((s) => <SelectItem key={s} value={s} text={formatStatusLabel(s)} />)}
+            </Select>
+          </div>
+          <div style={{ minWidth: "10rem" }}>
+            <Select
+              id="asset-filter-condition"
+              labelText="Condition"
+              hideLabel
+              value={condition}
+              onChange={(e) => setCondition(e.target.value)}
+            >
+              <SelectItem value="" text="All conditions" />
+              {ASSET_CONDITIONS.map((c) => <SelectItem key={c} value={c} text={formatStatusLabel(c)} />)}
+            </Select>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="cg-placeholder">
+            <p>Loading assets…</p>
+          </div>
+        ) : data && data.items.length > 0 ? (
+          <>
+            <table className="cg-table">
+              <thead>
+                <tr>
+                  <th>Asset code</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Department</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                  <th>Condition</th>
+                  <th>Acquisition cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((asset) => (
+                  <tr key={asset.id} onClick={() => setSelectedAssetId(asset.id)} style={{ cursor: "pointer" }}>
+                    <td className="cg-table__mono">{asset.asset_code}</td>
+                    <td>{asset.name}</td>
+                    <td className="cg-table__muted">{asset.asset_type_name}</td>
+                    <td className="cg-table__muted">{asset.department_name}</td>
+                    <td className="cg-table__muted">{asset.location_name}</td>
+                    <td>
+                      <Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag>
+                    </td>
+                    <td>
+                      <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
+                    </td>
+                    <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {MOCK_ASSETS.map((asset) => (
-                    <tr key={asset.code}>
-                      <td className="cg-table__mono">{asset.code}</td>
-                      <td>{asset.name}</td>
-                      <td className="cg-table__muted">{asset.type}</td>
-                      <td className="cg-table__muted">{asset.department}</td>
-                      <td className="cg-table__muted">{asset.location}</td>
-                      <td>
-                        <Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag>
-                      </td>
-                      <td>
-                        <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
-                      </td>
-                      <td className="cg-table__muted">${asset.acquisitionCost.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </TabPanel>
+                ))}
+              </tbody>
+            </table>
+            <Pagination
+              page={data.page}
+              pageSize={data.page_size}
+              pageSizes={[10, 20, 50, 100]}
+              totalItems={data.total_count}
+              onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+                setPage(nextPage);
+                setPageSize(nextPageSize);
+              }}
+            />
+          </>
+        ) : (
+          <div className="cg-placeholder">
+            <p>No assets match these filters.</p>
+          </div>
+        )}
+      </div>
 
-          {/* ── Categories ──────────────────────────────────────────────── */}
-          <TabPanel>
-            <MockNotice requirements={["FR-016"]}>
-              An Administrator creates asset categories as the top-level grouping used for reporting (assets
-              by department/category charts on the dashboard); a category cannot be deleted while an asset
-              type still references it.
-            </MockNotice>
-
-            <div className="cg-section">
-              <div className="cg-section__header">
-                <p className="cg-section__title">Asset categories</p>
-                <Button kind="ghost" size="sm" renderIcon={Add}>
-                  Add category
-                </Button>
-              </div>
-              <table className="cg-table cg-table--no-hover">
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>Asset types</th>
-                    <th>Assets</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {MOCK_ASSET_CATEGORIES.map((cat) => (
-                    <tr key={cat.code}>
-                      <td className="cg-table__mono">{cat.code}</td>
-                      <td>{cat.name}</td>
-                      <td className="cg-table__muted">{cat.typeCount}</td>
-                      <td className="cg-table__muted">{cat.assetCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </TabPanel>
-
-          {/* ── Types & Attributes ─────────────────────────────────────── */}
-          <TabPanel>
-            <MockNotice requirements={["FR-017", "FR-018", "FR-019", "FR-020"]}>
-              This is the configurable platform model: an Administrator defines, per asset type, an ordered
-              set of custom attributes (name, data type, required flag, validation rule). Both React and
-              Flutter render the asset form dynamically from these definitions — a new asset type with new
-              attributes needs no client-side code change, which is what lets one CoreGrid deployment serve a
-              transport fleet and a hospital inventory with entirely different "shapes" of asset.
-            </MockNotice>
-
-            <Accordion>
-              {MOCK_ASSET_TYPES.map((type) => (
-                <AccordionItem
-                  key={type.code}
-                  title={
-                    <span>
-                      <strong>{type.name}</strong>
-                      <span className="cg-table__muted"> · {type.category} · {type.code}</span>
-                    </span>
-                  }
-                >
-                  <div className="cg-kv-grid cg-kv-grid--three" style={{ marginBottom: "1rem", border: "1px solid #e0e0e0" }}>
-                    <div className="cg-kv-item">
-                      <p className="cg-kv-item__label">Useful life</p>
-                      <p className="cg-kv-item__value">{type.usefulLifeYears} years</p>
-                    </div>
-                    <div className="cg-kv-item">
-                      <p className="cg-kv-item__label">Maintenance interval</p>
-                      <p className="cg-kv-item__value">
-                        {type.maintenanceIntervalDays ? `${type.maintenanceIntervalDays} days` : "Not scheduled"}
-                      </p>
-                    </div>
-                    <div className="cg-kv-item">
-                      <p className="cg-kv-item__label">Custom attributes</p>
-                      <p className="cg-kv-item__value">{type.attributes.length}</p>
-                    </div>
-                  </div>
-
-                  <table className="cg-table cg-table--no-hover">
-                    <thead>
-                      <tr>
-                        <th>Attribute</th>
-                        <th>Data type</th>
-                        <th>Required</th>
-                        <th>Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {type.attributes.map((attr) => (
-                        <tr key={attr.name}>
-                          <td>{attr.name}</td>
-                          <td>
-                            <Tag type={DATA_TYPE_COLOR[attr.dataType]}>{attr.dataType}</Tag>
-                          </td>
-                          <td className="cg-table__muted">{attr.required ? "Required" : "Optional"}</td>
-                          <td className="cg-table__muted">{attr.notes ?? "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+      {selectedAssetId && (
+        <AssetDetailModal
+          assetId={selectedAssetId}
+          onClose={() => setSelectedAssetId(undefined)}
+          onConditionUpdated={refetch}
+        />
+      )}
     </div>
   );
 }

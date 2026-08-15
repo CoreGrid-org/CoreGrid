@@ -7,6 +7,8 @@ import {
   SideNav,
   SideNavItems,
   SideNavLink,
+  SideNavMenu,
+  SideNavMenuItem,
 } from "@carbon/react";
 import {
   Notification,
@@ -25,8 +27,6 @@ import {
 import { SignOutButton } from "@thunderid/react";
 
 const NAV_ITEMS = [
-  { to: "/admin", label: "Dashboard", end: true, icon: DashboardIcon },
-  { to: "/admin/assets", label: "Assets", icon: Asset },
   { to: "/admin/maintenance", label: "Maintenance", icon: ToolBox },
   { to: "/admin/transfers", label: "Transfers & Disposals", icon: ArrowsHorizontal },
   { to: "/admin/audit", label: "Audit & Compliance", icon: Search },
@@ -34,6 +34,12 @@ const NAV_ITEMS = [
   { to: "/admin/users", label: "Users & Roles", icon: UserMultiple },
   { to: "/admin/reports", label: "Reports", icon: Report },
   { to: "/admin/settings", label: "Settings", icon: SettingsIcon },
+];
+
+const ASSETS_SUB_ITEMS = [
+  { to: "/admin/assets", label: "Register" },
+  { to: "/admin/assets/scan", label: "Scan QR" },
+  { to: "/admin/assets/config", label: "Asset Config" },
 ];
 
 // Shared chrome for every /admin/* route: a minimal top header (logo, then
@@ -71,8 +77,20 @@ export default function AdminLayout() {
 
       <SideNav aria-label="Admin navigation" expanded isFixedNav className="cg-side-nav">
         <SideNavItems>
+          <SideNavLink as={Link} to="/admin" renderIcon={DashboardIcon} isActive={pathname === "/admin"}>
+            Dashboard
+          </SideNavLink>
+
+          <SideNavMenu title="Assets" renderIcon={Asset} defaultExpanded={pathname.startsWith("/admin/assets")}>
+            {ASSETS_SUB_ITEMS.map((item) => (
+              <SideNavMenuItem key={item.to} as={Link} to={item.to} isActive={pathname === item.to}>
+                {item.label}
+              </SideNavMenuItem>
+            ))}
+          </SideNavMenu>
+
           {NAV_ITEMS.map((item) => {
-            const isActive = item.end ? pathname === item.to : pathname.startsWith(item.to);
+            const isActive = pathname.startsWith(item.to);
             return (
               <SideNavLink key={item.to} as={Link} to={item.to} renderIcon={item.icon} isActive={isActive}>
                 {item.label}
