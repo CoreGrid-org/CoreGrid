@@ -2,7 +2,7 @@
 ## CoreGrid
 ### A Configurable, Agentic-AI-Assisted Asset Lifecycle Management Platform
 
-**Version 1.0  |  Baseline Release**
+**Version 1.1  |  Baseline Release**
 
 Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specification practice
 
@@ -15,9 +15,22 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | Academic period | Year 3, Semester 1, 2026 |
 | Group | SE3090_G<NN>  (to be completed by group leader) |
 | Author | Hasitha Erandika (Group Leader) |
-| Team members | Hasitha Erandika — Component D (Group Leader)<br>Jayashan Guruge — Component A<br>Seneja Ramanayaka — Component B<br>Bhanuka Samarasinghe — Component C |
-| Identity provider | WSO2 Asgardeo (OIDC / OAuth 2.0, organisation-scoped users) |
-| Mandatory stack | ASP.NET Core Web API · PostgreSQL · React · Flutter · Agentic AI (LangGraph) |
+| Team members | See the full roster below; §18 is the authoritative, per-member breakdown of ownership and evidence. |
+
+### Team Roster
+
+The single-line team-members field above names who is on the group; this table is the quick-reference version of it. It exists so a reader (or an evaluator) does not have to open §18 just to find out who owns what — every column here is drawn from, and must stay consistent with, the fuller record in [§18](18-team-roster-and-work-allocation.md#182-roster). If the two ever disagree, §18 is authoritative and this table is stale and should be corrected in the same edit.
+
+| Student # | Name | Student ID | GitHub username | Email | Component owned | Group role |
+|---|---|---|---|---|---|---|
+| Student 1 | Jayashan Guruge | `<ID>` | `<github-handle>` | `<email>` | A — Asset Registry & QR Identification | Member |
+| Student 2 | Seneja Ramanayaka | `<ID>` | `<github-handle>` | `<email>` | B — Maintenance Management | Member |
+| Student 3 | Bhanuka Samarasinghe | `<ID>` | `<github-handle>` | `<email>` | C — Transfer & Disposal | Member |
+| Student 4 | Hasitha Erandika | `<ID>` | `<github-handle>` | `<email>` | D — Audit & Compliance, org configuration, user administration | Group Leader |
+
+Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named student to fill in — they are not invented here. See [§18.2](18-team-roster-and-work-allocation.md#182-roster) for what a complete roster row must capture and why each field is required, and [§18.11](18-team-roster-and-work-allocation.md#1811-keeping-the-roster-current) for how this table is kept in sync as the project proceeds.
+| Identity provider | ThunderID (OIDC / OAuth 2.0); organisation scoping is done in CoreGrid's own database, not ThunderID (Section 4.2) |
+| Mandatory stack | ASP.NET Core Web API · PostgreSQL · React (IBM Carbon Design System) · Flutter · Agentic AI (LangGraph) |
 | Status | Approved baseline for implementation |
 
 ## Document Control
@@ -29,8 +42,10 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | 0.1 | 2026-08-01 | Hasitha Erandika | Initial scope, objectives and domain analysis drafted from the CoreGrid architecture and feasibility study. | Draft |
 | 0.2 | 2026-08-04 | Hasitha Erandika | React / Flutter responsibility boundary, four business components and agent roles added. | Draft |
 | 0.3 | 2026-08-06 | Hasitha Erandika | Configurable asset-type and custom-attribute platform model incorporated. | Draft |
-| 0.4 | 2026-08-07 | Hasitha Erandika | Identity and access management re-based on WSO2 Asgardeo with organisation-scoped users. | Draft |
+| 0.4 | 2026-08-07 | Hasitha Erandika | Identity and access management re-based on ThunderID with organisation-scoped users. | Draft |
 | 1.0 | 2026-08-08 | Hasitha Erandika | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
+| 1.1 | 2026-08-09 | Hasitha Erandika | React client design system mandated as IBM Carbon Design System (ADR-008); backend target environment corrected to .NET 10. | Draft |
+| 1.2 | 2026-08-10 | Hasitha Erandika | Generalised deployment and identity sections from government/ministry-specific language to a generic customer organisation, and documented the product's two-stage delivery plan: M0 (self-hosted, current baseline) and M1 (multi-tenant hosted SaaS, Section 17). Corrected an inaccurate claim that M1 would require per-tenant ThunderID organisations. | Draft |
 
 ### Approval
 
@@ -58,7 +73,7 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 1. [Introduction](01-introduction.md)
 2. [Overall Description](02-overall-description.md)
 3. [System Architecture](03-system-architecture.md)
-4. [Identity and Access Management with WSO2 Asgardeo](04-identity-and-access-management.md)
+4. [Identity and Access Management with ThunderID](04-identity-and-access-management.md)
 5. [External Interface Requirements](05-external-interface-requirements.md)
 6. [Functional Requirements](06-functional-requirements.md)
 7. [Agentic AI Subsystem Requirements](07-agentic-ai-subsystem-requirements.md)
@@ -75,6 +90,7 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 18. [Team Roster and Individual Work Allocation](18-team-roster-and-work-allocation.md)
 - [Appendix A — Status and Enumeration Reference](appendix-a-status-and-enumeration-reference.md)
 - [Appendix B — Route-Level Authorisation Map](appendix-b-route-level-authorisation-map.md)
-- [Appendix C — Asgardeo Configuration Checklist](appendix-c-asgardeo-configuration-checklist.md)
+- [Appendix C — ThunderID Configuration Checklist](appendix-c-thunderid-configuration-checklist.md)
 - [Appendix D — Architecture Decision Record Index](appendix-d-architecture-decision-record-index.md)
 - [Appendix E — AI Usage Disclosure](appendix-e-ai-usage-disclosure.md)
+- [Appendix F — Full Physical Database Schema (Reference Design)](system.md)

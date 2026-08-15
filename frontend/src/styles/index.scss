@@ -1,0 +1,830 @@
+// Carbon's own @font-face rules resolve IBM Plex from a webpack-only "~"
+// path alias that Vite can't follow (that's the font-decode/OTS-parsing
+// console errors) — disabled here since IBM Plex is already loaded via
+// Google Fonts in index.html.
+@use "@carbon/react" with (
+  $css--font-face: false
+);
+@use "sass:color";
+
+// ─── Design tokens ───────────────────────────────────────────────────────────
+$cg-accent:        #406AAF;   // brand — interactive, borders, icons
+$cg-accent-dark:   #2d5190;   // button hover, darker states
+$cg-accent-deeper: $cg-accent; // header background
+$cg-accent-mid:    #6a93c8;   // lighter icon / disabled
+$cg-accent-light:  #edf2fa;   // hover / active bg
+$cg-accent-border: #9ab5d9;   // light border accent
+$cg-sidebar-w:      15rem;
+
+$cg-text-primary:   #161616;
+$cg-text-secondary: #525252;
+$cg-text-tertiary:  #8d8d8d;
+
+// ─── Global font ────────────────────────────────────────────────────────────
+* { font-family: 'IBM Plex Sans', sans-serif; }
+
+.cds--progress-step .cds--assistive-text {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+// ─── Sign-in ────────────────────────────────────────────────────────────────
+.cg-signin-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f4f4f4;
+}
+.cg-signin-card {
+  width: 100%;
+  max-width: 480px;
+
+  &__logo { display: block; margin-bottom: 1rem; }
+  &__title { font-size: 1.75rem; font-weight: 500; margin-bottom: 0.5rem; }
+  &__subtitle { color: $cg-text-secondary; margin-bottom: 2rem; }
+}
+.cg-signin { padding: 2rem !important; }
+
+// Full-width submit button, reused on the sign-in and setup cards
+.cg-full-width-btn { width: 100%; max-width: 100%; }
+
+// ─── First-run setup ────────────────────────────────────────────────────────
+.cg-setup-card {
+  width: 100%;
+  max-width: 34rem;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  padding: 2.5rem;
+  margin: 2rem 0;
+
+  &__title { font-size: 1.5rem; font-weight: 500; margin-bottom: 0.5rem; color: $cg-text-primary; }
+  &__subtitle { color: $cg-text-secondary; margin-bottom: 2rem; }
+  &__intro { color: $cg-text-secondary; margin-bottom: 1.5rem; font-size: 0.875rem; }
+}
+
+@media (max-width: 560px) {
+  .cg-setup-card { padding: 1.5rem; }
+}
+
+.cg-setup-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+
+  &__logo { display: block; flex-shrink: 0; }
+  &__title { margin: 0; font-size: 1.125rem; font-weight: 600; color: $cg-text-primary; }
+  &__subtitle { margin: 0; font-size: 0.75rem; color: $cg-text-tertiary; }
+}
+
+.cg-setup-name-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.cg-setup-success-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto 1.25rem;
+  border-radius: 50%;
+  background: #defbe6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg { fill: #24a148; }
+}
+
+.cg-setup-signin-link {
+  text-align: center;
+  font-size: 0.8125rem;
+  color: $cg-text-secondary;
+
+  &__btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: $cg-accent;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+}
+
+// ─── Status views (404, coming soon, access restricted) ──────────────────────
+.cg-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4.5rem 1.5rem;
+  min-height: calc(100vh - 3rem - 3.5rem); // header + page padding, roughly
+
+  &__icon {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    background: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    svg { fill: $cg-text-tertiary; }
+  }
+
+  &__title { font-size: 1.375rem; font-weight: 500; color: $cg-text-primary; margin: 0 0 0.5rem; }
+
+  &__subtitle {
+    font-size: 0.875rem;
+    color: $cg-text-secondary;
+    max-width: 26rem;
+    line-height: 1.5;
+    margin: 0 0 1.75rem;
+  }
+
+  &__actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+}
+
+// Fullscreen variant reuses the sign-in/setup card look
+.cg-status-card {
+  width: 100%;
+  max-width: 28rem;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  .cg-status__subtitle { margin-bottom: 1.5rem; }
+}
+
+// ─── Header ─────────────────────────────────────────────────────────────────
+.cds--header {
+  background-color: $cg-accent-deeper;
+  border-bottom: none;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cds--header__name {
+  color: #ffffff !important;
+  font-weight: 500;
+  font-size: 1.25rem !important;
+  letter-spacing: 0.01em;
+  transition: background-color 0.15s ease;
+  &:hover { background-color: rgba(255,255,255,0.08); }
+}
+
+.cds--header__global {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding-right: 1rem;
+}
+
+.cds--header__global .cds--header__action {
+  color: #ffffff;
+  width: auto;
+  min-width: 2.75rem;
+  height: 2.25rem;
+  margin: 0;
+  padding: 0 0.75rem;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+  &:hover { background-color: rgba(255,255,255,0.14); color: #ffffff; }
+  &:focus { border-color: rgba(255,255,255,0.6); }
+}
+
+.cds--header__global button { color: #ffffff; }
+
+.cg-header-brand {
+  font-size: 1.25rem !important;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+
+  &__inner { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+  &__logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    img { display: block; }
+  }
+}
+
+.cg-header-icon,
+.cds--header__global .cds--header__action svg.cg-header-icon {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.cg-header-copy-token {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 6px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.thunderid-dialog__content:has(.thunderid-user-profile) {
+  width: min(60rem, calc(100vw - 3rem)) !important;
+  max-width: none !important;
+  max-height: min(44rem, calc(100vh - 3rem)) !important;
+
+  scrollbar-width: thin;
+  scrollbar-color: #c6c6c6 transparent;
+
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #c6c6c6;
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: #a8a8a8;
+  }
+}
+
+// ─── Sidebar ────────────────────────────────────────────────────────────────
+.cds--side-nav {
+  width: $cg-sidebar-w !important;
+  background-color: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  top: 3rem;
+}
+
+.cds--side-nav,
+.cds--side-nav__navigation,
+.cds--side-nav__items {
+  scrollbar-width: thin;
+  scrollbar-color: #c6c6c6 transparent;
+
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #c6c6c6;
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: #a8a8a8;
+  }
+}
+
+.cds--side-nav__items {
+  padding: 1rem 0.625rem;
+}
+
+.cds--side-nav__item {
+  margin-bottom: 0.1875rem;
+}
+
+.cds--side-nav__link,
+.cds--side-nav__submenu {
+  border-radius: 8px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.cds--side-nav__link {
+  color: #161616;
+  font-size: 0.875rem;
+  min-height: 2.5rem;
+
+  &:hover {
+    background-color: $cg-accent-light;
+    color: $cg-accent-dark;
+    .cds--side-nav__link-text { color: $cg-accent-dark; }
+    svg { fill: $cg-accent; }
+  }
+
+  &[aria-current='page'] {
+    background-color: $cg-accent;
+    box-shadow: 0 2px 6px rgba(64, 106, 175, 0.35);
+    .cds--side-nav__link-text { color: #ffffff; font-weight: 600; }
+    svg { fill: #ffffff; }
+
+    &:hover { background-color: $cg-accent; }
+  }
+}
+
+.cds--side-nav__icon { fill: #525252; }
+
+// The "Assets" expandable group — same rounded hover/active treatment as a
+// plain link.
+.cds--side-nav__submenu {
+  color: #161616;
+  font-size: 0.875rem;
+  min-height: 2.5rem;
+
+  &:hover {
+    background-color: $cg-accent-light;
+    color: $cg-accent-dark;
+    .cds--side-nav__submenu-title { color: $cg-accent-dark; }
+    svg:not(.cds--side-nav__submenu-chevron) { fill: $cg-accent; }
+  }
+
+  &[aria-expanded='true'] {
+    .cds--side-nav__submenu-title { color: $cg-accent-dark; font-weight: 600; }
+    svg:not(.cds--side-nav__submenu-chevron) { fill: $cg-accent; }
+  }
+}
+
+.cds--side-nav__menu {
+  .cds--side-nav__link {
+    min-height: 2.25rem;
+    font-size: 0.8125rem;
+    padding-inline-start: 1.5rem !important;
+  }
+}
+
+.cg-side-nav__submenu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+
+  svg { flex-shrink: 0; fill: #8d8d8d; }
+}
+
+// ─── Page chrome ────────────────────────────────────────────────────────────
+.cg-page {
+  padding: 1.5rem 2rem;
+
+  &__header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  &__header-left { flex: 1; min-width: 0; }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: #161616;
+    margin: 0 0 0.2rem;
+  }
+
+  &__subtitle {
+    font-size: 0.8125rem;
+    color: #525252;
+    margin: 0;
+  }
+
+  &__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: #525252;
+    margin-bottom: 0.5rem;
+    a { color: $cg-accent; text-decoration: none; &:hover { text-decoration: underline; } }
+    span { color: #8d8d8d; }
+  }
+}
+
+// ─── Stat cards ─────────────────────────────────────────────────────────────
+.cg-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 1100px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 640px)  { grid-template-columns: 1fr; }
+}
+
+.cg-stat-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 1.25rem 1.5rem;
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-color: #a8a8a8;
+  }
+
+  &__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #525252;
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  &__value {
+    font-size: 2.25rem;
+    font-weight: 300;
+    color: #161616;
+    line-height: 1;
+    margin: 0;
+  }
+}
+
+// ─── Two-up chart/section grid ────────────────────────────────────────────────
+.cg-chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+// ─── Quick action cards ───────────────────────────────────────────────────────
+.cg-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 1100px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 640px)  { grid-template-columns: 1fr; }
+}
+
+// ─── Section card ────────────────────────────────────────────────────────────
+.cg-section {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 1.5rem;
+
+  &__header {
+    padding: 0.875rem 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #161616;
+    margin: 0;
+  }
+
+  &__body { padding: 1.5rem; }
+}
+
+// ─── Data table ──────────────────────────────────────────────────────────────
+.cg-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 0.625rem 1.5rem;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #525252;
+    background-color: #f4f4f4;
+    border-bottom: 2px solid #e0e0e0;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    color: #161616;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: middle;
+  }
+
+  tbody tr {
+    cursor: pointer;
+    transition: background-color 0.1s;
+    &:hover { background-color: $cg-accent-light; }
+    &:last-child td { border-bottom: none; }
+  }
+
+  &--no-hover tbody tr {
+    cursor: default;
+    &:hover { background-color: transparent; }
+  }
+
+  .cg-table__link  { color: $cg-accent; font-weight: 500; text-decoration: none; &:hover { text-decoration: underline; } }
+  .cg-table__muted { color: #525252; }
+  .cg-table__mono  { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: #525252; }
+}
+
+// ─── Form layout ────────────────────────────────────────────────────────────
+.cg-form {
+  max-width: 720px;
+
+  &__section {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 1.5rem;
+  }
+
+  &__section-header {
+    padding: 0.875rem 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #161616;
+    background-color: #f9f9f9;
+  }
+
+  &__section-body {
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    &--full  { grid-template-columns: 1fr; }
+    &--three { grid-template-columns: 1fr 1fr 1fr; }
+  }
+
+  &__full-col { grid-column: 1 / -1; }
+
+  &__actions {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+}
+
+// ─── Profile / detail ────────────────────────────────────────────────────────
+.cg-profile {
+  &__banner {
+    background: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  &__avatar {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    background-color: $cg-accent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+  }
+
+  &__name { font-size: 1.25rem; font-weight: 600; color: #161616; margin: 0 0 0.2rem; }
+  &__meta { font-size: 0.8125rem; color: #525252; margin: 0; }
+  &__actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+}
+
+.cg-kv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  &--three { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+.cg-kv-item {
+  padding: 0.875rem 1.5rem;
+  border-bottom: 1px solid #f4f4f4;
+  border-right: 1px solid #f4f4f4;
+  &__label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #8d8d8d; margin: 0 0 0.2rem; }
+  &__value  { font-size: 0.875rem; color: #161616; margin: 0; }
+}
+
+// ─── Search / toolbar ────────────────────────────────────────────────────────
+.cg-search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+
+  &__icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    fill: #525252;
+    pointer-events: none;
+  }
+
+  &__input {
+    width: 100%;
+    padding: 0.5625rem 0.75rem 0.5625rem 2.25rem;
+    border: 1px solid #e0e0e0;
+    font-size: 0.875rem;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+    background: #ffffff;
+    &:focus { border-color: $cg-accent; outline: 2px solid $cg-accent; outline-offset: -2px; }
+  }
+}
+
+.cg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  background: #ffffff;
+  flex-wrap: wrap;
+}
+
+// ─── Placeholder state ────────────────────────────────────────────────────────
+.cg-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 2rem;
+  color: #8d8d8d;
+  text-align: center;
+  svg { fill: #c6c6c6; margin-bottom: 1rem; }
+  p { margin: 0; font-size: 0.875rem; }
+}
+
+// ─── Carbon overrides ─────────────────────────────────────────────────────────
+.cds--btn--primary {
+  background-color: $cg-accent !important;
+  border-color: $cg-accent !important;
+  &:hover { background-color: $cg-accent-dark !important; }
+  &:active { background-color: $cg-accent-deeper !important; }
+}
+
+// Carbon tab indicator
+.cds--tabs__nav-item--selected .cds--tabs__nav-link {
+  border-bottom-color: $cg-accent !important;
+  color: $cg-accent-dark !important;
+}
+
+// Carbon tag blue → remap to our accent
+.cds--tag--blue {
+  background-color: color.adjust($cg-accent, $lightness: 38%) !important;
+  color: $cg-accent-dark !important;
+}
+
+// ─── Top-nav-only content (no sidebar) ────────────────────────────────────────
+.cg-topnav-content {
+  padding-top: 3rem;
+  background-color: #f4f4f4;
+  min-height: 100vh;
+
+  &--with-sidenav {
+    margin-left: $cg-sidebar-w;
+
+    @media (max-width: 768px) { margin-left: 0; }
+  }
+}
+
+// ─── Header (logo + global actions only — nav lives in the side nav) ─────────
+.cds--header__name,
+.cds--header__name--prefix {
+  color: #ffffff !important;
+}
+
+.cds--header__global .cds--header__action {
+  color: #ffffff;
+
+  svg { fill: #ffffff; }
+
+  &:hover { background-color: rgba(255, 255, 255, 0.1); }
+
+  &--active,
+  &[aria-expanded="true"] {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+}
+
+// ─── Side nav ──────────────────────────────────────────────────────────────
+.cg-side-nav {
+  top: 3rem;
+
+  .cds--side-nav__link {
+    &:hover { background-color: $cg-accent-light; }
+
+    &[aria-current="page"],
+    &--current {
+      background-color: $cg-accent-light;
+      border-left: 3px solid $cg-accent;
+
+      .cds--side-nav__link-text { color: $cg-accent-dark; font-weight: 600; }
+    }
+  }
+}
+
+// ─── Compact inline DatePicker ────────────────────────────────────────────────
+.cg-session-date-filter {
+  width: 11rem;
+  overflow: hidden;
+
+  .cds--date-picker,
+  .cds--date-picker-container,
+  .cds--date-picker-input__wrapper,
+  .cds--date-picker__input {
+    width: 100%;
+  }
+}
+
+// ─── Quick action cards (feature grid) ────────────────────────────────────────
+.cg-quick-card {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 1.25rem 1.5rem;
+  text-decoration: none;
+  transition: border-color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $cg-accent;
+  }
+
+  &__icon {
+    color: $cg-accent;
+    margin-bottom: 0.75rem;
+  }
+
+  &__title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #161616;
+    margin: 0 0 0.25rem;
+  }
+
+  &__description {
+    font-size: 0.8125rem;
+    color: #525252;
+    margin: 0;
+  }
+}
+
+// ─── Charts ────────────────────────────────────────────────────────────────
+.cg-chart__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+
+.cg-chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  background: #161616;
+  color: #ffffff;
+  padding: 0.375rem 0.625rem;
+  border-radius: 2px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+
+  &__label { color: rgba(255, 255, 255, 0.7); }
+  &__value { color: #ffffff; font-size: 0.8125rem; }
+}

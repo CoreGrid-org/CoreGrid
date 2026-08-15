@@ -9,14 +9,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@carbon/icons-react": "^11.85.0",
+    "@carbon/react": "^1.113.0",
+    "@thunderid/react": "^0.13.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^5.0.0",
+    "sass": "^1.102.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
   }

@@ -17,9 +17,9 @@ These requirements are cross-cutting: they are implemented once in the API and i
 
 | ID | Requirement | Primary actor | Client | Priority |
 |---|---|---|---|---|
-| FR-001 | A user shall authenticate through Asgardeo using the authorisation-code-with-PKCE flow initiated from the client they are using; CoreGrid shall never present a password entry field. | All users | React, Flutter | Must |
-| FR-002 | The API shall validate every bearer token for signature, issuer, audience and lifetime, and shall reject a request that fails any check with 401 without disclosing which check failed. | System | API | Must |
-| FR-003 | The API shall resolve the `org_id` claim to an active organisation and shall reject any token whose organisation is absent, unknown or inactive. | System | API | Must |
+| FR-001 | A user shall authenticate through ThunderID using the authorisation-code-with-PKCE flow initiated from the client they are using; CoreGrid shall never present a password entry field. | All users | React, Flutter | Must |
+| FR-002 | The API shall validate every bearer token for signature, issuer and lifetime, and shall reject a request that fails any check with 401 without disclosing which check failed. | System | API | Must |
+| FR-003 | The API shall resolve the authenticated user's `OrganizationId` from their local user-mirror record, keyed by the token's `sub` claim, and shall reject a request where `sub` does not resolve to an active local record. | System | API | Must |
 | FR-004 | The API shall create or refresh a local user mirror record from token claims on the first authenticated request of a session, recording an audit event when a role changes. | System | API | Must |
 | FR-005 | Every endpoint shall declare an authorisation policy; a request from a user without the required permission shall be denied with 403 and the denial recorded. | System | API | Must |
 | FR-006 | Every query and command shall be scoped to the organisation of the authenticated user through a global query filter, so that no request can read or write another organisation's data. | System | API | Must |
@@ -34,7 +34,7 @@ These requirements are cross-cutting: they are implemented once in the API and i
 | FR-010 | An Administrator shall create, amend and deactivate departments within their organisation, each with a unique code and a name. | Administrator | React | Must |
 | FR-011 | An Administrator shall create, amend and deactivate locations, each belonging to a department and carrying a type such as store, workshop, office or ward. | Administrator | React | Must |
 | FR-012 | A department or location that is referenced by an active asset shall not be deletable; it may only be deactivated, and deactivation shall be refused while active assets reference it. | System | API | Must |
-| FR-013 | An Administrator shall invite a user into their organisation by email address and role, provisioning them through Asgardeo, and shall assign them to a department. | Administrator | React | Must |
+| FR-013 | An Administrator shall invite a user into their organisation by email address and role, provisioning them through ThunderID, and shall assign them to a department. | Administrator | React | Must |
 | FR-014 | An Administrator shall change a user's role or department assignment and deactivate a user; deactivated users shall be retained for historical reference and never hard-deleted. | Administrator | React | Must |
 | FR-015 | An Administrator shall define organisation policy parameters used by lifecycle rules and by the Policy Agent — including the repair-cost-to-replacement-cost threshold, the minimum service life before disposal, and the maximum acceptable failure frequency. | Administrator | React | Must |
 

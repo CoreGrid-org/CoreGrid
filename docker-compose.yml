@@ -1,0 +1,38 @@
+name: coregrid
+
+# Local development infrastructure only — ThunderID (identity) and PostgreSQL
+# (CoreGrid's own application database, SRS §3.6/§8). The backend API and
+# LangGraph agent service are not containerised here yet; see doc/setup/ThunderID.md.
+
+include:
+  - oci://ghcr.io/thunder-id/thunderid-quick-start:latest
+
+services:
+  # container_name override only — the "thunderid" service itself, its image,
+  # and its two one-shot init/setup companions come from the included bundle.
+  thunderid:
+    container_name: coregrid-thunderid
+
+  coregrid-postgres:
+    image: postgres:16
+    container_name: coregrid-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: coregrid
+      POSTGRES_USER: coregrid
+      # Local development only — never reuse this credential outside a developer machine.
+      POSTGRES_PASSWORD: coregrid
+    ports:
+      # Host-side 5433, not 5432 — avoids colliding with a Postgres instance
+      # from another local project already bound to the default port.
+      - "5433:5432"
+    volumes:
+      - coregrid-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coregrid -d coregrid"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  coregrid-postgres-data:

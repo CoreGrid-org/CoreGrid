@@ -10,7 +10,7 @@ Four architectural rules govern every design decision that follows. They are sta
 |---|---|---|
 | AR-1 | The ASP.NET Core API is the only authoritative application layer. | Business rules, authorisation and validation exist in exactly one place. A rule cannot be satisfied on the web and bypassed on mobile. |
 | AR-2 | Clients hold no privileged knowledge. | No client stores a database connection, an agent-service address or a third-party key. Compromise of a client cannot escalate beyond the permissions of the signed-in user. |
-| AR-3 | Identity is external; authorisation is internal. | Asgardeo establishes who the user is and which organisation they belong to. CoreGrid decides what they may do, using its own policy layer over the claims in the token. |
+| AR-3 | Identity is external; authorisation is internal. | ThunderID establishes who the user is and which organisation they belong to. CoreGrid decides what they may do, using its own policy layer over the claims in the token. |
 | AR-4 | The agent subsystem advises; the API decides. | No agent writes to the database. Every state change originates from an API endpoint executing a validated, authorised command. |
 
 ## 3.2 Logical Layering
@@ -37,7 +37,7 @@ Four architectural rules govern every design decision that follows. They are sta
   └────────────────────────────────────┬───────────────────────────────────────┘
   ┌────────────────────────────────────▼───────────────────────────────────────┐
   │  INFRASTRUCTURE          EF Core DbContext · repositories · migrations      │
-  │                          Asgardeo SCIM client · email client · QR service   │
+  │                          ThunderID SCIM client · email client · QR service   │
   │                          LangGraph HTTP client · structured logging         │
   └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -55,7 +55,7 @@ Dependency inversion is applied between the application and infrastructure layer
 | ASP.NET Core API | Token validation; authorisation policy evaluation; request validation; execution of every business rule and state transition; persistence and transaction control; agent workflow initiation, approval signalling and resumption; audit logging; third-party mediation. | Does not perform LLM reasoning, does not render user interface, does not hold user credentials. |
 | PostgreSQL | Durable storage of configuration, business data, custom attribute values, workflow state and audit records; enforcement of referential integrity, uniqueness and check constraints; concurrency arbitration. | Contains no business logic in stored procedures or triggers other than integrity constraints; holds no passwords or tokens. |
 | LangGraph agent service | Execution of the lifecycle decision graph; planning and delegation; invocation of allow-listed tools; deterministic validation; interruption at the human-approval checkpoint; production of a structured recommendation or a safe failure. | Does not write to the database, does not call third-party services, does not authenticate users, is never reachable from the public internet. |
-| Asgardeo | Authentication of human users; organisation and user directory; role assignment; issuance and signing of OIDC tokens; session termination. | Does not authorise individual CoreGrid operations; holds no business data. |
+| ThunderID | Authentication of human users; organisation and user directory; role assignment; issuance and signing of OIDC tokens; session termination. | Does not authorise individual CoreGrid operations; holds no business data. |
 
 ## 3.4 The React / Flutter Responsibility Boundary
 
@@ -135,13 +135,14 @@ What is deliberately not configurable is as important as what is. An administrat
 
 | Layer | Selection | Justification |
 |---|---|---|
-| Backend | C# / ASP.NET Core 8 Web API | Mandated. Provides first-class dependency injection, a mature authentication and policy-based authorisation pipeline, minimal-API and controller options, and native OpenAPI generation. |
+| Backend | C# / ASP.NET Core 10 Web API | Mandated. Provides first-class dependency injection, a mature authentication and policy-based authorisation pipeline, minimal-API and controller options, and native OpenAPI generation. |
 | ORM | Entity Framework Core with Npgsql | Mandated. Migrations give reviewable, version-controlled schema evolution; parameterised queries eliminate injection by construction; JSONB mapping supports custom attributes and workflow state. |
 | Database | PostgreSQL 15+ | Mandated. ACID guarantees, rich constraint support, JSONB with GIN indexing for the configurable attribute model, and system-column optimistic concurrency for concurrent field verification. |
 | Web client | React 18 with Vite, React Router, TanStack Query for server state and Zustand for client state | Mandated framework. The state split is deliberate: most CoreGrid web state is cached server data with caching, invalidation and background refresh needs that a query library solves directly, leaving only session and UI preference state for a lightweight store. Recorded in ADR-003. |
+| Design system | IBM Carbon Design System (`@carbon/react`, `@carbon/icons-react`), IBM Plex Sans / IBM Plex Mono typography | Mandated. Carbon supplies a WCAG 2.1 AA–compliant, enterprise-grade component set — `Grid`/`Column`, `Header`, `Tile` / `ClickableTile`, `Tag`, `Button`, `StructuredList`, `InlineNotification`, `Theme` — so the React client is assembled from audited, accessible primitives rather than bespoke styling, which is what NFR-26 relies on. The White theme is used throughout, with the `g100` theme applied locally to the agentic-AI monitoring surface for visual separation of AI-generated content. Recorded in ADR-008. |
 | Mobile client | Flutter 3 with Riverpod, go_router, flutter_secure_storage, mobile_scanner, image_picker | Mandated framework. Riverpod gives compile-time-safe dependency injection and testable providers without the boilerplate of event-driven alternatives; recorded in ADR-004. |
 | Agentic AI | Python LangGraph | Selected because the assignment's acceptance criteria map directly onto its primitives: an explicit graph of distinct nodes, a typed shared state object, checkpointed persistence, conditional edges for validation-driven routing, and a first-class interrupt mechanism for human approval. Recorded in ADR-005. |
-| Identity | WSO2 Asgardeo (OIDC / OAuth 2.0) | Removes credential storage from CoreGrid entirely, provides the organisation construct the platform model requires, and supplies standards-based tokens the API validates with published keys. Recorded in ADR-002. |
+| Identity | ThunderID (OIDC / OAuth 2.0) | Removes credential storage from CoreGrid entirely and supplies standards-based tokens the API validates with published keys. Recorded in ADR-002. |
 | CI | GitHub Actions | Mandated. Restores, builds and runs the backend test suite on every push and pull request to main, with additional jobs for the React build and Flutter analyse. |
 
 ## 3.7 Deployment View
@@ -163,7 +164,7 @@ What is deliberately not configurable is as important as what is. An administrat
                          │                   │   ┌───────────────────────────┐
                          └───────────────────┼──▶│  PostgreSQL (managed)     │
                                              │   │  restricted network       │
-   Asgardeo ◀── OIDC / JWKS / SCIM ──────────┤   └───────────────────────────┘
+   ThunderID ◀── OIDC / JWKS / SCIM ──────────┤   └───────────────────────────┘
    Email API ◀── backend-mediated only ──────┘
 ```
 
