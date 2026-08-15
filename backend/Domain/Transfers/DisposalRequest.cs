@@ -7,8 +7,8 @@ public class DisposalRequest
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 
-    // TODO: add FK once Asset entity exists (Component A)
     public Guid AssetId { get; set; }
+    public Asset? Asset { get; set; }
 
     public Guid InitiatedByUserId { get; set; }
     public User? InitiatedByUser { get; set; }

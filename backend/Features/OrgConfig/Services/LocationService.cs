@@ -1,9 +1,9 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Features.Assets.DTOs;
+using CoreGrid.Api.Features.OrgConfig.DTOs;
 using Microsoft.EntityFrameworkCore;
 
-namespace CoreGrid.Api.Features.Assets.Services;
+namespace CoreGrid.Api.Features.OrgConfig.Services;
 
 public class LocationService : ILocationService
 {
@@ -40,7 +40,8 @@ public class LocationService : ILocationService
                 DepartmentId = l.DepartmentId,
                 DepartmentName = l.Department != null
                     ? l.Department.Name
-                    : string.Empty
+                    : string.Empty,
+                IsActive = l.IsActive
             })
             .ToListAsync();
     }
@@ -101,7 +102,123 @@ public class LocationService : ILocationService
             Name = location.Name,
             Type = location.Type,
             DepartmentId = location.DepartmentId,
-            DepartmentName = department.Name
+            DepartmentName = department.Name,
+            IsActive = location.IsActive
+        };
+    }
+
+    public async Task<LocationDto?> UpdateLocationAsync(
+        Guid organizationId,
+        Guid id,
+        Guid? userId,
+        UpdateLocationRequest request)
+    {
+        var location = await _context.Locations
+            .FirstOrDefaultAsync(l =>
+                l.Id == id &&
+                l.OrganizationId == organizationId);
+
+        if (location is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new InvalidOperationException(
+                "Location name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Type))
+        {
+            throw new InvalidOperationException(
+                "Location type is required.");
+        }
+
+        var department = await _context.Departments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d =>
+                d.Id == request.DepartmentId &&
+                d.OrganizationId == organizationId &&
+                d.IsActive);
+
+        if (department is null)
+        {
+            throw new InvalidOperationException(
+                "Department was not found or is inactive.");
+        }
+
+        location.Name = request.Name.Trim();
+        location.Type = request.Type.Trim();
+        location.DepartmentId = request.DepartmentId;
+        location.UpdatedAt = DateTimeOffset.UtcNow;
+        location.UpdatedBy = userId;
+
+        await _context.SaveChangesAsync();
+
+        return new LocationDto
+        {
+            Id = location.Id,
+            Name = location.Name,
+            Type = location.Type,
+            DepartmentId = location.DepartmentId,
+            DepartmentName = department.Name,
+            IsActive = location.IsActive
+        };
+    }
+
+    public async Task<LocationDto?> SetLocationActiveAsync(
+        Guid organizationId,
+        Guid id,
+        Guid? userId,
+        bool isActive)
+    {
+        var location = await _context.Locations
+            .FirstOrDefaultAsync(l =>
+                l.Id == id &&
+                l.OrganizationId == organizationId);
+
+        if (location is null)
+        {
+            return null;
+        }
+
+        if (!isActive && location.IsActive)
+        {
+            // FR-012: same "active" definition as the department guard.
+            var hasActiveAssets = await _context.Assets
+                .AsNoTracking()
+                .AnyAsync(a =>
+                    a.LocationId == id &&
+                    a.Status != "DISPOSED");
+
+            if (hasActiveAssets)
+            {
+                throw new InvalidOperationException(
+                    "This location cannot be deactivated while active assets are assigned to it.");
+            }
+        }
+
+        location.IsActive = isActive;
+        location.UpdatedAt = DateTimeOffset.UtcNow;
+        location.UpdatedBy = userId;
+
+        await _context.SaveChangesAsync();
+
+        var departmentName = await _context.Departments
+            .AsNoTracking()
+            .Where(d => d.Id == location.DepartmentId)
+            .Select(d => d.Name)
+            .FirstOrDefaultAsync() ?? string.Empty;
+
+        return new LocationDto
+        {
+            Id = location.Id,
+            Name = location.Name,
+            Type = location.Type,
+            DepartmentId = location.DepartmentId,
+            DepartmentName = departmentName,
+            IsActive = location.IsActive
         };
     }
 }

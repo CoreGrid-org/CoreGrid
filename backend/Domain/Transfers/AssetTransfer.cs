@@ -7,20 +7,20 @@ public class AssetTransfer
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 
-    // TODO: add FK once Asset entity exists (Component A)
     public Guid AssetId { get; set; }
+    public Asset? Asset { get; set; }
 
-    // TODO: add FK once Department exists
     public Guid FromDepartmentId { get; set; }
+    public Department? FromDepartment { get; set; }
 
-    // TODO: add FK once Department exists
     public Guid ToDepartmentId { get; set; }
+    public Department? ToDepartment { get; set; }
 
-    // TODO: add FK once Location exists
     public Guid FromLocationId { get; set; }
+    public Location? FromLocation { get; set; }
 
-    // TODO: add FK once Location exists
     public Guid ToLocationId { get; set; }
+    public Location? ToLocation { get; set; }
 
     public Guid InitiatedByUserId { get; set; }
     public User? InitiatedByUser { get; set; }

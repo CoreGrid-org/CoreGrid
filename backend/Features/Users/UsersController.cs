@@ -20,7 +20,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
     {
         var users = await db.Users
             .OrderBy(u => u.CreatedAt)
-            .Select(u => new UserResponse(u.Id, u.Email, u.GivenName, u.FamilyName, u.Role, u.IsActive, u.CreatedAt))
+            .Select(u => new UserResponse(u.Id, u.Email, u.GivenName, u.FamilyName, u.Role, u.DepartmentId, u.IsActive, u.CreatedAt))
             .ToListAsync(cancellationToken);
 
         return Ok(users);
@@ -57,6 +57,84 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
 
-        return Ok(new UserResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.IsActive, user.CreatedAt));
+        return Ok(new UserResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.DepartmentId, user.IsActive, user.CreatedAt));
+    }
+
+    // FR-014: change a user's role or department assignment.
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<UserResponse>> Update(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        if (user is null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+
+        if (request.DepartmentId.HasValue)
+        {
+            var departmentExists = await db.Departments.AsNoTracking().AnyAsync(
+                d => d.Id == request.DepartmentId.Value && d.OrganizationId == user.OrganizationId,
+                cancellationToken);
+
+            if (!departmentExists)
+            {
+                return BadRequest(new { message = "Department was not found." });
+            }
+        }
+
+        user.Role = request.Role;
+        user.DepartmentId = request.DepartmentId;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Ok(new UserResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.DepartmentId, user.IsActive, user.CreatedAt));
+    }
+
+    // FR-014: deactivate a user — retained for historical reference, never
+    // hard-deleted. Guards against locking the organisation out by
+    // deactivating its last active Administrator.
+    [HttpPatch("{id:guid}/deactivate")]
+    public async Task<ActionResult<UserResponse>> Deactivate(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        if (user is null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+
+        if (user.Role == CoreGridRole.Administrator && user.IsActive)
+        {
+            var otherActiveAdmins = await db.Users.AsNoTracking().AnyAsync(
+                u => u.OrganizationId == user.OrganizationId
+                    && u.Role == CoreGridRole.Administrator
+                    && u.IsActive
+                    && u.Id != user.Id,
+                cancellationToken);
+
+            if (!otherActiveAdmins)
+            {
+                return BadRequest(new { message = "Cannot deactivate the organisation's last active Administrator." });
+            }
+        }
+
+        user.IsActive = false;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Ok(new UserResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.DepartmentId, user.IsActive, user.CreatedAt));
+    }
+
+    // FR-014 (reactivation is the natural inverse of deactivation).
+    [HttpPatch("{id:guid}/activate")]
+    public async Task<ActionResult<UserResponse>> Activate(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        if (user is null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+
+        user.IsActive = true;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Ok(new UserResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.DepartmentId, user.IsActive, user.CreatedAt));
     }
 }

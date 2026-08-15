@@ -1,27 +1,26 @@
-using System.Security.Claims;
 using CoreGrid.Api.Data;
-using CoreGrid.Api.Features.Assets.DTOs;
-using CoreGrid.Api.Features.Assets.Services;
+using CoreGrid.Api.Features.OrgConfig.DTOs;
+using CoreGrid.Api.Features.OrgConfig.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace CoreGrid.Api.Features.Assets.Controllers;
+using CoreGrid.Api.Features.Shared;
+
+namespace CoreGrid.Api.Features.OrgConfig.Controllers;
 
 [ApiController]
 [Route("api/locations")]
 [Authorize]
-public class LocationsController : ControllerBase
+public class LocationsController : CoreGridControllerBase
 {
     private readonly ILocationService _locationService;
-    private readonly CoreGridDbContext _db;
 
     public LocationsController(
         ILocationService locationService,
-        CoreGridDbContext db)
+        CoreGridDbContext db) : base(db)
     {
         _locationService = locationService;
-        _db = db;
     }
 
     // GET /api/locations?departmentId=
@@ -83,22 +82,108 @@ public class LocationsController : ControllerBase
         }
     }
 
-    private async Task<CoreGrid.Api.Domain.User?> GetCurrentUserAsync(
+    // PUT /api/locations/{id}
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<LocationDto>> UpdateLocation(
+        Guid id,
+        [FromBody] UpdateLocationRequest request,
         CancellationToken cancellationToken)
     {
-        var externalSubjectId =
-            User.FindFirst("sub")?.Value ??
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(externalSubjectId))
+        if (currentUser is null)
         {
-            return null;
+            return Unauthorized();
         }
 
-        return await _db.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                u => u.ExternalSubjectId == externalSubjectId,
-                cancellationToken);
+        try
+        {
+            var location = await _locationService.UpdateLocationAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id,
+                request);
+
+            if (location is null)
+            {
+                return NotFound(new
+                {
+                    message = "Location not found."
+                });
+            }
+
+            return Ok(location);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Location could not be updated because of a database conflict."
+            });
+        }
+    }
+
+    // PATCH /api/locations/{id}/deactivate
+    [HttpPatch("{id:guid}/deactivate")]
+    public async Task<ActionResult<LocationDto>> DeactivateLocation(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await SetActive(id, false, cancellationToken);
+    }
+
+    // PATCH /api/locations/{id}/activate
+    [HttpPatch("{id:guid}/activate")]
+    public async Task<ActionResult<LocationDto>> ActivateLocation(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await SetActive(id, true, cancellationToken);
+    }
+
+    private async Task<ActionResult<LocationDto>> SetActive(
+        Guid id,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var location = await _locationService.SetLocationActiveAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id,
+                isActive);
+
+            if (location is null)
+            {
+                return NotFound(new
+                {
+                    message = "Location not found."
+                });
+            }
+
+            return Ok(location);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }

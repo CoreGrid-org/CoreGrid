@@ -1,6 +1,6 @@
-using CoreGrid.Api.Features.Assets.DTOs;
+using CoreGrid.Api.Features.OrgConfig.DTOs;
 
-namespace CoreGrid.Api.Features.Assets.Services;
+namespace CoreGrid.Api.Features.OrgConfig.Services;
 
 public interface IDepartmentService
 {
@@ -10,4 +10,16 @@ public interface IDepartmentService
         Guid organizationId,
         Guid? userId,
         CreateDepartmentRequest request);
+
+    Task<DepartmentDto?> UpdateDepartmentAsync(
+        Guid organizationId,
+        Guid id,
+        Guid? userId,
+        UpdateDepartmentRequest request);
+
+    Task<DepartmentDto?> SetDepartmentActiveAsync(
+        Guid organizationId,
+        Guid id,
+        Guid? userId,
+        bool isActive);
 }

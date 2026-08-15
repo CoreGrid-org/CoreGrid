@@ -1,24 +1,10 @@
 import type { BarChartDatum } from "../components/BarChart";
 import type { LinePoint } from "../components/LineChart";
 
-// All mock — the Admin Dashboard's overview (stats, charts, feature grid) has
-// no backend behind it yet. Only Users & Roles (features/users) is real.
-
-export interface StatTile {
-  label: string;
-  value: string;
-}
-
-// FR-081 — role-appropriate indicators.
-export const MOCK_STAT_TILES: StatTile[] = [
-  { label: "Total assets", value: "1,284" },
-  { label: "Active assets", value: "1,196" },
-  { label: "Under maintenance", value: "27" },
-  { label: "Pending transfers", value: "9" },
-  { label: "Pending disposals", value: "4" },
-  { label: "Open discrepancies", value: "6" },
-  { label: "Workflows awaiting approval", value: "3" },
-];
+// The stat tiles are real now (GET /api/dashboard/summary — see
+// hooks/useDashboardSummary.ts). Only the charts below remain mock — FR-082
+// (assets by department/condition, maintenance cost by month) has no
+// backend yet.
 
 // FR-082 — "assets by department" (nominal categorical → single hue, slot 1 blue).
 export const MOCK_ASSETS_BY_DEPARTMENT: BarChartDatum[] = [

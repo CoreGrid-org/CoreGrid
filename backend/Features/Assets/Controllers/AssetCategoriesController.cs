@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Services;
@@ -6,22 +5,22 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using CoreGrid.Api.Features.Shared;
+
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
 [ApiController]
 [Route("api/asset-categories")]
 [Authorize]
-public class AssetCategoriesController : ControllerBase
+public class AssetCategoriesController : CoreGridControllerBase
 {
     private readonly IAssetCategoryService _assetCategoryService;
-    private readonly CoreGridDbContext _db;
 
     public AssetCategoriesController(
         IAssetCategoryService assetCategoryService,
-        CoreGridDbContext db)
+        CoreGridDbContext db) : base(db)
     {
         _assetCategoryService = assetCategoryService;
-        _db = db;
     }
 
     // GET /api/asset-categories
@@ -116,22 +115,4 @@ public class AssetCategoriesController : ControllerBase
         }
     }
 
-    private async Task<CoreGrid.Api.Domain.User?> GetCurrentUserAsync(
-        CancellationToken cancellationToken)
-    {
-        var externalSubjectId =
-            User.FindFirst("sub")?.Value ??
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrWhiteSpace(externalSubjectId))
-        {
-            return null;
-        }
-
-        return await _db.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                u => u.ExternalSubjectId == externalSubjectId,
-                cancellationToken);
-    }
 }

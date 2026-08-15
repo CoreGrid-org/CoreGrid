@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
+import { generateQrDataUrl } from "../utils/qrcode";
 
 interface QrCodeProps {
   value: string;
@@ -10,13 +10,17 @@ export default function QrCode({ value, size = 180 }: QrCodeProps) {
   const [qrUrl, setQrUrl] = useState<string>("");
 
   useEffect(() => {
-    QRCode.toDataURL(value, {
-      width: size,
-      margin: 4,
-      errorCorrectionLevel: "M",
-    })
-      .then(setQrUrl)
-      .catch(() => setQrUrl(""));
+    let cancelled = false;
+    generateQrDataUrl(value, size)
+      .then((url) => {
+        if (!cancelled) setQrUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrUrl("");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [value, size]);
 
   if (!qrUrl) {

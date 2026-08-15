@@ -1,11 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CoreGrid.Api.Data;
+using CoreGrid.Api.Data.Auditing;
 using CoreGrid.Api.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using CoreGrid.Api.Features.Assets.Services;
+using CoreGrid.Api.Features.OrgConfig.Services;
+using CoreGrid.Api.Features.Verification.Services;
 using Microsoft.OpenApi;
 
 
@@ -41,14 +44,23 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-builder.Services.AddDbContext<CoreGridDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("CoreGrid")));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
+builder.Services.AddScoped<AuditSaveChangesInterceptor>();
+
+builder.Services.AddDbContext<CoreGridDbContext>((serviceProvider, options) =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("CoreGrid"))
+        .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
 
 builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IAssetTypeService, AssetTypeService>();
 builder.Services.AddScoped<IAssetCategoryService, AssetCategoryService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
+builder.Services.AddScoped<IOrganizationPolicyService, OrganizationPolicyService>();
+builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignService>();
+builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
+builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>

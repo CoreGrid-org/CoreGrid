@@ -16,6 +16,12 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<AssetAttributeValue> AssetAttributeValues => Set<AssetAttributeValue>();
     public DbSet<AssetHistory> AssetHistoryEntries => Set<AssetHistory>();
+    public DbSet<AssetTransfer> AssetTransfers => Set<AssetTransfer>();
+    public DbSet<DisposalRequest> DisposalRequests => Set<DisposalRequest>();
+    public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+    public DbSet<VerificationCampaign> VerificationCampaigns => Set<VerificationCampaign>();
+    public DbSet<VerificationTask> VerificationTasks => Set<VerificationTask>();
+    public DbSet<Discrepancy> Discrepancies => Set<Discrepancy>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -281,6 +287,31 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
                 .WithMany()
                 .HasForeignKey(t => t.ConfirmedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.Asset)
+                .WithMany()
+                .HasForeignKey(t => t.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.FromDepartment)
+                .WithMany()
+                .HasForeignKey(t => t.FromDepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.ToDepartment)
+                .WithMany()
+                .HasForeignKey(t => t.ToDepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.FromLocation)
+                .WithMany()
+                .HasForeignKey(t => t.FromLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.ToLocation)
+                .WithMany()
+                .HasForeignKey(t => t.ToLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<DisposalRequest>(entity =>
@@ -306,6 +337,158 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
             entity.HasOne(d => d.ApprovedByUser)
                 .WithMany()
                 .HasForeignKey(d => d.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.Asset)
+                .WithMany()
+                .HasForeignKey(d => d.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AuditLogEntry>(entity =>
+        {
+            entity.HasIndex(a => a.OrganizationId);
+            entity.HasIndex(a => a.ActorUserId);
+            entity.HasIndex(a => a.EntityType);
+            entity.HasIndex(a => a.CreatedAt);
+            entity.HasIndex(a => a.CorrelationId);
+
+            entity.Property(a => a.EntityType).HasMaxLength(60).IsRequired();
+            entity.Property(a => a.Operation).HasMaxLength(10).IsRequired();
+            entity.Property(a => a.Changes).HasColumnType("jsonb");
+
+            entity.HasOne(a => a.Organization)
+                .WithMany()
+                .HasForeignKey(a => a.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(a => a.ActorUser)
+                .WithMany()
+                .HasForeignKey(a => a.ActorUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.ToTable(tb =>
+            {
+                tb.HasCheckConstraint("CK_AuditLogEntries_Operation", "\"Operation\" IN ('Create','Update','Delete')");
+            });
+        });
+
+        modelBuilder.Entity<VerificationCampaign>(entity =>
+        {
+            entity.HasIndex(c => c.OrganizationId);
+            entity.HasIndex(c => c.Status);
+
+            entity.Property(c => c.Name).IsRequired();
+
+            entity.HasOne(c => c.Organization)
+                .WithMany()
+                .HasForeignKey(c => c.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.ScopeDepartment)
+                .WithMany()
+                .HasForeignKey(c => c.ScopeDepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.ScopeLocation)
+                .WithMany()
+                .HasForeignKey(c => c.ScopeLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.ScopeAssetCategory)
+                .WithMany()
+                .HasForeignKey(c => c.ScopeAssetCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.ScopeAssetType)
+                .WithMany()
+                .HasForeignKey(c => c.ScopeAssetTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(c => c.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VerificationTask>(entity =>
+        {
+            entity.HasIndex(t => t.OrganizationId);
+            entity.HasIndex(t => t.CampaignId);
+            entity.HasIndex(t => t.AssetId);
+            entity.HasIndex(t => t.AssignedToUserId);
+            entity.HasIndex(t => t.Status);
+
+            entity.HasOne(t => t.Organization)
+                .WithMany()
+                .HasForeignKey(t => t.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.Campaign)
+                .WithMany(c => c.Tasks)
+                .HasForeignKey(t => t.CampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.Asset)
+                .WithMany()
+                .HasForeignKey(t => t.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.AssignedToUser)
+                .WithMany()
+                .HasForeignKey(t => t.AssignedToUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.AssertedLocation)
+                .WithMany()
+                .HasForeignKey(t => t.AssertedLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.CompletedByUser)
+                .WithMany()
+                .HasForeignKey(t => t.CompletedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Discrepancy>(entity =>
+        {
+            entity.HasIndex(d => d.OrganizationId);
+            entity.HasIndex(d => d.CampaignId);
+            entity.HasIndex(d => d.VerificationTaskId);
+            entity.HasIndex(d => d.AssetId);
+            entity.HasIndex(d => d.Status);
+            entity.HasIndex(d => d.Type);
+
+            entity.Property(d => d.Description).IsRequired();
+
+            entity.HasOne(d => d.Organization)
+                .WithMany()
+                .HasForeignKey(d => d.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.Campaign)
+                .WithMany()
+                .HasForeignKey(d => d.CampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.VerificationTask)
+                .WithMany(t => t.Discrepancies)
+                .HasForeignKey(d => d.VerificationTaskId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.Asset)
+                .WithMany()
+                .HasForeignKey(d => d.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.RaisedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.RaisedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.ResolvedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.ResolvedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

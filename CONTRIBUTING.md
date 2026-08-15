@@ -152,21 +152,52 @@ The frontend runs on `http://localhost:5173`.
 
 ### Backend (`backend/`)
 
-Feature-folder layout, one folder per business capability:
+Feature-folder layout, one folder per business capability — the folder boundary matches SRS ownership (a component and its owner in [SRS §18](./doc/SRS/18-team-roster-and-work-allocation.md)), not which entities happen to be technically related. That's why `Departments`/`Locations`/`OrganizationPolicies` live in `Features/OrgConfig/` (Component D — Hasitha) rather than `Features/Assets/` (Component A — Jayashan), even though Assets was built first and needed Department/Location as reference data.
 
 ```
 backend/
-  Domain/                    Entities and enums (User, Organization, CoreGridRole) — no behaviour
-  Data/                      CoreGridDbContext, EF Core model configuration
-  Identity/                  IIdentityDirectory + ThunderIdIdentityDirectory (the ThunderID management-API client)
+  Domain/                     Entities and enums — no behaviour. All files share one flat
+                               `CoreGrid.Api.Domain` namespace regardless of subfolder (so
+                               cross-entity navigation properties never need extra `using`s) —
+                               the subfolders below are physical organisation only:
+    Identity/                 Organization, User, CoreGridRole
+    OrgConfig/                Department, Location, OrganizationPolicy
+    Assets/                   Asset, AssetType, AssetCategory, AssetAttributeDefinition,
+                               AssetAttributeValue, AssetHistory
+    Transfers/                AssetTransfer, DisposalRequest
+    Verification/             VerificationCampaign, VerificationTask, Discrepancy
+    Audit/                    AuditLogEntry
+  Data/
+    CoreGridDbContext.cs       EF Core model configuration (one `modelBuilder.Entity<T>()` block
+                               per entity — keep it there, not scattered into partial classes)
+    Auditing/                  ICurrentUserAccessor/CurrentUserAccessor + AuditSaveChangesInterceptor
+                               — the generic FR-063 audit-log writer; new entities are covered
+                               automatically, nothing to wire up per-feature
+  Identity/                   IIdentityDirectory + ThunderIdIdentityDirectory (the ThunderID
+                               management-API client — unrelated to Domain/Identity/ above,
+                               this is the *external* identity provider integration)
   Features/
-    Setup/                   SetupController + SetupModels — the one unauthenticated write path
-    Users/                   UsersController + UsersModels — Administrator-only user administration
-  Migrations/                EF Core migrations — the schema source of truth (SRS §2.3, C-02)
-  db/                        Generated, readable SQL exports of the migrations — see db/README.md; never hand-edited
+    Setup/                    SetupController + SetupModels — the one unauthenticated write path
+    Users/                    UsersController + UsersModels — Administrator-only user administration
+    OrgConfig/                Component D: departments, locations, organisation policy
+      Controllers/ Services/ DTOs/
+    Assets/                   Component A: assets, asset types, asset categories
+      Controllers/ Services/ DTOs/ Helpers/
+    Verification/             Component D: verification campaigns, tasks, discrepancies
+      Controllers/ Services/ DTOs/
+    Audit/                    Component D: read-only audit log API (FR-064)
+    Dashboard/                Cross-cutting real-time indicators (FR-081)
+    Shared/                   CoreGridControllerBase (the `sub`-claim → CoreGrid user lookup
+                               every controller needs), PagedResult<T>
+  Migrations/                 EF Core migrations — the schema source of truth (SRS §2.3, C-02)
+  db/                         Generated, readable SQL exports of the migrations — see db/README.md; never hand-edited
 ```
 
-A new business component (Assets, Maintenance, Transfers, Disposals, Audit) gets its own `Features/<Name>/` folder with a `<Name>Controller.cs` and a `<Name>Models.cs`, following `Features/Users/` as the template. Add its entities to `Domain/`, register them as `DbSet`s in `CoreGridDbContext`, then run a migration (below).
+**Two feature shapes, pick based on size:**
+- **Small** (one controller, one model file): flat in `Features/<Name>/`, e.g. `Features/Users/UsersController.cs` + `UsersModels.cs`. Use this until a feature outgrows it.
+- **Larger** (several controllers and/or a real service layer): `Features/<Name>/Controllers/`, `Services/`, `DTOs/` subfolders, e.g. `Features/Assets/`, `Features/OrgConfig/`, `Features/Verification/`. Promote a flat feature to this shape once it needs more than one controller or its logic outgrows the controller itself.
+
+**Adding a new business component:** create `Features/<Name>/` (flat or subfoldered per the rule above), add its entities under a matching `Domain/<Name>/` folder (remember: namespace stays `CoreGrid.Api.Domain`, no `using` changes needed elsewhere), register them as `DbSet`s in `CoreGridDbContext`, then run a migration (below). If it needs a type another feature will also use (a DTO, a base class), put it in `Features/Shared/` rather than reaching into another feature's namespace — that cross-feature `using` is a sign the type belongs in `Shared/`, not that it's fine to import anyway.
 
 ### Frontend (`frontend/src/`)
 

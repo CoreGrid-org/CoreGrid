@@ -2,6 +2,7 @@ using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Helpers;
+using CoreGrid.Api.Features.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Assets.Services;

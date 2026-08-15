@@ -83,6 +83,7 @@ export interface Department {
   id: string;
   code: string;
   name: string;
+  is_active: boolean;
 }
 
 export interface Location {
@@ -91,6 +92,7 @@ export interface Location {
   type: string;
   department_id: string;
   department_name: string;
+  is_active: boolean;
 }
 
 export interface PagedResult<T> {

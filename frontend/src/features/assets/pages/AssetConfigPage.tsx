@@ -310,6 +310,7 @@ function AttributesTabBody({
           <button
             key={t.id}
             type="button"
+            aria-current={selectedTypeId === t.id ? "true" : undefined}
             onClick={() => onSelectType(t.id)}
             style={{
               display: "block",
@@ -318,7 +319,7 @@ function AttributesTabBody({
               padding: "0.75rem 1rem",
               border: "none",
               borderBottom: "1px solid #f0f0f0",
-              background: selectedTypeId === t.id ? "#edf5ff" : "transparent",
+              background: selectedTypeId === t.id ? "#edf2fa" : "transparent",
               fontWeight: selectedTypeId === t.id ? 600 : 400,
               cursor: "pointer",
             }}

@@ -301,9 +301,24 @@ html, body, #root {
   }
 }
 
+.cds--side-nav__items {
+  padding: 1rem 0.625rem;
+}
+
+.cds--side-nav__item {
+  margin-bottom: 0.1875rem;
+}
+
+.cds--side-nav__link,
+.cds--side-nav__submenu {
+  border-radius: 8px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
 .cds--side-nav__link {
   color: #161616;
   font-size: 0.875rem;
+  min-height: 2.5rem;
 
   &:hover {
     background-color: $cg-accent-light;
@@ -313,58 +328,51 @@ html, body, #root {
   }
 
   &[aria-current='page'] {
-    background-color: $cg-accent-light;
-    border-left: 3px solid $cg-accent;
-    .cds--side-nav__link-text { color: $cg-accent-dark; font-weight: 600; }
-    svg { fill: $cg-accent; }
+    background-color: $cg-accent;
+    box-shadow: 0 2px 6px rgba(64, 106, 175, 0.35);
+    .cds--side-nav__link-text { color: #ffffff; font-weight: 600; }
+    svg { fill: #ffffff; }
+
+    &:hover { background-color: $cg-accent; }
   }
 }
 
 .cds--side-nav__icon { fill: #525252; }
 
-// ─── Page layout ────────────────────────────────────────────────────────────
-.cg-layout {
-  display: flex;
-  min-height: 100vh;
-  padding-top: 3rem;
+// The "Assets" expandable group — same rounded hover/active treatment as a
+// plain link.
+.cds--side-nav__submenu {
+  color: #161616;
+  font-size: 0.875rem;
+  min-height: 2.5rem;
 
-  &__sidebar {
-    width: $cg-sidebar-w;
-    flex-shrink: 0;
-    position: fixed;
-    top: 3rem;
-    left: 0;
-    bottom: 0;
-    overflow-y: auto;
-    background-color: #ffffff;
-    border-right: 1px solid #e0e0e0;
-    z-index: 999;
-
-    scrollbar-width: thin;
-    scrollbar-color: #c6c6c6 transparent;
-
-    &::-webkit-scrollbar {
-      width: 3px;
-    }
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    &::-webkit-scrollbar-thumb {
-      background-color: #c6c6c6;
-      border-radius: 3px;
-    }
-    &::-webkit-scrollbar-thumb:hover {
-      background-color: #a8a8a8;
-    }
+  &:hover {
+    background-color: $cg-accent-light;
+    color: $cg-accent-dark;
+    .cds--side-nav__submenu-title { color: $cg-accent-dark; }
+    svg:not(.cds--side-nav__submenu-chevron) { fill: $cg-accent; }
   }
 
-  &__content {
-    flex: 1;
-    margin-left: $cg-sidebar-w;
-    background-color: #f4f4f4;
-    min-height: calc(100vh - 3rem);
-    min-width: 0;
+  &[aria-expanded='true'] {
+    .cds--side-nav__submenu-title { color: $cg-accent-dark; font-weight: 600; }
+    svg:not(.cds--side-nav__submenu-chevron) { fill: $cg-accent; }
   }
+}
+
+.cds--side-nav__menu {
+  .cds--side-nav__link {
+    min-height: 2.25rem;
+    font-size: 0.8125rem;
+    padding-inline-start: 1.5rem !important;
+  }
+}
+
+.cg-side-nav__submenu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+
+  svg { flex-shrink: 0; fill: #8d8d8d; }
 }
 
 // ─── Page chrome ────────────────────────────────────────────────────────────
@@ -456,6 +464,16 @@ html, body, #root {
     line-height: 1;
     margin: 0;
   }
+}
+
+// ─── Two-up chart/section grid ────────────────────────────────────────────────
+.cg-chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
 }
 
 // ─── Quick action cards ───────────────────────────────────────────────────────
@@ -698,7 +716,7 @@ html, body, #root {
   min-height: 100vh;
 
   &--with-sidenav {
-    margin-left: 16rem;
+    margin-left: $cg-sidebar-w;
 
     @media (max-width: 768px) { margin-left: 0; }
   }

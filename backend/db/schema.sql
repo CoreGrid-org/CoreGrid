@@ -295,3 +295,252 @@ VALUES ('20260814023105_AddAssetSchema', '10.0.10');
 
 COMMIT;
 
+START TRANSACTION;
+CREATE TABLE "AssetTransfers" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "AssetId" uuid NOT NULL,
+    "FromDepartmentId" uuid NOT NULL,
+    "ToDepartmentId" uuid NOT NULL,
+    "FromLocationId" uuid NOT NULL,
+    "ToLocationId" uuid NOT NULL,
+    "InitiatedByUserId" uuid NOT NULL,
+    "ApprovedByUserId" uuid,
+    "ConfirmedByUserId" uuid,
+    "Status" integer NOT NULL,
+    "RequestedAt" timestamp with time zone NOT NULL,
+    "ApprovedAt" timestamp with time zone,
+    "ConfirmedAt" timestamp with time zone,
+    "RejectionReason" text,
+    CONSTRAINT "PK_AssetTransfers" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_AssetTransfers_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AssetTransfers_Users_ApprovedByUserId" FOREIGN KEY ("ApprovedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AssetTransfers_Users_ConfirmedByUserId" FOREIGN KEY ("ConfirmedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AssetTransfers_Users_InitiatedByUserId" FOREIGN KEY ("InitiatedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE "DisposalRequests" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "AssetId" uuid NOT NULL,
+    "InitiatedByUserId" uuid NOT NULL,
+    "ApprovedByUserId" uuid,
+    "DisposalMethod" integer NOT NULL,
+    "EstimatedResidualValue" numeric(18,2) NOT NULL,
+    "Status" integer NOT NULL,
+    "RequestedAt" timestamp with time zone NOT NULL,
+    "ApprovedAt" timestamp with time zone,
+    "DisposedAt" timestamp with time zone,
+    "Notes" text,
+    CONSTRAINT "PK_DisposalRequests" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_DisposalRequests_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_DisposalRequests_Users_ApprovedByUserId" FOREIGN KEY ("ApprovedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_DisposalRequests_Users_InitiatedByUserId" FOREIGN KEY ("InitiatedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_AssetTransfers_ApprovedByUserId" ON "AssetTransfers" ("ApprovedByUserId");
+
+CREATE INDEX "IX_AssetTransfers_ConfirmedByUserId" ON "AssetTransfers" ("ConfirmedByUserId");
+
+CREATE INDEX "IX_AssetTransfers_InitiatedByUserId" ON "AssetTransfers" ("InitiatedByUserId");
+
+CREATE INDEX "IX_AssetTransfers_OrganizationId" ON "AssetTransfers" ("OrganizationId");
+
+CREATE INDEX "IX_DisposalRequests_ApprovedByUserId" ON "DisposalRequests" ("ApprovedByUserId");
+
+CREATE INDEX "IX_DisposalRequests_InitiatedByUserId" ON "DisposalRequests" ("InitiatedByUserId");
+
+CREATE INDEX "IX_DisposalRequests_OrganizationId" ON "DisposalRequests" ("OrganizationId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260814175120_AddTransferAndDisposalEntities', '10.0.10');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE INDEX "IX_DisposalRequests_AssetId" ON "DisposalRequests" ("AssetId");
+
+CREATE INDEX "IX_AssetTransfers_AssetId" ON "AssetTransfers" ("AssetId");
+
+CREATE INDEX "IX_AssetTransfers_FromDepartmentId" ON "AssetTransfers" ("FromDepartmentId");
+
+CREATE INDEX "IX_AssetTransfers_FromLocationId" ON "AssetTransfers" ("FromLocationId");
+
+CREATE INDEX "IX_AssetTransfers_ToDepartmentId" ON "AssetTransfers" ("ToDepartmentId");
+
+CREATE INDEX "IX_AssetTransfers_ToLocationId" ON "AssetTransfers" ("ToLocationId");
+
+ALTER TABLE "AssetTransfers" ADD CONSTRAINT "FK_AssetTransfers_Assets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "Assets" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "AssetTransfers" ADD CONSTRAINT "FK_AssetTransfers_Departments_FromDepartmentId" FOREIGN KEY ("FromDepartmentId") REFERENCES "Departments" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "AssetTransfers" ADD CONSTRAINT "FK_AssetTransfers_Departments_ToDepartmentId" FOREIGN KEY ("ToDepartmentId") REFERENCES "Departments" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "AssetTransfers" ADD CONSTRAINT "FK_AssetTransfers_Locations_FromLocationId" FOREIGN KEY ("FromLocationId") REFERENCES "Locations" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "AssetTransfers" ADD CONSTRAINT "FK_AssetTransfers_Locations_ToLocationId" FOREIGN KEY ("ToLocationId") REFERENCES "Locations" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "DisposalRequests" ADD CONSTRAINT "FK_DisposalRequests_Assets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "Assets" ("Id") ON DELETE RESTRICT;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260815024645_AddTransferDisposalForeignKeys', '10.0.10');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "AuditLogEntries" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "ActorUserId" uuid,
+    "EntityType" character varying(60) NOT NULL,
+    "EntityId" uuid,
+    "Operation" character varying(10) NOT NULL,
+    "Changes" jsonb,
+    "CorrelationId" uuid NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_AuditLogEntries" PRIMARY KEY ("Id"),
+    CONSTRAINT "CK_AuditLogEntries_Operation" CHECK ("Operation" IN ('Create','Update','Delete')),
+    CONSTRAINT "FK_AuditLogEntries_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AuditLogEntries_Users_ActorUserId" FOREIGN KEY ("ActorUserId") REFERENCES "Users" ("Id") ON DELETE SET NULL
+);
+
+CREATE INDEX "IX_AuditLogEntries_ActorUserId" ON "AuditLogEntries" ("ActorUserId");
+
+CREATE INDEX "IX_AuditLogEntries_CorrelationId" ON "AuditLogEntries" ("CorrelationId");
+
+CREATE INDEX "IX_AuditLogEntries_CreatedAt" ON "AuditLogEntries" ("CreatedAt");
+
+CREATE INDEX "IX_AuditLogEntries_EntityType" ON "AuditLogEntries" ("EntityType");
+
+CREATE INDEX "IX_AuditLogEntries_OrganizationId" ON "AuditLogEntries" ("OrganizationId");
+
+DO $$ BEGIN IF EXISTS (SELECT FROM pg_roles WHERE rolname='coregrid_app') THEN EXECUTE 'REVOKE UPDATE, DELETE ON "AuditLogEntries" FROM coregrid_app'; END IF; END $$;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260815031732_AddAuditLog', '10.0.10');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "VerificationCampaigns" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "Name" text NOT NULL,
+    "PeriodStart" date NOT NULL,
+    "PeriodEnd" date NOT NULL,
+    "ScopeDepartmentId" uuid,
+    "ScopeLocationId" uuid,
+    "ScopeAssetCategoryId" uuid,
+    "ScopeAssetTypeId" uuid,
+    "Status" integer NOT NULL,
+    "CreatedByUserId" uuid NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_VerificationCampaigns" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_VerificationCampaigns_AssetCategories_ScopeAssetCategoryId" FOREIGN KEY ("ScopeAssetCategoryId") REFERENCES "AssetCategories" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationCampaigns_AssetTypes_ScopeAssetTypeId" FOREIGN KEY ("ScopeAssetTypeId") REFERENCES "AssetTypes" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationCampaigns_Departments_ScopeDepartmentId" FOREIGN KEY ("ScopeDepartmentId") REFERENCES "Departments" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationCampaigns_Locations_ScopeLocationId" FOREIGN KEY ("ScopeLocationId") REFERENCES "Locations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationCampaigns_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationCampaigns_Users_CreatedByUserId" FOREIGN KEY ("CreatedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE "VerificationTasks" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "CampaignId" uuid NOT NULL,
+    "AssetId" uuid NOT NULL,
+    "AssignedToUserId" uuid,
+    "DueDate" date NOT NULL,
+    "Status" integer NOT NULL,
+    "AssertedPresent" boolean,
+    "AssertedLocationId" uuid,
+    "AssertedCondition" text,
+    "CompletedByUserId" uuid,
+    "CompletedAt" timestamp with time zone,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_VerificationTasks" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_VerificationTasks_Assets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "Assets" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationTasks_Locations_AssertedLocationId" FOREIGN KEY ("AssertedLocationId") REFERENCES "Locations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationTasks_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationTasks_Users_AssignedToUserId" FOREIGN KEY ("AssignedToUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationTasks_Users_CompletedByUserId" FOREIGN KEY ("CompletedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_VerificationTasks_VerificationCampaigns_CampaignId" FOREIGN KEY ("CampaignId") REFERENCES "VerificationCampaigns" ("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE "Discrepancies" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "CampaignId" uuid NOT NULL,
+    "VerificationTaskId" uuid NOT NULL,
+    "AssetId" uuid NOT NULL,
+    "Type" integer NOT NULL,
+    "IsAutomatic" boolean NOT NULL,
+    "RaisedByUserId" uuid,
+    "Description" text NOT NULL,
+    "PhotoUrl" text,
+    "Status" integer NOT NULL,
+    "ResolutionType" text,
+    "ResolutionExplanation" text,
+    "CorrectiveAction" text,
+    "RegisterCorrected" boolean NOT NULL,
+    "ResolvedByUserId" uuid,
+    "ResolvedAt" timestamp with time zone,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_Discrepancies" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_Discrepancies_Assets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "Assets" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_Discrepancies_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_Discrepancies_Users_RaisedByUserId" FOREIGN KEY ("RaisedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_Discrepancies_Users_ResolvedByUserId" FOREIGN KEY ("ResolvedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_Discrepancies_VerificationCampaigns_CampaignId" FOREIGN KEY ("CampaignId") REFERENCES "VerificationCampaigns" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_Discrepancies_VerificationTasks_VerificationTaskId" FOREIGN KEY ("VerificationTaskId") REFERENCES "VerificationTasks" ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_Discrepancies_AssetId" ON "Discrepancies" ("AssetId");
+
+CREATE INDEX "IX_Discrepancies_CampaignId" ON "Discrepancies" ("CampaignId");
+
+CREATE INDEX "IX_Discrepancies_OrganizationId" ON "Discrepancies" ("OrganizationId");
+
+CREATE INDEX "IX_Discrepancies_RaisedByUserId" ON "Discrepancies" ("RaisedByUserId");
+
+CREATE INDEX "IX_Discrepancies_ResolvedByUserId" ON "Discrepancies" ("ResolvedByUserId");
+
+CREATE INDEX "IX_Discrepancies_Status" ON "Discrepancies" ("Status");
+
+CREATE INDEX "IX_Discrepancies_Type" ON "Discrepancies" ("Type");
+
+CREATE INDEX "IX_Discrepancies_VerificationTaskId" ON "Discrepancies" ("VerificationTaskId");
+
+CREATE INDEX "IX_VerificationCampaigns_CreatedByUserId" ON "VerificationCampaigns" ("CreatedByUserId");
+
+CREATE INDEX "IX_VerificationCampaigns_OrganizationId" ON "VerificationCampaigns" ("OrganizationId");
+
+CREATE INDEX "IX_VerificationCampaigns_ScopeAssetCategoryId" ON "VerificationCampaigns" ("ScopeAssetCategoryId");
+
+CREATE INDEX "IX_VerificationCampaigns_ScopeAssetTypeId" ON "VerificationCampaigns" ("ScopeAssetTypeId");
+
+CREATE INDEX "IX_VerificationCampaigns_ScopeDepartmentId" ON "VerificationCampaigns" ("ScopeDepartmentId");
+
+CREATE INDEX "IX_VerificationCampaigns_ScopeLocationId" ON "VerificationCampaigns" ("ScopeLocationId");
+
+CREATE INDEX "IX_VerificationCampaigns_Status" ON "VerificationCampaigns" ("Status");
+
+CREATE INDEX "IX_VerificationTasks_AssertedLocationId" ON "VerificationTasks" ("AssertedLocationId");
+
+CREATE INDEX "IX_VerificationTasks_AssetId" ON "VerificationTasks" ("AssetId");
+
+CREATE INDEX "IX_VerificationTasks_AssignedToUserId" ON "VerificationTasks" ("AssignedToUserId");
+
+CREATE INDEX "IX_VerificationTasks_CampaignId" ON "VerificationTasks" ("CampaignId");
+
+CREATE INDEX "IX_VerificationTasks_CompletedByUserId" ON "VerificationTasks" ("CompletedByUserId");
+
+CREATE INDEX "IX_VerificationTasks_OrganizationId" ON "VerificationTasks" ("OrganizationId");
+
+CREATE INDEX "IX_VerificationTasks_Status" ON "VerificationTasks" ("Status");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260815032307_AddVerificationAndDiscrepancies', '10.0.10');
+
+COMMIT;
+

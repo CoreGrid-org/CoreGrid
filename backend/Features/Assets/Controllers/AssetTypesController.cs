@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Services;
@@ -6,22 +5,22 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using CoreGrid.Api.Features.Shared;
+
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
 [ApiController]
 [Route("api/asset-types")]
 [Authorize]
-public class AssetTypesController : ControllerBase
+public class AssetTypesController : CoreGridControllerBase
 {
     private readonly IAssetTypeService _assetTypeService;
-    private readonly CoreGridDbContext _db;
 
     public AssetTypesController(
         IAssetTypeService assetTypeService,
-        CoreGridDbContext db)
+        CoreGridDbContext db) : base(db)
     {
         _assetTypeService = assetTypeService;
-        _db = db;
     }
 
     // =========================================================
@@ -225,27 +224,4 @@ public class AssetTypesController : ControllerBase
         }
     }
 
-    // =========================================================
-    // CURRENT USER
-    // Same pattern as existing MeController
-    // =========================================================
-
-    private async Task<CoreGrid.Api.Domain.User?> GetCurrentUserAsync(
-        CancellationToken cancellationToken)
-    {
-        var externalSubjectId =
-            User.FindFirst("sub")?.Value ??
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(externalSubjectId))
-        {
-            return null;
-        }
-
-        return await _db.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                u => u.ExternalSubjectId == externalSubjectId,
-                cancellationToken);
-    }
 }

@@ -1,4 +1,4 @@
-namespace CoreGrid.Api.Features.Assets.DTOs;
+namespace CoreGrid.Api.Features.OrgConfig.DTOs;
 
 public class DepartmentDto
 {
@@ -7,4 +7,6 @@ public class DepartmentDto
     public string Code { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
+
+    public bool IsActive { get; set; }
 }

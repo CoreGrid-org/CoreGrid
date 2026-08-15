@@ -1,4 +1,4 @@
-namespace CoreGrid.Api.Features.Assets.DTOs;
+namespace CoreGrid.Api.Features.OrgConfig.DTOs;
 
 public class CreateLocationRequest
 {

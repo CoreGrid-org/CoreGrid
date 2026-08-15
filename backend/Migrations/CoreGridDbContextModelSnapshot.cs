@@ -323,6 +323,83 @@ namespace CoreGrid.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CoreGrid.Api.Domain.AssetTransfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ConfirmedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FromDepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FromLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InitiatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ToDepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ToLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("ConfirmedByUserId");
+
+                    b.HasIndex("FromDepartmentId");
+
+                    b.HasIndex("FromLocationId");
+
+                    b.HasIndex("InitiatedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ToDepartmentId");
+
+                    b.HasIndex("ToLocationId");
+
+                    b.ToTable("AssetTransfers");
+                });
+
             modelBuilder.Entity("CoreGrid.Api.Domain.AssetType", b =>
                 {
                     b.Property<Guid>("Id")
@@ -377,6 +454,58 @@ namespace CoreGrid.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CoreGrid.Api.Domain.AuditLogEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Changes")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("EntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("EntityType");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("AuditLogEntries", t =>
+                        {
+                            t.HasCheckConstraint("CK_AuditLogEntries_Operation", "\"Operation\" IN ('Create','Update','Delete')");
+                        });
+                });
+
             modelBuilder.Entity("CoreGrid.Api.Domain.Department", b =>
                 {
                     b.Property<Guid>("Id")
@@ -418,6 +547,144 @@ namespace CoreGrid.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Departments");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.Discrepancy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrectiveAction")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsAutomatic")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("RaisedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("RegisterCorrected")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ResolutionExplanation")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResolutionType")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ResolvedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("VerificationTaskId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("RaisedByUserId");
+
+                    b.HasIndex("ResolvedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Type");
+
+                    b.HasIndex("VerificationTaskId");
+
+                    b.ToTable("Discrepancies");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.DisposalRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisposalMethod")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("DisposedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("EstimatedResidualValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("InitiatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("InitiatedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("DisposalRequests");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.Location", b =>
@@ -609,6 +876,126 @@ namespace CoreGrid.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CoreGrid.Api.Domain.VerificationCampaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("ScopeAssetCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ScopeAssetTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ScopeDepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ScopeLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ScopeAssetCategoryId");
+
+                    b.HasIndex("ScopeAssetTypeId");
+
+                    b.HasIndex("ScopeDepartmentId");
+
+                    b.HasIndex("ScopeLocationId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("VerificationCampaigns");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.VerificationTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AssertedCondition")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("AssertedLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool?>("AssertedPresent")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedToUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CompletedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssertedLocationId");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("AssignedToUserId");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("CompletedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("VerificationTasks");
+                });
+
             modelBuilder.Entity("CoreGrid.Api.Domain.Asset", b =>
                 {
                     b.HasOne("CoreGrid.Api.Domain.AssetType", "AssetType")
@@ -704,11 +1091,119 @@ namespace CoreGrid.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("ActorUser");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AssetTransfer", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.User", "ApprovedByUser")
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "ConfirmedByUser")
+                        .WithMany()
+                        .HasForeignKey("ConfirmedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Department", "FromDepartment")
+                        .WithMany()
+                        .HasForeignKey("FromDepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Location", "FromLocation")
+                        .WithMany()
+                        .HasForeignKey("FromLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "InitiatedByUser")
+                        .WithMany()
+                        .HasForeignKey("InitiatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Department", "ToDepartment")
+                        .WithMany()
+                        .HasForeignKey("ToDepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Location", "ToLocation")
+                        .WithMany()
+                        .HasForeignKey("ToLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Asset");
 
                     b.Navigation("ConfirmedByUser");
 
+                    b.Navigation("FromDepartment");
+
+                    b.Navigation("FromLocation");
+
                     b.Navigation("InitiatedByUser");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("ToDepartment");
+
+                    b.Navigation("ToLocation");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AssetType", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.AssetCategory", "AssetCategory")
+                        .WithMany("AssetTypes")
+                        .HasForeignKey("AssetCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany("AssetTypes")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssetCategory");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AuditLogEntry", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.User", "ActorUser")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ActorUser");
 
                     b.Navigation("Organization");
                 });
@@ -720,6 +1215,89 @@ namespace CoreGrid.Api.Migrations
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.Discrepancy", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.VerificationCampaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "RaisedByUser")
+                        .WithMany()
+                        .HasForeignKey("RaisedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "ResolvedByUser")
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.VerificationTask", "VerificationTask")
+                        .WithMany("Discrepancies")
+                        .HasForeignKey("VerificationTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("RaisedByUser");
+
+                    b.Navigation("ResolvedByUser");
+
+                    b.Navigation("VerificationTask");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.DisposalRequest", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.User", "ApprovedByUser")
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "InitiatedByUser")
+                        .WithMany()
+                        .HasForeignKey("InitiatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("InitiatedByUser");
 
                     b.Navigation("Organization");
                 });
@@ -775,6 +1353,101 @@ namespace CoreGrid.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Department");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.VerificationCampaign", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.AssetCategory", "ScopeAssetCategory")
+                        .WithMany()
+                        .HasForeignKey("ScopeAssetCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.AssetType", "ScopeAssetType")
+                        .WithMany()
+                        .HasForeignKey("ScopeAssetTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Department", "ScopeDepartment")
+                        .WithMany()
+                        .HasForeignKey("ScopeDepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Location", "ScopeLocation")
+                        .WithMany()
+                        .HasForeignKey("ScopeLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("ScopeAssetCategory");
+
+                    b.Navigation("ScopeAssetType");
+
+                    b.Navigation("ScopeDepartment");
+
+                    b.Navigation("ScopeLocation");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.VerificationTask", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.Location", "AssertedLocation")
+                        .WithMany()
+                        .HasForeignKey("AssertedLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "AssignedToUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedToUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.VerificationCampaign", "Campaign")
+                        .WithMany("Tasks")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "CompletedByUser")
+                        .WithMany()
+                        .HasForeignKey("CompletedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssertedLocation");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("CompletedByUser");
 
                     b.Navigation("Organization");
                 });
@@ -841,6 +1514,16 @@ namespace CoreGrid.Api.Migrations
             modelBuilder.Entity("CoreGrid.Api.Domain.User", b =>
                 {
                     b.Navigation("AssetHistoryEntries");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.VerificationCampaign", b =>
+                {
+                    b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.VerificationTask", b =>
+                {
+                    b.Navigation("Discrepancies");
                 });
 #pragma warning restore 612, 618
         }

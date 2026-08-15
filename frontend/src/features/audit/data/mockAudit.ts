@@ -38,20 +38,3 @@ export const MOCK_DISCREPANCIES: MockDiscrepancy[] = [
   { assetCode: "ORG-HBD-0061", classification: "MISSING", status: "RESOLVED", raisedBy: "System (auto)", date: "2026-07-18" },
 ];
 
-export interface MockAuditLogEntry {
-  timestamp: string;
-  actor: string;
-  entity: string;
-  operation: string;
-  correlationId: string;
-}
-
-// FR-063, FR-064 — append-only, never editable or deletable (DR-12).
-export const MOCK_AUDIT_LOG: MockAuditLogEntry[] = [
-  { timestamp: "2026-08-12 09:14:02", actor: "Hasitha Erandika", entity: "DisposalRequest #ORG-PMN-0034", operation: "APPROVE", correlationId: "c9f2a1e0" },
-  { timestamp: "2026-08-12 08:55:41", actor: "System", entity: "AgentWorkflow #a341", operation: "AWAITING_APPROVAL", correlationId: "a34117bd" },
-  { timestamp: "2026-08-11 16:40:07", actor: "Hasitha Erandika", entity: "AssetTransfer #ORG-VAN-0011", operation: "APPROVE", correlationId: "77c0e921" },
-  { timestamp: "2026-08-11 11:22:15", actor: "Dilani Jayasuriya", entity: "Discrepancy #ORG-CHR-0211", operation: "RESOLVE", correlationId: "5b8d3f44" },
-  { timestamp: "2026-08-10 14:55:39", actor: "Ishara Wickrama", entity: "MaintenanceRecord #ORG-HBD-0061", operation: "COMPLETE", correlationId: "e112dc0a" },
-  { timestamp: "2026-08-09 10:03:52", actor: "System", entity: "Asset #ORG-PMN-0034", operation: "VERIFY", correlationId: "9930acb2" },
-];

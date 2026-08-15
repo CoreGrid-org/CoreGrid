@@ -1,6 +1,6 @@
-using CoreGrid.Api.Features.Assets.DTOs;
+using CoreGrid.Api.Features.OrgConfig.DTOs;
 
-namespace CoreGrid.Api.Features.Assets.Services;
+namespace CoreGrid.Api.Features.OrgConfig.Services;
 
 public interface ILocationService
 {
@@ -12,4 +12,16 @@ public interface ILocationService
         Guid organizationId,
         Guid? userId,
         CreateLocationRequest request);
+
+    Task<LocationDto?> UpdateLocationAsync(
+        Guid organizationId,
+        Guid id,
+        Guid? userId,
+        UpdateLocationRequest request);
+
+    Task<LocationDto?> SetLocationActiveAsync(
+        Guid organizationId,
+        Guid id,
+        Guid? userId,
+        bool isActive);
 }

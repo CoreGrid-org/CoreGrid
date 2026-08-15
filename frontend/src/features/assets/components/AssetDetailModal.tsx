@@ -69,51 +69,52 @@ export default function AssetDetailModal({ assetId, onClose, onConditionUpdated 
           <div style={{ display: "flex", gap: "1.5rem", alignItems: "flex-start", flexWrap: "wrap", marginBottom: "1.5rem" }}>
             <div style={{ flex: "1 1 20rem" }}>
               <div className="cg-kv-grid cg-kv-grid--three">
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Asset code</p>
-              <p className="cg-kv-item__value cg-table__mono">{asset.asset_code}</p>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Type</p>
-              <p className="cg-kv-item__value">{asset.asset_type_name}</p>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Status</p>
-              <Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Department</p>
-              <p className="cg-kv-item__value">{asset.department_name}</p>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Location</p>
-              <p className="cg-kv-item__value">{asset.location_name}</p>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Condition</p>
-              <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Acquisition date</p>
-              <p className="cg-kv-item__value">{formatDate(asset.acquisition_date)}</p>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Acquisition cost</p>
-              <p className="cg-kv-item__value">{formatCurrency(asset.acquisition_cost)}</p>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Residual value</p>
-              <p className="cg-kv-item__value">{formatCurrency(asset.residual_value)}</p>
-            </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">QR payload</p>
-              <p className="cg-kv-item__value cg-table__mono">{asset.qr_payload}</p>
-            </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Asset code</p>
+                  <p className="cg-kv-item__value cg-table__mono">{asset.asset_code}</p>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Type</p>
+                  <p className="cg-kv-item__value">{asset.asset_type_name}</p>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Status</p>
+                  <Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Department</p>
+                  <p className="cg-kv-item__value">{asset.department_name}</p>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Location</p>
+                  <p className="cg-kv-item__value">{asset.location_name}</p>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Condition</p>
+                  <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Acquisition date</p>
+                  <p className="cg-kv-item__value">{formatDate(asset.acquisition_date)}</p>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Acquisition cost</p>
+                  <p className="cg-kv-item__value">{formatCurrency(asset.acquisition_cost)}</p>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">Residual value</p>
+                  <p className="cg-kv-item__value">{formatCurrency(asset.residual_value)}</p>
+                </div>
+                <div className="cg-kv-item">
+                  <p className="cg-kv-item__label">QR payload</p>
+                  <p className="cg-kv-item__value cg-table__mono">{asset.qr_payload}</p>
+                </div>
               </div>
             </div>
             <div style={{ flex: "none", textAlign: "center" }}>
-              <QrCode value={`${window.location.origin}/assets/${asset.asset_code}`}size={140}/>
-              
+              {/* QrCode must encode qr_payload — GET /api/assets/qr/{code} matches
+                  on QrPayload (== asset_code), not a frontend URL. */}
+              <QrCode value={asset.qr_payload} size={140} />
               <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "#8d8d8d" }}>Scan to look up this asset</p>
             </div>
           </div>

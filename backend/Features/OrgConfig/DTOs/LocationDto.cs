@@ -1,4 +1,4 @@
-namespace CoreGrid.Api.Features.Assets.DTOs;
+namespace CoreGrid.Api.Features.OrgConfig.DTOs;
 
 public class LocationDto
 {
@@ -11,4 +11,6 @@ public class LocationDto
     public Guid DepartmentId { get; set; }
 
     public string DepartmentName { get; set; } = string.Empty;
+
+    public bool IsActive { get; set; }
 }

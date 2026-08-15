@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
 import { useStubMutation } from "@/shared/hooks/useStubMutation";
-import { createUser, listUsers } from "../services/users";
-import type { CoreGridUser, CreateUserRequest, CreateUserResponse } from "../services/users";
+import { createUser, listUsers, setUserActive, updateUser } from "../services/users";
+import type { CoreGridUser, CreateUserRequest, CreateUserResponse, UpdateUserRequest } from "../services/users";
 
 export function useUsersList() {
   const { getAccessToken } = useThunderID();
@@ -47,5 +47,23 @@ export function useCreateUser() {
   return useStubMutation<CreateUserRequest, CreateUserResponse>(async (payload) => {
     const accessToken = await getAccessToken();
     return createUser(payload, accessToken);
+  });
+}
+
+export function useUpdateUser() {
+  const { getAccessToken } = useThunderID();
+
+  return useStubMutation<{ id: string; payload: UpdateUserRequest }, CoreGridUser>(async ({ id, payload }) => {
+    const accessToken = await getAccessToken();
+    return updateUser(id, payload, accessToken);
+  });
+}
+
+export function useSetUserActive() {
+  const { getAccessToken } = useThunderID();
+
+  return useStubMutation<{ id: string; isActive: boolean }, CoreGridUser>(async ({ id, isActive }) => {
+    const accessToken = await getAccessToken();
+    return setUserActive(id, isActive, accessToken);
   });
 }

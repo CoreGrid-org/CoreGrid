@@ -1,27 +1,26 @@
-using System.Security.Claims;
 using CoreGrid.Api.Data;
-using CoreGrid.Api.Features.Assets.DTOs;
-using CoreGrid.Api.Features.Assets.Services;
+using CoreGrid.Api.Features.OrgConfig.DTOs;
+using CoreGrid.Api.Features.OrgConfig.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace CoreGrid.Api.Features.Assets.Controllers;
+using CoreGrid.Api.Features.Shared;
+
+namespace CoreGrid.Api.Features.OrgConfig.Controllers;
 
 [ApiController]
 [Route("api/departments")]
 [Authorize]
-public class DepartmentsController : ControllerBase
+public class DepartmentsController : CoreGridControllerBase
 {
     private readonly IDepartmentService _departmentService;
-    private readonly CoreGridDbContext _db;
 
     public DepartmentsController(
         IDepartmentService departmentService,
-        CoreGridDbContext db)
+        CoreGridDbContext db) : base(db)
     {
         _departmentService = departmentService;
-        _db = db;
     }
 
     // GET /api/departments
@@ -81,22 +80,108 @@ public class DepartmentsController : ControllerBase
         }
     }
 
-    private async Task<CoreGrid.Api.Domain.User?> GetCurrentUserAsync(
+    // PUT /api/departments/{id}
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<DepartmentDto>> UpdateDepartment(
+        Guid id,
+        [FromBody] UpdateDepartmentRequest request,
         CancellationToken cancellationToken)
     {
-        var externalSubjectId =
-            User.FindFirst("sub")?.Value ??
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(externalSubjectId))
+        if (currentUser is null)
         {
-            return null;
+            return Unauthorized();
         }
 
-        return await _db.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                u => u.ExternalSubjectId == externalSubjectId,
-                cancellationToken);
+        try
+        {
+            var department = await _departmentService.UpdateDepartmentAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id,
+                request);
+
+            if (department is null)
+            {
+                return NotFound(new
+                {
+                    message = "Department not found."
+                });
+            }
+
+            return Ok(department);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Department could not be updated because of a database conflict."
+            });
+        }
+    }
+
+    // PATCH /api/departments/{id}/deactivate
+    [HttpPatch("{id:guid}/deactivate")]
+    public async Task<ActionResult<DepartmentDto>> DeactivateDepartment(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await SetActive(id, false, cancellationToken);
+    }
+
+    // PATCH /api/departments/{id}/activate
+    [HttpPatch("{id:guid}/activate")]
+    public async Task<ActionResult<DepartmentDto>> ActivateDepartment(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await SetActive(id, true, cancellationToken);
+    }
+
+    private async Task<ActionResult<DepartmentDto>> SetActive(
+        Guid id,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var department = await _departmentService.SetDepartmentActiveAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id,
+                isActive);
+
+            if (department is null)
+            {
+                return NotFound(new
+                {
+                    message = "Department not found."
+                });
+            }
+
+            return Ok(department);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }

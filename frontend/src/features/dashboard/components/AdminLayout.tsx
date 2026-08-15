@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Header,
   HeaderName,
@@ -23,6 +23,9 @@ import {
   Bot,
   UserMultiple,
   Report,
+  Catalog,
+  QrCode,
+  SettingsAdjust,
 } from "@carbon/icons-react";
 import { SignOutButton } from "@thunderid/react";
 
@@ -37,9 +40,9 @@ const NAV_ITEMS = [
 ];
 
 const ASSETS_SUB_ITEMS = [
-  { to: "/admin/assets", label: "Register" },
-  { to: "/admin/assets/scan", label: "Scan QR" },
-  { to: "/admin/assets/config", label: "Asset Config" },
+  { to: "/admin/assets", label: "Register", icon: Catalog },
+  { to: "/admin/assets/scan", label: "Scan QR", icon: QrCode },
+  { to: "/admin/assets/config", label: "Asset Config", icon: SettingsAdjust },
 ];
 
 // Shared chrome for every /admin/* route: a minimal top header (logo, then
@@ -47,30 +50,31 @@ const ASSETS_SUB_ITEMS = [
 // wrapping whichever page is active (real or mock) via <Outlet>.
 export default function AdminLayout() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
 
   return (
     <>
       <Header aria-label="CoreGrid">
-        <HeaderName as={Link} to="/admin">
-          CoreGrid
+        <HeaderName as={Link} to="/admin" prefix="" className="cg-header-brand">
+          <span className="cg-header-brand__inner">
+            <span className="cg-header-brand__logo">
+              <img src="/assets/w-coregrid.webp" alt="" width={28} height={28} />
+            </span>
+            CoreGrid
+          </span>
         </HeaderName>
         <HeaderGlobalBar>
           <HeaderGlobalAction aria-label="Notifications">
-            <Notification size={20} />
-          </HeaderGlobalAction>
-          <HeaderGlobalAction aria-label="Settings" onClick={() => navigate("/admin/settings")}>
-            <SettingsIcon size={20} />
+            <Notification size={20} className="cg-header-icon" />
           </HeaderGlobalAction>
           <SignOutButton>
             {({ signOut }) => (
               <HeaderGlobalAction aria-label="Sign out" onClick={() => signOut()}>
-                <Logout size={20} />
+                <Logout size={20} className="cg-header-icon" />
               </HeaderGlobalAction>
             )}
           </SignOutButton>
           <HeaderGlobalAction aria-label="User profile">
-            <UserAvatar size={20} />
+            <UserAvatar size={20} className="cg-header-icon" />
           </HeaderGlobalAction>
         </HeaderGlobalBar>
       </Header>
@@ -84,7 +88,10 @@ export default function AdminLayout() {
           <SideNavMenu title="Assets" renderIcon={Asset} defaultExpanded={pathname.startsWith("/admin/assets")}>
             {ASSETS_SUB_ITEMS.map((item) => (
               <SideNavMenuItem key={item.to} as={Link} to={item.to} isActive={pathname === item.to}>
-                {item.label}
+                <span className="cg-side-nav__submenu-item">
+                  <item.icon size={16} />
+                  {item.label}
+                </span>
               </SideNavMenuItem>
             ))}
           </SideNavMenu>
