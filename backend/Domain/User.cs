@@ -10,6 +10,9 @@ public class User
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 
+    public Guid? DepartmentId { get; set; }
+    public Department? Department { get; set; }
+
     // The ThunderID "sub" claim this record mirrors (SRS §4.2, §4.4).
     public required string ExternalSubjectId { get; set; }
 
@@ -22,4 +25,6 @@ public class User
     public bool IsActive { get; set; } = true;
 
     public DateTimeOffset CreatedAt { get; set; }
+
+    public ICollection<AssetHistory> AssetHistoryEntries { get; set; } = new List<AssetHistory>();
 }

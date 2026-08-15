@@ -5,7 +5,13 @@ using CoreGrid.Api.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using CoreGrid.Api.Features.Assets.Services;
+using Microsoft.OpenApi;
 
+
+
+
+AppContext.SetSwitch("System.Net.Security.UseNetworkFramework", true);
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
@@ -19,10 +25,31 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Enter your ThunderID access token."
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("bearer", document)] = []
+    });
+});
 
 builder.Services.AddDbContext<CoreGridDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("CoreGrid")));
+
+builder.Services.AddScoped<IAssetService, AssetService>();
+builder.Services.AddScoped<IAssetTypeService, AssetTypeService>();
+builder.Services.AddScoped<IAssetCategoryService, AssetCategoryService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<ILocationService, LocationService>();
+
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>
 {
