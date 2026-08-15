@@ -87,8 +87,11 @@ builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((
 // This mirrors OpenSchool's confirmed-working ThunderID integration, whose
 // backend never registers a separate protected-resource audience either;
 // see doc/setup/ThunderID.md's note on ThunderID__Audience for the same
-// finding. The `roles` claim (a JSON array) is what CoreGridRole-based
-// [Authorize(Roles = ...)] policies read, via RoleClaimType below.
+// finding. The `roles` claim is what CoreGridRole-based
+// [Authorize(Roles = ...)] policies read, via RoleClaimType below — but its
+// value at this point is only ThunderID's, so RoleEnrichmentMiddleware
+// (registered below, after UseAuthentication) overwrites it from CoreGrid's
+// own Users.Role before UseAuthorization ever evaluates a policy.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -137,6 +140,7 @@ app.UseHttpsRedirection();
 app.UseCors("Frontend");
 
 app.UseAuthentication();
+app.UseMiddleware<RoleEnrichmentMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

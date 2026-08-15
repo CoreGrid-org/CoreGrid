@@ -109,6 +109,15 @@ A roster row missing any of these is not "mostly done" — from a marking-eviden
 
 **Documentation** — Consolidated assembly of the Group Report from the four Individual Report sections; coordinates the ADR set in Appendix D (each owner drafts the decision in their own domain — ADR-006 with Jayashan, notification and concurrency notes with Seneja and Bhanuka — the leader checks the set is complete, not that it is correct); owns the final README and the demonstration script; opens every submission link in an incognito browser before the deadline, per SE3090 §15.
 
+### 18.6.1 Need to Assign — Additional Work Items (not yet baselined)
+
+Raised during Component D work on User Administration; recorded here as pending, not yet an FR and not yet scoped, per the scope-change process in §00's "Purpose of Baselining" and §18.11. Both are provisionally under Hasitha Erandika (Component D) since both extend user administration, but neither is implemented and neither has group approval yet.
+
+- **NIC-based initial password, forced change on first sign-in.** On user creation, the National Identity Card (NIC) number is captured and used as the user's one-time initial password; the user must be forced to change it at first sign-in, enforced through ThunderID. **Blocked**: no password-update/forced-change endpoint is documented in `doc/setup/ThunderID.md` or implemented in `ThunderIdIdentityDirectory` (`backend/Identity/ThunderIdIdentityDirectory.cs`) today — only `POST /users` (create) and role assignment exist. Needs ThunderID's actual management-API surface for credential updates confirmed before this can be scoped, let alone implemented, correctly.
+- **Notification system.** Administrator defines the configuration/flow — what triggers a notification, which roles/users receive it, delivery channel — that then applies across other users. **Needs scope clarification against existing work**: Component B already owns `INotificationService` and an email provider (FR-077 to FR-080) plus a React notification centre with unread state (FR-080, §18.4). Whether this is a new Administrator-configurable layer on top of that existing service, or a separate system, is undecided.
+
+Both items require a `scope-change`-labelled GitHub issue and group approval (§18.11) before FR numbers are assigned and implementation starts.
+
 ## 18.7 Golden-Case Test Ownership (§13.4)
 
 Section 13.4 fixes twelve golden cases but does not name an owner for each — it specifies behaviour, not allocation. The mapping below assigns each case to whichever agent or checkpoint it actually exercises, so ownership follows the mechanism under test rather than being split evenly for its own sake. Cases that cross two components name a primary owner and a required reviewer.

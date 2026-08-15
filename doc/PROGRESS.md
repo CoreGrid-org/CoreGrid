@@ -17,7 +17,7 @@ Status as of 2026-08-15: cross-cutting identity/admin slice is up; Component A (
 | Global `OrganizationId` query filter — FR-006 | ❌ |
 | Frontend hides/protects unpermitted routes — FR-007 | ✅ (`RoleRoute`); action-level hiding N/A until there are fine-grained in-page actions |
 | Sign-out clears state, revokes refresh token, ends IdP session — FR-008 | 🟡 (delegated to `@thunderid/react`'s `SignOutButton`, not independently verified end to end) |
-| Deactivated user denied even with a valid token — FR-009 | ❌ (`User.IsActive` exists on the entity; nothing reads it yet) |
+| Deactivated user denied even with a valid token — FR-009 | ✅ (`RoleEnrichmentMiddleware` rejects with 401 if `Users.IsActive` is false) |
 | First-Administrator provisioning via Setup (creates ThunderID account + CoreGrid role) | ✅ |
 | Admin invites a user by email + role, provisioned through ThunderID — FR-013 | ✅ (`POST /api/users`, `GET /api/users`) |
 | Change a user's role/department, deactivate a user — FR-014 | ✅ (`PATCH /api/users/{id}`, `/deactivate`, `/activate`; guards against deactivating the org's last active Administrator) |

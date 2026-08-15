@@ -1,8 +1,11 @@
 namespace CoreGrid.Api.Domain;
 
 // Local mirror of a ThunderID identity (SRS §4.7). Holds no credentials and
-// is never authoritative for authentication — it exists for foreign-key
-// integrity, query performance and historical accuracy only.
+// is never authoritative for authentication (identity/password stay with
+// ThunderID) — but Role is authoritative here: RoleEnrichmentMiddleware
+// rehydrates every request's `roles` claim from this column, so CoreGrid's
+// own role/department administration takes effect immediately rather than
+// waiting on a ThunderID-issued token.
 public class User
 {
     public Guid Id { get; set; }
