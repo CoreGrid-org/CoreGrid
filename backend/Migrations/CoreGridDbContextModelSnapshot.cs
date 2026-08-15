@@ -704,28 +704,11 @@ namespace CoreGrid.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("ActorUser");
+                    b.Navigation("ApprovedByUser");
 
-                    b.Navigation("Asset");
+                    b.Navigation("ConfirmedByUser");
 
-                    b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("CoreGrid.Api.Domain.AssetType", b =>
-                {
-                    b.HasOne("CoreGrid.Api.Domain.AssetCategory", "AssetCategory")
-                        .WithMany("AssetTypes")
-                        .HasForeignKey("AssetCategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
-                        .WithMany("AssetTypes")
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("AssetCategory");
+                    b.Navigation("InitiatedByUser");
 
                     b.Navigation("Organization");
                 });

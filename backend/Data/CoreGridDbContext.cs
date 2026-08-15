@@ -254,5 +254,59 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
                 tb.HasCheckConstraint("CK_AssetHistory_EventType", "\"EventType\" IN ('STATUS_CHANGE','FIELD_AMENDMENT','VERIFICATION','MAINTENANCE','TRANSFER','DISPOSAL','AGENT_RECOMMENDATION')");
             });
         });
+
+        modelBuilder.Entity<AssetTransfer>(entity =>
+        {
+            entity.Property<uint>("xmin")
+                .HasColumnType("xid")
+                .ValueGeneratedOnAddOrUpdate()
+                .IsRowVersion();
+
+            entity.HasOne(t => t.Organization)
+                .WithMany()
+                .HasForeignKey(t => t.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.InitiatedByUser)
+                .WithMany()
+                .HasForeignKey(t => t.InitiatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.ApprovedByUser)
+                .WithMany()
+                .HasForeignKey(t => t.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(t => t.ConfirmedByUser)
+                .WithMany()
+                .HasForeignKey(t => t.ConfirmedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DisposalRequest>(entity =>
+        {
+            entity.Property<uint>("xmin")
+                .HasColumnType("xid")
+                .ValueGeneratedOnAddOrUpdate()
+                .IsRowVersion();
+
+            entity.Property(d => d.EstimatedResidualValue)
+                .HasPrecision(18, 2);
+
+            entity.HasOne(d => d.Organization)
+                .WithMany()
+                .HasForeignKey(d => d.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.InitiatedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.InitiatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.ApprovedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }
