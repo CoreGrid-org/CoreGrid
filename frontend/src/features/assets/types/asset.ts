@@ -63,6 +63,7 @@ export interface AssetType {
   name: string;
   asset_category_id: string;
   category_name: string;
+  category_code: string;
   useful_life_years: number;
   default_maintenance_interval_days: number | null;
   attribute_count: number;

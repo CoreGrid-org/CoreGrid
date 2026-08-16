@@ -12,6 +12,8 @@ public class AssetTypeDto
 
     public string CategoryName { get; set; } = string.Empty;
 
+    public string CategoryCode { get; set; } = string.Empty;
+
     public int UsefulLifeYears { get; set; }
 
     public int? DefaultMaintenanceIntervalDays { get; set; }

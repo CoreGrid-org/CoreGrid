@@ -313,6 +313,7 @@ public class AssetService : IAssetService
 
         var assetType = await _context.AssetTypes
             .AsNoTracking()
+            .Include(at => at.AssetCategory)
             .FirstOrDefaultAsync(at =>
                 at.Id == request.AssetTypeId &&
                 at.OrganizationId == organizationId);
@@ -402,8 +403,11 @@ public class AssetService : IAssetService
 
         var nextSequence = existingCount + 1;
 
+        var categoryCode = assetType.AssetCategory?.Code ?? "GEN";
+
         var assetCode = AssetCodeGenerator.Generate(
             organizationCode,
+            categoryCode,
             assetType.Code,
             nextSequence);
 
@@ -416,6 +420,7 @@ public class AssetService : IAssetService
 
             assetCode = AssetCodeGenerator.Generate(
                 organizationCode,
+                categoryCode,
                 assetType.Code,
                 nextSequence);
         }

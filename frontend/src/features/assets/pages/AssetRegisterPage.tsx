@@ -17,7 +17,8 @@ import { formatStatusLabel } from "@/shared/lib/statusTag";
 type AttributeValue = string | number | boolean;
 
 // POST /api/assets to create, PUT /api/assets/{id} to update (id present in
-// the route). The full asset code (org prefix + type code + sequence) and
+// the route). The full asset code (org prefix + category code + type code +
+// sequence) and
 // its QR payload are generated server-side on first save and never change
 // afterwards — see backend/Features/Assets/Services/AssetService.cs — so
 // this form can only preview the type-code portion, and only in create mode.
@@ -415,13 +416,13 @@ export default function AssetRegisterPage() {
               {isEditMode
                 ? (existingAsset?.asset_code ?? "…")
                 : selectedType
-                  ? `…-${selectedType.code}-####`
-                  : "…-••-••••"}
+                  ? `…-${selectedType.category_code}-${selectedType.code}-####`
+                  : "…-••-••-••••"}
             </div>
             <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "#525252" }}>
               {isEditMode
                 ? "The asset code and QR payload were fixed at creation and cannot be changed."
-                : "The full asset code (organisation prefix + type code + sequence) and its QR code are generated on save."}
+                : "The full asset code (organisation prefix + category code + type code + sequence) and its QR code are generated on save."}
             </p>
           </div>
         </aside>

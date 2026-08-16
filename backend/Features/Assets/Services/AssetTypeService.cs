@@ -42,6 +42,10 @@ public class AssetTypeService : IAssetTypeService
                     ? t.AssetCategory.Name
                     : string.Empty,
 
+                CategoryCode = t.AssetCategory != null
+                    ? t.AssetCategory.Code
+                    : string.Empty,
+
                 UsefulLifeYears = t.UsefulLifeYears,
 
                 DefaultMaintenanceIntervalDays =
@@ -72,6 +76,10 @@ public class AssetTypeService : IAssetTypeService
 
                 CategoryName = t.AssetCategory != null
                     ? t.AssetCategory.Name
+                    : string.Empty,
+
+                CategoryCode = t.AssetCategory != null
+                    ? t.AssetCategory.Code
                     : string.Empty,
 
                 UsefulLifeYears = t.UsefulLifeYears,
@@ -217,6 +225,7 @@ public class AssetTypeService : IAssetTypeService
             Name = assetType.Name,
             AssetCategoryId = assetType.AssetCategoryId,
             CategoryName = category.Name,
+            CategoryCode = category.Code,
             UsefulLifeYears = assetType.UsefulLifeYears,
             DefaultMaintenanceIntervalDays = assetType.DefaultMaintenanceIntervalDays,
             AttributeCount = 0
