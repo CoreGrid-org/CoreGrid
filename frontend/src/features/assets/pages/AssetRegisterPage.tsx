@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, TextInput, NumberInput, Select, SelectItem, Checkbox, InlineNotification } from "@carbon/react";
+import { Button, TextInput, NumberInput, ComboBox, Select, SelectItem, Checkbox, InlineNotification } from "@carbon/react";
 import {
   useAssetDetail,
   useAssetTypes,
@@ -11,7 +11,14 @@ import {
   useUpdateAsset,
 } from "../hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { ASSET_CONDITIONS, type AssetCondition, type AssetAttributeValueRequest } from "../types/asset";
+import {
+  ASSET_CONDITIONS,
+  type AssetCondition,
+  type AssetAttributeValueRequest,
+  type AssetType,
+  type Department,
+  type Location,
+} from "../types/asset";
 import { formatStatusLabel } from "@/shared/lib/statusTag";
 
 type AttributeValue = string | number | boolean;
@@ -237,15 +244,15 @@ export default function AssetRegisterPage() {
           <div className="cg-section" style={{ margin: 0 }}>
             <p className="cg-section__title">Basic details</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
-              <Select
+              <ComboBox<AssetType>
                 id="register-asset-type"
-                labelText="Asset type"
-                value={assetTypeId}
-                onChange={(e) => setAssetTypeId(e.target.value)}
-              >
-                <SelectItem value="" text="Choose a type…" />
-                {assetTypes?.map((t) => <SelectItem key={t.id} value={t.id} text={t.name} />)}
-              </Select>
+                titleText="Asset type"
+                placeholder="Search asset types…"
+                items={assetTypes ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={assetTypes?.find((t) => t.id === assetTypeId) ?? null}
+                onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
+              />
               <TextInput
                 id="register-asset-name"
                 labelText="Asset name"
@@ -253,28 +260,25 @@ export default function AssetRegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-              <Select
+              <ComboBox<Department>
                 id="register-asset-department"
-                labelText="Department"
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-              >
-                <SelectItem value="" text="Choose a department…" />
-                {departments?.map((d) => <SelectItem key={d.id} value={d.id} text={d.name} />)}
-              </Select>
-              <Select
+                titleText="Department"
+                placeholder="Search departments…"
+                items={departments ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={departments?.find((d) => d.id === departmentId) ?? null}
+                onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
+              />
+              <ComboBox<Location>
                 id="register-asset-location"
-                labelText="Location"
-                value={locationId}
+                titleText="Location"
+                placeholder={departmentId ? "Search locations…" : "Choose a department first"}
                 disabled={!departmentId}
-                onChange={(e) => setLocationId(e.target.value)}
-              >
-                <SelectItem
-                  value=""
-                  text={departmentId ? "Choose a location…" : "Choose a department first"}
-                />
-                {locations?.map((l) => <SelectItem key={l.id} value={l.id} text={l.name} />)}
-              </Select>
+                items={locations ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={locations?.find((l) => l.id === locationId) ?? null}
+                onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
+              />
               {!isEditMode && (
                 <Select
                   id="register-asset-condition"
