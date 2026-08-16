@@ -13,6 +13,7 @@ import type {
   Location,
   PagedResult,
   UpdateAssetConditionRequest,
+  UpdateAssetRequest,
 } from "../types/asset";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -82,6 +83,19 @@ export async function createAsset(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create asset.");
+}
+
+export async function updateAsset(
+  id: string,
+  payload: UpdateAssetRequest,
+  accessToken: string,
+): Promise<AssetDetail> {
+  const response = await fetch(`${API_URL}/assets/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update asset.");
 }
 
 export async function updateAssetCondition(

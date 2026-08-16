@@ -140,6 +140,17 @@ export interface CreateAssetRequest {
   attributes: AssetAttributeValueRequest[];
 }
 
+export interface UpdateAssetRequest {
+  asset_type_id: string;
+  department_id: string;
+  location_id: string;
+  name: string;
+  acquisition_date: string;
+  acquisition_cost: number;
+  residual_value: number;
+  attributes: AssetAttributeValueRequest[];
+}
+
 export interface CreateAssetCategoryRequest {
   code: string;
   name: string;

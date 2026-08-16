@@ -181,6 +181,14 @@ public class AssetsController : CoreGridControllerBase
                 message = ex.Message
             });
         }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message =
+                    "Asset could not be updated because of a database conflict."
+            });
+        }
     }
 
     // =========================================================

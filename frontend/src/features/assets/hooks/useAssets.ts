@@ -14,6 +14,7 @@ import {
   listAssets,
   listDepartments,
   listLocations,
+  updateAsset,
   updateAssetCondition,
 } from "../api/assets";
 import type {
@@ -31,6 +32,7 @@ import type {
   Location,
   PagedResult,
   UpdateAssetConditionRequest,
+  UpdateAssetRequest,
 } from "../types/asset";
 
 export function useAssetsList(params: AssetQueryParameters) {
@@ -336,6 +338,16 @@ export function useCreateAssetAttributeDefinition() {
     const accessToken = await getAccessToken();
     return createAssetAttributeDefinition(assetTypeId, payload, accessToken);
   });
+}
+
+export function useUpdateAsset() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string; payload: UpdateAssetRequest }, AssetDetail>(
+    async ({ id, payload }) => {
+      const accessToken = await getAccessToken();
+      return updateAsset(id, payload, accessToken);
+    },
+  );
 }
 
 export function useUpdateAssetCondition() {

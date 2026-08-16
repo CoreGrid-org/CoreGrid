@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Tag, Button, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
-import { Add, Search } from "@carbon/icons-react";
+import { Add, Edit, Search } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
@@ -181,6 +181,7 @@ export default function AssetsPage() {
                   <th>Status</th>
                   <th>Condition</th>
                   <th>Acquisition cost</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -198,6 +199,16 @@ export default function AssetsPage() {
                       <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
                     </td>
                     <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        kind="ghost"
+                        size="sm"
+                        renderIcon={Edit}
+                        iconDescription="Update asset"
+                        hasIconOnly
+                        onClick={() => navigate(`/admin/assets/${asset.id}/edit`)}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
