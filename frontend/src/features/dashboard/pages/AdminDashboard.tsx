@@ -24,7 +24,7 @@ const FEATURE_CARDS = [
   { to: "/admin/settings", icon: Settings, title: "Organisation Settings", description: "Departments, locations, asset types and policy." },
 ];
 
-const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+const formatCurrency = (value: number) => `LKR ${value.toLocaleString()}`;
 
 export default function AdminDashboard() {
   const { user } = useThunderID();

@@ -22,7 +22,7 @@ const FEATURE_CARDS = [
   { to: "/audit/workflows", icon: Bot, title: "Agentic Workflows", description: "Track agent-recommended actions in progress." },
 ];
 
-const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+const formatCurrency = (value: number) => `LKR ${value.toLocaleString()}`;
 
 // FR-081/FR-082: Auditor gets the same three visualisations as Administrator
 // (only role besides Admin the SRS grants them to), plus indicators weighted

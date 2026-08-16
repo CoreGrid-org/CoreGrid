@@ -207,7 +207,7 @@ export default function AssetRegisterPage() {
               />
               <NumberInput
                 id="register-asset-acquisition-cost"
-                label="Purchase cost"
+                label="Purchase cost (LKR)"
                 min={0}
                 value={acquisitionCost}
                 allowEmpty
@@ -215,7 +215,7 @@ export default function AssetRegisterPage() {
               />
               <NumberInput
                 id="register-asset-residual-value"
-                label="Residual value"
+                label="Residual value (LKR)"
                 helperText="Optional — defaults to 0"
                 min={0}
                 value={residualValue}
