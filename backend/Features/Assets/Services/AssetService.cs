@@ -708,6 +708,19 @@ public class AssetService : IAssetService
     }
 
     // =========================================================
+    // ORGANIZATION CODE
+    // =========================================================
+
+    public async Task<string> GetOrganizationCodeAsync(Guid organizationId)
+    {
+        var organization = await _context.Organizations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == organizationId);
+
+        return OrganizationCodeGenerator.Generate(organization?.Name ?? "ORG");
+    }
+
+    // =========================================================
     // PRIVATE HELPERS
     // =========================================================
 

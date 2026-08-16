@@ -9,6 +9,7 @@ import {
   getAsset,
   getAssetByQrCode,
   getAssetTypeAttributes,
+  getOrganizationCode,
   listAssetCategories,
   listAssetTypes,
   listAssets,
@@ -33,6 +34,7 @@ import type {
   CreateAssetTypeRequest,
   Department,
   Location,
+  OrganizationCode,
   PagedResult,
   UpdateAssetAttributeDefinitionRequest,
   UpdateAssetCategoryRequest,
@@ -129,6 +131,30 @@ export function useAssetByQrCode() {
     const accessToken = await getAccessToken();
     return getAssetByQrCode(code, accessToken);
   });
+}
+
+// The organisation's short code (e.g. "MOTAHSL") — same prefix asset codes
+// use, shown for real in the asset registration form's code preview.
+export function useOrganizationCode() {
+  const { getAccessToken } = useThunderID();
+  const [data, setData] = useState<OrganizationCode>();
+
+  useEffect(() => {
+    let cancelled = false;
+    getAccessToken()
+      .then(getOrganizationCode)
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch(() => {
+        // Best-effort — the preview falls back to a placeholder.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken]);
+
+  return { data };
 }
 
 export function useAssetCategories() {

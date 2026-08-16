@@ -152,6 +152,10 @@ export interface UpdateAssetRequest {
   attributes: AssetAttributeValueRequest[];
 }
 
+export interface OrganizationCode {
+  code: string;
+}
+
 export interface CreateAssetCategoryRequest {
   code: string;
   name: string;

@@ -11,6 +11,7 @@ import type {
   CreateAssetTypeRequest,
   Department,
   Location,
+  OrganizationCode,
   PagedResult,
   UpdateAssetAttributeDefinitionRequest,
   UpdateAssetCategoryRequest,
@@ -74,6 +75,13 @@ export async function getAssetByQrCode(code: string, accessToken: string): Promi
     headers: authHeaders(accessToken),
   });
   return handle(response, "Could not find an asset for that code.");
+}
+
+export async function getOrganizationCode(accessToken: string): Promise<OrganizationCode> {
+  const response = await fetch(`${API_URL}/assets/organization-code`, {
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not load organization code.");
 }
 
 export async function createAsset(

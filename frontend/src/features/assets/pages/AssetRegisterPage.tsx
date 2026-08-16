@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, TextInput, NumberInput, ComboBox, Select, SelectItem, Checkbox, InlineNotification } from "@carbon/react";
+import {
+  Button,
+  TextInput,
+  NumberInput,
+  ComboBox,
+  Select,
+  SelectItem,
+  Checkbox,
+  InlineNotification,
+  CodeSnippet,
+  Tag,
+} from "@carbon/react";
 import {
   useAssetDetail,
   useAssetTypes,
@@ -8,6 +19,7 @@ import {
   useCreateAsset,
   useDepartments,
   useLocations,
+  useOrganizationCode,
   useUpdateAsset,
 } from "../hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
@@ -24,11 +36,9 @@ import { formatStatusLabel } from "@/shared/lib/statusTag";
 type AttributeValue = string | number | boolean;
 
 // POST /api/assets to create, PUT /api/assets/{id} to update (id present in
-// the route). The full asset code (org prefix + category code + type code +
-// sequence) and
-// its QR payload are generated server-side on first save and never change
-// afterwards — see backend/Features/Assets/Services/AssetService.cs — so
-// this form can only preview the type-code portion, and only in create mode.
+// the route). The full asset code (org code + category code + type code +
+// sequence) and its QR payload are generated server-side on first save and
+// never change afterwards — see backend/Features/Assets/Services/AssetService.cs.
 export default function AssetRegisterPage() {
   const navigate = useNavigate();
   const { id: assetId } = useParams<{ id: string }>();
@@ -37,6 +47,7 @@ export default function AssetRegisterPage() {
   const { data: assetTypes } = useAssetTypes();
   const { data: departments } = useDepartments();
   const { data: existingAsset, isLoading: isLoadingAsset } = useAssetDetail(assetId);
+  const { data: organizationCode } = useOrganizationCode();
 
   const [assetTypeId, setAssetTypeId] = useState("");
   const [name, setName] = useState("");
@@ -413,20 +424,50 @@ export default function AssetRegisterPage() {
 
         <aside style={{ width: "18rem", flex: "none", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div className="cg-section" style={{ margin: 0 }}>
-            <div style={{ fontSize: "0.625rem", letterSpacing: "0.05em", color: "#8d8d8d", textTransform: "uppercase" }}>
-              {isEditMode ? "Asset code" : "Code preview"}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span
+                style={{ fontSize: "0.625rem", letterSpacing: "0.05em", color: "#8d8d8d", textTransform: "uppercase", fontWeight: 600 }}
+              >
+                {isEditMode ? "Asset code" : "Code preview"}
+              </span>
+              {!isEditMode && <Tag type="cyan" size="sm">Auto-generated</Tag>}
             </div>
-            <div className="cg-table__mono" style={{ fontSize: "1.125rem", marginTop: "0.5rem" }}>
-              {isEditMode
-                ? (existingAsset?.asset_code ?? "…")
-                : selectedType
-                  ? `…-${selectedType.category_code}-${selectedType.code}-####`
-                  : "…-••-••-••••"}
+
+            <div style={{ marginTop: "0.75rem" }}>
+              <CodeSnippet
+                type="single"
+                hideCopyButton
+                disabled={isEditMode ? !existingAsset?.asset_code : !selectedType}
+              >
+                {isEditMode
+                  ? (existingAsset?.asset_code ?? "…")
+                  : selectedType
+                    ? `${organizationCode?.code ?? "…"}-${selectedType.category_code}-${selectedType.code}-####`
+                    : `${organizationCode?.code ?? "…"}-••-••-••••`}
+              </CodeSnippet>
             </div>
-            <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "#525252" }}>
+
+            {!isEditMode && selectedType && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.75rem" }}>
+                <Tag type="gray" size="sm" title="Organisation code">
+                  Org · {organizationCode?.code ?? "…"}
+                </Tag>
+                <Tag type="blue" size="sm" title="Asset category code">
+                  Category · {selectedType.category_code}
+                </Tag>
+                <Tag type="purple" size="sm" title="Asset type code">
+                  Type · {selectedType.code}
+                </Tag>
+                <Tag type="gray" size="sm" title="Sequential number">
+                  Seq · ####
+                </Tag>
+              </div>
+            )}
+
+            <p style={{ margin: "0.75rem 0 0", fontSize: "0.75rem", color: "#525252", lineHeight: 1.4 }}>
               {isEditMode
                 ? "The asset code and QR payload were fixed at creation and cannot be changed."
-                : "The full asset code (organisation prefix + category code + type code + sequence) and its QR code are generated on save."}
+                : "The full asset code (organisation code + category code + type code + sequence) and its QR code are generated on save."}
             </p>
           </div>
         </aside>
