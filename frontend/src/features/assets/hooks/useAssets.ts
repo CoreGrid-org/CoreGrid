@@ -15,7 +15,10 @@ import {
   listDepartments,
   listLocations,
   updateAsset,
+  updateAssetAttributeDefinition,
+  updateAssetCategory,
   updateAssetCondition,
+  updateAssetType,
 } from "../api/assets";
 import type {
   Asset,
@@ -31,8 +34,11 @@ import type {
   Department,
   Location,
   PagedResult,
+  UpdateAssetAttributeDefinitionRequest,
+  UpdateAssetCategoryRequest,
   UpdateAssetConditionRequest,
   UpdateAssetRequest,
+  UpdateAssetTypeRequest,
 } from "../types/asset";
 
 export function useAssetsList(params: AssetQueryParameters) {
@@ -321,12 +327,32 @@ export function useCreateAssetCategory() {
   });
 }
 
+export function useUpdateAssetCategory() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string; payload: UpdateAssetCategoryRequest }, AssetCategory>(
+    async ({ id, payload }) => {
+      const accessToken = await getAccessToken();
+      return updateAssetCategory(id, payload, accessToken);
+    },
+  );
+}
+
 export function useCreateAssetType() {
   const { getAccessToken } = useThunderID();
   return useStubMutation<CreateAssetTypeRequest, AssetType>(async (payload) => {
     const accessToken = await getAccessToken();
     return createAssetType(payload, accessToken);
   });
+}
+
+export function useUpdateAssetType() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string; payload: UpdateAssetTypeRequest }, AssetType>(
+    async ({ id, payload }) => {
+      const accessToken = await getAccessToken();
+      return updateAssetType(id, payload, accessToken);
+    },
+  );
 }
 
 export function useCreateAssetAttributeDefinition() {
@@ -337,6 +363,17 @@ export function useCreateAssetAttributeDefinition() {
   >(async ({ assetTypeId, payload }) => {
     const accessToken = await getAccessToken();
     return createAssetAttributeDefinition(assetTypeId, payload, accessToken);
+  });
+}
+
+export function useUpdateAssetAttributeDefinition() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<
+    { assetTypeId: string; attributeId: string; payload: UpdateAssetAttributeDefinitionRequest },
+    AssetAttributeDefinition
+  >(async ({ assetTypeId, attributeId, payload }) => {
+    const accessToken = await getAccessToken();
+    return updateAssetAttributeDefinition(assetTypeId, attributeId, payload, accessToken);
   });
 }
 

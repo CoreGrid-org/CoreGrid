@@ -14,4 +14,10 @@ public interface IAssetCategoryService
         Guid organizationId,
         Guid? userId,
         CreateAssetCategoryRequest request);
+
+    Task<AssetCategoryDto?> UpdateCategoryAsync(
+        Guid organizationId,
+        Guid categoryId,
+        Guid? userId,
+        UpdateAssetCategoryRequest request);
 }

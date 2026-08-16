@@ -115,4 +115,52 @@ public class AssetCategoriesController : CoreGridControllerBase
         }
     }
 
+    // PUT /api/asset-categories/{id}
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<AssetCategoryDto>> UpdateCategory(
+        Guid id,
+        [FromBody] UpdateAssetCategoryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var category = await _assetCategoryService.UpdateCategoryAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id,
+                request);
+
+            if (category is null)
+            {
+                return NotFound(new
+                {
+                    message = "Asset category not found."
+                });
+            }
+
+            return Ok(category);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Asset category could not be updated because of a database conflict."
+            });
+        }
+    }
+
 }

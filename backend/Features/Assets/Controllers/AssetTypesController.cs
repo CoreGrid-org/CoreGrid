@@ -167,6 +167,58 @@ public class AssetTypesController : CoreGridControllerBase
     }
 
     // =========================================================
+    // PUT /api/asset-types/{id}
+    // =========================================================
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<AssetTypeDto>> UpdateAssetType(
+        Guid id,
+        [FromBody] UpdateAssetTypeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var assetType = await _assetTypeService.UpdateAssetTypeAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id,
+                request);
+
+            if (assetType is null)
+            {
+                return NotFound(new
+                {
+                    message = "Asset type not found."
+                });
+            }
+
+            return Ok(assetType);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Asset type could not be updated because of a database conflict."
+            });
+        }
+    }
+
+    // =========================================================
     // POST /api/asset-types/{id}/attributes
     // =========================================================
 
@@ -220,6 +272,60 @@ public class AssetTypesController : CoreGridControllerBase
             return Conflict(new
             {
                 message = "Attribute could not be created because of a database conflict."
+            });
+        }
+    }
+
+    // =========================================================
+    // PUT /api/asset-types/{id}/attributes/{attributeId}
+    // =========================================================
+
+    [HttpPut("{id:guid}/attributes/{attributeId:guid}")]
+    public async Task<ActionResult<AssetAttributeDefinitionDto>> UpdateAttributeDefinition(
+        Guid id,
+        Guid attributeId,
+        [FromBody] UpdateAssetAttributeDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var definition = await _assetTypeService.UpdateAttributeDefinitionAsync(
+                currentUser.OrganizationId,
+                id,
+                attributeId,
+                currentUser.Id,
+                request);
+
+            if (definition is null)
+            {
+                return NotFound(new
+                {
+                    message = "Asset type or attribute not found."
+                });
+            }
+
+            return Ok(definition);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Attribute could not be updated because of a database conflict."
             });
         }
     }

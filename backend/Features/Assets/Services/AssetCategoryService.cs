@@ -124,4 +124,63 @@ public class AssetCategoryService : IAssetCategoryService
             AssetCount = 0
         };
     }
+
+    public async Task<AssetCategoryDto?> UpdateCategoryAsync(
+        Guid organizationId,
+        Guid categoryId,
+        Guid? userId,
+        UpdateAssetCategoryRequest request)
+    {
+        var category = await _context.AssetCategories
+            .FirstOrDefaultAsync(c =>
+                c.Id == categoryId &&
+                c.OrganizationId == organizationId);
+
+        if (category is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Code))
+        {
+            throw new InvalidOperationException(
+                "Category code is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new InvalidOperationException(
+                "Category name is required.");
+        }
+
+        var code = request.Code.Trim().ToUpperInvariant();
+
+        if (code.Length > 20)
+        {
+            throw new InvalidOperationException(
+                "Category code cannot be longer than 20 characters.");
+        }
+
+        var codeInUse = await _context.AssetCategories
+            .AsNoTracking()
+            .AnyAsync(c =>
+                c.OrganizationId == organizationId &&
+                c.Code == code &&
+                c.Id != categoryId);
+
+        if (codeInUse)
+        {
+            throw new InvalidOperationException(
+                $"A category with code '{code}' already exists.");
+        }
+
+        category.Code = code;
+        category.Name = request.Name.Trim();
+        category.UpdatedAt = DateTimeOffset.UtcNow;
+        category.UpdatedBy = userId;
+
+        await _context.SaveChangesAsync();
+
+        return await GetCategoryByIdAsync(organizationId, categoryId);
+    }
 }

@@ -157,6 +157,11 @@ export interface CreateAssetCategoryRequest {
   name: string;
 }
 
+export interface UpdateAssetCategoryRequest {
+  code: string;
+  name: string;
+}
+
 export interface CreateAssetTypeRequest {
   code: string;
   name: string;
@@ -165,6 +170,13 @@ export interface CreateAssetTypeRequest {
   default_maintenance_interval_days: number | null;
 }
 
+export interface UpdateAssetTypeRequest {
+  code: string;
+  name: string;
+  asset_category_id: string;
+  useful_life_years: number;
+  default_maintenance_interval_days: number | null;
+}
 
 export interface CreateAssetAttributeDefinitionRequest {
   name: string;
@@ -173,6 +185,15 @@ export interface CreateAssetAttributeDefinitionRequest {
   validation_rule: string | null;
   select_options: string[] | null;
   display_order: number | null;
+}
+
+export interface UpdateAssetAttributeDefinitionRequest {
+  name: string;
+  data_type: AssetAttributeDataType;
+  is_required: boolean;
+  validation_rule: string | null;
+  select_options: string[] | null;
+  display_order: number;
 }
 
 export const ASSET_STATUSES: AssetStatus[] = [

@@ -12,8 +12,11 @@ import type {
   Department,
   Location,
   PagedResult,
+  UpdateAssetAttributeDefinitionRequest,
+  UpdateAssetCategoryRequest,
   UpdateAssetConditionRequest,
   UpdateAssetRequest,
+  UpdateAssetTypeRequest,
 } from "../types/asset";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -130,6 +133,19 @@ export async function createAssetCategory(
   return handle(response, "Could not create asset category.");
 }
 
+export async function updateAssetCategory(
+  id: string,
+  payload: UpdateAssetCategoryRequest,
+  accessToken: string,
+): Promise<AssetCategory> {
+  const response = await fetch(`${API_URL}/asset-categories/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update asset category.");
+}
+
 export async function listAssetTypes(accessToken: string): Promise<AssetType[]> {
   const response = await fetch(`${API_URL}/asset-types`, {
     headers: authHeaders(accessToken),
@@ -147,6 +163,19 @@ export async function createAssetType(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create asset type.");
+}
+
+export async function updateAssetType(
+  id: string,
+  payload: UpdateAssetTypeRequest,
+  accessToken: string,
+): Promise<AssetType> {
+  const response = await fetch(`${API_URL}/asset-types/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update asset type.");
 }
 
 export async function getAssetTypeAttributes(
@@ -188,4 +217,18 @@ export async function createAssetAttributeDefinition(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create attribute.");
+}
+
+export async function updateAssetAttributeDefinition(
+  assetTypeId: string,
+  attributeId: string,
+  payload: UpdateAssetAttributeDefinitionRequest,
+  accessToken: string,
+): Promise<AssetAttributeDefinition> {
+  const response = await fetch(`${API_URL}/asset-types/${assetTypeId}/attributes/${attributeId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update attribute.");
 }

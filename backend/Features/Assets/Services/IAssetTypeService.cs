@@ -19,9 +19,22 @@ public interface IAssetTypeService
         Guid? userId,
         CreateAssetTypeRequest request);
 
+    Task<AssetTypeDto?> UpdateAssetTypeAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid? userId,
+        UpdateAssetTypeRequest request);
+
     Task<AssetAttributeDefinitionDto?> CreateAttributeDefinitionAsync(
         Guid organizationId,
         Guid assetTypeId,
         Guid? userId,
         CreateAssetAttributeDefinitionRequest request);
+
+    Task<AssetAttributeDefinitionDto?> UpdateAttributeDefinitionAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid attributeId,
+        Guid? userId,
+        UpdateAssetAttributeDefinitionRequest request);
 }
