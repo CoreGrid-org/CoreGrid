@@ -80,16 +80,18 @@ export default function AssetConfigPage() {
         </Button>
       </div>
 
-      <Search
-        id="asset-config-search"
-        labelText="Search categories, types, or attributes"
-        placeholder="Search categories, types, or attributes…"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        onClear={() => setSearchTerm("")}
-        size="lg"
-        style={{ marginBottom: "1rem" }}
-      />
+      {activeTab !== 2 && (
+        <Search
+          id="asset-config-search"
+          labelText="Search categories or types"
+          placeholder={activeTab === 0 ? "Search categories…" : "Search types…"}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm("")}
+          size="lg"
+          style={{ marginBottom: "1rem" }}
+        />
+      )}
 
       <Tabs selectedIndex={activeTab} onChange={({ selectedIndex }) => setActiveTab(selectedIndex)}>
         <TabList aria-label="Asset configuration sections">
@@ -110,7 +112,6 @@ export default function AssetConfigPage() {
               selectedTypeId={selectedTypeId}
               onSelectType={setSelectedTypeId}
               refreshKey={attributesRefreshKey}
-              searchTerm={searchTerm}
             />
           </TabPanel>
         </TabPanels>
@@ -309,10 +310,9 @@ interface AttributesTabProps {
   selectedTypeId: string | undefined;
   onSelectType: (id: string) => void;
   refreshKey: number;
-  searchTerm: string;
 }
 
-function AttributesTab({ types, selectedTypeId, onSelectType, refreshKey, searchTerm }: AttributesTabProps) {
+function AttributesTab({ types, selectedTypeId, onSelectType, refreshKey }: AttributesTabProps) {
   const { data, isLoading, isError, error } = types;
 
   useEffect(() => {
@@ -354,7 +354,6 @@ function AttributesTab({ types, selectedTypeId, onSelectType, refreshKey, search
       selectedTypeId={selectedTypeId}
       onSelectType={onSelectType}
       refreshKey={refreshKey}
-      searchTerm={searchTerm}
     />
   );
 }
@@ -364,22 +363,33 @@ function AttributesTabBody({
   selectedTypeId,
   onSelectType,
   refreshKey,
-  searchTerm,
 }: {
   data: AssetType[];
   selectedTypeId: string | undefined;
   onSelectType: (id: string) => void;
   refreshKey: number;
-  searchTerm: string;
 }) {
-  const filteredTypes = data.filter((t) => matches(searchTerm, t.name, t.code, t.category_name));
+  const [typeSearch, setTypeSearch] = useState("");
+
+  const filteredTypes = data.filter((t) => matches(typeSearch, t.name, t.code, t.category_name));
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "flex-start" }}>
       <div className="cg-section" style={{ width: "16rem", flex: "none", margin: 0, padding: 0 }}>
+        <div style={{ padding: "0.75rem" }}>
+          <Search
+            id="attributes-type-search"
+            labelText="Search types"
+            placeholder="Search types…"
+            size="sm"
+            value={typeSearch}
+            onChange={(e) => setTypeSearch(e.target.value)}
+            onClear={() => setTypeSearch("")}
+          />
+        </div>
         {filteredTypes.length === 0 && (
           <p className="cg-table__muted" style={{ padding: "0.75rem 1rem" }}>
-            No types match "{searchTerm}".
+            No types match "{typeSearch}".
           </p>
         )}
         {filteredTypes.map((t) => (
@@ -406,24 +416,15 @@ function AttributesTabBody({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         {selectedTypeId && (
-          <AssetTypeAttributesPanel
-            key={`${selectedTypeId}:${refreshKey}`}
-            assetTypeId={selectedTypeId}
-            searchTerm={searchTerm}
-          />
+          <AssetTypeAttributesPanel key={`${selectedTypeId}:${refreshKey}`} assetTypeId={selectedTypeId} />
         )}
       </div>
     </div>
   );
 }
 
-function AssetTypeAttributesPanel({
-  assetTypeId,
-  searchTerm,
-}: {
-  assetTypeId: string;
-  searchTerm: string;
-}) {
+function AssetTypeAttributesPanel({ assetTypeId }: { assetTypeId: string }) {
+  const [attributeSearch, setAttributeSearch] = useState("");
   const { data: attributes, isLoading, isError, error } = useAssetTypeAttributes(assetTypeId);
 
   if (isLoading) {
@@ -456,47 +457,58 @@ function AssetTypeAttributesPanel({
   }
 
   const filteredAttributes = attributes.filter((attr) =>
-    matches(searchTerm, attr.name, attr.data_type),
+    matches(attributeSearch, attr.name, attr.data_type),
   );
-
-  if (filteredAttributes.length === 0) {
-    return (
-      <div className="cg-placeholder">
-        <p>No attributes match "{searchTerm}".</p>
-      </div>
-    );
-  }
 
   return (
     <div className="cg-section" style={{ margin: 0 }}>
-      <table className="cg-table cg-table--no-hover">
-        <thead>
-          <tr>
-            <th>Field label</th>
-            <th>Data type</th>
-            <th>Required</th>
-            <th>Options</th>
-            <th>Order</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredAttributes.map((attr) => (
-            <tr key={attr.id}>
-              <td style={{ fontWeight: 500 }}>{attr.name}</td>
-              <td>
-                <Tag type={DATA_TYPE_COLOR[attr.data_type]}>{attr.data_type}</Tag>
-              </td>
-              <td className="cg-table__muted">{attr.is_required ? "Required" : "Optional"}</td>
-              <td className="cg-table__muted">{attr.select_options?.join(", ") ?? "—"}</td>
-              <td className="cg-table__muted">{attr.display_order}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p style={{ padding: "0.75rem 1rem", fontSize: "0.75rem", color: "#525252", background: "#fafafa", margin: 0 }}>
-        These rows are AssetAttributeDefinitions — the registration form renders exactly this list, in this
-        order.
-      </p>
+      <div style={{ padding: "0.75rem 1rem" }}>
+        <Search
+          id="attributes-attribute-search"
+          labelText="Search attributes"
+          placeholder="Search attributes…"
+          size="sm"
+          value={attributeSearch}
+          onChange={(e) => setAttributeSearch(e.target.value)}
+          onClear={() => setAttributeSearch("")}
+        />
+      </div>
+      {filteredAttributes.length === 0 ? (
+        <p className="cg-table__muted" style={{ padding: "0 1rem 0.75rem" }}>
+          No attributes match "{attributeSearch}".
+        </p>
+      ) : (
+        <>
+          <table className="cg-table cg-table--no-hover">
+            <thead>
+              <tr>
+                <th>Field label</th>
+                <th>Data type</th>
+                <th>Required</th>
+                <th>Options</th>
+                <th>Order</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAttributes.map((attr) => (
+                <tr key={attr.id}>
+                  <td style={{ fontWeight: 500 }}>{attr.name}</td>
+                  <td>
+                    <Tag type={DATA_TYPE_COLOR[attr.data_type]}>{attr.data_type}</Tag>
+                  </td>
+                  <td className="cg-table__muted">{attr.is_required ? "Required" : "Optional"}</td>
+                  <td className="cg-table__muted">{attr.select_options?.join(", ") ?? "—"}</td>
+                  <td className="cg-table__muted">{attr.display_order}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ padding: "0.75rem 1rem", fontSize: "0.75rem", color: "#525252", background: "#fafafa", margin: 0 }}>
+            These rows are AssetAttributeDefinitions — the registration form renders exactly this list, in this
+            order.
+          </p>
+        </>
+      )}
     </div>
   );
 }

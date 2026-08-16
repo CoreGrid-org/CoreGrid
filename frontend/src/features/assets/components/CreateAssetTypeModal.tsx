@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Modal, TextInput, NumberInput, Select, SelectItem, InlineNotification } from "@carbon/react";
+import { Modal, TextInput, NumberInput, ComboBox, InlineNotification } from "@carbon/react";
 import { useAssetCategories, useCreateAssetType } from "../hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import type { AssetType } from "../types/asset";
+import type { AssetCategory, AssetType } from "../types/asset";
 
 interface CreateAssetTypeModalProps {
   onClose: () => void;
@@ -63,15 +63,15 @@ export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAsset
         />
       )}
       <div style={{ display: "grid", gap: "1rem" }}>
-        <Select
+        <ComboBox<AssetCategory>
           id="create-type-category"
-          labelText="Category"
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-        >
-          <SelectItem value="" text="Choose a category…" />
-          {categories?.map((c) => <SelectItem key={c.id} value={c.id} text={c.name} />)}
-        </Select>
+          titleText="Category"
+          placeholder="Search categories…"
+          items={categories ?? []}
+          itemToString={(item) => (item ? `${item.name} (${item.code})` : "")}
+          selectedItem={categories?.find((c) => c.id === categoryId) ?? null}
+          onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
+        />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
           <TextInput
             id="create-type-code"
