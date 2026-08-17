@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Tag, Button, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
+import { Tag, Button, ComboBox, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
 import { Add, Edit, Search } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
 import AssetDetailModal from "../components/AssetDetailModal";
-import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetQueryParameters } from "../types/asset";
+import {
+  ASSET_CONDITIONS,
+  ASSET_STATUSES,
+  type AssetQueryParameters,
+  type AssetType,
+  type Department,
+  type Location,
+} from "../types/asset";
 import { formatCurrency } from "../utils/format";
 
 // The asset register — GET /api/assets with server-side search/filter/pagination.
@@ -103,40 +110,37 @@ export default function AssetsPage() {
             />
           </div>
           <div style={{ minWidth: "10rem" }}>
-            <Select
+            <ComboBox<AssetType>
               id="asset-filter-type"
-              labelText="Type"
-              hideLabel
-              value={assetTypeId}
-              onChange={(e) => setAssetTypeId(e.target.value)}
-            >
-              <SelectItem value="" text="All types" />
-              {assetTypes?.map((t) => <SelectItem key={t.id} value={t.id} text={t.name} />)}
-            </Select>
+              aria-label="Type"
+              placeholder="All types"
+              items={assetTypes ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={assetTypes?.find((t) => t.id === assetTypeId) ?? null}
+              onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
+            />
           </div>
           <div style={{ minWidth: "10rem" }}>
-            <Select
+            <ComboBox<Department>
               id="asset-filter-department"
-              labelText="Department"
-              hideLabel
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-            >
-              <SelectItem value="" text="All departments" />
-              {departments?.map((d) => <SelectItem key={d.id} value={d.id} text={d.name} />)}
-            </Select>
+              aria-label="Department"
+              placeholder="All departments"
+              items={departments ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={departments?.find((d) => d.id === departmentId) ?? null}
+              onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
+            />
           </div>
           <div style={{ minWidth: "10rem" }}>
-            <Select
+            <ComboBox<Location>
               id="asset-filter-location"
-              labelText="Location"
-              hideLabel
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-            >
-              <SelectItem value="" text="All locations" />
-              {locations?.map((l) => <SelectItem key={l.id} value={l.id} text={l.name} />)}
-            </Select>
+              aria-label="Location"
+              placeholder="All locations"
+              items={locations ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={locations?.find((l) => l.id === locationId) ?? null}
+              onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
+            />
           </div>
           <div style={{ minWidth: "10rem" }}>
             <Select
