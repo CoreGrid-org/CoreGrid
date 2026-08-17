@@ -43,6 +43,7 @@ export default function App() {
         <Route index element={<AdminDashboard />} />
         <Route path="assets" element={<AssetsPage />} />
         <Route path="assets/new" element={<AssetRegisterPage />} />
+        <Route path="assets/:id/edit" element={<AssetRegisterPage />} />
         <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="assets/config" element={<AssetConfigPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />

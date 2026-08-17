@@ -544,3 +544,15 @@ VALUES ('20260815032307_AddVerificationAndDiscrepancies', '10.0.10');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "AssetTypes" ADD "IsActive" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE "AssetCategories" ADD "IsActive" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE "AssetAttributeDefinitions" ADD "IsActive" boolean NOT NULL DEFAULT TRUE;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260817022114_AddIsActiveToAssetCategoryTypeAttribute', '10.0.10');
+
+COMMIT;
+

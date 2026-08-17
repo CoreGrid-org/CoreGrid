@@ -28,11 +28,27 @@ Status as of 2026-08-15: cross-cutting identity/admin slice is up; Component A (
 
 ## Component A — Asset Registry & QR Identification (Jayashan Guruge, FR-016–032)
 
-| Area | Status |
+| Item | Status |
 |---|---|
-| Backend (asset/type/category/attribute controllers, QR generation, lookup by QR) | ✅ (`backend/Features/Assets`; department/location CRUD moved to `backend/Features/OrgConfig` — Component D, 2026-08-15 backend file structure cleanup) |
-| Database (`AssetCategories`, `AssetTypes`, `AssetAttributeDefinitions`, `AssetAttributeValues`, `Assets`, `AssetHistory`) | ✅ |
-| React (asset list/detail/create/edit, dynamic attribute forms, category/type config) | ✅ (`frontend/src/features/assets`) |
+| Create asset categories — FR-016 | ✅ (`POST /api/asset-categories`; `PUT .../{id}` update, and `DELETE .../{id}` + `PATCH .../{id}/activate` added 2026-08-17 — delete hard-removes an unreferenced category, otherwise deactivates it (`IsActive`) so it stops appearing as a choice for new types while existing types/assets keep working; reactivatable) |
+| Create asset types (name, code, category, useful life, default maintenance interval) — FR-017 | ✅ (`POST /api/asset-types`; `PUT .../{id}` update, and `DELETE .../{id}` + `PATCH .../{id}/activate` added 2026-08-17 — same hard-delete-if-unreferenced/deactivate-otherwise rule, keyed off whether any `Asset` references the type; deleting an unreferenced type also cascades its own attribute definitions) |
+| Ordered custom attribute definitions per asset type — FR-018 | ✅ (`POST /api/asset-types/{id}/attributes`; `PUT .../attributes/{attributeId}` update, and `DELETE .../attributes/{attributeId}` + `PATCH .../attributes/{attributeId}/activate` added 2026-08-17 — same rule, keyed off whether any `AssetAttributeValue` references the definition) |
+| Attribute value validation on create and update — FR-019 | 🟡 (required-field and data-type checks are enforced on both create and update; `ValidationRule` is stored and returned to clients but no code path evaluates a submitted value against it — rule enforcement itself isn't implemented) |
+| Dynamic attribute-driven detail form, both clients — FR-020 | 🟡 React ✅ (`AssetRegisterPage` renders fields purely from the selected type's attribute definitions, no hardcoded domain knowledge); Flutter ❌ (not started) |
+| Register an asset (type, name, department, location, acquisition date/cost, attributes) — FR-021 | ✅ |
+| Unique human-readable asset code (org prefix + monotonic sequence, DB-constrained) — FR-022 | ✅ (`AssetCodeGenerator`; `IX_Assets_OrganizationId_AssetCode` unique index) |
+| QR label payload + printable label download — FR-023 | 🟡 (a real QR image is generated and rendered in the asset detail modal via the `qrcode` package — not just the raw payload string; no printable-label download/print feature exists yet) |
+| Mobile QR scan → authoritative record within 3s — FR-024 | ❌ (Flutter not started) |
+| Manual asset-code entry as an alternative to scanning — FR-025 | 🟡 React ✅ (`AssetScanPage` — manual code/QR-payload entry only, resolves via `GET /api/assets/qr/{code}` to the identical detail view a scan would produce); Flutter ❌ |
+| Amend asset fields/attributes/department/location — FR-026 | 🟡 (`PUT /api/assets/{id}` works; amendments are not written to `AssetHistory`, so the "every change recorded in history" half of this requirement is unmet) |
+| Immutable, ordered per-asset lifecycle history — FR-027 | ❌ (`AssetHistory` table/entity exists but the only writer anywhere in the backend is discrepancy resolution in Component D's Verification feature; asset create, amend, and condition-change don't write to it) |
+| Search by code/name/attribute value; filter by department/location/category/type/status/condition; server-side sort + pagination — FR-028 | ✅ (2026-08-17: search now also matches asset type name/code, asset category name/code, and dynamic attribute values — text via `ILike`, number/date via typed equality after parsing the search term; added a `categoryId` filter alongside the existing type/department/location/status/condition ones; sorting and pagination remain fully server-side) |
+| Record condition (New/Good/Fair/Poor/Unserviceable) — FR-029 | 🟡 (`PATCH /api/assets/{id}/condition` works; the change is not written to `AssetHistory`) |
+| Computed residual value (straight-line depreciation) — FR-030 | ❌ (`ResidualValue` is taken as-is from whatever the client submits on create/update — a free-entry field in the React form — never derived server-side from acquisition cost, acquisition date, and the asset type's useful life) |
+| Officer physical verification (presence/location/condition assertion, reconciled against the register) — FR-031 | ❌ (the named surface `POST /api/assets/{id}/verify` doesn't exist; this FR is Flutter-only per the SRS and Flutter hasn't started) |
+| Prevent deletion of assets with history; disposal is the only exit from the register — FR-032 | 🟡 (no `DELETE` endpoint exists on `AssetsController` at all, so nothing can be deleted — satisfies the letter of it; but the disposal workflow itself is Component C, not yet built, so in practice assets have no path off the active register yet either) |
+| Database (`AssetCategories`, `AssetTypes`, `AssetAttributeDefinitions`, `AssetAttributeValues`, `Assets`, `AssetHistory`) | ✅ (department/location CRUD moved to `backend/Features/OrgConfig` — Component D, 2026-08-15 backend file structure cleanup; migration `AddIsActiveToAssetCategoryTypeAttribute` added an `IsActive` column to `AssetCategories`/`AssetTypes`/`AssetAttributeDefinitions` 2026-08-17 for the hard-delete-vs-deactivate rule — `Assets` itself deliberately untouched) |
+| React (asset list/detail/register/update, dynamic attribute forms, category/type/attribute config incl. edit/delete/reactivate, searchable pickers, real organisation-code display in the code preview) | ✅ (`frontend/src/features/assets`) |
 | Flutter (QR scanner, asset lookup, condition update) | ❌ |
 | Planner Agent | ❌ |
 | Tests | ❌ |

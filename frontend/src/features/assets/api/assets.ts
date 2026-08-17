@@ -11,8 +11,13 @@ import type {
   CreateAssetTypeRequest,
   Department,
   Location,
+  OrganizationCode,
   PagedResult,
+  UpdateAssetAttributeDefinitionRequest,
+  UpdateAssetCategoryRequest,
   UpdateAssetConditionRequest,
+  UpdateAssetRequest,
+  UpdateAssetTypeRequest,
 } from "../types/asset";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -33,6 +38,7 @@ function authHeaders(accessToken: string) {
 function buildQuery(params: AssetQueryParameters): string {
   const search = new URLSearchParams();
   if (params.search) search.set("search", params.search);
+  if (params.categoryId) search.set("categoryId", params.categoryId);
   if (params.assetTypeId) search.set("assetTypeId", params.assetTypeId);
   if (params.departmentId) search.set("departmentId", params.departmentId);
   if (params.locationId) search.set("locationId", params.locationId);
@@ -72,6 +78,13 @@ export async function getAssetByQrCode(code: string, accessToken: string): Promi
   return handle(response, "Could not find an asset for that code.");
 }
 
+export async function getOrganizationCode(accessToken: string): Promise<OrganizationCode> {
+  const response = await fetch(`${API_URL}/assets/organization-code`, {
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not load organization code.");
+}
+
 export async function createAsset(
   payload: CreateAssetRequest,
   accessToken: string,
@@ -82,6 +95,19 @@ export async function createAsset(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create asset.");
+}
+
+export async function updateAsset(
+  id: string,
+  payload: UpdateAssetRequest,
+  accessToken: string,
+): Promise<AssetDetail> {
+  const response = await fetch(`${API_URL}/assets/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update asset.");
 }
 
 export async function updateAssetCondition(
@@ -116,6 +142,43 @@ export async function createAssetCategory(
   return handle(response, "Could not create asset category.");
 }
 
+export async function updateAssetCategory(
+  id: string,
+  payload: UpdateAssetCategoryRequest,
+  accessToken: string,
+): Promise<AssetCategory> {
+  const response = await fetch(`${API_URL}/asset-categories/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update asset category.");
+}
+
+// DELETE /api/asset-categories/{id} — 204 (hard-deleted, gone) or 200 with
+// the now-deactivated category (still referenced by an AssetType).
+export async function deleteAssetCategory(
+  id: string,
+  accessToken: string,
+): Promise<AssetCategory | undefined> {
+  const response = await fetch(`${API_URL}/asset-categories/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not delete asset category.");
+}
+
+export async function activateAssetCategory(
+  id: string,
+  accessToken: string,
+): Promise<AssetCategory> {
+  const response = await fetch(`${API_URL}/asset-categories/${id}/activate`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not reactivate asset category.");
+}
+
 export async function listAssetTypes(accessToken: string): Promise<AssetType[]> {
   const response = await fetch(`${API_URL}/asset-types`, {
     headers: authHeaders(accessToken),
@@ -133,6 +196,43 @@ export async function createAssetType(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create asset type.");
+}
+
+export async function updateAssetType(
+  id: string,
+  payload: UpdateAssetTypeRequest,
+  accessToken: string,
+): Promise<AssetType> {
+  const response = await fetch(`${API_URL}/asset-types/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update asset type.");
+}
+
+// DELETE /api/asset-types/{id} — 204 (hard-deleted, gone) or 200 with the
+// now-deactivated type (still referenced by an Asset).
+export async function deleteAssetType(
+  id: string,
+  accessToken: string,
+): Promise<AssetType | undefined> {
+  const response = await fetch(`${API_URL}/asset-types/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not delete asset type.");
+}
+
+export async function activateAssetType(
+  id: string,
+  accessToken: string,
+): Promise<AssetType> {
+  const response = await fetch(`${API_URL}/asset-types/${id}/activate`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not reactivate asset type.");
 }
 
 export async function getAssetTypeAttributes(
@@ -174,4 +274,44 @@ export async function createAssetAttributeDefinition(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create attribute.");
+}
+
+export async function updateAssetAttributeDefinition(
+  assetTypeId: string,
+  attributeId: string,
+  payload: UpdateAssetAttributeDefinitionRequest,
+  accessToken: string,
+): Promise<AssetAttributeDefinition> {
+  const response = await fetch(`${API_URL}/asset-types/${assetTypeId}/attributes/${attributeId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update attribute.");
+}
+
+// DELETE /api/asset-types/{id}/attributes/{attributeId} — 204 (hard-deleted,
+// gone) or 200 with the now-deactivated definition (still has stored values).
+export async function deleteAssetAttributeDefinition(
+  assetTypeId: string,
+  attributeId: string,
+  accessToken: string,
+): Promise<AssetAttributeDefinition | undefined> {
+  const response = await fetch(`${API_URL}/asset-types/${assetTypeId}/attributes/${attributeId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not delete attribute.");
+}
+
+export async function activateAssetAttributeDefinition(
+  assetTypeId: string,
+  attributeId: string,
+  accessToken: string,
+): Promise<AssetAttributeDefinition> {
+  const response = await fetch(
+    `${API_URL}/asset-types/${assetTypeId}/attributes/${attributeId}/activate`,
+    { method: "PATCH", headers: authHeaders(accessToken) },
+  );
+  return handle(response, "Could not reactivate attribute.");
 }

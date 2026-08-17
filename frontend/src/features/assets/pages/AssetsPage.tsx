@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Tag, Button, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
-import { Add, Search } from "@carbon/icons-react";
+import { Tag, Button, ComboBox, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
+import { Add, Edit, Search } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
+import { useAssetCategories, useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
 import AssetDetailModal from "../components/AssetDetailModal";
-import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetQueryParameters } from "../types/asset";
+import {
+  ASSET_CONDITIONS,
+  ASSET_STATUSES,
+  type AssetCategory,
+  type AssetQueryParameters,
+  type AssetType,
+  type Department,
+  type Location,
+} from "../types/asset";
 import { formatCurrency } from "../utils/format";
 
 // The asset register — GET /api/assets with server-side search/filter/pagination.
@@ -18,6 +26,7 @@ export default function AssetsPage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [assetTypeId, setAssetTypeId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [locationId, setLocationId] = useState("");
@@ -29,6 +38,7 @@ export default function AssetsPage() {
     (location.state as { openAssetId?: string } | null)?.openAssetId,
   );
 
+  const { data: categories } = useAssetCategories();
   const { data: assetTypes } = useAssetTypes();
   const { data: departments } = useDepartments();
   const { data: locations } = useLocations(departmentId || undefined);
@@ -40,7 +50,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, assetTypeId, departmentId, locationId, status, condition]);
+  }, [search, categoryId, assetTypeId, departmentId, locationId, status, condition]);
 
   useEffect(() => {
     setLocationId("");
@@ -57,6 +67,7 @@ export default function AssetsPage() {
 
   const params: AssetQueryParameters = {
     search: search || undefined,
+    categoryId: categoryId || undefined,
     assetTypeId: assetTypeId || undefined,
     departmentId: departmentId || undefined,
     locationId: locationId || undefined,
@@ -93,50 +104,58 @@ export default function AssetsPage() {
 
       <div className="cg-section">
         <div className="cg-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
-          <div className="cg-search">
+          <div className="cg-search" style={{ minWidth: "18rem" }}>
             <Search size={16} className="cg-search__icon" />
             <input
               className="cg-search__input"
-              placeholder="Search by code or name…"
+              placeholder="Search by code, name, category, type, or attribute value…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <div style={{ minWidth: "10rem" }}>
-            <Select
+            <ComboBox<AssetCategory>
+              id="asset-filter-category"
+              aria-label="Category"
+              placeholder="All categories"
+              items={categories ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={categories?.find((c) => c.id === categoryId) ?? null}
+              onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
+            />
+          </div>
+          <div style={{ minWidth: "10rem" }}>
+            <ComboBox<AssetType>
               id="asset-filter-type"
-              labelText="Type"
-              hideLabel
-              value={assetTypeId}
-              onChange={(e) => setAssetTypeId(e.target.value)}
-            >
-              <SelectItem value="" text="All types" />
-              {assetTypes?.map((t) => <SelectItem key={t.id} value={t.id} text={t.name} />)}
-            </Select>
+              aria-label="Type"
+              placeholder="All types"
+              items={assetTypes ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={assetTypes?.find((t) => t.id === assetTypeId) ?? null}
+              onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
+            />
           </div>
           <div style={{ minWidth: "10rem" }}>
-            <Select
+            <ComboBox<Department>
               id="asset-filter-department"
-              labelText="Department"
-              hideLabel
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-            >
-              <SelectItem value="" text="All departments" />
-              {departments?.map((d) => <SelectItem key={d.id} value={d.id} text={d.name} />)}
-            </Select>
+              aria-label="Department"
+              placeholder="All departments"
+              items={departments ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={departments?.find((d) => d.id === departmentId) ?? null}
+              onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
+            />
           </div>
           <div style={{ minWidth: "10rem" }}>
-            <Select
+            <ComboBox<Location>
               id="asset-filter-location"
-              labelText="Location"
-              hideLabel
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-            >
-              <SelectItem value="" text="All locations" />
-              {locations?.map((l) => <SelectItem key={l.id} value={l.id} text={l.name} />)}
-            </Select>
+              aria-label="Location"
+              placeholder="All locations"
+              items={locations ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={locations?.find((l) => l.id === locationId) ?? null}
+              onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
+            />
           </div>
           <div style={{ minWidth: "10rem" }}>
             <Select
@@ -181,6 +200,7 @@ export default function AssetsPage() {
                   <th>Status</th>
                   <th>Condition</th>
                   <th>Acquisition cost</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -198,6 +218,16 @@ export default function AssetsPage() {
                       <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
                     </td>
                     <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        kind="ghost"
+                        size="sm"
+                        renderIcon={Edit}
+                        iconDescription="Update asset"
+                        hasIconOnly
+                        onClick={() => navigate(`/admin/assets/${asset.id}/edit`)}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

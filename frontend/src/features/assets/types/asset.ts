@@ -55,6 +55,7 @@ export interface AssetCategory {
   name: string;
   type_count: number;
   asset_count: number;
+  is_active: boolean;
 }
 
 export interface AssetType {
@@ -63,9 +64,11 @@ export interface AssetType {
   name: string;
   asset_category_id: string;
   category_name: string;
+  category_code: string;
   useful_life_years: number;
   default_maintenance_interval_days: number | null;
   attribute_count: number;
+  is_active: boolean;
 }
 
 export interface AssetAttributeDefinition {
@@ -77,6 +80,7 @@ export interface AssetAttributeDefinition {
   validation_rule: string | null;
   select_options: string[] | null;
   display_order: number;
+  is_active: boolean;
 }
 
 export interface Department {
@@ -105,6 +109,7 @@ export interface PagedResult<T> {
 
 export interface AssetQueryParameters {
   search?: string;
+  categoryId?: string;
   assetTypeId?: string;
   departmentId?: string;
   locationId?: string;
@@ -140,7 +145,27 @@ export interface CreateAssetRequest {
   attributes: AssetAttributeValueRequest[];
 }
 
+export interface UpdateAssetRequest {
+  asset_type_id: string;
+  department_id: string;
+  location_id: string;
+  name: string;
+  acquisition_date: string;
+  acquisition_cost: number;
+  residual_value: number;
+  attributes: AssetAttributeValueRequest[];
+}
+
+export interface OrganizationCode {
+  code: string;
+}
+
 export interface CreateAssetCategoryRequest {
+  code: string;
+  name: string;
+}
+
+export interface UpdateAssetCategoryRequest {
   code: string;
   name: string;
 }
@@ -153,6 +178,13 @@ export interface CreateAssetTypeRequest {
   default_maintenance_interval_days: number | null;
 }
 
+export interface UpdateAssetTypeRequest {
+  code: string;
+  name: string;
+  asset_category_id: string;
+  useful_life_years: number;
+  default_maintenance_interval_days: number | null;
+}
 
 export interface CreateAssetAttributeDefinitionRequest {
   name: string;
@@ -161,6 +193,15 @@ export interface CreateAssetAttributeDefinitionRequest {
   validation_rule: string | null;
   select_options: string[] | null;
   display_order: number | null;
+}
+
+export interface UpdateAssetAttributeDefinitionRequest {
+  name: string;
+  data_type: AssetAttributeDataType;
+  is_required: boolean;
+  validation_rule: string | null;
+  select_options: string[] | null;
+  display_order: number;
 }
 
 export const ASSET_STATUSES: AssetStatus[] = [

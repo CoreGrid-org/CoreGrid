@@ -1,26 +1,31 @@
 import { useState } from "react";
 import { Modal, TextInput, NumberInput, ComboBox, InlineNotification } from "@carbon/react";
-import { useAssetCategories, useCreateAssetType } from "../hooks/useAssets";
+import { useAssetCategories, useUpdateAssetType } from "../hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import type { AssetCategory, AssetType } from "../types/asset";
 
-interface CreateAssetTypeModalProps {
+interface EditAssetTypeModalProps {
+  assetType: AssetType;
   onClose: () => void;
-  onCreated: (assetType: AssetType) => void;
+  onUpdated: (assetType: AssetType) => void;
 }
 
-// POST /api/asset-types.
-export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAssetTypeModalProps) {
+// PUT /api/asset-types/{id}.
+export default function EditAssetTypeModal({ assetType, onClose, onUpdated }: EditAssetTypeModalProps) {
   const { data: categories } = useAssetCategories();
-  const createAssetType = useCreateAssetType();
-  // Inactive categories aren't offered when creating a new type.
-  const activeCategories = categories?.filter((c) => c.is_active) ?? [];
+  const updateAssetType = useUpdateAssetType();
 
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [usefulLifeYears, setUsefulLifeYears] = useState(5);
-  const [maintenanceIntervalDays, setMaintenanceIntervalDays] = useState<number | "">("");
+  const [code, setCode] = useState(assetType.code);
+  const [name, setName] = useState(assetType.name);
+  const [categoryId, setCategoryId] = useState(assetType.asset_category_id);
+  // Inactive categories aren't offered as new choices, but the type's
+  // current category stays selectable/visible even if it's since gone inactive.
+  const selectableCategories =
+    categories?.filter((c) => c.is_active || c.id === assetType.asset_category_id) ?? [];
+  const [usefulLifeYears, setUsefulLifeYears] = useState(assetType.useful_life_years);
+  const [maintenanceIntervalDays, setMaintenanceIntervalDays] = useState<number | "">(
+    assetType.default_maintenance_interval_days ?? "",
+  );
 
   const canSubmit =
     code.trim().length > 0 &&
@@ -30,16 +35,19 @@ export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAsset
     usefulLifeYears > 0;
 
   const handleSubmit = () => {
-    if (!canSubmit || createAssetType.isPending) return;
-    createAssetType.mutate(
+    if (!canSubmit || updateAssetType.isPending) return;
+    updateAssetType.mutate(
       {
-        code: code.trim(),
-        name: name.trim(),
-        asset_category_id: categoryId,
-        useful_life_years: usefulLifeYears,
-        default_maintenance_interval_days: maintenanceIntervalDays === "" ? null : maintenanceIntervalDays,
+        id: assetType.id,
+        payload: {
+          code: code.trim(),
+          name: name.trim(),
+          asset_category_id: categoryId,
+          useful_life_years: usefulLifeYears,
+          default_maintenance_interval_days: maintenanceIntervalDays === "" ? null : maintenanceIntervalDays,
+        },
       },
-      { onSuccess: onCreated },
+      { onSuccess: onUpdated },
     );
   };
 
@@ -47,18 +55,18 @@ export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAsset
     <Modal
       open
       modalLabel="Asset Config"
-      modalHeading="New type"
-      primaryButtonText={createAssetType.isPending ? "Creating…" : "Create type"}
+      modalHeading="Edit type"
+      primaryButtonText={updateAssetType.isPending ? "Saving…" : "Save changes"}
       secondaryButtonText="Cancel"
-      primaryButtonDisabled={!canSubmit || createAssetType.isPending}
+      primaryButtonDisabled={!canSubmit || updateAssetType.isPending}
       onRequestClose={onClose}
       onRequestSubmit={handleSubmit}
     >
-      {createAssetType.isError && (
+      {updateAssetType.isError && (
         <InlineNotification
           kind="error"
-          title="Could not create type"
-          subtitle={getErrorMessage(createAssetType.error, "Something went wrong. Please try again.")}
+          title="Could not update type"
+          subtitle={getErrorMessage(updateAssetType.error, "Something went wrong. Please try again.")}
           hideCloseButton
           lowContrast
           style={{ marginBottom: "1rem", maxWidth: "100%" }}
@@ -66,17 +74,17 @@ export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAsset
       )}
       <div style={{ display: "grid", gap: "1rem" }}>
         <ComboBox<AssetCategory>
-          id="create-type-category"
+          id="edit-type-category"
           titleText="Category"
           placeholder="Search categories…"
-          items={activeCategories}
-          itemToString={(item) => (item ? `${item.name} (${item.code})` : "")}
-          selectedItem={activeCategories.find((c) => c.id === categoryId) ?? null}
+          items={selectableCategories}
+          itemToString={(item) => (item ? `${item.name} (${item.code})${item.is_active ? "" : " — inactive"}` : "")}
+          selectedItem={selectableCategories.find((c) => c.id === categoryId) ?? null}
           onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
         />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
           <TextInput
-            id="create-type-code"
+            id="edit-type-code"
             labelText="Code"
             helperText="Used in generated asset codes, e.g. LAP."
             value={code}
@@ -85,7 +93,7 @@ export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAsset
             invalidText="Code cannot be longer than 20 characters."
           />
           <TextInput
-            id="create-type-name"
+            id="edit-type-name"
             labelText="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -93,14 +101,14 @@ export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAsset
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
           <NumberInput
-            id="create-type-useful-life"
+            id="edit-type-useful-life"
             label="Useful life (years)"
             min={1}
             value={usefulLifeYears}
             onChange={(_, { value }) => setUsefulLifeYears(typeof value === "number" ? value : 1)}
           />
           <NumberInput
-            id="create-type-maintenance-interval"
+            id="edit-type-maintenance-interval"
             label="Maintenance interval (days)"
             helperText="Optional"
             min={1}

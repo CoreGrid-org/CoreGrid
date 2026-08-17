@@ -167,6 +167,140 @@ public class AssetTypesController : CoreGridControllerBase
     }
 
     // =========================================================
+    // PUT /api/asset-types/{id}
+    // =========================================================
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<AssetTypeDto>> UpdateAssetType(
+        Guid id,
+        [FromBody] UpdateAssetTypeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var assetType = await _assetTypeService.UpdateAssetTypeAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id,
+                request);
+
+            if (assetType is null)
+            {
+                return NotFound(new
+                {
+                    message = "Asset type not found."
+                });
+            }
+
+            return Ok(assetType);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Asset type could not be updated because of a database conflict."
+            });
+        }
+    }
+
+    // =========================================================
+    // DELETE /api/asset-types/{id}
+    //
+    // Hard-deletes the type if no Asset references it; otherwise
+    // deactivates it instead so existing Assets keep displaying it.
+    // =========================================================
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteAssetType(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var (found, hardDeleted, assetType) = await _assetTypeService.DeleteAssetTypeAsync(
+                currentUser.OrganizationId,
+                id,
+                currentUser.Id);
+
+            if (!found)
+            {
+                return NotFound(new
+                {
+                    message = "Asset type not found."
+                });
+            }
+
+            return hardDeleted
+                ? NoContent()
+                : Ok(assetType);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Asset type could not be deleted because of a database conflict."
+            });
+        }
+    }
+
+    // =========================================================
+    // PATCH /api/asset-types/{id}/activate
+    // =========================================================
+
+    [HttpPatch("{id:guid}/activate")]
+    public async Task<ActionResult<AssetTypeDto>> ActivateAssetType(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        var assetType = await _assetTypeService.SetAssetTypeActiveAsync(
+            currentUser.OrganizationId,
+            id,
+            currentUser.Id,
+            true);
+
+        if (assetType is null)
+        {
+            return NotFound(new
+            {
+                message = "Asset type not found."
+            });
+        }
+
+        return Ok(assetType);
+    }
+
+    // =========================================================
     // POST /api/asset-types/{id}/attributes
     // =========================================================
 
@@ -222,6 +356,147 @@ public class AssetTypesController : CoreGridControllerBase
                 message = "Attribute could not be created because of a database conflict."
             });
         }
+    }
+
+    // =========================================================
+    // PUT /api/asset-types/{id}/attributes/{attributeId}
+    // =========================================================
+
+    [HttpPut("{id:guid}/attributes/{attributeId:guid}")]
+    public async Task<ActionResult<AssetAttributeDefinitionDto>> UpdateAttributeDefinition(
+        Guid id,
+        Guid attributeId,
+        [FromBody] UpdateAssetAttributeDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var definition = await _assetTypeService.UpdateAttributeDefinitionAsync(
+                currentUser.OrganizationId,
+                id,
+                attributeId,
+                currentUser.Id,
+                request);
+
+            if (definition is null)
+            {
+                return NotFound(new
+                {
+                    message = "Asset type or attribute not found."
+                });
+            }
+
+            return Ok(definition);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Attribute could not be updated because of a database conflict."
+            });
+        }
+    }
+
+    // =========================================================
+    // DELETE /api/asset-types/{id}/attributes/{attributeId}
+    //
+    // Hard-deletes the definition if no AssetAttributeValue references it;
+    // otherwise deactivates it instead so existing Assets keep displaying
+    // their previously stored value for it.
+    // =========================================================
+
+    [HttpDelete("{id:guid}/attributes/{attributeId:guid}")]
+    public async Task<IActionResult> DeleteAttributeDefinition(
+        Guid id,
+        Guid attributeId,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var (found, hardDeleted, definition) = await _assetTypeService.DeleteAttributeDefinitionAsync(
+                currentUser.OrganizationId,
+                id,
+                attributeId,
+                currentUser.Id);
+
+            if (!found)
+            {
+                return NotFound(new
+                {
+                    message = "Asset type or attribute not found."
+                });
+            }
+
+            return hardDeleted
+                ? NoContent()
+                : Ok(definition);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message = "Attribute could not be deleted because of a database conflict."
+            });
+        }
+    }
+
+    // =========================================================
+    // PATCH /api/asset-types/{id}/attributes/{attributeId}/activate
+    // =========================================================
+
+    [HttpPatch("{id:guid}/attributes/{attributeId:guid}/activate")]
+    public async Task<ActionResult<AssetAttributeDefinitionDto>> ActivateAttributeDefinition(
+        Guid id,
+        Guid attributeId,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        var definition = await _assetTypeService.SetAttributeDefinitionActiveAsync(
+            currentUser.OrganizationId,
+            id,
+            attributeId,
+            currentUser.Id,
+            true);
+
+        if (definition is null)
+        {
+            return NotFound(new
+            {
+                message = "Asset type or attribute not found."
+            });
+        }
+
+        return Ok(definition);
     }
 
 }

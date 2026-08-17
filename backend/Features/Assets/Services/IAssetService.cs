@@ -33,4 +33,6 @@ public interface IAssetService
     Task<AssetDetailDto?> GetAssetByQrCodeAsync(
         Guid organizationId,
         string code);
+
+    Task<string> GetOrganizationCodeAsync(Guid organizationId);
 }

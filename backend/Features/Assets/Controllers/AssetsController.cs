@@ -181,6 +181,14 @@ public class AssetsController : CoreGridControllerBase
                 message = ex.Message
             });
         }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message =
+                    "Asset could not be updated because of a database conflict."
+            });
+        }
     }
 
     // =========================================================
@@ -258,6 +266,36 @@ public class AssetsController : CoreGridControllerBase
         }
 
         return Ok(asset);
+    }
+
+    // =========================================================
+    // GET /api/assets/organization-code
+    // =========================================================
+    //
+    // The organisation's short code (e.g. "MOTAHSL") derived from its name —
+    // the same prefix used when generating an asset's AssetCode/QrPayload
+    // (see AssetService.CreateAssetAsync). Exposed here so the frontend can
+    // display the real value in the asset registration form's code preview.
+
+    [HttpGet("organization-code")]
+    public async Task<ActionResult<OrganizationCodeDto>> GetOrganizationCode(
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        var code = await _assetService.GetOrganizationCodeAsync(
+            currentUser.OrganizationId);
+
+        return Ok(new OrganizationCodeDto
+        {
+            Code = code
+        });
     }
 
 }
