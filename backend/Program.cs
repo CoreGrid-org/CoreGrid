@@ -61,6 +61,7 @@ builder.Services.AddScoped<IOrganizationPolicyService, OrganizationPolicyService
 builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignService>();
 builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
 builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalPreconditionService, CoreGrid.Api.Features.Disposals.DisposalPreconditionService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>

@@ -68,12 +68,12 @@ Status as of 2026-08-15: cross-cutting identity/admin slice is up; Component A (
 
 | Area | Status |
 |---|---|
-| Backend (transfer/disposal controllers, approval preconditions P1–P6) | ❌ |
-| Database (`AssetTransfers`, `DisposalRequests`) | ✅ (2026-08-15: fixed — `AssetId`/department/location columns had been left as bare `Guid`s with `TODO: add FK` comments even after `Asset`/`Department`/`Location` existed; added the real FK constraints + migration `AddTransferDisposalForeignKeys`, and repaired an out-of-sync `CoreGridDbContextModelSnapshot.cs` — the two entities' `DbSet` properties and model-snapshot blocks had been dropped, silently breaking `dotnet ef migrations add` for anyone touching this schema) |
+| Backend (transfer/disposal controllers, approval preconditions P1–P6) | 🟡 (Disposal precondition engine (P1,P2,P3,P5 + separation-of-duties) implemented and unit-tested; P4 and P6 stubbed pending Component B (MaintenanceRecords) and the agent subsystem; no controller/API endpoints wired yet.) |
+| Database (`AssetTransfers`, `DisposalRequests`) | ✅ (2026-08-15: fixed — `AssetId`/department/location columns had been left as bare `Guid`s with `TODO: add FK` comments even after `Asset`/`Department`/`Location` existed; added the real FK constraints + migration `AddTransferDisposalForeignKeys`, and repaired an out-of-sync `CoreGridDbContextModelSnapshot.cs` — the two entities' `DbSet` properties and model-snapshot blocks had been dropped, silently breaking `dotnet ef migrations add` for anyone touching this schema; 2026-08-17: added nullable `ValuationDate` to `DisposalRequests` via migration `AddValuationDateToDisposalRequest` to support real P2 valuation precondition check) |
 | React (transfer/disposal queues, precondition checklist) | ❌ |
 | Flutter (transfer request, scan-to-confirm receipt, condemnation) | ❌ |
 | Budget Analysis Agent | ❌ |
-| Tests | ❌ |
+| Tests | 🟡 (16 unit tests covering DisposalPreconditionService (backend.Tests/, first test project in repo).) |
 
 ## Component D — Audit & Compliance + Org Configuration + User Administration (Hasitha Erandika, FR-010–015, FR-056–066)
 
