@@ -93,4 +93,127 @@ public class MaintenanceService : IMaintenanceService
 
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
+
+    // ------------------------------------------------------------------ //
+    // FR-035 — Create maintenance record directly (Officer)               //
+    // ------------------------------------------------------------------ //
+
+    public async Task<MaintenanceRecordDto?> CreateMaintenanceAsync(
+        Guid organizationId,
+        Guid currentUserId,
+        CreateMaintenanceRequest request)
+    {
+        var asset = await _context.Assets
+            .FirstOrDefaultAsync(a => a.Id == request.AssetId && a.OrganizationId == organizationId);
+
+        if (asset is null)
+        {
+            throw new InvalidOperationException("Asset not found within the organisation.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            throw new InvalidOperationException("Description is required.");
+        }
+
+        var validConditions = new[] { "NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE" };
+        var conditionUpper = request.ObservedCondition.Trim().ToUpper();
+        if (!validConditions.Contains(conditionUpper))
+        {
+            throw new InvalidOperationException("Invalid observed condition. Use: NEW, GOOD, FAIR, POOR or UNSERVICEABLE.");
+        }
+
+        // If an assignee was specified, verify they belong to the same org.
+        if (request.AssigneeId.HasValue)
+        {
+            var assigneeExists = await _context.Users
+                .AnyAsync(u => u.Id == request.AssigneeId.Value && u.OrganizationId == organizationId);
+
+            if (!assigneeExists)
+            {
+                throw new InvalidOperationException("Assignee not found within the organisation.");
+            }
+        }
+
+        if (request.EstimatedCost.HasValue && request.EstimatedCost.Value < 0)
+        {
+            throw new InvalidOperationException("Estimated cost must be a non-negative value.");
+        }
+
+        var record = new MaintenanceRecord
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = request.AssetId,
+            Description = request.Description.Trim(),
+            ObservedCondition = conditionUpper,
+            PhotoUrl = request.PhotoUrl,
+            Type = request.Type,
+            Priority = request.Priority,
+            // A directly-created record starts as REQUESTED so it still flows
+            // through the standard approval step before work begins.
+            Status = MaintenanceStatus.REQUESTED,
+            EstimatedCost = request.EstimatedCost,
+            AssigneeId = request.AssigneeId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = currentUserId,
+            UpdatedBy = currentUserId
+        };
+
+        _context.MaintenanceRecords.Add(record);
+        await _context.SaveChangesAsync();
+
+        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+    }
+
+    // ------------------------------------------------------------------ //
+    // FR-036 — Approve maintenance record (Officer / Administrator)       //
+    // ------------------------------------------------------------------ //
+
+    public async Task<MaintenanceRecordDto?> ApproveMaintenanceAsync(
+        Guid organizationId,
+        Guid currentUserId,
+        Guid maintenanceId,
+        ApproveMaintenanceRequest request)
+    {
+        if (request.EstimatedCost < 0)
+        {
+            throw new InvalidOperationException("Estimated cost must be a non-negative value.");
+        }
+
+        var record = await _context.MaintenanceRecords
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
+
+        if (record is null)
+        {
+            throw new KeyNotFoundException("Maintenance record not found.");
+        }
+
+        // State-machine guard: only REQUESTED records can be approved.
+        if (record.Status != MaintenanceStatus.REQUESTED)
+        {
+            throw new InvalidOperationException(
+                $"Only a REQUESTED maintenance record can be approved. Current status: {record.Status}.");
+        }
+
+        // Verify the specified assignee belongs to this organisation.
+        var assigneeExists = await _context.Users
+            .AnyAsync(u => u.Id == request.AssigneeId && u.OrganizationId == organizationId);
+
+        if (!assigneeExists)
+        {
+            throw new InvalidOperationException("Assignee not found within the organisation.");
+        }
+
+        record.Status = MaintenanceStatus.APPROVED;
+        record.AssigneeId = request.AssigneeId;
+        record.EstimatedCost = request.EstimatedCost;
+        record.UpdatedAt = DateTimeOffset.UtcNow;
+        record.UpdatedBy = currentUserId;
+
+        await _context.SaveChangesAsync();
+
+        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+    }
 }
