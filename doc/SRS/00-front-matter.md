@@ -46,6 +46,7 @@ Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named stude
 | 1.0 | 2026-08-08 | Hasitha Erandika | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
 | 1.1 | 2026-08-09 | Hasitha Erandika | React client design system mandated as IBM Carbon Design System (ADR-008); backend target environment corrected to .NET 10. | Draft |
 | 1.2 | 2026-08-10 | Hasitha Erandika | Generalised deployment and identity sections from government/ministry-specific language to a generic customer organisation, and documented the product's two-stage delivery plan: M0 (self-hosted, current baseline) and M1 (multi-tenant hosted SaaS, Section 17). Corrected an inaccurate claim that M1 would require per-tenant ThunderID organisations. | Draft |
+| 1.3 | 2026-08-17 | Hasitha Erandika | Relicensed from MIT to Apache License 2.0 (`LICENSE`, `NOTICE`) to support an open-core commercial model. Added Section 19, Business Plan: Community edition (self-hosted, open-source) sold to government/institutional buyers first; multi-tenant SaaS (M1) built only once Community-edition revenue funds it. Added Section 11.3, object-storage integration requirements (INT-09 to INT-14) and ADR-009, closing the previously unspecified `StorageKey` provider for photographic evidence — Cloudflare R2 for CoreGrid-operated editions, any S3-compatible endpoint for self-hosted Community-edition customers. | Draft |
 
 ### Approval
 
@@ -88,6 +89,7 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 16. [Traceability](16-traceability.md)
 17. [Future Enhancements](17-future-enhancements.md)
 18. [Team Roster and Individual Work Allocation](18-team-roster-and-work-allocation.md)
+19. [Business Plan](19-business-plan.md)
 - [Appendix A — Status and Enumeration Reference](appendix-a-status-and-enumeration-reference.md)
 - [Appendix B — Route-Level Authorisation Map](appendix-b-route-level-authorisation-map.md)
 - [Appendix C — ThunderID Configuration Checklist](appendix-c-thunderid-configuration-checklist.md)
