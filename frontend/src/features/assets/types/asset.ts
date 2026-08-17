@@ -99,6 +99,25 @@ export interface Location {
   is_active: boolean;
 }
 
+// GET /api/assets/{id}/history — one row per FR-027 lifecycle event
+// (registration, field amendment, condition change, verification correction, ...).
+export interface AssetHistoryEntry {
+  id: string;
+  asset_id: string;
+  event_type: string;
+  description: string;
+  previous_value: string | null;
+  new_value: string | null;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  created_at: string;
+}
+
+export interface AssetHistoryQueryParameters {
+  page?: number;
+  pageSize?: number;
+}
+
 export interface PagedResult<T> {
   items: T[];
   total_count: number;

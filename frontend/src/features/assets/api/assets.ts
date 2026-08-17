@@ -3,6 +3,8 @@ import type {
   AssetCategory,
   AssetAttributeDefinition,
   AssetDetail,
+  AssetHistoryEntry,
+  AssetHistoryQueryParameters,
   AssetQueryParameters,
   AssetType,
   CreateAssetAttributeDefinitionRequest,
@@ -76,6 +78,21 @@ export async function getAssetByQrCode(code: string, accessToken: string): Promi
     headers: authHeaders(accessToken),
   });
   return handle(response, "Could not find an asset for that code.");
+}
+
+export async function getAssetHistory(
+  assetId: string,
+  params: AssetHistoryQueryParameters,
+  accessToken: string,
+): Promise<PagedResult<AssetHistoryEntry>> {
+  const search = new URLSearchParams();
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  const query = search.toString();
+  const response = await fetch(`${API_URL}/assets/${assetId}/history${query ? `?${query}` : ""}`, {
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not load asset history.");
 }
 
 export async function getOrganizationCode(accessToken: string): Promise<OrganizationCode> {
