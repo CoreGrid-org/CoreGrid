@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Button,
   TextInput,
@@ -41,8 +41,14 @@ type AttributeValue = string | number | boolean;
 // never change afterwards — see backend/Features/Assets/Services/AssetService.cs.
 export default function AssetRegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id: assetId } = useParams<{ id: string }>();
   const isEditMode = Boolean(assetId);
+
+  // Mounted under both /admin/assets/... and /inventory/assets/... (App.tsx)
+  // — derive the list path from the current role prefix rather than
+  // hardcoding one, so Cancel/Save stay within the current role's routes.
+  const assetsListPath = `/${location.pathname.split("/")[1]}/assets`;
 
   const { data: assetTypes } = useAssetTypes();
   const { data: departments } = useDepartments();
@@ -194,7 +200,7 @@ export default function AssetRegisterPage() {
         },
         {
           onSuccess: (asset) => {
-            navigate("/admin/assets", { state: { openAssetId: asset.id } });
+            navigate(assetsListPath, { state: { openAssetId: asset.id } });
           },
         },
       );
@@ -243,7 +249,7 @@ export default function AssetRegisterPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button kind="secondary" onClick={() => navigate("/admin/assets")}>
+          <Button kind="secondary" onClick={() => navigate(assetsListPath)}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit || saveAsset.isPending}>

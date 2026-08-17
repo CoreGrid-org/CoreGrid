@@ -65,7 +65,10 @@ export default function App() {
       >
         <Route index element={<InventoryDashboard />} />
         <Route path="reports" element={<ReportsPage />} />
-        <Route path="assets" element={<ComingSoon feature="Asset Registry" />} />
+        <Route path="assets" element={<AssetsPage />} />
+        <Route path="assets/new" element={<AssetRegisterPage />} />
+        <Route path="assets/:id/edit" element={<AssetRegisterPage />} />
+        <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="maintenance" element={<ComingSoon feature="Maintenance" />} />
         <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
         <Route path="workflows" element={<ComingSoon feature="Agentic Workflows" />} />

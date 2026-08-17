@@ -82,6 +82,12 @@ export default function AssetsPage() {
 
   const { data, isLoading, isError, error, refetch } = useAssetsList(params);
 
+  // This page is mounted under both /admin/assets and /inventory/assets
+  // (App.tsx) — derive the base path from the current role prefix rather
+  // than hardcoding one, so "Register asset" and the edit icon stay within
+  // whichever role's route branch the user is already in.
+  const assetsBasePath = `/${location.pathname.split("/")[1]}/assets`;
+
   return (
     <div className="cg-page">
       <div className="cg-page__header">
@@ -89,7 +95,7 @@ export default function AssetsPage() {
           <h1 className="cg-page__title">Asset Register</h1>
           <p className="cg-page__subtitle">Every asset in the organisation, searchable and filterable (FR-021 to FR-025).</p>
         </div>
-        <Button renderIcon={Add} onClick={() => navigate("/admin/assets/new")}>
+        <Button renderIcon={Add} onClick={() => navigate(`${assetsBasePath}/new`)}>
           Register asset
         </Button>
       </div>
@@ -237,7 +243,7 @@ export default function AssetsPage() {
                           renderIcon={Edit}
                           iconDescription="Update asset"
                           hasIconOnly
-                          onClick={() => navigate(`/admin/assets/${asset.id}/edit`)}
+                          onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
                         />
                       </div>
                     </td>
