@@ -19,4 +19,6 @@ public class AssetTypeDto
     public int? DefaultMaintenanceIntervalDays { get; set; }
 
     public int AttributeCount { get; set; }
+
+    public bool IsActive { get; set; }
 }

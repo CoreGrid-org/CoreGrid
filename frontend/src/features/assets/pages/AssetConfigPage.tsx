@@ -1,14 +1,25 @@
 import { useEffect, useState } from "react";
 import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, InlineNotification, Button, Search } from "@carbon/react";
-import { Add, Edit } from "@carbon/icons-react";
+import { Add, Edit, TrashCan } from "@carbon/icons-react";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { useAssetCategories, useAssetTypeAttributes, useAssetTypes } from "../hooks/useAssets";
+import {
+  useActivateAssetAttributeDefinition,
+  useActivateAssetCategory,
+  useActivateAssetType,
+  useAssetCategories,
+  useAssetTypeAttributes,
+  useAssetTypes,
+  useDeleteAssetAttributeDefinition,
+  useDeleteAssetCategory,
+  useDeleteAssetType,
+} from "../hooks/useAssets";
 import CreateAssetCategoryModal from "../components/CreateAssetCategoryModal";
 import EditAssetCategoryModal from "../components/EditAssetCategoryModal";
 import CreateAssetTypeModal from "../components/CreateAssetTypeModal";
 import EditAssetTypeModal from "../components/EditAssetTypeModal";
 import CreateAssetAttributeModal from "../components/CreateAssetAttributeModal";
 import EditAssetAttributeModal from "../components/EditAssetAttributeModal";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import type { AssetAttributeDefinition, AssetCategory, AssetType } from "../types/asset";
 
 const DATA_TYPE_COLOR: Record<string, "gray" | "blue" | "purple" | "teal" | "magenta"> = {
@@ -22,10 +33,18 @@ const DATA_TYPE_COLOR: Record<string, "gray" | "blue" | "purple" | "teal" | "mag
 type ModalState =
   | { kind: "create-category" }
   | { kind: "edit-category"; category: AssetCategory }
+  | { kind: "delete-category"; category: AssetCategory }
   | { kind: "create-type" }
   | { kind: "edit-type"; assetType: AssetType }
+  | { kind: "delete-type"; assetType: AssetType }
   | { kind: "create-attribute" }
   | { kind: "edit-attribute"; assetTypeId: string; assetTypeName: string; attribute: AssetAttributeDefinition }
+  | {
+      kind: "delete-attribute";
+      assetTypeId: string;
+      assetTypeName: string;
+      attribute: AssetAttributeDefinition;
+    }
   | null;
 
 function escapeRegExp(s: string): string {
@@ -59,6 +78,13 @@ export default function AssetConfigPage() {
   const categories = useAssetCategories();
   const types = useAssetTypes();
 
+  const deleteCategory = useDeleteAssetCategory();
+  const activateCategory = useActivateAssetCategory();
+  const deleteAssetType = useDeleteAssetType();
+  const activateAssetType = useActivateAssetType();
+  const deleteAttribute = useDeleteAssetAttributeDefinition();
+  const activateAttribute = useActivateAssetAttributeDefinition();
+
   const selectedType = types.data?.find((t) => t.id === selectedTypeId);
 
   const closeModal = () => setModalState(null);
@@ -71,6 +97,36 @@ export default function AssetConfigPage() {
       assetTypeName: selectedType.name,
       attribute,
     });
+  };
+
+  const deleteAttributeFor = (attribute: AssetAttributeDefinition) => {
+    if (!selectedType) return;
+    setModalState({
+      kind: "delete-attribute",
+      assetTypeId: selectedType.id,
+      assetTypeName: selectedType.name,
+      attribute,
+    });
+  };
+
+  const handleReactivateCategory = (id: string) => {
+    activateCategory.mutate(id, { onSuccess: () => categories.refetch() });
+  };
+
+  const handleReactivateType = (id: string) => {
+    activateAssetType.mutate(id, {
+      onSuccess: () => {
+        types.refetch();
+        categories.refetch();
+      },
+    });
+  };
+
+  const handleReactivateAttribute = (assetTypeId: string, attributeId: string) => {
+    activateAttribute.mutate(
+      { assetTypeId, attributeId },
+      { onSuccess: () => setAttributesRefreshKey((n) => n + 1) },
+    );
   };
 
   const headerAction =
@@ -125,6 +181,8 @@ export default function AssetConfigPage() {
               categories={categories}
               searchTerm={searchTerm}
               onEdit={(category) => setModalState({ kind: "edit-category", category })}
+              onDelete={(category) => setModalState({ kind: "delete-category", category })}
+              onReactivate={handleReactivateCategory}
             />
           </TabPanel>
           <TabPanel>
@@ -132,6 +190,8 @@ export default function AssetConfigPage() {
               types={types}
               searchTerm={searchTerm}
               onEdit={(assetType) => setModalState({ kind: "edit-type", assetType })}
+              onDelete={(assetType) => setModalState({ kind: "delete-type", assetType })}
+              onReactivate={handleReactivateType}
             />
           </TabPanel>
           <TabPanel>
@@ -141,6 +201,8 @@ export default function AssetConfigPage() {
               onSelectType={setSelectedTypeId}
               refreshKey={attributesRefreshKey}
               onEditAttribute={editAttribute}
+              onDeleteAttribute={deleteAttributeFor}
+              onReactivateAttribute={handleReactivateAttribute}
             />
           </TabPanel>
         </TabPanels>
@@ -217,6 +279,68 @@ export default function AssetConfigPage() {
           }}
         />
       )}
+
+      {modalState?.kind === "delete-category" && (
+        <ConfirmDeleteModal
+          heading="Delete category"
+          itemName={modalState.category.name}
+          isPending={deleteCategory.isPending}
+          isError={deleteCategory.isError}
+          error={deleteCategory.error}
+          onClose={closeModal}
+          onConfirm={() => {
+            deleteCategory.mutate(modalState.category.id, {
+              onSuccess: () => {
+                closeModal();
+                categories.refetch();
+              },
+            });
+          }}
+        />
+      )}
+
+      {modalState?.kind === "delete-type" && (
+        <ConfirmDeleteModal
+          heading="Delete type"
+          itemName={modalState.assetType.name}
+          isPending={deleteAssetType.isPending}
+          isError={deleteAssetType.isError}
+          error={deleteAssetType.error}
+          onClose={closeModal}
+          onConfirm={() => {
+            deleteAssetType.mutate(modalState.assetType.id, {
+              onSuccess: () => {
+                closeModal();
+                types.refetch();
+                categories.refetch();
+              },
+            });
+          }}
+        />
+      )}
+
+      {modalState?.kind === "delete-attribute" && (
+        <ConfirmDeleteModal
+          heading="Delete attribute"
+          itemName={modalState.attribute.name}
+          isPending={deleteAttribute.isPending}
+          isError={deleteAttribute.isError}
+          error={deleteAttribute.error}
+          onClose={closeModal}
+          onConfirm={() => {
+            deleteAttribute.mutate(
+              { assetTypeId: modalState.assetTypeId, attributeId: modalState.attribute.id },
+              {
+                onSuccess: () => {
+                  closeModal();
+                  types.refetch();
+                  setAttributesRefreshKey((n) => n + 1);
+                },
+              },
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -225,10 +349,14 @@ function CategoriesTab({
   categories,
   searchTerm,
   onEdit,
+  onDelete,
+  onReactivate,
 }: {
   categories: ReturnType<typeof useAssetCategories>;
   searchTerm: string;
   onEdit: (category: AssetCategory) => void;
+  onDelete: (category: AssetCategory) => void;
+  onReactivate: (id: string) => void;
 }) {
   const { data, isLoading, isError, error } = categories;
 
@@ -274,11 +402,12 @@ function CategoriesTab({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
       {filtered.map((cat) => (
-        <div key={cat.id} className="cg-section" style={{ margin: 0 }}>
+        <div key={cat.id} className="cg-section" style={{ margin: 0, opacity: cat.is_active ? 1 : 0.65 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
             <p className="cg-section__title" style={{ margin: 0 }}>{cat.name}</p>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Tag type="blue">{cat.code}</Tag>
+              {!cat.is_active && <Tag type="gray">Inactive</Tag>}
               <Button
                 kind="ghost"
                 size="sm"
@@ -286,6 +415,14 @@ function CategoriesTab({
                 iconDescription="Edit category"
                 hasIconOnly
                 onClick={() => onEdit(cat)}
+              />
+              <Button
+                kind="ghost"
+                size="sm"
+                renderIcon={TrashCan}
+                iconDescription="Delete category"
+                hasIconOnly
+                onClick={() => onDelete(cat)}
               />
             </div>
           </div>
@@ -299,6 +436,11 @@ function CategoriesTab({
               <p className="cg-kv-item__value">{cat.asset_count}</p>
             </div>
           </div>
+          {!cat.is_active && (
+            <Button kind="tertiary" size="sm" style={{ marginTop: "1rem" }} onClick={() => onReactivate(cat.id)}>
+              Reactivate
+            </Button>
+          )}
         </div>
       ))}
     </div>
@@ -309,10 +451,14 @@ function TypesTab({
   types,
   searchTerm,
   onEdit,
+  onDelete,
+  onReactivate,
 }: {
   types: ReturnType<typeof useAssetTypes>;
   searchTerm: string;
   onEdit: (assetType: AssetType) => void;
+  onDelete: (assetType: AssetType) => void;
+  onReactivate: (id: string) => void;
 }) {
   const { data, isLoading, isError, error } = types;
 
@@ -365,12 +511,13 @@ function TypesTab({
             <th>Useful life</th>
             <th>Maintenance interval</th>
             <th>Attributes</th>
+            <th>Status</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {filtered.map((t) => (
-            <tr key={t.id}>
+            <tr key={t.id} style={{ opacity: t.is_active ? 1 : 0.65 }}>
               <td style={{ fontWeight: 500 }}>{t.name}</td>
               <td className="cg-table__muted">{t.category_name}</td>
               <td className="cg-table__muted">{t.useful_life_years} years</td>
@@ -379,14 +526,36 @@ function TypesTab({
               </td>
               <td className="cg-table__muted">{t.attribute_count}</td>
               <td>
-                <Button
-                  kind="ghost"
-                  size="sm"
-                  renderIcon={Edit}
-                  iconDescription="Edit type"
-                  hasIconOnly
-                  onClick={() => onEdit(t)}
-                />
+                {t.is_active ? (
+                  <Tag type="green">Active</Tag>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <Tag type="gray">Inactive</Tag>
+                    <Button kind="tertiary" size="sm" onClick={() => onReactivate(t.id)}>
+                      Reactivate
+                    </Button>
+                  </div>
+                )}
+              </td>
+              <td>
+                <div style={{ display: "flex" }}>
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    renderIcon={Edit}
+                    iconDescription="Edit type"
+                    hasIconOnly
+                    onClick={() => onEdit(t)}
+                  />
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    renderIcon={TrashCan}
+                    iconDescription="Delete type"
+                    hasIconOnly
+                    onClick={() => onDelete(t)}
+                  />
+                </div>
               </td>
             </tr>
           ))}
@@ -402,9 +571,19 @@ interface AttributesTabProps {
   onSelectType: (id: string) => void;
   refreshKey: number;
   onEditAttribute: (attribute: AssetAttributeDefinition) => void;
+  onDeleteAttribute: (attribute: AssetAttributeDefinition) => void;
+  onReactivateAttribute: (assetTypeId: string, attributeId: string) => void;
 }
 
-function AttributesTab({ types, selectedTypeId, onSelectType, refreshKey, onEditAttribute }: AttributesTabProps) {
+function AttributesTab({
+  types,
+  selectedTypeId,
+  onSelectType,
+  refreshKey,
+  onEditAttribute,
+  onDeleteAttribute,
+  onReactivateAttribute,
+}: AttributesTabProps) {
   const { data, isLoading, isError, error } = types;
 
   useEffect(() => {
@@ -447,6 +626,8 @@ function AttributesTab({ types, selectedTypeId, onSelectType, refreshKey, onEdit
       onSelectType={onSelectType}
       refreshKey={refreshKey}
       onEditAttribute={onEditAttribute}
+      onDeleteAttribute={onDeleteAttribute}
+      onReactivateAttribute={onReactivateAttribute}
     />
   );
 }
@@ -457,12 +638,16 @@ function AttributesTabBody({
   onSelectType,
   refreshKey,
   onEditAttribute,
+  onDeleteAttribute,
+  onReactivateAttribute,
 }: {
   data: AssetType[];
   selectedTypeId: string | undefined;
   onSelectType: (id: string) => void;
   refreshKey: number;
   onEditAttribute: (attribute: AssetAttributeDefinition) => void;
+  onDeleteAttribute: (attribute: AssetAttributeDefinition) => void;
+  onReactivateAttribute: (assetTypeId: string, attributeId: string) => void;
 }) {
   const [typeSearch, setTypeSearch] = useState("");
 
@@ -503,9 +688,16 @@ function AttributesTabBody({
               background: selectedTypeId === t.id ? "#edf2fa" : "transparent",
               fontWeight: selectedTypeId === t.id ? 600 : 400,
               cursor: "pointer",
+              opacity: t.is_active ? 1 : 0.65,
             }}
           >
             {t.name}
+            {!t.is_active && (
+              <span className="cg-table__muted" style={{ fontSize: "0.7rem" }}>
+                {" "}
+                (inactive)
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -515,6 +707,8 @@ function AttributesTabBody({
             key={`${selectedTypeId}:${refreshKey}`}
             assetTypeId={selectedTypeId}
             onEditAttribute={onEditAttribute}
+            onDeleteAttribute={onDeleteAttribute}
+            onReactivateAttribute={onReactivateAttribute}
           />
         )}
       </div>
@@ -525,9 +719,13 @@ function AttributesTabBody({
 function AssetTypeAttributesPanel({
   assetTypeId,
   onEditAttribute,
+  onDeleteAttribute,
+  onReactivateAttribute,
 }: {
   assetTypeId: string;
   onEditAttribute: (attribute: AssetAttributeDefinition) => void;
+  onDeleteAttribute: (attribute: AssetAttributeDefinition) => void;
+  onReactivateAttribute: (assetTypeId: string, attributeId: string) => void;
 }) {
   const [attributeSearch, setAttributeSearch] = useState("");
   const { data: attributes, isLoading, isError, error } = useAssetTypeAttributes(assetTypeId);
@@ -592,12 +790,13 @@ function AssetTypeAttributesPanel({
                 <th>Required</th>
                 <th>Options</th>
                 <th>Order</th>
+                <th>Status</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {filteredAttributes.map((attr) => (
-                <tr key={attr.id}>
+                <tr key={attr.id} style={{ opacity: attr.is_active ? 1 : 0.65 }}>
                   <td style={{ fontWeight: 500 }}>{attr.name}</td>
                   <td>
                     <Tag type={DATA_TYPE_COLOR[attr.data_type]}>{attr.data_type}</Tag>
@@ -606,14 +805,40 @@ function AssetTypeAttributesPanel({
                   <td className="cg-table__muted">{attr.select_options?.join(", ") ?? "—"}</td>
                   <td className="cg-table__muted">{attr.display_order}</td>
                   <td>
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      renderIcon={Edit}
-                      iconDescription="Edit attribute"
-                      hasIconOnly
-                      onClick={() => onEditAttribute(attr)}
-                    />
+                    {attr.is_active ? (
+                      <Tag type="green">Active</Tag>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <Tag type="gray">Inactive</Tag>
+                        <Button
+                          kind="tertiary"
+                          size="sm"
+                          onClick={() => onReactivateAttribute(assetTypeId, attr.id)}
+                        >
+                          Reactivate
+                        </Button>
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex" }}>
+                      <Button
+                        kind="ghost"
+                        size="sm"
+                        renderIcon={Edit}
+                        iconDescription="Edit attribute"
+                        hasIconOnly
+                        onClick={() => onEditAttribute(attr)}
+                      />
+                      <Button
+                        kind="ghost"
+                        size="sm"
+                        renderIcon={TrashCan}
+                        iconDescription="Delete attribute"
+                        hasIconOnly
+                        onClick={() => onDeleteAttribute(attr)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

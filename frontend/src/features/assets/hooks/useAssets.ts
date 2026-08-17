@@ -2,10 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
 import { useStubMutation } from "@/shared/hooks/useStubMutation";
 import {
+  activateAssetAttributeDefinition,
+  activateAssetCategory,
+  activateAssetType,
   createAsset,
   createAssetAttributeDefinition,
   createAssetCategory,
   createAssetType,
+  deleteAssetAttributeDefinition,
+  deleteAssetCategory,
+  deleteAssetType,
   getAsset,
   getAssetByQrCode,
   getAssetTypeAttributes,
@@ -363,6 +369,24 @@ export function useUpdateAssetCategory() {
   );
 }
 
+// Result is undefined when the category was hard-deleted (gone); otherwise
+// it's the now-deactivated category (still referenced by an AssetType).
+export function useDeleteAssetCategory() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetCategory | undefined>(async (id) => {
+    const accessToken = await getAccessToken();
+    return deleteAssetCategory(id, accessToken);
+  });
+}
+
+export function useActivateAssetCategory() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetCategory>(async (id) => {
+    const accessToken = await getAccessToken();
+    return activateAssetCategory(id, accessToken);
+  });
+}
+
 export function useCreateAssetType() {
   const { getAccessToken } = useThunderID();
   return useStubMutation<CreateAssetTypeRequest, AssetType>(async (payload) => {
@@ -379,6 +403,24 @@ export function useUpdateAssetType() {
       return updateAssetType(id, payload, accessToken);
     },
   );
+}
+
+// Result is undefined when the type was hard-deleted (gone); otherwise it's
+// the now-deactivated type (still referenced by an Asset).
+export function useDeleteAssetType() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetType | undefined>(async (id) => {
+    const accessToken = await getAccessToken();
+    return deleteAssetType(id, accessToken);
+  });
+}
+
+export function useActivateAssetType() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetType>(async (id) => {
+    const accessToken = await getAccessToken();
+    return activateAssetType(id, accessToken);
+  });
 }
 
 export function useCreateAssetAttributeDefinition() {
@@ -400,6 +442,30 @@ export function useUpdateAssetAttributeDefinition() {
   >(async ({ assetTypeId, attributeId, payload }) => {
     const accessToken = await getAccessToken();
     return updateAssetAttributeDefinition(assetTypeId, attributeId, payload, accessToken);
+  });
+}
+
+// Result is undefined when the attribute was hard-deleted (gone); otherwise
+// it's the now-deactivated definition (existing Assets still have values for it).
+export function useDeleteAssetAttributeDefinition() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<
+    { assetTypeId: string; attributeId: string },
+    AssetAttributeDefinition | undefined
+  >(async ({ assetTypeId, attributeId }) => {
+    const accessToken = await getAccessToken();
+    return deleteAssetAttributeDefinition(assetTypeId, attributeId, accessToken);
+  });
+}
+
+export function useActivateAssetAttributeDefinition() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<
+    { assetTypeId: string; attributeId: string },
+    AssetAttributeDefinition
+  >(async ({ assetTypeId, attributeId }) => {
+    const accessToken = await getAccessToken();
+    return activateAssetAttributeDefinition(assetTypeId, attributeId, accessToken);
   });
 }
 

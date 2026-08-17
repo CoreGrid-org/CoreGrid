@@ -18,6 +18,10 @@ export default function EditAssetTypeModal({ assetType, onClose, onUpdated }: Ed
   const [code, setCode] = useState(assetType.code);
   const [name, setName] = useState(assetType.name);
   const [categoryId, setCategoryId] = useState(assetType.asset_category_id);
+  // Inactive categories aren't offered as new choices, but the type's
+  // current category stays selectable/visible even if it's since gone inactive.
+  const selectableCategories =
+    categories?.filter((c) => c.is_active || c.id === assetType.asset_category_id) ?? [];
   const [usefulLifeYears, setUsefulLifeYears] = useState(assetType.useful_life_years);
   const [maintenanceIntervalDays, setMaintenanceIntervalDays] = useState<number | "">(
     assetType.default_maintenance_interval_days ?? "",
@@ -73,9 +77,9 @@ export default function EditAssetTypeModal({ assetType, onClose, onUpdated }: Ed
           id="edit-type-category"
           titleText="Category"
           placeholder="Search categories…"
-          items={categories ?? []}
-          itemToString={(item) => (item ? `${item.name} (${item.code})` : "")}
-          selectedItem={categories?.find((c) => c.id === categoryId) ?? null}
+          items={selectableCategories}
+          itemToString={(item) => (item ? `${item.name} (${item.code})${item.is_active ? "" : " — inactive"}` : "")}
+          selectedItem={selectableCategories.find((c) => c.id === categoryId) ?? null}
           onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
         />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>

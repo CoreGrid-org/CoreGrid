@@ -13,6 +13,8 @@ interface CreateAssetTypeModalProps {
 export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAssetTypeModalProps) {
   const { data: categories } = useAssetCategories();
   const createAssetType = useCreateAssetType();
+  // Inactive categories aren't offered when creating a new type.
+  const activeCategories = categories?.filter((c) => c.is_active) ?? [];
 
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -67,9 +69,9 @@ export default function CreateAssetTypeModal({ onClose, onCreated }: CreateAsset
           id="create-type-category"
           titleText="Category"
           placeholder="Search categories…"
-          items={categories ?? []}
+          items={activeCategories}
           itemToString={(item) => (item ? `${item.name} (${item.code})` : "")}
-          selectedItem={categories?.find((c) => c.id === categoryId) ?? null}
+          selectedItem={activeCategories.find((c) => c.id === categoryId) ?? null}
           onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
         />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>

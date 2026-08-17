@@ -70,6 +70,19 @@ export default function AssetRegisterPage() {
 
   const selectedType = assetTypes?.find((t) => t.id === assetTypeId);
 
+  // Inactive asset types aren't offered when registering a new asset, but an
+  // existing asset must keep displaying/keeping its own (possibly since
+  // deactivated) type.
+  const selectableAssetTypes =
+    assetTypes?.filter((t) => t.is_active || t.id === assetTypeId) ?? [];
+
+  // Inactive attributes aren't requested when registering a new asset; an
+  // existing asset must keep displaying (and not lose, on next save) values
+  // it already has for attributes that have since been deactivated.
+  const visibleAttributeDefs = isEditMode
+    ? (attributeDefs ?? [])
+    : (attributeDefs ?? []).filter((def) => def.is_active);
+
   // Edit mode: once the existing asset loads, seed every field from it —
   // once only, so the user's own edits afterwards aren't clobbered by a
   // background refetch.
@@ -119,7 +132,7 @@ export default function AssetRegisterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only asset type changes should trigger this reset
   }, [assetTypeId]);
 
-  const requiredAttributesFilled = (attributeDefs ?? []).every((def) => {
+  const requiredAttributesFilled = visibleAttributeDefs.every((def) => {
     if (!def.is_required) return true;
     const value = attributeValues[def.id];
     return value !== undefined && value !== "";
@@ -138,7 +151,7 @@ export default function AssetRegisterPage() {
   const handleSubmit = () => {
     if (!canSubmit || saveAsset.isPending) return;
 
-    const attributes: AssetAttributeValueRequest[] = (attributeDefs ?? [])
+    const attributes: AssetAttributeValueRequest[] = visibleAttributeDefs
       .map((def): AssetAttributeValueRequest | null => {
         const value = attributeValues[def.id];
         if (value === undefined || value === "") return null;
@@ -259,9 +272,9 @@ export default function AssetRegisterPage() {
                 id="register-asset-type"
                 titleText="Asset type"
                 placeholder="Search asset types…"
-                items={assetTypes ?? []}
-                itemToString={(item) => item?.name ?? ""}
-                selectedItem={assetTypes?.find((t) => t.id === assetTypeId) ?? null}
+                items={selectableAssetTypes}
+                itemToString={(item) => (item ? `${item.name}${item.is_active ? "" : " — inactive"}` : "")}
+                selectedItem={selectableAssetTypes.find((t) => t.id === assetTypeId) ?? null}
                 onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
               />
               <TextInput
@@ -341,18 +354,20 @@ export default function AssetRegisterPage() {
               </div>
             )}
 
-            {assetTypeId && attributeDefs && attributeDefs.length === 0 && (
+            {assetTypeId && attributeDefs && visibleAttributeDefs.length === 0 && (
               <div className="cg-placeholder" style={{ marginTop: "1rem" }}>
                 <p>This type has no custom attributes configured.</p>
               </div>
             )}
 
-            {assetTypeId && attributeDefs && attributeDefs.length > 0 && (
+            {assetTypeId && attributeDefs && visibleAttributeDefs.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
-                {attributeDefs.map((def) => {
+                {visibleAttributeDefs.map((def) => {
                   const value = attributeValues[def.id];
                   const setValue = (v: AttributeValue) => setAttributeValues((prev) => ({ ...prev, [def.id]: v }));
-                  const label = def.is_required ? `${def.name} *` : def.name;
+                  const label = def.is_required
+                    ? `${def.name} *${def.is_active ? "" : " (inactive)"}`
+                    : `${def.name}${def.is_active ? "" : " (inactive)"}`;
 
                   if (def.data_type === "BOOLEAN") {
                     return (

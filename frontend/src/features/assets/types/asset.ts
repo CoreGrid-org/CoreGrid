@@ -55,6 +55,7 @@ export interface AssetCategory {
   name: string;
   type_count: number;
   asset_count: number;
+  is_active: boolean;
 }
 
 export interface AssetType {
@@ -67,6 +68,7 @@ export interface AssetType {
   useful_life_years: number;
   default_maintenance_interval_days: number | null;
   attribute_count: number;
+  is_active: boolean;
 }
 
 export interface AssetAttributeDefinition {
@@ -78,6 +80,7 @@ export interface AssetAttributeDefinition {
   validation_rule: string | null;
   select_options: string[] | null;
   display_order: number;
+  is_active: boolean;
 }
 
 export interface Department {

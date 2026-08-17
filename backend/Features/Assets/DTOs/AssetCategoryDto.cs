@@ -11,4 +11,6 @@ public class AssetCategoryDto
     public int TypeCount { get; set; }
 
     public int AssetCount { get; set; }
+
+    public bool IsActive { get; set; }
 }

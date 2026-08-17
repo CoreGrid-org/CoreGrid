@@ -37,4 +37,28 @@ public interface IAssetTypeService
         Guid attributeId,
         Guid? userId,
         UpdateAssetAttributeDefinitionRequest request);
+
+    Task<(bool Found, bool HardDeleted, AssetTypeDto? AssetType)> DeleteAssetTypeAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid? userId);
+
+    Task<AssetTypeDto?> SetAssetTypeActiveAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid? userId,
+        bool isActive);
+
+    Task<(bool Found, bool HardDeleted, AssetAttributeDefinitionDto? Definition)> DeleteAttributeDefinitionAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid attributeId,
+        Guid? userId);
+
+    Task<AssetAttributeDefinitionDto?> SetAttributeDefinitionActiveAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid attributeId,
+        Guid? userId,
+        bool isActive);
 }

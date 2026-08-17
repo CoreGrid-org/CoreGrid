@@ -17,4 +17,6 @@ public class AssetAttributeDefinitionDto
     public List<string>? SelectOptions { get; set; }
 
     public int DisplayOrder { get; set; }
+
+    public bool IsActive { get; set; }
 }
