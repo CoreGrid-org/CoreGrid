@@ -14,6 +14,7 @@ import {
   deleteAssetType,
   getAsset,
   getAssetByQrCode,
+  getAssetHistory,
   getAssetTypeAttributes,
   getOrganizationCode,
   listAssetCategories,
@@ -32,6 +33,7 @@ import type {
   AssetAttributeDefinition,
   AssetCategory,
   AssetDetail,
+  AssetHistoryEntry,
   AssetQueryParameters,
   AssetType,
   CreateAssetAttributeDefinitionRequest,
@@ -125,6 +127,44 @@ export function useAssetDetail(id: string | undefined) {
       cancelled = true;
     };
   }, [id, attempt, getAccessToken]);
+
+  const refetch = useCallback(() => setAttempt((n) => n + 1), []);
+
+  return { data, error, isError: error !== undefined, isLoading, refetch };
+}
+
+export function useAssetHistory(assetId: string | undefined, page: number, pageSize: number) {
+  const { getAccessToken } = useThunderID();
+  const [data, setData] = useState<PagedResult<AssetHistoryEntry>>();
+  const [error, setError] = useState<unknown>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!assetId) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setError(undefined);
+
+    getAccessToken()
+      .then((token) => getAssetHistory(assetId, { page, pageSize }, token))
+      .then((result) => {
+        if (!cancelled) {
+          setData(result);
+          setIsLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assetId, page, pageSize, attempt, getAccessToken]);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 

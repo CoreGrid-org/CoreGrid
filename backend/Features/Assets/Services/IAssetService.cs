@@ -35,4 +35,9 @@ public interface IAssetService
         string code);
 
     Task<string> GetOrganizationCodeAsync(Guid organizationId);
+
+    Task<PagedResult<AssetHistoryDto>?> GetAssetHistoryAsync(
+        Guid organizationId,
+        Guid assetId,
+        AssetHistoryQueryParameters parameters);
 }

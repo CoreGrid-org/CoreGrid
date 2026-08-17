@@ -237,6 +237,40 @@ public class AssetsController : CoreGridControllerBase
     }
 
     // =========================================================
+    // GET /api/assets/{id}/history
+    // =========================================================
+
+    [HttpGet("{id:guid}/history")]
+    public async Task<ActionResult<PagedResult<AssetHistoryDto>>> GetAssetHistory(
+        Guid id,
+        [FromQuery] AssetHistoryQueryParameters parameters,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        var history = await _assetService.GetAssetHistoryAsync(
+            currentUser.OrganizationId,
+            id,
+            parameters);
+
+        if (history is null)
+        {
+            return NotFound(new
+            {
+                message = "Asset not found."
+            });
+        }
+
+        return Ok(history);
+    }
+
+    // =========================================================
     // GET /api/assets/qr/{code}
     // =========================================================
 

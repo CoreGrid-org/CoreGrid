@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Tag, Button, ComboBox, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
-import { Add, Edit, Search } from "@carbon/icons-react";
+import { Add, Edit, Search, Time } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useAssetCategories, useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
 import AssetDetailModal from "../components/AssetDetailModal";
+import AssetHistoryModal from "../components/AssetHistoryModal";
 import {
   ASSET_CONDITIONS,
   ASSET_STATUSES,
+  type Asset,
   type AssetCategory,
   type AssetQueryParameters,
   type AssetType,
@@ -37,6 +39,7 @@ export default function AssetsPage() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | undefined>(
     (location.state as { openAssetId?: string } | null)?.openAssetId,
   );
+  const [historyAsset, setHistoryAsset] = useState<Asset | undefined>(undefined);
 
   const { data: categories } = useAssetCategories();
   const { data: assetTypes } = useAssetTypes();
@@ -219,14 +222,24 @@ export default function AssetsPage() {
                     </td>
                     <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        kind="ghost"
-                        size="sm"
-                        renderIcon={Edit}
-                        iconDescription="Update asset"
-                        hasIconOnly
-                        onClick={() => navigate(`/admin/assets/${asset.id}/edit`)}
-                      />
+                      <div style={{ display: "flex", gap: "0.25rem" }}>
+                        <Button
+                          kind="ghost"
+                          size="sm"
+                          renderIcon={Time}
+                          iconDescription="View history"
+                          hasIconOnly
+                          onClick={() => setHistoryAsset(asset)}
+                        />
+                        <Button
+                          kind="ghost"
+                          size="sm"
+                          renderIcon={Edit}
+                          iconDescription="Update asset"
+                          hasIconOnly
+                          onClick={() => navigate(`/admin/assets/${asset.id}/edit`)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -255,6 +268,15 @@ export default function AssetsPage() {
           assetId={selectedAssetId}
           onClose={() => setSelectedAssetId(undefined)}
           onConditionUpdated={refetch}
+        />
+      )}
+
+      {historyAsset && (
+        <AssetHistoryModal
+          assetId={historyAsset.id}
+          assetName={historyAsset.name}
+          assetCode={historyAsset.asset_code}
+          onClose={() => setHistoryAsset(undefined)}
         />
       )}
     </div>
