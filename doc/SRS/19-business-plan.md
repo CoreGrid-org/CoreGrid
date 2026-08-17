@@ -76,11 +76,40 @@ flowchart TD
     C --> C4["Multi-tenant SaaS (M1, §17)"]
     C4 --> C5["Runs on CoreGrid-org's infrastructure"]
     C4 --> C6["Revenue: per-organisation subscription tier"]
+    C4 --> C7["Core platform identical to Community,\nplus SaaS-exclusive additions — §19.4.1"]
 ```
 
-No edition forks the codebase — Community, Managed, and SaaS are deployment and support arrangements around
-one Apache-2.0 tree, not three products. This is what keeps engineering cost from tripling: a fix or feature
-lands once and reaches every edition on its next deployment.
+Community, Managed, and SaaS are **not** a stripped/full split of the same feature set. The complete
+lifecycle platform — every FR in §6, everything a government buyer needs — ships in Community and stays
+there permanently; nothing is held back to justify SaaS. This isn't a courtesy, it's structural: §19.2
+already established that the data-residency buyer cannot use SaaS at all, so a feature only available in
+SaaS is a feature that buyer can never reach regardless of price, which would quietly undo the reason this
+plan goes open source in the first place. SaaS instead sells things that are **additive and infrastructure-
+native** — capable only once CoreGrid-org is operating shared, multi-tenant infrastructure, not artificially
+withheld from a self-hosted deployment. §19.4.1 lists them. Engineering cost still doesn't triple: the core
+tree is one codebase reaching Community, Managed, and the base of SaaS identically: only the SaaS-exclusive
+layer is built once and only for that edition.
+
+### 19.4.1 What SaaS Adds
+
+Drawn from Chapter 17's Future Enhancements — items already deferred from the baseline for being
+infrastructure-dependent, not for being valuable enough to paywall:
+
+| SaaS-exclusive addition | Why it's SaaS-native, not a removed Community feature |
+|---|---|
+| Cross-organisation benchmarking and analytics | Only meaningful with multiple tenants on one platform — cannot exist in a single-organisation Community deployment, not withheld from one |
+| Additional agents — procurement recommendation, warranty analysis, fleet-level optimisation (§17) | New capability built on top of the same agent-graph/tool allow-list mechanism (§17 notes it's agent-agnostic), not a gated version of the four baseline agents |
+| Trained predictive-failure models replacing the Maintenance Analysis Agent's statistical projection (§17) | An upgrade path behind the same stable contract (§17) — Community keeps its statistical version, nothing is removed from it |
+| Offline field capture with deferred synchronisation (§17) | Needs a sync/queue service Community deployments don't run; the Flutter data layer is already provider-mediated for exactly this addition (§17) |
+| Push notification alongside email (§17) | Additive channel — `INotificationService` already abstracts this for a second implementation, not a replacement |
+| Computer-vision condition assessment from captured photographs (§17) | Requires a model-serving pipeline only justified at CoreGrid-org's own operating scale |
+| Managed backups, automatic scaling, zero-downtime upgrades | Operational guarantees only possible when CoreGrid-org runs the shared infrastructure itself |
+| Delegated administration hierarchies and access-review governance (§17) | Uses nesting ThunderID's organisation model already supports but the baseline doesn't configure (§17) — new configuration, not new gating |
+| ERP and financial-system integration (§17) | Far-horizon item already deferred for build complexity, not for monetisation |
+
+If a capability is ever proposed for this list that a government/institutional Community deployment would
+need to reach parity with SaaS, that's a sign it belongs in Community instead — this table only holds
+genuinely additive, infrastructure-native capability, consistent with §19.2's constraint.
 
 ## 19.5 Phased Rollout
 
@@ -148,7 +177,7 @@ quote is produced.
 | Setup / implementation fee | Community | One-time, scoped to org size and attribute-model complexity (§3.5) | Covers initial deployment, ThunderID registration, data migration from the customer's existing register |
 | Support retainer | Community | Monthly/annual, tiered by response-time SLA | Must be sold as a retainer, not ad hoc — ad hoc support produces no recurring revenue line at all |
 | Management subscription | Managed | Monthly, per deployment | Covers operating the five cooperating services (§3.2) on the customer's own cloud billing |
-| SaaS subscription | Multi-tenant SaaS | Monthly, tiered (e.g. Starter / Professional / Enterprise) by asset count and/or seat count | Standard SaaS metering; exact thresholds are a Phase-3 pricing exercise, not fixed here |
+| SaaS subscription | Multi-tenant SaaS | Monthly, tiered (e.g. Starter / Professional / Enterprise) by asset count and/or seat count | Prices the hosting *and* the SaaS-exclusive additions in §19.4.1 — not a markup on features Community already has for free |
 
 Illustrative revenue mix once all three phases are live and mature (not a forecast for Phase 1 alone, where
 setup fees and support retainers are the only streams that exist yet):
@@ -220,6 +249,6 @@ This chapter does not introduce FR/NFR identifiers; it depends on and extends th
 |---|---|
 | §2.3 (User Classes) | Defines the operators; §19.2 defines the buyer, a distinct role |
 | §3.2, §3.5 | Five cooperating services and the configurable platform model — what Managed and SaaS editions actually operate |
-| §17 (Future Enhancements) | Source of the M0/M1 staging this chapter turns into Phase 1–3 |
+| §17 (Future Enhancements) | Source of the M0/M1 staging this chapter turns into Phase 1–3, and the direct source of every SaaS-exclusive addition listed in §19.4.1 |
 | FR-006 / `doc/PROGRESS.md` | Source of the Phase-3 entry criterion in §19.10 |
 | `LICENSE`, `NOTICE` | The Apache 2.0 licensing decision underwriting §19.4 |
