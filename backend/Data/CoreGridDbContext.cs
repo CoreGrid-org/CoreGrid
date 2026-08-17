@@ -22,6 +22,7 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
     public DbSet<VerificationCampaign> VerificationCampaigns => Set<VerificationCampaign>();
     public DbSet<VerificationTask> VerificationTasks => Set<VerificationTask>();
     public DbSet<Discrepancy> Discrepancies => Set<Discrepancy>();
+    public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -490,6 +491,61 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
                 .WithMany()
                 .HasForeignKey(d => d.ResolvedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MaintenanceRecord>(entity =>
+        {
+            entity.HasIndex(m => m.OrganizationId);
+            entity.HasIndex(m => m.AssetId);
+            entity.HasIndex(m => m.Status);
+            entity.HasIndex(m => m.Priority);
+            entity.HasIndex(m => m.Type);
+            entity.HasIndex(m => m.AssigneeId);
+
+            entity.Property(m => m.Description).IsRequired();
+            entity.Property(m => m.ObservedCondition).HasMaxLength(15).IsRequired();
+            entity.Property(m => m.ResultingCondition).HasMaxLength(15);
+            entity.Property(m => m.PhotoUrl).HasMaxLength(500);
+            entity.Property(m => m.CancellationReason).HasMaxLength(500);
+
+            entity.Property(m => m.EstimatedCost).HasPrecision(18, 2);
+            entity.Property(m => m.ActualCost).HasPrecision(18, 2);
+
+            entity.Property(m => m.Type)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.Property(m => m.Priority)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.Property(m => m.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.HasOne(m => m.Organization)
+                .WithMany()
+                .HasForeignKey(m => m.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.Asset)
+                .WithMany(a => a.MaintenanceRecords)
+                .HasForeignKey(m => m.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.Assignee)
+                .WithMany()
+                .HasForeignKey(m => m.AssigneeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable(tb =>
+            {
+                tb.HasCheckConstraint("CK_MaintenanceRecords_Status", "\"Status\" IN ('REQUESTED','APPROVED','IN_PROGRESS','COMPLETED','CANCELLED')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_Priority", "\"Priority\" IN ('LOW','MEDIUM','HIGH','CRITICAL')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_Type", "\"Type\" IN ('CORRECTIVE','PREVENTIVE')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_ObservedCondition", "\"ObservedCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_ResultingCondition", "\"ResultingCondition\" IS NULL OR \"ResultingCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
+            });
         });
     }
 }

@@ -38,4 +38,6 @@ public class Asset
 
     public ICollection<AssetAttributeValue> AssetAttributeValues { get; set; } = new List<AssetAttributeValue>();
     public ICollection<AssetHistory> AssetHistoryEntries { get; set; } = new List<AssetHistory>();
+    public ICollection<MaintenanceRecord> MaintenanceRecords { get; set; } = new List<MaintenanceRecord>();
 }
+
