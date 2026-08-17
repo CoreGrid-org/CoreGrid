@@ -150,8 +150,6 @@ public class MaintenanceService : IMaintenanceService
             PhotoUrl = request.PhotoUrl,
             Type = request.Type,
             Priority = request.Priority,
-            // A directly-created record starts as REQUESTED so it still flows
-            // through the standard approval step before work begins.
             Status = MaintenanceStatus.REQUESTED,
             EstimatedCost = request.EstimatedCost,
             AssigneeId = request.AssigneeId,
@@ -167,9 +165,8 @@ public class MaintenanceService : IMaintenanceService
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
 
-    // ------------------------------------------------------------------ //
-    // FR-036 — Approve maintenance record (Officer / Administrator)       //
-    // ------------------------------------------------------------------ //
+
+    // FR-036 — Approve maintenance record (Officer / Administrator)       
 
     public async Task<MaintenanceRecordDto?> ApproveMaintenanceAsync(
         Guid organizationId,
