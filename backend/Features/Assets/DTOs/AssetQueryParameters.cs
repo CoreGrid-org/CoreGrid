@@ -2,10 +2,12 @@ namespace CoreGrid.Api.Features.Assets.DTOs;
 
 public class AssetQueryParameters
 {
-    // Search by asset code or asset name
+    // Universal search — matches asset code/name, asset category, asset
+    // type, and dynamic attribute values (see AssetService.GetAssetsAsync).
     public string? Search { get; set; }
 
     // Filters
+    public Guid? CategoryId { get; set; }
     public Guid? AssetTypeId { get; set; }
     public Guid? DepartmentId { get; set; }
     public Guid? LocationId { get; set; }

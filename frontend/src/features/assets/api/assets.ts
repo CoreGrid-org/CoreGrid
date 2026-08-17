@@ -38,6 +38,7 @@ function authHeaders(accessToken: string) {
 function buildQuery(params: AssetQueryParameters): string {
   const search = new URLSearchParams();
   if (params.search) search.set("search", params.search);
+  if (params.categoryId) search.set("categoryId", params.categoryId);
   if (params.assetTypeId) search.set("assetTypeId", params.assetTypeId);
   if (params.departmentId) search.set("departmentId", params.departmentId);
   if (params.locationId) search.set("locationId", params.locationId);

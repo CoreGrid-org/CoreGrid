@@ -109,6 +109,7 @@ export interface PagedResult<T> {
 
 export interface AssetQueryParameters {
   search?: string;
+  categoryId?: string;
   assetTypeId?: string;
   departmentId?: string;
   locationId?: string;

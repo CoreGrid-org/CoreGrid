@@ -4,11 +4,12 @@ import { Tag, Button, ComboBox, Select, SelectItem, Pagination, InlineNotificati
 import { Add, Edit, Search } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
+import { useAssetCategories, useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
 import AssetDetailModal from "../components/AssetDetailModal";
 import {
   ASSET_CONDITIONS,
   ASSET_STATUSES,
+  type AssetCategory,
   type AssetQueryParameters,
   type AssetType,
   type Department,
@@ -25,6 +26,7 @@ export default function AssetsPage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [assetTypeId, setAssetTypeId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [locationId, setLocationId] = useState("");
@@ -36,6 +38,7 @@ export default function AssetsPage() {
     (location.state as { openAssetId?: string } | null)?.openAssetId,
   );
 
+  const { data: categories } = useAssetCategories();
   const { data: assetTypes } = useAssetTypes();
   const { data: departments } = useDepartments();
   const { data: locations } = useLocations(departmentId || undefined);
@@ -47,7 +50,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, assetTypeId, departmentId, locationId, status, condition]);
+  }, [search, categoryId, assetTypeId, departmentId, locationId, status, condition]);
 
   useEffect(() => {
     setLocationId("");
@@ -64,6 +67,7 @@ export default function AssetsPage() {
 
   const params: AssetQueryParameters = {
     search: search || undefined,
+    categoryId: categoryId || undefined,
     assetTypeId: assetTypeId || undefined,
     departmentId: departmentId || undefined,
     locationId: locationId || undefined,
@@ -100,13 +104,24 @@ export default function AssetsPage() {
 
       <div className="cg-section">
         <div className="cg-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
-          <div className="cg-search">
+          <div className="cg-search" style={{ minWidth: "18rem" }}>
             <Search size={16} className="cg-search__icon" />
             <input
               className="cg-search__input"
-              placeholder="Search by code or name…"
+              placeholder="Search by code, name, category, type, or attribute value…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
+          <div style={{ minWidth: "10rem" }}>
+            <ComboBox<AssetCategory>
+              id="asset-filter-category"
+              aria-label="Category"
+              placeholder="All categories"
+              items={categories ?? []}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={categories?.find((c) => c.id === categoryId) ?? null}
+              onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
             />
           </div>
           <div style={{ minWidth: "10rem" }}>

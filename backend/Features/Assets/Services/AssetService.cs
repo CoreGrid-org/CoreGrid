@@ -47,21 +47,50 @@ public class AssetService : IAssetService
             .Where(a => a.OrganizationId == organizationId);
 
         // -------------------------
-        // Search
+        // Search (universal — asset code/name, category, type, and
+        // dynamic attribute values all match a single search term)
         // -------------------------
 
         if (!string.IsNullOrWhiteSpace(parameters.Search))
         {
             var search = parameters.Search.Trim();
+            var pattern = $"%{search}%";
+
+            var searchAsNumber = decimal.TryParse(search, out var parsedNumber)
+                ? parsedNumber
+                : (decimal?)null;
+
+            var searchAsDate = DateOnly.TryParse(search, out var parsedDate)
+                ? parsedDate
+                : (DateOnly?)null;
 
             query = query.Where(a =>
-                EF.Functions.ILike(a.AssetCode, $"%{search}%") ||
-                EF.Functions.ILike(a.Name, $"%{search}%"));
+                EF.Functions.ILike(a.AssetCode, pattern) ||
+                EF.Functions.ILike(a.Name, pattern) ||
+                (a.AssetType != null && EF.Functions.ILike(a.AssetType.Name, pattern)) ||
+                (a.AssetType != null && EF.Functions.ILike(a.AssetType.Code, pattern)) ||
+                (a.AssetType != null && a.AssetType.AssetCategory != null &&
+                    EF.Functions.ILike(a.AssetType.AssetCategory.Name, pattern)) ||
+                (a.AssetType != null && a.AssetType.AssetCategory != null &&
+                    EF.Functions.ILike(a.AssetType.AssetCategory.Code, pattern)) ||
+                a.AssetAttributeValues.Any(v =>
+                    (v.ValueText != null && EF.Functions.ILike(v.ValueText, pattern)) ||
+                    (searchAsNumber.HasValue && v.ValueNumber == searchAsNumber.Value) ||
+                    (searchAsDate.HasValue && v.ValueDate == searchAsDate.Value) ||
+                    (v.AssetAttributeDefinition != null &&
+                        EF.Functions.ILike(v.AssetAttributeDefinition.Name, pattern))));
         }
 
         // -------------------------
         // Filters
         // -------------------------
+
+        if (parameters.CategoryId.HasValue)
+        {
+            query = query.Where(a =>
+                a.AssetType != null &&
+                a.AssetType.AssetCategoryId == parameters.CategoryId.Value);
+        }
 
         if (parameters.AssetTypeId.HasValue)
         {
