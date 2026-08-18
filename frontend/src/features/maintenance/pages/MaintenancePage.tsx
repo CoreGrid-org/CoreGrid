@@ -20,7 +20,7 @@ export default function MaintenancePage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Maintenance</h1>
-          <p className="cg-page__subtitle">Faults, repairs and preventive schedules (FR-033 to FR-042).</p>
+          <p className="cg-page__subtitle">Faults, repairs and preventive schedules</p>
         </div>
         <Button renderIcon={Add} onClick={() => navigate("new")}>New maintenance record</Button>
       </div>
@@ -110,11 +110,6 @@ export default function MaintenancePage() {
 
           {/* ── Preventive schedule ─────────────────────────────────────── */}
           <TabPanel>
-            <MockNotice requirements={["FR-041"]}>
-              A scheduled job creates a preventive maintenance record automatically once an asset type's
-              configured maintenance interval has elapsed since the last completed maintenance on that asset.
-            </MockNotice>
-
             <div className="cg-section">
               <table className="cg-table cg-table--no-hover">
                 <thead>

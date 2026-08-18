@@ -51,6 +51,7 @@ export default function App() {
         <Route path="assets/config" element={<AssetConfigPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/new" element={<CreateMaintenancePage />} />
+        <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<TransfersPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
