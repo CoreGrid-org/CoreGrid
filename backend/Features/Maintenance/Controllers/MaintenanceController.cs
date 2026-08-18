@@ -78,15 +78,9 @@ public class MaintenanceController : CoreGridControllerBase
         return Ok(record);
     }
 
-    // ------------------------------------------------------------------ //
-    // FR-035 — Create maintenance record directly                         //
-    // ------------------------------------------------------------------ //
+    // FR-035 - Create maintenance record directly                         
+    /// Creates a maintenance record directly (not via a fault report),The caller specifies type (CORRECTIVE / PREVENTIVE) and priority
 
-    /// <summary>
-    /// Creates a maintenance record directly (not via a fault report).
-    /// The caller specifies type (CORRECTIVE / PREVENTIVE) and priority
-    /// explicitly. Restricted to InventoryOfficer.
-    /// </summary>
     [HttpPost]
     [Authorize(Roles = nameof(CoreGridRole.InventoryOfficer))]
     public async Task<ActionResult<MaintenanceRecordDto>> CreateMaintenance(
@@ -121,15 +115,11 @@ public class MaintenanceController : CoreGridControllerBase
         }
     }
 
-    // ------------------------------------------------------------------ //
-    // FR-036 — Approve maintenance record                                 //
-    // ------------------------------------------------------------------ //
-
-    /// <summary>
+    // FR-036 — Approve maintenance record                                 
     /// Approves a REQUESTED maintenance record: assigns it to a responsible
     /// officer and records an estimated cost. Transitions status:
     /// REQUESTED → APPROVED. Restricted to InventoryOfficer or Administrator.
-    /// </summary>
+
     [HttpPost("{id:guid}/approve")]
     [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
     public async Task<ActionResult<MaintenanceRecordDto>> ApproveMaintenance(
@@ -155,6 +145,84 @@ public class MaintenanceController : CoreGridControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    // FR-037 / FR-039 — Start maintenance record                          //
+    /// Starts an APPROVED maintenance record: transitions status to
+    /// IN_PROGRESS and places the asset into UNDER_MAINTENANCE (FR-039).
+    /// The caller must be an InventoryOfficer and must be the assignee
+    /// (or an Administrator progressing work on their behalf).
+
+    [HttpPost("{id:guid}/start")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
+    public async Task<ActionResult<MaintenanceRecordDto>> StartMaintenance(Guid id)
+    {
+        var currentUser = await GetCurrentUserAsync(default);
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var record = await _maintenanceService.StartMaintenanceAsync(
+                currentUser.OrganizationId,
+                currentUser.Id,
+                id);
+
+            return Ok(record);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    // FR-038 / FR-040 — Complete maintenance record                       
+    /// Completes an IN_PROGRESS maintenance record (FR-038).
+    /// Records actual cost, work performed, completion date and resulting
+    /// condition. Returns the asset to ACTIVE (or CONDEMNED for UNSERVICEABLE
+    /// — BR2). Recalculates cumulative cost + repair count (FR-040).
+    /// Enforces cost-variance tolerance (BR1). Atomic (BR3).
+    /// Returns 409 if the record is already COMPLETED (AC1).
+
+    [HttpPost("{id:guid}/complete")]
+    [Authorize(Roles = nameof(CoreGridRole.InventoryOfficer))]
+    public async Task<ActionResult<MaintenanceRecordDto>> CompleteMaintenance(
+        Guid id,
+        [FromBody] CompleteMaintenanceRequest request)
+    {
+        var currentUser = await GetCurrentUserAsync(default);
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var record = await _maintenanceService.CompleteMaintenanceAsync(
+                currentUser.OrganizationId,
+                currentUser.Id,
+                id,
+                request);
+
+            return Ok(record);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("This maintenance record has already been completed"))
+        {
+            // AC1 — a second completion attempt returns 409 Conflict.
+            return Conflict(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
