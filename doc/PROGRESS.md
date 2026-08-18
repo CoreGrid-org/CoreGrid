@@ -68,12 +68,12 @@ Status as of 2026-08-15: cross-cutting identity/admin slice is up; Component A (
 
 | Area | Status |
 |---|---|
-| Backend (transfer/disposal controllers, approval preconditions P1–P6) | 🟡 (Disposal precondition engine (P1,P2,P3,P5 + separation-of-duties) implemented and unit-tested; P4 and P6 stubbed pending Component B (MaintenanceRecords) and the agent subsystem; no disposal controller/endpoints wired yet. Transfer state machine (initiate/approve/confirm-receipt) implemented per FR-044/045/046, atomic state transitions, role-based authorization matching existing codebase convention (see team note: SRS Appendix B specifies named policies CanRequestTransfer/CanApproveTransfer/etc., not yet implemented anywhere in the repo — deferred by team lead until after mobile app development).) |
+| Backend (transfer/disposal controllers, approval preconditions P1–P6) | ✅ (Full transfer state machine (FR-044/045/046) and disposal workflow (FR-049 condemn, FR-050 submit, FR-051/052 precondition evaluation, FR-054/055 approval + terminal state) implemented and unit tested. P4 (maintenance check) and P6 (agent workflow check) explicitly stubbed pending Component B and agent subsystem. Role-based authorization matching existing codebase convention (SRS Appendix B named-policy layer deferred by team lead until after mobile app development).) |
 | Database (`AssetTransfers`, `DisposalRequests`) | ✅ (2026-08-15: fixed — `AssetId`/department/location columns had been left as bare `Guid`s with `TODO: add FK` comments even after `Asset`/`Department`/`Location` existed; added the real FK constraints + migration `AddTransferDisposalForeignKeys`, and repaired an out-of-sync `CoreGridDbContextModelSnapshot.cs` — the two entities' `DbSet` properties and model-snapshot blocks had been dropped, silently breaking `dotnet ef migrations add` for anyone touching this schema; 2026-08-17: added nullable `ValuationDate` to `DisposalRequests` via migration `AddValuationDateToDisposalRequest` to support real P2 valuation precondition check) |
 | React (transfer/disposal queues, precondition checklist) | ❌ |
 | Flutter (transfer request, scan-to-confirm receipt, condemnation) | ❌ |
 | Budget Analysis Agent | ❌ |
-| Tests | 🟡 (35 unit tests total (16 DisposalPreconditionService + 19 TransferService).) |
+| Tests | ✅ (58 unit tests total (16 DisposalPreconditionService + 19 TransferService + 23 DisposalService).) |
 
 ## Component D — Audit & Compliance + Org Configuration + User Administration (Hasitha Erandika, FR-010–015, FR-056–066)
 
