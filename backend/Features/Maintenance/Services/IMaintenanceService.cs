@@ -27,4 +27,8 @@ public interface IMaintenanceService
     /// Enforces cost-variance tolerance (BR1). All changes are atomic (BR3).
 
     Task<MaintenanceRecordDto?> CompleteMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CompleteMaintenanceRequest request);
+
+    Task<MaintenanceRecordDto?> CancelMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CancelMaintenanceRequest request);
+
+    Task<IEnumerable<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(Guid organizationId, MaintenanceRecordFilter filter);
 }

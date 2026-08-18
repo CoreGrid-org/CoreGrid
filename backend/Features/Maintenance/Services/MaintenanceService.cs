@@ -444,4 +444,114 @@ public class MaintenanceService : IMaintenanceService
 
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
+
+    public async Task<MaintenanceRecordDto?> CancelMaintenanceAsync(
+        Guid organizationId,
+        Guid currentUserId,
+        Guid maintenanceId,
+        CancelMaintenanceRequest request)
+    {
+        var record = await _context.MaintenanceRecords
+            .Include(m => m.Asset)
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
+
+        if (record is null)
+        {
+            throw new KeyNotFoundException("Maintenance record not found.");
+        }
+
+        if (record.Status == MaintenanceStatus.COMPLETED || record.Status == MaintenanceStatus.CANCELLED)
+        {
+            throw new InvalidOperationException($"Cannot cancel a record with status {record.Status}.");
+        }
+
+        var asset = record.Asset;
+        var previousAssetStatus = asset?.Status;
+
+        record.Status = MaintenanceStatus.CANCELLED;
+        record.CancellationReason = request.Reason;
+        record.UpdatedAt = DateTimeOffset.UtcNow;
+        record.UpdatedBy = currentUserId;
+
+        if (asset != null && asset.Status == "UNDER_MAINTENANCE")
+        {
+            asset.Status = "ACTIVE";
+            asset.UpdatedAt = DateTimeOffset.UtcNow;
+            asset.UpdatedBy = currentUserId;
+
+            _context.AssetHistoryEntries.Add(new AssetHistory
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                AssetId = asset.Id,
+                ActorUserId = currentUserId,
+                EventType = "MAINTENANCE_CANCELLED",
+                Description = $"Maintenance record {record.Id} cancelled. Asset status reverted to ACTIVE.",
+                PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus }),
+                NewValue = JsonSerializer.Serialize(new { status = asset.Status }),
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+    }
+
+    public async Task<IEnumerable<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(
+        Guid organizationId,
+        MaintenanceRecordFilter filter)
+    {
+        var query = _context.MaintenanceRecords
+            .AsNoTracking()
+            .Include(m => m.Asset)
+            .Include(m => m.Assignee)
+            .Where(m => m.OrganizationId == organizationId)
+            .AsQueryable();
+
+        if (filter.AssetId.HasValue)
+        {
+            query = query.Where(m => m.AssetId == filter.AssetId.Value);
+        }
+
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(m => m.Status == filter.Status.Value);
+        }
+
+        if (filter.Type.HasValue)
+        {
+            query = query.Where(m => m.Type == filter.Type.Value);
+        }
+
+        if (filter.Priority.HasValue)
+        {
+            query = query.Where(m => m.Priority == filter.Priority.Value);
+        }
+
+        return await query
+            .Select(m => new MaintenanceRecordDto
+            {
+                Id = m.Id,
+                AssetId = m.AssetId,
+                AssetCode = m.Asset != null ? m.Asset.AssetCode : string.Empty,
+                AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
+                Description = m.Description,
+                ObservedCondition = m.ObservedCondition,
+                PhotoUrl = m.PhotoUrl,
+                Type = m.Type,
+                Priority = m.Priority,
+                Status = m.Status,
+                EstimatedCost = m.EstimatedCost,
+                ActualCost = m.ActualCost,
+                WorkPerformed = m.WorkPerformed,
+                CompletionDate = m.CompletionDate,
+                ResultingCondition = m.ResultingCondition,
+                AssigneeId = m.AssigneeId,
+                AssigneeEmail = m.Assignee != null ? m.Assignee.Email : null,
+                CancellationReason = m.CancellationReason,
+                CreatedAt = m.CreatedAt
+            })
+            .ToListAsync();
+    }
 }

@@ -63,6 +63,7 @@ builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignSer
 builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
 builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>

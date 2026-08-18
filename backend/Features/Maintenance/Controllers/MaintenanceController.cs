@@ -229,4 +229,52 @@ public class MaintenanceController : CoreGridControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<MaintenanceRecordDto>> CancelMaintenance(
+        Guid id,
+        [FromBody] CancelMaintenanceRequest request)
+    {
+        var currentUser = await GetCurrentUserAsync(default);
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var record = await _maintenanceService.CancelMaintenanceAsync(
+                currentUser.OrganizationId,
+                currentUser.Id,
+                id,
+                request);
+
+            return Ok(record);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<MaintenanceRecordDto>>> ListMaintenanceRecords(
+        [FromQuery] MaintenanceRecordFilter filter)
+    {
+        var currentUser = await GetCurrentUserAsync(default);
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        var records = await _maintenanceService.ListMaintenanceRecordsAsync(
+            currentUser.OrganizationId,
+            filter);
+
+        return Ok(records);
+    }
 }
