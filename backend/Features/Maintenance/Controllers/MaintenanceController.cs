@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
@@ -7,6 +8,7 @@ using CoreGrid.Api.Features.Maintenance.Services;
 using CoreGrid.Api.Features.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Maintenance.Controllers;
 
@@ -16,12 +18,14 @@ namespace CoreGrid.Api.Features.Maintenance.Controllers;
 public class MaintenanceController : CoreGridControllerBase
 {
     private readonly IMaintenanceService _maintenanceService;
+    private readonly CoreGridDbContext _db;
 
     public MaintenanceController(
         IMaintenanceService maintenanceService,
         CoreGridDbContext db) : base(db)
     {
         _maintenanceService = maintenanceService;
+        _db = db;
     }
 
     [HttpPost("faults")]
@@ -276,5 +280,127 @@ public class MaintenanceController : CoreGridControllerBase
             filter);
 
         return Ok(records);
+    }
+
+    [HttpPost("seed")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Seed()
+    {
+        using var transaction = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            var organization = await _db.Organizations.FirstOrDefaultAsync();
+            if (organization == null)
+            {
+                return BadRequest("No organization found. Please run setup first.");
+            }
+
+            var assets = await _db.Assets.Take(5).ToListAsync();
+            if (assets.Count == 0)
+            {
+                return BadRequest("No assets found. Please register some assets first.");
+            }
+
+            var user = await _db.Users.FirstOrDefaultAsync();
+            var userId = user?.Id;
+
+            // Check if we already have records
+            var existingCount = await _db.MaintenanceRecords.CountAsync();
+            if (existingCount > 0)
+            {
+                return Ok(new { message = $"Seeding skipped: {existingCount} records already exist." });
+            }
+
+            var records = new List<MaintenanceRecord>();
+
+            // 1. Completed Corrective Maintenance
+            records.Add(new MaintenanceRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                AssetId = assets[0].Id,
+                Description = "Replaced faulty battery and clean contacts.",
+                ObservedCondition = "UNSERVICEABLE",
+                Type = MaintenanceType.CORRECTIVE,
+                Priority = MaintenancePriority.HIGH,
+                Status = MaintenanceStatus.COMPLETED,
+                EstimatedCost = 4500,
+                ActualCost = 4200,
+                WorkPerformed = "Replaced battery with model XP-900. Cleaned all terminals.",
+                CompletionDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-5)),
+                ResultingCondition = "GOOD",
+                AssigneeId = userId,
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-10),
+                UpdatedAt = DateTimeOffset.UtcNow.AddDays(-5),
+                CreatedBy = userId,
+                UpdatedBy = userId
+            });
+
+            // 2. In Progress Corrective Maintenance
+            records.Add(new MaintenanceRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                AssetId = assets[assets.Count > 1 ? 1 : 0].Id,
+                Description = "Repair screen flicker and bezel damage.",
+                ObservedCondition = "POOR",
+                Type = MaintenanceType.CORRECTIVE,
+                Priority = MaintenancePriority.MEDIUM,
+                Status = MaintenanceStatus.IN_PROGRESS,
+                EstimatedCost = 15000,
+                AssigneeId = userId,
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-2),
+                UpdatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = userId,
+                UpdatedBy = userId
+            });
+
+            // 3. Requested Corrective Maintenance (Awaiting Approval)
+            records.Add(new MaintenanceRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                AssetId = assets[assets.Count > 2 ? 2 : 0].Id,
+                Description = "Keyboard keys stuck (A, S, D). Needs replacement or deep clean.",
+                ObservedCondition = "POOR",
+                Type = MaintenanceType.CORRECTIVE,
+                Priority = MaintenancePriority.LOW,
+                Status = MaintenanceStatus.REQUESTED,
+                CreatedAt = DateTimeOffset.UtcNow.AddHours(-5),
+                UpdatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = userId,
+                UpdatedBy = userId
+            });
+
+            // 4. Approved Preventive Maintenance (Not started yet)
+            records.Add(new MaintenanceRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                AssetId = assets[assets.Count > 3 ? 3 : 0].Id,
+                Description = "Annual safety inspection and calibration.",
+                ObservedCondition = "GOOD",
+                Type = MaintenanceType.PREVENTIVE,
+                Priority = MaintenancePriority.MEDIUM,
+                Status = MaintenanceStatus.APPROVED,
+                EstimatedCost = 8000,
+                AssigneeId = userId,
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+                UpdatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = userId,
+                UpdatedBy = userId
+            });
+
+            _db.MaintenanceRecords.AddRange(records);
+            await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return Ok(new { message = $"Seeded {records.Count} maintenance records successfully." });
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return StatusCode(500, new { message = $"Failed to seed: {ex.Message}" });
+        }
     }
 }

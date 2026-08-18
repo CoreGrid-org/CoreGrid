@@ -12,10 +12,11 @@ namespace CoreGrid.Api.Features.Users;
 // here, by an already-signed-in Administrator, from the dashboard.
 [ApiController]
 [Route("api/users")]
-[Authorize(Roles = nameof(CoreGridRole.Administrator))]
+[Authorize]
 public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDirectory) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Administrator)},{nameof(CoreGridRole.InventoryOfficer)}")]
     public async Task<ActionResult<IReadOnlyList<UserResponse>>> List(CancellationToken cancellationToken)
     {
         var users = await db.Users
@@ -27,6 +28,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
     }
 
     [HttpPost]
+    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
     public async Task<ActionResult<UserResponse>> Create(CreateUserRequest request, CancellationToken cancellationToken)
     {
         // M0 is one full stack per customer organisation (SRS §4.2) — there is
@@ -62,6 +64,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
 
     // FR-014: change a user's role or department assignment.
     [HttpPatch("{id:guid}")]
+    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
     public async Task<ActionResult<UserResponse>> Update(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
@@ -93,6 +96,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
     // hard-deleted. Guards against locking the organisation out by
     // deactivating its last active Administrator.
     [HttpPatch("{id:guid}/deactivate")]
+    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
     public async Task<ActionResult<UserResponse>> Deactivate(Guid id, CancellationToken cancellationToken)
     {
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
@@ -124,6 +128,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
 
     // FR-014 (reactivation is the natural inverse of deactivation).
     [HttpPatch("{id:guid}/activate")]
+    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
     public async Task<ActionResult<UserResponse>> Activate(Guid id, CancellationToken cancellationToken)
     {
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);

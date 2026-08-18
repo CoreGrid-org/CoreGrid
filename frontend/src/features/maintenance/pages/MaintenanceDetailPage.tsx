@@ -118,11 +118,11 @@ export default function MaintenanceDetailPage() {
           </div>
           <div className="cg-kv-item">
             <p className="cg-kv-item__label">Estimated Cost</p>
-            <p className="cg-kv-item__value">{record.estimated_cost ? `$${record.estimated_cost.toLocaleString()}` : "N/A"}</p>
+            <p className="cg-kv-item__value">{record.estimated_cost ? `LKR ${record.estimated_cost.toLocaleString()}` : "N/A"}</p>
           </div>
           <div className="cg-kv-item">
             <p className="cg-kv-item__label">Actual Cost</p>
-            <p className="cg-kv-item__value">{record.actual_cost ? `$${record.actual_cost.toLocaleString()}` : "N/A"}</p>
+            <p className="cg-kv-item__value">{record.actual_cost ? `LKR ${record.actual_cost.toLocaleString()}` : "N/A"}</p>
           </div>
           <div className="cg-kv-item">
             <p className="cg-kv-item__label">Observed Condition</p>
@@ -138,17 +138,17 @@ export default function MaintenanceDetailPage() {
             <p className="cg-kv-item__label">Date Created</p>
             <p className="cg-kv-item__value">{new Date(record.created_at).toLocaleDateString()}</p>
           </div>
+          <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
+            <p className="cg-kv-item__label">Description</p>
+            <p className="cg-kv-item__value" style={{ whiteSpace: "pre-wrap" }}>{record.description}</p>
+          </div>
+          {record.work_performed && (
+            <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
+              <p className="cg-kv-item__label">Work Performed</p>
+              <p className="cg-kv-item__value" style={{ whiteSpace: "pre-wrap" }}>{record.work_performed}</p>
+            </div>
+          )}
         </div>
-
-        <p className="cg-section__title" style={{ marginTop: "1.5rem" }}>Description</p>
-        <p className="cg-table__muted" style={{ whiteSpace: "pre-wrap", marginBottom: "1.5rem" }}>{record.description}</p>
-
-        {record.work_performed && (
-          <>
-            <p className="cg-section__title" style={{ marginTop: "1.5rem" }}>Work Performed</p>
-            <p className="cg-table__muted" style={{ whiteSpace: "pre-wrap", marginBottom: "1.5rem" }}>{record.work_performed}</p>
-          </>
-        )}
       </div>
 
       <ApproveMaintenanceModal

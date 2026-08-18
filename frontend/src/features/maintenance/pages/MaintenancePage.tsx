@@ -95,8 +95,8 @@ export default function MaintenancePage() {
                           <Tag type={statusTagColor(rec.status)}>{formatStatusLabel(rec.status)}</Tag>
                         </td>
                         <td className="cg-table__muted">{rec.assignee_email ?? "Unassigned"}</td>
-                        <td className="cg-table__muted">{rec.estimated_cost ? `$${rec.estimated_cost.toLocaleString()}` : "—"}</td>
-                        <td className="cg-table__muted">{rec.actual_cost ? `$${rec.actual_cost.toLocaleString()}` : "—"}</td>
+                        <td className="cg-table__muted">{rec.estimated_cost ? `LKR ${rec.estimated_cost.toLocaleString()}` : "—"}</td>
+                        <td className="cg-table__muted">{rec.actual_cost ? `LKR ${rec.actual_cost.toLocaleString()}` : "—"}</td>
                         <td className="cg-table__muted">{new Date(rec.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))}

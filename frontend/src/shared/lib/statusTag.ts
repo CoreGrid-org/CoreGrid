@@ -54,13 +54,19 @@ const STATUS_COLORS: Record<string, TagColor> = {
 };
 
 export function statusTagColor(status: string): TagColor {
-  return STATUS_COLORS[status] ?? "gray";
+  const normalized = status
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toUpperCase();
+  return STATUS_COLORS[normalized] ?? "gray";
 }
 
 export function formatStatusLabel(status: string): string {
-  return status
+  const normalized = status
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toUpperCase();
+  return normalized
     .toLowerCase()
     .split("_")
-    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .map((word) => word.length > 0 ? word[0].toUpperCase() + word.slice(1) : "")
     .join(" ");
 }

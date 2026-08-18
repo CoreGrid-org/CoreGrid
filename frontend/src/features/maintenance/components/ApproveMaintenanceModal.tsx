@@ -92,7 +92,7 @@ export default function ApproveMaintenanceModal({
         
         <TextInput
           id="estimatedCost"
-          labelText="Estimated Cost ($)"
+          labelText="Estimated Cost (LKR)"
           placeholder="0.00"
           value={estimatedCost}
           onChange={(e) => setEstimatedCost(e.target.value)}

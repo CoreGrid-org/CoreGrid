@@ -52,7 +52,7 @@ export default function CompleteMaintenanceModal({
         payload: {
           actual_cost: Number(actualCost),
           work_performed: workPerformed,
-          completion_date: new Date(completionDate).toISOString(),
+          completion_date: completionDate,
           resulting_condition: resultingCondition,
           overspend_justification: overspendJustification || undefined,
         },
@@ -88,7 +88,7 @@ export default function CompleteMaintenanceModal({
       <FormGroup legendText="">
         <TextInput
           id="actualCost"
-          labelText="Actual Cost ($)"
+          labelText="Actual Cost (LKR)"
           placeholder="0.00"
           value={actualCost}
           onChange={(e) => setActualCost(e.target.value)}
