@@ -211,7 +211,7 @@ Component D provides the independent assurance layer: campaigns that verify the 
 | FR-056 | An Auditor or Administrator shall create a verification campaign with a name, a period, and a scope defined by department, location, category or asset type. | Auditor, Administrator | React | Must |
 | FR-057 | The system shall generate the verification task list for a campaign from its scope, and shall assign tasks to the officers responsible for the in-scope locations. | System | API | Must |
 | FR-058 | An assigned officer shall see their outstanding verification tasks on the mobile task list, ordered by due date. | Officer | Flutter | Must |
-| FR-059 | An officer shall complete a verification task by scanning the asset and asserting presence, location and condition; the result shall be recorded against the campaign. | Officer, Auditor | Flutter | Must |
+| FR-059 | An officer shall complete a verification task by scanning the asset and asserting presence, location and condition; the result shall be recorded against the campaign. | Officer | Flutter | Must |
 | FR-060 | The system shall automatically raise a discrepancy when a verification assertion differs from the register, classifying it as Missing, Surplus, Location Mismatch, Condition Mismatch or Data Mismatch. | System | API | Must |
 | FR-061 | An officer shall raise a discrepancy manually for a condition the automatic comparison cannot detect, with a description and a photograph. | Officer | Flutter | Should |
 | FR-062 | An Auditor shall resolve a discrepancy by recording a resolution type, an explanation and any corrective action; where the resolution corrects the register, the system shall apply the correction and record it in asset history. | Auditor | React | Must |
@@ -239,9 +239,9 @@ These requirements state what a user experiences of the agentic subsystem. Secti
 
 | ID | Requirement | Primary actor | Client | Priority |
 |---|---|---|---|---|
-| FR-067 | An Inventory Officer or Administrator shall initiate an asset lifecycle evaluation for a specific asset, stating the objective, and shall receive a workflow identifier immediately without waiting for completion. | Officer, Administrator | React, Flutter | Must |
+| FR-067 | An Inventory Officer or Administrator shall initiate an asset lifecycle evaluation for a specific asset, stating the objective, and shall receive a workflow identifier immediately without waiting for completion. | Officer, Administrator | React, Flutter (Officer) · React only (Administrator) | Must |
 | FR-068 | The system shall refuse to initiate an evaluation for an asset already in a terminal state, or where an evaluation for the same asset is already running. | System | API | Must |
-| FR-069 | A user shall view the status of a workflow: its current step, the agents that have completed, and the outcome or failure. | Officer, Auditor, Administrator | React, Flutter | Must |
+| FR-069 | A user shall view the status of a workflow: its current step, the agents that have completed, and the outcome or failure. | Officer, Auditor, Administrator | React, Flutter (Officer) · React only (Auditor, Administrator) | Must |
 | FR-070 | The React application shall display the full execution summary of a workflow — the plan, each agent's structured output, every tool call with its timing, the validation result and the recommendation with its supporting factors. | Administrator, Auditor | React | Must |
 | FR-071 | Where a workflow recommends a high-impact action, it shall pause and shall present an approval request to an Administrator; no business state shall change while it is paused. | System | API | Must |
 | FR-072 | An Administrator shall approve, reject or request revision of a paused workflow, recording a mandatory decision reason. | Administrator | React | Must |

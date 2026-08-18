@@ -92,6 +92,69 @@ The assignment requires the web and mobile applications to serve meaningfully di
 
 React is the management and control interface; Flutter is the field operations interface. They optimise different workflows for different users at different moments, but they consume the same ASP.NET Core API, the same identity, the same permission model and the same business rules. The mobile application exists because verification is a physical act performed away from a desk; the web application exists because approval and analysis are deliberative acts performed at one.
 
+This table states which *capability* exists per client, not which *role* uses which client for it. Following this same principle, Auditor and Administrator — management/control roles with no field task — are web-console-only; Inventory Officer uses both clients (office and field work); Staff is mobile-only. FR-059, FR-067 and FR-069 record the resulting per-role client split explicitly where a capability's client differs by role.
+
+### 3.4.1 Users by Role and Platform
+
+| Role | Platform(s) | Why |
+|---|---|---|
+| Administrator | React only | Organisation/user/role administration, configuration, and workflow approval (FR-071/072) are deliberative, desk-based decisions with no field task. |
+| Auditor | React only | Campaign management, discrepancy resolution and reporting (FR-056, FR-062, FR-065) are independent review work performed after the fact, not in front of the asset. |
+| Inventory Officer | React and Flutter | The only role with both a desk task (transfer/maintenance management, evaluation initiation) and a field task (scanning, verification, transfer receipt) — spans both clients. |
+| Staff | Flutter only | Ground-level field work — fault reporting and basic lookup (FR-024, FR-025, FR-033) — with no administrative capability and no need for the web console. |
+
+Every role authenticates through the same identity provider regardless of platform (Section 4) — ThunderID's
+`CoreGridUser` type is not itself scoped per role, so it cannot restrict *which client* a role may sign into.
+The platform restriction above is therefore enforced by each client after sign-in, not by ThunderID: the
+Flutter application checks the resolved role from `GET /api/me` and routes Auditor/Administrator to an
+access-restricted screen instead of the dashboard (`coregrid-mobile/doc/MOBILE-SPECIFICATION.md` §4.1).
+
+```
+   USERS BY ROLE                          CLIENT(S)
+
+   Administrator ─────────────────────────  React (web) only
+   Auditor ────────────────────────────────  React (web) only
+   Inventory Officer ─────────────┬────────  React (web)
+                                   └────────  Flutter (mobile)
+   Staff ──────────────────────────────────  Flutter (mobile) only
+
+           │                                        │
+           ▼                                        ▼
+   ┌────────────────────┐                 ┌───────────────────────┐
+   │      React SPA       │                 │  Flutter application  │
+   │  Authorization Code  │                 │  Authorization Code   │
+   │  + PKCE, hosted      │                 │  + PKCE, external     │
+   │  login redirect      │                 │  user agent (RFC 8252)│
+   └──────────┬────────────┘                 └───────────┬────────────┘
+              │ 1. authorize + PKCE                       │ 1. authorize + PKCE
+              ▼                                           ▼
+   ┌─────────────────────────────────────────────────────────────┐
+   │                          ThunderID                            │
+   │   issues a JWT (sub, roles, email, given_name, family_name,   │
+   │   scope, jti, …) — same claim contract for both clients        │
+   │   (Section 4.4)                                                │
+   └────────────────────────────┬────────────────────────────────┘
+                                │ 2. Authorization: Bearer <token>
+                                │    on every API call
+                                ▼
+                  ┌───────────────────────────────────┐
+                  │           ASP.NET Core API           │
+                  │  validate JWKS + issuer → resolve    │
+                  │  `sub` against the local Users        │
+                  │  mirror → role, OrganizationId         │
+                  │  (Section 4.5) → evaluate policy       │
+                  └────────────────────┬──────────────────┘
+                                       │ 3. EF Core, OrganizationId-filtered
+                                       ▼
+                              ┌─────────────────┐
+                              │   PostgreSQL      │
+                              └─────────────────┘
+```
+
+Figure 10 — Role-to-platform integration. Both clients share one identity provider, one claim contract and
+one API; only the Flutter client adds a fourth, client-side step — a role check against `GET /api/me` — to
+enforce the platform restriction ThunderID itself has no mechanism to express.
+
 ## 3.5 The Configurable Platform Model
 
 CoreGrid is specified as a platform rather than as a single-domain application. The distinction matters architecturally: a transport department and a hospital hold entirely different asset attributes, but they perform the same lifecycle operations — register, identify, maintain, transfer, verify, condemn, dispose. CoreGrid therefore fixes the lifecycle engine in code and expresses the domain in configuration.
