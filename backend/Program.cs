@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using CoreGrid.Api.Features.Assets.Services;
 using CoreGrid.Api.Features.OrgConfig.Services;
 using CoreGrid.Api.Features.Verification.Services;
+using CoreGrid.Api.Features.Maintenance.Services;
 using Microsoft.OpenApi;
 
 
@@ -61,6 +62,8 @@ builder.Services.AddScoped<IOrganizationPolicyService, OrganizationPolicyService
 builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignService>();
 builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
 builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>

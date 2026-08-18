@@ -49,7 +49,7 @@ export default function EditAssetAttributeModal({
           is_required: isRequired,
           validation_rule: validationRule.trim() || null,
           select_options: dataType === "SELECT" ? options : null,
-          display_order: displayOrder === "" ? attribute.display_order : displayOrder,
+          display_order: typeof displayOrder === "string" ? attribute.display_order : displayOrder,
         },
       },
       { onSuccess: onUpdated },

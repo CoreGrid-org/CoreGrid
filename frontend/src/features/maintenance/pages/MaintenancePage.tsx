@@ -1,18 +1,28 @@
-import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button } from "@carbon/react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button, InlineNotification, Select, SelectItem } from "@carbon/react";
 import { Add, NotificationNew } from "@carbon/icons-react";
 import MockNotice from "@/shared/components/MockNotice";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
-import { MOCK_MAINTENANCE_RECORDS, MOCK_PREVENTIVE_SCHEDULE, MOCK_NOTIFICATIONS } from "../data/mockMaintenance";
+import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { MOCK_PREVENTIVE_SCHEDULE, MOCK_NOTIFICATIONS } from "../data/mockMaintenance";
+import { useMaintenanceList } from "../hooks/useMaintenance";
 
 export default function MaintenancePage() {
+  const navigate = useNavigate();
+  const [statusFilter, setStatusFilter] = useState("");
+  const { data: records, isLoading, isError, error } = useMaintenanceList({
+    status: statusFilter ? (statusFilter as any) : undefined,
+  });
+
   return (
     <div className="cg-page">
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Maintenance</h1>
-          <p className="cg-page__subtitle">Faults, repairs and preventive schedules (FR-033 to FR-042).</p>
+          <p className="cg-page__subtitle">Faults, repairs and preventive schedules</p>
         </div>
-        <Button renderIcon={Add}>New maintenance record</Button>
+        <Button renderIcon={Add} onClick={() => navigate("new")}>New maintenance record</Button>
       </div>
 
       <Tabs>
@@ -24,60 +34,82 @@ export default function MaintenancePage() {
         <TabPanels>
           {/* ── Records ─────────────────────────────────────────────────── */}
           <TabPanel>
-            <MockNotice requirements={["FR-035", "FR-037", "FR-038", "FR-042"]}>
-              The real tab lists records via GET /api/maintenance with status/priority/assignee/date filters;
-              the assigned officer progresses each record REQUESTED → APPROVED → IN_PROGRESS → COMPLETED, and
-              Complete records actual cost, work performed and resulting condition in one transaction (the
-              business-specific operation for this component).
-            </MockNotice>
-
+            {isError && (
+              <InlineNotification
+                kind="error"
+                title="Could not load maintenance records"
+                subtitle={getErrorMessage(error, "Something went wrong.")}
+                lowContrast
+                hideCloseButton
+                style={{ marginBottom: "1rem", maxWidth: "100%" }}
+              />
+            )}
             <div className="cg-section">
-              <table className="cg-table cg-table--no-hover">
-                <thead>
-                  <tr>
-                    <th>Asset</th>
-                    <th>Type</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Assigned to</th>
-                    <th>Estimated cost</th>
-                    <th>Actual cost</th>
-                    <th>Requested</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {MOCK_MAINTENANCE_RECORDS.map((rec, i) => (
-                    <tr key={i}>
-                      <td>
-                        <span className="cg-table__mono">{rec.assetCode}</span>
-                        <br />
-                        <span className="cg-table__muted">{rec.assetName}</span>
-                      </td>
-                      <td className="cg-table__muted">{rec.type === "CORRECTIVE" ? "Corrective" : "Preventive"}</td>
-                      <td>
-                        <Tag type={statusTagColor(rec.priority)}>{formatStatusLabel(rec.priority)}</Tag>
-                      </td>
-                      <td>
-                        <Tag type={statusTagColor(rec.status)}>{formatStatusLabel(rec.status)}</Tag>
-                      </td>
-                      <td className="cg-table__muted">{rec.assignedTo ?? "Unassigned"}</td>
-                      <td className="cg-table__muted">{rec.estimatedCost ? `$${rec.estimatedCost.toLocaleString()}` : "—"}</td>
-                      <td className="cg-table__muted">{rec.actualCost ? `$${rec.actualCost.toLocaleString()}` : "—"}</td>
-                      <td className="cg-table__muted">{rec.requestedAt}</td>
+              <div className="cg-toolbar" style={{ marginBottom: "1rem" }}>
+                <div style={{ width: "12rem" }}>
+                  <Select
+                    id="maintenance-status-filter"
+                    labelText="Filter by Status"
+                    hideLabel
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <SelectItem value="" text="All Statuses" />
+                    <SelectItem value="REQUESTED" text="Requested" />
+                    <SelectItem value="APPROVED" text="Approved" />
+                    <SelectItem value="IN_PROGRESS" text="In Progress" />
+                    <SelectItem value="COMPLETED" text="Completed" />
+                    <SelectItem value="CANCELLED" text="Cancelled" />
+                  </Select>
+                </div>
+              </div>
+              {isLoading ? (
+                <div className="cg-placeholder"><p>Loading records…</p></div>
+              ) : records && records.length > 0 ? (
+                <table className="cg-table cg-table--no-hover">
+                  <thead>
+                    <tr>
+                      <th>Asset</th>
+                      <th>Type</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                      <th>Assigned to</th>
+                      <th>Estimated cost</th>
+                      <th>Actual cost</th>
+                      <th>Requested</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {records.map((rec) => (
+                      <tr key={rec.id} onClick={() => navigate(rec.id)} style={{ cursor: "pointer" }}>
+                        <td>
+                          <span className="cg-table__mono">{rec.asset_code}</span>
+                          <br />
+                          <span className="cg-table__muted">{rec.asset_name}</span>
+                        </td>
+                        <td className="cg-table__muted">{rec.type === "CORRECTIVE" ? "Corrective" : "Preventive"}</td>
+                        <td>
+                          <Tag type={statusTagColor(rec.priority)}>{formatStatusLabel(rec.priority)}</Tag>
+                        </td>
+                        <td>
+                          <Tag type={statusTagColor(rec.status)}>{formatStatusLabel(rec.status)}</Tag>
+                        </td>
+                        <td className="cg-table__muted">{rec.assignee_email ?? "Unassigned"}</td>
+                        <td className="cg-table__muted">{rec.estimated_cost ? `LKR ${rec.estimated_cost.toLocaleString()}` : "—"}</td>
+                        <td className="cg-table__muted">{rec.actual_cost ? `LKR ${rec.actual_cost.toLocaleString()}` : "—"}</td>
+                        <td className="cg-table__muted">{new Date(rec.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="cg-placeholder"><p>No maintenance records found.</p></div>
+              )}
             </div>
           </TabPanel>
 
           {/* ── Preventive schedule ─────────────────────────────────────── */}
           <TabPanel>
-            <MockNotice requirements={["FR-041"]}>
-              A scheduled job creates a preventive maintenance record automatically once an asset type's
-              configured maintenance interval has elapsed since the last completed maintenance on that asset.
-            </MockNotice>
-
             <div className="cg-section">
               <table className="cg-table cg-table--no-hover">
                 <thead>

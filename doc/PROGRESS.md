@@ -55,14 +55,30 @@ Status as of 2026-08-15: cross-cutting identity/admin slice is up; Component A (
 
 ## Component B — Maintenance Management (Seneja Ramanayaka, FR-033–042, FR-077–080)
 
-| Area | Status |
-|---|---|
-| Backend (maintenance state machine, completion op, notification service) | ❌ |
-| Database (`MaintenanceRecords`, `MaintenanceAttachments`, `Notifications`) | ❌ |
-| React (maintenance list/detail/assign/complete, notification centre) | ❌ |
-| Flutter (fault report with photo, task list) | ❌ |
-| Maintenance Analysis Agent | ❌ |
-| Tests | ❌ |
+| Requirement / Specification | Status | Details / Implementation |
+|---|---|---|
+| **FR-033: Fault Reporting** | 🟡 | React  (`ReportFaultPage.tsx` with searchable asset pickers); Flutter ❌ (mobile not started) |
+| **FR-034: Photograph Attachment** | ❌ | No file-upload storage/infrastructure built yet (stores photoUrl as string only) |
+| **FR-035: Direct Maintenance Entry** | ✅ | React ✅ (`CreateMaintenancePage.tsx` with corrective/preventive type and priority selection) |
+| **FR-036: Approval & Assignment** | ✅ | React ✅ (`ApproveMaintenanceModal.tsx` fetches database user list for assignment, logs estimated cost in LKR) |
+| **FR-037: Defined Status Sequence** | ✅ | Backend state-machine guards transitions: `REQUESTED` ➔ `APPROVED` ➔ `IN_PROGRESS` ➔ `COMPLETED` / `CANCELLED` |
+| **FR-038: Complete Maintenance** | ✅ | React ✅ (`CompleteMaintenanceModal.tsx` inputs actual cost, work done, date, resulting condition) |
+| **FR-039: Asset UNDER_MAINTENANCE Lock** | ✅ | Managed via backend API during transition to `IN_PROGRESS`; blocks transfer/disposal |
+| **FR-040: Cumulative Recalculations** | ✅ | Recomputes cumulative cost, repair count, and latest repair date atomically on completion |
+| **FR-041: Preventive scheduling** | 🟡  | Background service `PreventiveMaintenanceBackgroundService` polls and auto-schedules based on interval |
+| **FR-042: List & Filter Dashboard** | ✅ | React ✅ (`MaintenancePage.tsx` table with status filters and LKR currency mapping) |
+| **FR-077–079: Email Notifications** | ❌ | Mail sending services stubbed in backend; delivery infrastructure not yet configured |
+| **FR-080: Notification Centre** | ❌ | Header notification global action button is static; no panel UI is built yet |
+| **Business Rules & Acceptance Criteria (FR-038)** | | |
+| *BR1: Cost-variance tolerance* | ✅ | Backend enforces variance checks against organization policies during completion |
+| *BR2: Resulting condition Unserviceable* | ✅ | Automatically sets asset status to `CONDEMNED` (releasing disposal path) on completion |
+| *BR3: Atomic transaction* | ✅ | Completion actions wrapped in a single database transaction rollback on any failure |
+| *AC1: Re-completion block (409)* | ✅ | Completed records throw an exception and return 409 Conflict if completed again |
+| *AC2: Cost aggregation correctness* | ✅ | Cumulative cost correctly aggregates historical actual costs |
+| *AC3: Condemnation verification* | ❌ | Verification pending automated integration test setup |
+| *AC4: Notification failure isolation* | ✅ | Notification dispatch failure logged/retried, does not roll back database transaction |
+| **Maintenance Analysis Agent** | ❌ | AI Agent pending graph execution framework integration |
+| **Tests** | ❌ | Testing projects not yet started |
 
 ## Component C — Transfer & Disposal (Bhanuka Samarasinghe, FR-043–055)
 
