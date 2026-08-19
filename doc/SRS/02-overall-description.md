@@ -68,12 +68,61 @@ CoreGrid recognises four human user classes. The assignment requires at least th
 
 | User class | Characteristics and context of use | Primary client | Representative privileges |
 |---|---|---|---|
-| Department Staff | Ordinary employees who use the assets day to day. Low system-usage frequency, minimal training, often reporting a problem in the moment they encounter it. Technical proficiency is not assumed. | Flutter (primary), React (read-only) | View assets assigned to their department; report a fault with a photograph; view the status of requests they raised. |
+| Department Staff | Ordinary employees who use the assets day to day. Low system-usage frequency, minimal training, often reporting a problem in the moment they encounter it. Technical proficiency is not assumed. | Flutter only | View assets assigned to their department; report a fault with a photograph; view the status of requests they raised. |
 | Inventory Officer | Custodians of the register for one or more departments. Frequent users, mobile for a substantial part of the working day, moving between stores, workshops and offices. Comfortable with the domain vocabulary. | Flutter and React | Register and amend assets; scan and verify; record condition; raise maintenance, transfer and disposal requests; confirm physical transfer; initiate an agentic evaluation. |
-| Auditor | Independent reviewers who confirm that the register reflects physical reality. Work in campaigns; must not be able to alter the records they audit. Report-oriented. | React (primary), Flutter (field verification) | Create and run verification campaigns; record and classify discrepancies; read all lifecycle history; generate and export audit and compliance reports. No write access to asset master data. |
+| Auditor | Independent reviewers who confirm that the register reflects physical reality. Work in campaigns; must not be able to alter the records they audit. Report-oriented. | React only | Create and run verification campaigns; record and classify discrepancies; read all lifecycle history; generate and export audit and compliance reports. No write access to asset master data. |
 | Administrator | Configure the platform for their organisation and hold approval authority for irreversible actions. Small population, high privilege, desk-based. | React only | Manage departments, locations, categories, asset types and attribute definitions; manage users and role assignments; approve transfers and disposals; approve, reject or request revision of agentic recommendations; view system-wide analytics. |
 
 A fifth, non-human actor is recognised for authorisation purposes: the Agent Service Principal. It authenticates to the API using a confidential client credential rather than a user identity, holds a narrowly scoped read-and-report permission set, and is explicitly denied every permission that changes business state. Section 4.6 defines its permissions and Section 7.9 the controls applied to it.
+
+Staff and Auditor were previously shown with limited cross-client access (Staff: React read-only; Auditor: Flutter for field verification). Section 3.4's scope change (v1.5) removed both: Auditor no longer performs field verification directly (FR-059 is now Officer-only — an Auditor reviews results on the web console instead), and Staff has no React use case once its only React-side action would have been read-only asset lookup, which Flutter already serves. Section 2.3.1 breaks this down feature by feature, per client.
+
+### 2.3.1 Feature Usage by Role and Platform
+
+The table above states each role's primary client(s); the two tables below state, for each feature a role actually uses **on that client**, what the underlying goal is. A role that spans both clients (Inventory Officer) appears in both tables with a different feature set in each, reflecting the desk/field split Section 3.4 draws. FR references are given for traceability.
+
+**Web (React) users**
+
+| Role | Feature | What they want to do | FR(s) |
+|---|---|---|---|
+| Administrator | Organisation configuration | Set up departments, locations, asset categories, asset types and their custom attributes so every department can register what it actually owns, without a code change. | FR-010–FR-018 |
+| Administrator | User and role administration | Bring a new employee in with the right role and department, and remove access the moment someone leaves or changes role. | FR-013, FR-014 |
+| Administrator | Organisation policy configuration | Tune the thresholds (repair-cost ratio, minimum service life, failure frequency) that drive disposal rules and the Policy Agent, without needing a developer. | FR-015 |
+| Administrator | Transfer approval | Approve or reject a transfer so no asset moves between departments without someone accountable signing off. | FR-045 |
+| Administrator | Disposal approval | Approve the one irreversible action in the system only once every evidence and policy precondition holds — or send it back for revision instead of rejecting outright. | FR-051, FR-053 |
+| Administrator | Agentic workflow approval | Review a high-impact AI recommendation and approve, reject or request revision before any business state changes — the agent advises, a human decides. | FR-071, FR-072 |
+| Administrator | Agentic workflow initiation and monitoring | Kick off a lifecycle evaluation from the desk, and see the agent's full reasoning trace, not just a status. | FR-067, FR-069, FR-070 |
+| Administrator | Audit log access | Read every state-changing event across the organisation, filterable, to answer "who did this and when" without asking anyone. | FR-064 |
+| Administrator | Dashboard, reports and analytics | See system-wide KPIs and export whatever report proves compliance to an evaluator or a regulator. | FR-081, FR-082, FR-084, FR-085 |
+| Auditor | Verification campaign management | Define a scope and period and launch an independent check that the register matches physical reality. | FR-056 |
+| Auditor | Discrepancy resolution | Convert an audit finding into either a corrected register or a justified, recorded acceptance — the only place an Auditor's write access to asset data exists, and only through this path. | FR-062 |
+| Auditor | Audit log access | Read the immutable trail of every change to build a case or catch a pattern, never trusting anyone's memory. | FR-064 |
+| Auditor | Campaign reporting | Generate exportable proof of what a campaign found, and watch its progress in real time. | FR-065, FR-066 |
+| Auditor | Agentic workflow monitoring | Review a recommendation's full reasoning as independent evidence, alongside an Administrator's approval decision. | FR-069, FR-070 |
+| Inventory Officer | Asset registration | Bring a newly acquired asset into the register and generate a QR label to physically tag it. | FR-021–FR-023 |
+| Inventory Officer | Asset amendment | Correct or update an asset's details when something about it changes, with the change kept in history. | FR-026 |
+| Inventory Officer | Maintenance creation, approval and completion | Turn a fault into tracked, costed work and close it out once fixed, reconciling actual cost against the estimate. | FR-035, FR-036, FR-038 |
+| Inventory Officer | Condemnation and disposal request | Formally mark an asset unfit for service and propose how it should leave the register, with the evidence a disposal approval will need. | FR-049, FR-050 |
+| Inventory Officer | Transfer request | Move an asset from one department to another with a documented reason, from the desk when not already in the field. | FR-043 |
+| Inventory Officer | Agentic evaluation initiation | Ask the agent to evaluate an asset's lifecycle and get a workflow ID immediately, without waiting for completion. | FR-067 |
+
+**Mobile (Flutter) users**
+
+| Role | Feature | What they want to do | FR(s) |
+|---|---|---|---|
+| Inventory Officer | Scan / manual lookup | Point the camera at an asset's label — or type the code if the label's damaged or the camera's refused — and get the authoritative record within 3 seconds. | FR-024, FR-025 |
+| Inventory Officer | Verification task list and completion | See the verification tasks assigned to them for a campaign, ordered by due date, and complete each by scanning and asserting presence, location and condition. | FR-031, FR-058, FR-059 |
+| Inventory Officer | Discrepancy raising | Flag something the automatic comparison can't catch — with a photo — right where they're standing. | FR-061 |
+| Inventory Officer | Fault reporting | Report a problem the moment they see it, with a photo, instead of remembering to log it later at a desk. | FR-033 |
+| Inventory Officer | Condition recording | Update an asset's condition on the spot, right after inspecting it. | FR-029 |
+| Inventory Officer | Maintenance progress update | Move an assigned repair through its legal status sequence without needing the desk console. | FR-037 |
+| Inventory Officer | Transfer request and receipt confirmation | Raise a transfer, and confirm physical receipt by scanning the asset when it arrives at the new department. | FR-043, FR-046 |
+| Inventory Officer | Agentic evaluation initiation and outcome | Ask the agent to evaluate an asset while still standing in front of it, then see what it recommended and whether it was approved. | FR-067, FR-076 |
+| Inventory Officer | Dashboard | See a task-focused summary — what's assigned to them today — the moment the app opens. | FR-083 |
+| Staff | Scan / manual lookup | Look up an asset they're using, to confirm what it is or check its status. | FR-024, FR-025 |
+| Staff | Fault reporting | Report a fault the moment they notice it, with a photo, without needing to find someone at a desk. | FR-033 |
+| Staff | Dashboard | See what they've reported and its status, without hunting through screens. | FR-083 |
+| Staff | Notifications | Know when something they raised has moved forward. | FR-080 |
 
 ## 2.4 Operating Environment
 

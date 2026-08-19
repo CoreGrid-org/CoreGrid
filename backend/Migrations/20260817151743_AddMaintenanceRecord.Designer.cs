@@ -3,6 +3,7 @@ using System;
 using CoreGrid.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreGrid.Api.Migrations
 {
     [DbContext(typeof(CoreGridDbContext))]
-    partial class CoreGridDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817151743_AddMaintenanceRecord")]
+    partial class AddMaintenanceRecord
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -676,9 +679,6 @@ namespace CoreGrid.Api.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
-
-                    b.Property<DateOnly?>("ValuationDate")
-                        .HasColumnType("date");
 
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()

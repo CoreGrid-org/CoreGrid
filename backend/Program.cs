@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using CoreGrid.Api.Features.Assets.Services;
 using CoreGrid.Api.Features.OrgConfig.Services;
 using CoreGrid.Api.Features.Verification.Services;
+using CoreGrid.Api.Features.Maintenance.Services;
 using Microsoft.OpenApi;
 
 
@@ -61,6 +62,8 @@ builder.Services.AddScoped<IOrganizationPolicyService, OrganizationPolicyService
 builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignService>();
 builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
 builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalPreconditionService, CoreGrid.Api.Features.Disposals.DisposalPreconditionService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalService, CoreGrid.Api.Features.Disposals.DisposalService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferService, CoreGrid.Api.Features.Transfers.Services.TransferService>();
