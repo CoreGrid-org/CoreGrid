@@ -51,7 +51,7 @@ public class DisposalPreconditionService : IDisposalPreconditionService
         var p1 = CheckP1AssetCondemned(request.Asset);
         var p2 = CheckP2ValuationRecorded(request, request.Asset);
         var p3 = CheckP3ServiceLifeElapsed(request.Asset, policy, request.Asset.AssetType);
-        var p4 = CheckP4NoOpenMaintenance(request.AssetId);
+        var p4 = await CheckP4NoOpenMaintenanceAsync(request.AssetId, cancellationToken);
         var p5 = await CheckP5NoOpenTransfersAsync(request.AssetId, cancellationToken);
         var p6 = CheckP6AgentWorkflowPass(request);
 
@@ -62,41 +62,39 @@ public class DisposalPreconditionService : IDisposalPreconditionService
         result.Checks.Add(p5);
         result.Checks.Add(p6);
 
-        result.AllPassed = result.SeparationOfDutiesPassed && result.Checks.All(c => c.Passed);
+        result.AllPassed = result.Checks.All(c => c.Passed) && result.SeparationOfDutiesPassed;
 
         return result;
     }
 
     /// <summary>
-    /// P1 — Asset status is CONDEMNED.
+    /// P1 — The asset status must be CONDEMNED.
+    /// Evaluates against Asset.Status == "CONDEMNED".
     /// </summary>
     public PreconditionCheck CheckP1AssetCondemned(Asset asset)
     {
         bool passed = string.Equals(asset.Status, AssetStatusConstants.Condemned, StringComparison.OrdinalIgnoreCase);
+
         return new PreconditionCheck
         {
             Code = "P1",
-            Description = "Asset status must be CONDEMNED",
+            Description = "The asset status must be CONDEMNED",
             Passed = passed,
             FailureReason = passed ? null : $"Asset status is '{asset.Status}', expected '{AssetStatusConstants.Condemned}'."
         };
     }
 
     /// <summary>
-    /// P2 — A valuation amount and valuation date are recorded.
-    /// Evaluates that EstimatedResidualValue is recorded (>= 0 is supported as 0 is valid for scrap/destruction)
-    /// and ValuationDate is not null.
-    /// Note: The SRS (FR-051 §6.6) does not define a maximum staleness window in the core requirement text,
-    /// so this evaluates mandatory presence of both amount and date.
+    /// P2 — A valuation amount and valuation date must be recorded.
+    /// Evaluates against DisposalRequest.EstimatedResidualValue (presence, >= 0) and ValuationDate (presence).
     /// </summary>
     public PreconditionCheck CheckP2ValuationRecorded(DisposalRequest request, Asset asset)
     {
         bool hasAmount = request.EstimatedResidualValue >= 0;
         bool hasDate = request.ValuationDate.HasValue;
-
         bool passed = hasAmount && hasDate;
-        string? failureReason = null;
 
+        string? failureReason = null;
         if (!hasAmount && !hasDate)
         {
             failureReason = "Both valuation amount (EstimatedResidualValue) and valuation date (ValuationDate) are missing.";
@@ -151,17 +149,31 @@ public class DisposalPreconditionService : IDisposalPreconditionService
     }
 
     /// <summary>
-    /// P4 — No maintenance record for the asset is in REQUESTED, APPROVED or IN_PROGRESS.
-    /// STUBBED: MaintenanceRecords table (Component B) is not implemented yet.
+    /// P4 — No maintenance record for the asset is in REQUESTED, APPROVED or IN_PROGRESS (FR-051 §6.6).
     /// </summary>
-    public PreconditionCheck CheckP4NoOpenMaintenance(Guid assetId)
+    public async Task<PreconditionCheck> CheckP4NoOpenMaintenanceAsync(Guid assetId, CancellationToken cancellationToken = default)
     {
+        var openStatuses = new[]
+        {
+            MaintenanceStatus.REQUESTED,
+            MaintenanceStatus.APPROVED,
+            MaintenanceStatus.IN_PROGRESS
+        };
+
+        var blockingRecord = await _dbContext.MaintenanceRecords
+            .AsNoTracking()
+            .Where(m => m.AssetId == assetId && openStatuses.Contains(m.Status))
+            .Select(m => new { m.Status })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        bool passed = blockingRecord == null;
+
         return new PreconditionCheck
         {
             Code = "P4",
             Description = "No maintenance record for the asset is in REQUESTED, APPROVED or IN_PROGRESS",
-            Passed = true,
-            FailureReason = "[STUB] MaintenanceRecords table pending Component B implementation."
+            Passed = passed,
+            FailureReason = passed ? null : $"Open maintenance record exists with status {blockingRecord!.Status}."
         };
     }
 

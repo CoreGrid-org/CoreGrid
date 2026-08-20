@@ -270,6 +270,87 @@ public class DisposalPreconditionServiceTests
     }
 
     [Fact]
+    public async Task CheckP4_WhenNoMaintenanceRecordExists_ReturnsPassed()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var assetId = Guid.NewGuid();
+        var service = new DisposalPreconditionService(dbContext);
+
+        // Act
+        var result = await service.CheckP4NoOpenMaintenanceAsync(assetId);
+
+        // Assert
+        Assert.True(result.Passed);
+        Assert.Null(result.FailureReason);
+    }
+
+    [Fact]
+    public async Task CheckP4_WhenOnlyClosedMaintenanceRecordsExist_ReturnsPassed()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var assetId = Guid.NewGuid();
+
+        dbContext.MaintenanceRecords.AddRange(
+            new MaintenanceRecord
+            {
+                Id = Guid.NewGuid(),
+                AssetId = assetId,
+                Status = MaintenanceStatus.COMPLETED,
+                Description = "Fix motor"
+            },
+            new MaintenanceRecord
+            {
+                Id = Guid.NewGuid(),
+                AssetId = assetId,
+                Status = MaintenanceStatus.CANCELLED,
+                Description = "Inspection cancelled"
+            }
+        );
+        await dbContext.SaveChangesAsync();
+
+        var service = new DisposalPreconditionService(dbContext);
+
+        // Act
+        var result = await service.CheckP4NoOpenMaintenanceAsync(assetId);
+
+        // Assert
+        Assert.True(result.Passed);
+        Assert.Null(result.FailureReason);
+    }
+
+    [Theory]
+    [InlineData(MaintenanceStatus.REQUESTED)]
+    [InlineData(MaintenanceStatus.APPROVED)]
+    [InlineData(MaintenanceStatus.IN_PROGRESS)]
+    public async Task CheckP4_WhenOpenMaintenanceRecordExists_ReturnsFailed(MaintenanceStatus openStatus)
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var assetId = Guid.NewGuid();
+
+        dbContext.MaintenanceRecords.Add(new MaintenanceRecord
+        {
+            Id = Guid.NewGuid(),
+            AssetId = assetId,
+            Status = openStatus,
+            Description = "Active repair work"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = new DisposalPreconditionService(dbContext);
+
+        // Act
+        var result = await service.CheckP4NoOpenMaintenanceAsync(assetId);
+
+        // Assert
+        Assert.False(result.Passed);
+        Assert.NotNull(result.FailureReason);
+        Assert.Contains(openStatus.ToString(), result.FailureReason);
+    }
+
+    [Fact]
     public async Task CheckP5_WhenNoOpenTransferExists_ReturnsPassed()
     {
         // Arrange
