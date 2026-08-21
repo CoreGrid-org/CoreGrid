@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  backend:
+    name: Backend (build, migrate, test)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: coregrid
+          POSTGRES_USER: coregrid
+          POSTGRES_PASSWORD: coregrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U coregrid -d coregrid"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__CoreGrid: "Host=localhost;Port=5432;Database=coregrid;Username=coregrid;Password=coregrid"
+      TEST_DB_CONNECTION: "Host=localhost;Port=5432;Database=coregrid;Username=coregrid;Password=coregrid"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore
+        working-directory: backend
+
+      - name: Build (zero warnings expected)
+        run: dotnet build --no-restore
+        working-directory: backend
+
+      - name: Apply EF Core migrations to the CI database
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.*
+          dotnet ef database update --no-build
+        working-directory: backend
+
+      - name: Test (backend.Tests — InMemory service-layer tests + real-Postgres append-only/authorization checks)
+        run: dotnet test --no-restore
+        working-directory: backend.Tests
+
+  frontend:
+    name: Frontend (typecheck, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build (tsc -b && vite build — doubles as the typecheck; no separate lint script exists yet)
+        run: npm run build
+        working-directory: frontend
+
+  # No mobile/ or flutter/ directory exists yet (SRS §18.9 — Flutter work
+  # hasn't started for any component). This job is a no-op until one
+  # appears, so CI is ready the moment Flutter work lands without another
+  # workflow edit — see doc/PROGRESS.md.
+  flutter:
+    name: Flutter (build, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for a Flutter project
+        id: check
+        run: |
+          if [ -d "mobile" ] || [ -d "flutter" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No mobile/ or flutter/ directory yet — skipping."
+          fi
+
+      - name: Setup Flutter
+        if: steps.check.outputs.exists == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Analyze, test, build
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          cd $( [ -d mobile ] && echo mobile || echo flutter )
+          flutter pub get
+          flutter analyze
+          flutter test
+          flutter build apk --debug
+
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

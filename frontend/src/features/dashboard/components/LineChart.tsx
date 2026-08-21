@@ -35,6 +35,10 @@ export default function LineChart({ data, valueFormatter = (v) => v.toLocaleStri
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
 
+  if (data.length === 0) {
+    return <p className="cg-table__muted">No data yet.</p>;
+  }
+
   const plotWidth = WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const plotHeight = HEIGHT - PADDING_TOP - PADDING_BOTTOM;
   const niceMax = niceCeil(Math.max(...data.map((d) => d.value), 1));

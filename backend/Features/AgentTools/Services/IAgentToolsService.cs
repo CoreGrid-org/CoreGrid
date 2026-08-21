@@ -12,4 +12,8 @@ public interface IAgentToolsService
     Task<DepartmentBudgetSummaryDto?> GetDepartmentBudgetSummaryAsync(Guid organizationId, Guid departmentId, int fiscalYear, CancellationToken cancellationToken = default);
 
     ComputeDepreciationResponse ComputeDepreciation(ComputeDepreciationRequest request);
+
+    Task<OrganizationPolicyFactsDto?> GetOrganizationPoliciesAsync(Guid organizationId, Guid? assetTypeId, CancellationToken cancellationToken = default);
+
+    Task<AssetComplianceStateDto?> GetAssetComplianceStateAsync(Guid organizationId, Guid assetId, CancellationToken cancellationToken = default);
 }

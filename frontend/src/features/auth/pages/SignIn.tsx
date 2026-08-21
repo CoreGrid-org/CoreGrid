@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { SignInButton, useThunderID } from "@thunderid/react";
 import { Button } from "@carbon/react";
@@ -9,6 +10,13 @@ import StatusView from "@/shared/components/StatusView";
 export default function SignIn() {
   const { isSignedIn, isLoading } = useThunderID();
   const { data: setupStatus, isLoading: setupLoading, isError: setupError, error, refetch } = useSetupStatus();
+
+  useEffect(() => {
+    document.title = "Sign In · CoreGrid";
+    return () => {
+      document.title = "CoreGrid";
+    };
+  }, []);
 
   if (isLoading || setupLoading) return <div style={{ minHeight: "100vh" }} />;
 

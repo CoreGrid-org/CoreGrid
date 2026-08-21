@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button, Dropdown, DatePicker, DatePickerInput, Pagination, InlineNotification } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
-import MockNotice from "@/shared/components/MockNotice";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
-import { MOCK_CAMPAIGNS, MOCK_DISCREPANCIES } from "../data/mockAudit";
 import { useAuditLog } from "../hooks/useAuditLog";
+import { useCampaignsList } from "../hooks/useCampaigns";
+import { useDiscrepanciesList } from "../hooks/useDiscrepancies";
+import CreateCampaignModal from "../components/CreateCampaignModal";
+import ResolveDiscrepancyModal from "../components/ResolveDiscrepancyModal";
+import CampaignReportModal from "../components/CampaignReportModal";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import type { Discrepancy } from "../api/discrepancies";
 
 const ENTITY_TYPES = [
   "Asset",
@@ -21,6 +25,19 @@ const ENTITY_TYPES = [
 ];
 const OPERATIONS = ["Create", "Update", "Delete"];
 const OPERATION_TAG: Record<string, "green" | "blue" | "red"> = { Create: "green", Update: "blue", Delete: "red" };
+const DISCREPANCY_STATUS_FILTERS = ["Open only", "All"];
+
+function campaignScopeLabel(c: {
+  scope_department_name: string | null;
+  scope_location_name: string | null;
+  scope_asset_category_name: string | null;
+  scope_asset_type_name: string | null;
+}): string {
+  const parts = [c.scope_department_name, c.scope_location_name, c.scope_asset_category_name, c.scope_asset_type_name].filter(
+    (p): p is string => !!p,
+  );
+  return parts.length > 0 ? parts.join(" · ") : "Whole register";
+}
 
 export default function AuditPage() {
   const [entityType, setEntityType] = useState<string | undefined>();
@@ -32,6 +49,18 @@ export default function AuditPage() {
 
   const auditLog = useAuditLog({ entityType, operation, from, to, page, pageSize });
 
+  const [showCreateCampaign, setShowCreateCampaign] = useState(false);
+  const [reportCampaign, setReportCampaign] = useState<{ id: string; name: string } | null>(null);
+  const campaigns = useCampaignsList();
+
+  const [discrepancyCampaignId, setDiscrepancyCampaignId] = useState<string | undefined>();
+  const [discrepancyStatusFilter, setDiscrepancyStatusFilter] = useState(DISCREPANCY_STATUS_FILTERS[0]);
+  const discrepancies = useDiscrepanciesList({
+    campaignId: discrepancyCampaignId,
+    onlyOpen: discrepancyStatusFilter === "Open only",
+  });
+  const [resolvingDiscrepancy, setResolvingDiscrepancy] = useState<Discrepancy | null>(null);
+
   return (
     <div className="cg-page">
       <div className="cg-page__header">
@@ -41,7 +70,9 @@ export default function AuditPage() {
             Verification campaigns, discrepancies and the audit log (FR-056 to FR-066).
           </p>
         </div>
-        <Button renderIcon={Add}>New campaign</Button>
+        <Button renderIcon={Add} onClick={() => setShowCreateCampaign(true)}>
+          New campaign
+        </Button>
       </div>
 
       <Tabs>
@@ -53,82 +84,167 @@ export default function AuditPage() {
         <TabPanels>
           {/* ── Campaigns ───────────────────────────────────────────────── */}
           <TabPanel>
-            <MockNotice requirements={["FR-056", "FR-057", "FR-066"]}>
-              An Auditor scopes a campaign by department, location, category or asset type; the system
-              generates the task list and assigns it to the officers responsible for the in-scope locations,
-              then reports progress on this tab in real time as tasks are completed.
-            </MockNotice>
+            <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
+              A campaign is a scoped, time-boxed physical verification: it generates one task per in-scope asset,
+              assigns each to the responsible officer, and tracks completion and discrepancies as officers scan and
+              confirm assets against the register (FR-056, FR-057). Once a campaign has run, open its report to see
+              how it went — verified vs. outstanding, discrepancies by type and resolution — and export it as a PDF
+              or CSV record (FR-065).
+            </p>
+
+            {campaigns.isError && (
+              <InlineNotification
+                kind="error"
+                title="Could not load verification campaigns"
+                subtitle={getErrorMessage(campaigns.error, "Something went wrong. Please try again.")}
+                lowContrast
+                hideCloseButton
+                style={{ marginBottom: "1rem", maxWidth: "100%" }}
+              />
+            )}
 
             <div className="cg-section">
-              <table className="cg-table cg-table--no-hover">
-                <thead>
-                  <tr>
-                    <th>Campaign</th>
-                    <th>Period</th>
-                    <th>Scope</th>
-                    <th>Status</th>
-                    <th>Progress</th>
-                    <th>Discrepancies</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {MOCK_CAMPAIGNS.map((c, i) => (
-                    <tr key={i}>
-                      <td>{c.name}</td>
-                      <td className="cg-table__muted">{c.period}</td>
-                      <td className="cg-table__muted">{c.scope}</td>
-                      <td>
-                        <Tag type={statusTagColor(c.status)}>{formatStatusLabel(c.status)}</Tag>
-                      </td>
-                      <td className="cg-table__muted">
-                        {c.verified} / {c.total} verified
-                      </td>
-                      <td>
-                        <Tag type={c.discrepancies > 0 ? "magenta" : "gray"}>{c.discrepancies}</Tag>
-                      </td>
+              {campaigns.isLoading ? (
+                <div className="cg-placeholder">
+                  <p>Loading campaigns…</p>
+                </div>
+              ) : campaigns.data && campaigns.data.length > 0 ? (
+                <table className="cg-table cg-table--no-hover">
+                  <thead>
+                    <tr>
+                      <th>Campaign</th>
+                      <th>Period</th>
+                      <th>Scope</th>
+                      <th>Status</th>
+                      <th>Progress</th>
+                      <th>Discrepancies</th>
+                      <th></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {campaigns.data.map((c) => (
+                      <tr key={c.id}>
+                        <td>{c.name}</td>
+                        <td className="cg-table__muted">
+                          {c.period_start} – {c.period_end}
+                        </td>
+                        <td className="cg-table__muted">{campaignScopeLabel(c)}</td>
+                        <td>
+                          <Tag type={statusTagColor(c.status)}>{formatStatusLabel(c.status)}</Tag>
+                        </td>
+                        <td className="cg-table__muted">
+                          {c.completed_task_count} / {c.task_count} verified
+                        </td>
+                        <td>
+                          <Tag type={c.open_discrepancy_count > 0 ? "magenta" : "gray"}>{c.open_discrepancy_count}</Tag>
+                        </td>
+                        <td>
+                          <Button kind="ghost" size="sm" onClick={() => setReportCampaign({ id: c.id, name: c.name })}>
+                            View report
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="cg-placeholder">
+                  <p>No verification campaigns yet.</p>
+                </div>
+              )}
             </div>
           </TabPanel>
 
           {/* ── Discrepancies ───────────────────────────────────────────── */}
           <TabPanel>
-            <MockNotice requirements={["FR-060", "FR-061", "FR-062"]}>
-              Raised automatically when a verification assertion diverges from the register, or manually by
-              an officer; an Auditor resolves each with a typed resolution — Register Corrected, Asset
-              Relocated, Condition Updated, Written Off or No Action — applying the correction where the
-              resolution requires it.
-            </MockNotice>
+            <div className="cg-section" style={{ marginBottom: "1rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "1rem",
+                  padding: "1rem 1.5rem",
+                  alignItems: "flex-end",
+                }}
+              >
+                <Dropdown
+                  id="discrepancy-campaign"
+                  titleText="Campaign"
+                  label="All campaigns"
+                  items={["", ...(campaigns.data?.map((c) => c.id) ?? [])]}
+                  itemToString={(id) => (id ? campaigns.data?.find((c) => c.id === id)?.name ?? id : "All campaigns")}
+                  selectedItem={discrepancyCampaignId ?? ""}
+                  onChange={({ selectedItem }) => setDiscrepancyCampaignId(selectedItem || undefined)}
+                  style={{ minWidth: "16rem" }}
+                />
+                <Dropdown
+                  id="discrepancy-status"
+                  titleText="Status"
+                  label={discrepancyStatusFilter}
+                  items={DISCREPANCY_STATUS_FILTERS}
+                  selectedItem={discrepancyStatusFilter}
+                  onChange={({ selectedItem }) => setDiscrepancyStatusFilter(selectedItem ?? DISCREPANCY_STATUS_FILTERS[0])}
+                  style={{ minWidth: "10rem" }}
+                />
+              </div>
+            </div>
+
+            {discrepancies.isError && (
+              <InlineNotification
+                kind="error"
+                title="Could not load discrepancies"
+                subtitle={getErrorMessage(discrepancies.error, "Something went wrong. Please try again.")}
+                lowContrast
+                hideCloseButton
+                style={{ marginBottom: "1rem", maxWidth: "100%" }}
+              />
+            )}
 
             <div className="cg-section">
-              <table className="cg-table cg-table--no-hover">
-                <thead>
-                  <tr>
-                    <th>Asset</th>
-                    <th>Classification</th>
-                    <th>Status</th>
-                    <th>Raised by</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {MOCK_DISCREPANCIES.map((d, i) => (
-                    <tr key={i}>
-                      <td className="cg-table__mono">{d.assetCode}</td>
-                      <td>
-                        <Tag type={statusTagColor(d.classification)}>{formatStatusLabel(d.classification)}</Tag>
-                      </td>
-                      <td>
-                        <Tag type={statusTagColor(d.status)}>{formatStatusLabel(d.status)}</Tag>
-                      </td>
-                      <td className="cg-table__muted">{d.raisedBy}</td>
-                      <td className="cg-table__muted">{d.date}</td>
+              {discrepancies.isLoading ? (
+                <div className="cg-placeholder">
+                  <p>Loading discrepancies…</p>
+                </div>
+              ) : discrepancies.data && discrepancies.data.length > 0 ? (
+                <table className="cg-table cg-table--no-hover">
+                  <thead>
+                    <tr>
+                      <th>Asset</th>
+                      <th>Classification</th>
+                      <th>Status</th>
+                      <th>Raised by</th>
+                      <th>Date</th>
+                      <th></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {discrepancies.data.map((d) => (
+                      <tr key={d.id}>
+                        <td className="cg-table__mono">{d.asset_code}</td>
+                        <td>
+                          <Tag type={statusTagColor(d.type)}>{formatStatusLabel(d.type)}</Tag>
+                        </td>
+                        <td>
+                          <Tag type={statusTagColor(d.status)}>{formatStatusLabel(d.status)}</Tag>
+                        </td>
+                        <td className="cg-table__muted">{d.is_automatic ? "System (auto)" : d.raised_by_email ?? "—"}</td>
+                        <td className="cg-table__muted">{new Date(d.created_at).toLocaleDateString()}</td>
+                        <td>
+                          {d.status === "Open" && (
+                            <Button kind="ghost" size="sm" onClick={() => setResolvingDiscrepancy(d)}>
+                              Resolve
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="cg-placeholder">
+                  <p>No discrepancies match these filters.</p>
+                </div>
+              )}
             </div>
           </TabPanel>
 
@@ -265,6 +381,36 @@ export default function AuditPage() {
           </TabPanel>
         </TabPanels>
       </Tabs>
+
+      {showCreateCampaign && (
+        <CreateCampaignModal
+          onClose={() => setShowCreateCampaign(false)}
+          onCreated={() => {
+            setShowCreateCampaign(false);
+            campaigns.refetch();
+          }}
+        />
+      )}
+
+      {resolvingDiscrepancy && (
+        <ResolveDiscrepancyModal
+          discrepancy={resolvingDiscrepancy}
+          onClose={() => setResolvingDiscrepancy(null)}
+          onResolved={() => {
+            setResolvingDiscrepancy(null);
+            discrepancies.refetch();
+            campaigns.refetch();
+          }}
+        />
+      )}
+
+      {reportCampaign && (
+        <CampaignReportModal
+          campaignId={reportCampaign.id}
+          campaignName={reportCampaign.name}
+          onClose={() => setReportCampaign(null)}
+        />
+      )}
     </div>
   );
 }

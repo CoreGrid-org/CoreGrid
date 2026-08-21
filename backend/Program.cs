@@ -16,6 +16,11 @@ using Microsoft.OpenApi;
 
 
 AppContext.SetSwitch("System.Net.Security.UseNetworkFramework", true);
+
+// FR-084/FR-085 (campaign report PDF export) — Community licence, free for
+// this project's size; must be set once before any Document.GeneratePdf().
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
@@ -62,12 +67,16 @@ builder.Services.AddScoped<IOrganizationPolicyService, OrganizationPolicyService
 builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignService>();
 builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
 builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
+builder.Services.AddScoped<ICampaignReportService, CampaignReportService>();
+builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalPreconditionService, CoreGrid.Api.Features.Disposals.DisposalPreconditionService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalService, CoreGrid.Api.Features.Disposals.DisposalService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferService, CoreGrid.Api.Features.Transfers.Services.TransferService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IAgentToolsService, CoreGrid.Api.Features.AgentTools.Services.AgentToolsService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyRuleEngine, CoreGrid.Api.Features.Agents.Services.PolicyRuleEngine>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAgentWorkflowService, CoreGrid.Api.Features.Agents.Services.AgentWorkflowService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>
@@ -131,7 +140,11 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy => policy
         .WithOrigins(allowedOrigins)
         .AllowAnyHeader()
-        .AllowAnyMethod());
+        .AllowAnyMethod()
+        // FR-084/FR-085: report export filenames are set via
+        // Content-Disposition, which isn't CORS-safelisted by default — the
+        // frontend needs this to read the server-chosen filename.
+        .WithExposedHeaders("Content-Disposition"));
 });
 
 var app = builder.Build();
@@ -159,3 +172,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Exposes the top-level Program class to WebApplicationFactory<Program> for
+// integration testing (CoreGrid.Api.Tests) — otherwise it stays internal.
+public partial class Program { }

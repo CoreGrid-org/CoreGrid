@@ -17,12 +17,15 @@ namespace CoreGrid.Api.Features.Verification.Controllers;
 public class VerificationCampaignsController : CoreGridControllerBase
 {
     private readonly IVerificationCampaignService _campaignService;
+    private readonly ICampaignReportService _reportService;
 
     public VerificationCampaignsController(
         IVerificationCampaignService campaignService,
+        ICampaignReportService reportService,
         CoreGridDbContext db) : base(db)
     {
         _campaignService = campaignService;
+        _reportService = reportService;
     }
 
     [HttpGet]
@@ -68,5 +71,41 @@ public class VerificationCampaignsController : CoreGridControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    // FR-065: campaign completion report — Auditor/Administrator, same as
+    // creation, since generating one is itself an audit action.
+    [HttpGet("{id:guid}/report")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]
+    public async Task<ActionResult<CampaignReportDto>> GetReport(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var report = await _reportService.GetReportAsync(currentUser.OrganizationId, id, cancellationToken);
+        if (report is null) return NotFound(new { message = "Campaign not found." });
+
+        return Ok(report);
+    }
+
+    // FR-084/FR-085: same report, rendered as a downloadable PDF or CSV.
+    [HttpGet("{id:guid}/report/export")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]
+    public async Task<IActionResult> ExportReport(Guid id, [FromQuery] string format, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var report = await _reportService.GetReportAsync(currentUser.OrganizationId, id, cancellationToken);
+        if (report is null) return NotFound(new { message = "Campaign not found." });
+
+        var fileNameStem = string.Join("-", report.CampaignName.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+        return format.ToLowerInvariant() switch
+        {
+            "csv" => File(_reportService.BuildCsv(report), "text/csv", $"{fileNameStem}-report.csv"),
+            "pdf" => File(_reportService.BuildPdf(report), "application/pdf", $"{fileNameStem}-report.pdf"),
+            _ => BadRequest(new { message = "Unsupported export format. Use 'pdf' or 'csv'." })
+        };
     }
 }

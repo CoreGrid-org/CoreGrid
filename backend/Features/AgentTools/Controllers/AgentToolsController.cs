@@ -75,6 +75,52 @@ public class AgentToolsController : CoreGridControllerBase
         return Ok(result);
     }
 
+    // =========================================================
+    // GET /api/agent-tools/organization-policies?assetTypeId={id}
+    // Policy Compliance Agent tool (§7.4).
+    // =========================================================
+    [HttpGet("api/agent-tools/organization-policies")]
+    public async Task<ActionResult<OrganizationPolicyFactsDto>> GetOrganizationPolicies(
+        [FromQuery] Guid? assetTypeId,
+        [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
+    {
+        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
+        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
+
+        var result = await _agentToolsService.GetOrganizationPoliciesAsync(orgId.Value, assetTypeId, cancellationToken);
+
+        if (result is null)
+        {
+            return NotFound(new { message = "No organisation policy configured (neither asset-type-specific nor the org-wide default)." });
+        }
+
+        return Ok(result);
+    }
+
+    // =========================================================
+    // GET /api/agent-tools/assets/{assetId}/compliance-state
+    // Policy Compliance Agent tool (§7.4).
+    // =========================================================
+    [HttpGet("api/agent-tools/assets/{assetId:guid}/compliance-state")]
+    public async Task<ActionResult<AssetComplianceStateDto>> GetAssetComplianceState(
+        Guid assetId,
+        [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
+    {
+        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
+        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
+
+        var result = await _agentToolsService.GetAssetComplianceStateAsync(orgId.Value, assetId, cancellationToken);
+
+        if (result is null)
+        {
+            return NotFound(new { message = $"Asset with ID {assetId} not found." });
+        }
+
+        return Ok(result);
+    }
+
     private async Task<Guid?> ResolveOrganizationIdAsync(Guid? queryOrgId, CancellationToken cancellationToken)
     {
         // 1. Try human user

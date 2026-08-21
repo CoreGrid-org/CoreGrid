@@ -41,6 +41,13 @@ const STATUS_COLORS: Record<string, TagColor> = {
   OPEN: "magenta",
   UNDER_REVIEW: "blue",
   RESOLVED: "green",
+  // DiscrepancyType
+  MISSING: "red",
+  SURPLUS: "purple",
+  LOCATION_MISMATCH: "blue",
+  CONDITION_MISMATCH: "magenta",
+  DATA_MISMATCH: "teal",
+  OTHER: "gray",
   // WorkflowStatus
   PLANNING: "gray",
   ANALYZING: "blue",

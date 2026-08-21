@@ -2,6 +2,7 @@ import { Tabs, TabList, Tab, TabPanels, TabPanel, Button } from "@carbon/react";
 import { DocumentPdf, DocumentExport } from "@carbon/icons-react";
 import MockNotice from "@/shared/components/MockNotice";
 import { MOCK_REPORTS } from "../data/mockReports";
+import AuditReportPanel from "../components/AuditReportPanel";
 
 export default function ReportsPage() {
   return (
@@ -18,6 +19,7 @@ export default function ReportsPage() {
           {MOCK_REPORTS.map((r) => (
             <Tab key={r.key}>{r.title.replace(" Report", "")}</Tab>
           ))}
+          <Tab>Audit</Tab>
         </TabList>
         <TabPanels>
           {MOCK_REPORTS.map((report) => (
@@ -75,6 +77,10 @@ export default function ReportsPage() {
               </div>
             </TabPanel>
           ))}
+
+          <TabPanel>
+            <AuditReportPanel />
+          </TabPanel>
         </TabPanels>
       </Tabs>
     </div>

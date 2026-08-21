@@ -78,7 +78,7 @@ export default function App() {
         <Route path="maintenance/new" element={<CreateMaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
-        <Route path="workflows" element={<ComingSoon feature="Agentic Workflows" />} />
+        <Route path="workflows" element={<WorkflowsPage />} />
       </Route>
 
       <Route
@@ -96,7 +96,7 @@ export default function App() {
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
-        <Route path="workflows" element={<ComingSoon feature="Agentic Workflows" />} />
+        <Route path="workflows" element={<WorkflowsPage />} />
       </Route>
 
       <Route

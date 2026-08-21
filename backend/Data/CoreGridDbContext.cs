@@ -23,6 +23,9 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
     public DbSet<VerificationTask> VerificationTasks => Set<VerificationTask>();
     public DbSet<Discrepancy> Discrepancies => Set<Discrepancy>();
     public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
+    public DbSet<AgentWorkflow> AgentWorkflows => Set<AgentWorkflow>();
+    public DbSet<AgentExecutionStep> AgentExecutionSteps => Set<AgentExecutionStep>();
+    public DbSet<AgentApproval> AgentApprovals => Set<AgentApproval>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -545,6 +548,79 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
                 tb.HasCheckConstraint("CK_MaintenanceRecords_Type", "\"Type\" IN ('CORRECTIVE','PREVENTIVE')");
                 tb.HasCheckConstraint("CK_MaintenanceRecords_ObservedCondition", "\"ObservedCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
                 tb.HasCheckConstraint("CK_MaintenanceRecords_ResultingCondition", "\"ResultingCondition\" IS NULL OR \"ResultingCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
+            });
+        });
+
+        modelBuilder.Entity<AgentWorkflow>(entity =>
+        {
+            entity.HasIndex(w => w.OrganizationId);
+            entity.HasIndex(w => w.AssetId);
+            entity.HasIndex(w => w.Status);
+            entity.HasIndex(w => w.CorrelationId);
+
+            entity.Property(w => w.Objective).IsRequired();
+            entity.Property(w => w.CorrelationId).IsRequired();
+            entity.Property(w => w.Plan).HasColumnType("jsonb");
+            entity.Property(w => w.AgentOutputs).HasColumnType("jsonb");
+            entity.Property(w => w.ToolCalls).HasColumnType("jsonb");
+            entity.Property(w => w.ValidationResult).HasColumnType("jsonb");
+
+            entity.HasOne(w => w.Organization)
+                .WithMany()
+                .HasForeignKey(w => w.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(w => w.Asset)
+                .WithMany()
+                .HasForeignKey(w => w.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(w => w.InitiatedByUser)
+                .WithMany()
+                .HasForeignKey(w => w.InitiatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable(tb =>
+            {
+                tb.HasCheckConstraint("CK_AgentWorkflows_Recommendation",
+                    "\"Recommendation\" IS NULL OR \"Recommendation\" IN ('REPAIR','REPLACE','TRANSFER','DISPOSE','RETAIN')");
+            });
+        });
+
+        modelBuilder.Entity<AgentExecutionStep>(entity =>
+        {
+            entity.HasIndex(s => s.WorkflowId);
+
+            entity.Property(s => s.Agent).IsRequired();
+            entity.Property(s => s.Status).IsRequired();
+
+            entity.HasOne(s => s.Workflow)
+                .WithMany(w => w.Steps)
+                .HasForeignKey(s => s.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AgentApproval>(entity =>
+        {
+            entity.HasIndex(a => a.WorkflowId);
+
+            entity.Property(a => a.Decision).IsRequired();
+            entity.Property(a => a.Reason).IsRequired();
+            entity.Property(a => a.WorkflowSnapshot).HasColumnType("jsonb");
+
+            entity.HasOne(a => a.Workflow)
+                .WithMany(w => w.Approvals)
+                .HasForeignKey(a => a.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.DecidedByUser)
+                .WithMany()
+                .HasForeignKey(a => a.DecidedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable(tb =>
+            {
+                tb.HasCheckConstraint("CK_AgentApprovals_Decision", "\"Decision\" IN ('APPROVE','REJECT','REVISE')");
             });
         });
     }

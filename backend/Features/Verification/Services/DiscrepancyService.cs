@@ -134,9 +134,11 @@ public class DiscrepancyService : IDiscrepancyService
             throw new InvalidOperationException("This discrepancy has already been resolved.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.ResolutionType))
+        var resolutionType = request.ResolutionType?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (!DiscrepancyResolutionTypes.All.Contains(resolutionType))
         {
-            throw new InvalidOperationException("A resolution type is required.");
+            throw new InvalidOperationException(
+                $"Resolution type must be one of: {string.Join(", ", DiscrepancyResolutionTypes.All)}.");
         }
 
         if (string.IsNullOrWhiteSpace(request.ResolutionExplanation))
@@ -144,12 +146,36 @@ public class DiscrepancyService : IDiscrepancyService
             throw new InvalidOperationException("A resolution explanation is required.");
         }
 
+        // FR-062 AC3: NO_ACTION requires a justification of at least 20 characters.
+        if (resolutionType == DiscrepancyResolutionTypes.NoAction
+            && request.ResolutionExplanation.Trim().Length < DiscrepancyResolutionTypes.NoActionMinimumJustificationLength)
+        {
+            throw new InvalidOperationException(
+                $"NO_ACTION requires a justification of at least {DiscrepancyResolutionTypes.NoActionMinimumJustificationLength} characters.");
+        }
+
+        // FR-062 BR2: WRITTEN_OFF requires the asset to have been verified
+        // Missing in at least one completed verification.
+        if (resolutionType == DiscrepancyResolutionTypes.WrittenOff)
+        {
+            var everVerifiedMissing = await _context.VerificationTasks.AsNoTracking().AnyAsync(
+                t => t.AssetId == discrepancy.AssetId
+                    && t.Status == VerificationTaskStatus.Completed
+                    && t.AssertedPresent == false);
+
+            if (!everVerifiedMissing)
+            {
+                throw new InvalidOperationException(
+                    "WRITTEN_OFF requires the asset to have been verified Missing in at least one completed verification.");
+            }
+        }
+
         if (request.ApplyCorrection)
         {
             ApplyRegisterCorrection(discrepancy, currentUserId);
         }
 
-        discrepancy.ResolutionType = request.ResolutionType.Trim();
+        discrepancy.ResolutionType = resolutionType;
         discrepancy.ResolutionExplanation = request.ResolutionExplanation.Trim();
         discrepancy.CorrectiveAction = request.CorrectiveAction?.Trim();
         discrepancy.RegisterCorrected = request.ApplyCorrection;
