@@ -20,6 +20,8 @@ public class DisposalRequest
 
     public decimal EstimatedResidualValue { get; set; }
 
+    public DateOnly? ValuationDate { get; set; }
+
     public DisposalStatus Status { get; set; }
 
     public DateTimeOffset RequestedAt { get; set; }

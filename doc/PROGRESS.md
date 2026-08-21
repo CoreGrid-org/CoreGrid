@@ -84,12 +84,12 @@ Status as of 2026-08-15: cross-cutting identity/admin slice is up; Component A (
 
 | Area | Status |
 |---|---|
-| Backend (transfer/disposal controllers, approval preconditions P1–P6) | ❌ |
-| Database (`AssetTransfers`, `DisposalRequests`) | ✅ (2026-08-15: fixed — `AssetId`/department/location columns had been left as bare `Guid`s with `TODO: add FK` comments even after `Asset`/`Department`/`Location` existed; added the real FK constraints + migration `AddTransferDisposalForeignKeys`, and repaired an out-of-sync `CoreGridDbContextModelSnapshot.cs` — the two entities' `DbSet` properties and model-snapshot blocks had been dropped, silently breaking `dotnet ef migrations add` for anyone touching this schema) |
+| Backend (transfer/disposal controllers, approval preconditions P1–P6) | ✅ (Full transfer state machine (FR-044/045/046) and disposal workflow (FR-049 condemn, FR-050 submit, FR-051/052 precondition evaluation, FR-054/055 approval + terminal state) implemented and unit tested. P4 (maintenance check) now fully implemented against Component B's MaintenanceRecords table. P6 (agent workflow check) remains the sole stubbed precondition, pending the agent subsystem. Role-based authorization matching existing codebase convention (SRS Appendix B named-policy layer deferred by team lead until after mobile app development). Agent tool endpoints (/api/agent-tools/*: get_asset_financials, get_department_budget_summary, compute_depreciation) implemented for the Budget Analysis Agent. Replacement estimate and department budget allocation/committed/spent data return explicit null/NOT_CONFIGURED markers — no such tables exist yet in the schema. M2M auth via ThunderID service account (client_credentials), isolated to /api/agent-tools/* via UseWhen pipeline branching — RoleEnrichmentMiddleware.cs left untouched. Manual ThunderID console setup required before agent can authenticate (doc/setup/agent-service-account.md).) |
+| Database (`AssetTransfers`, `DisposalRequests`) | ✅ (2026-08-15: fixed — `AssetId`/department/location columns had been left as bare `Guid`s with `TODO: add FK` comments even after `Asset`/`Department`/`Location` existed; added the real FK constraints + migration `AddTransferDisposalForeignKeys`, and repaired an out-of-sync `CoreGridDbContextModelSnapshot.cs` — the two entities' `DbSet` properties and model-snapshot blocks had been dropped, silently breaking `dotnet ef migrations add` for anyone touching this schema; 2026-08-17: added nullable `ValuationDate` to `DisposalRequests` via migration `AddValuationDateToDisposalRequest` to support real P2 valuation precondition check) |
 | React (transfer/disposal queues, precondition checklist) | ❌ |
 | Flutter (transfer request, scan-to-confirm receipt, condemnation) | ❌ |
-| Budget Analysis Agent | ❌ |
-| Tests | ❌ |
+| Budget Analysis Agent | ❌ (tool endpoints exist, Python agent itself not started) |
+| Tests | ✅ (70 unit tests total.) |
 
 ## Component D — Audit & Compliance + Org Configuration + User Administration (Hasitha Erandika, FR-010–015, FR-056–066)
 

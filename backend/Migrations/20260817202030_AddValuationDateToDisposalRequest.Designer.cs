@@ -3,6 +3,7 @@ using System;
 using CoreGrid.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreGrid.Api.Migrations
 {
     [DbContext(typeof(CoreGridDbContext))]
-    partial class CoreGridDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817202030_AddValuationDateToDisposalRequest")]
+    partial class AddValuationDateToDisposalRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -744,111 +747,6 @@ namespace CoreGrid.Api.Migrations
                     b.ToTable("Locations");
                 });
 
-            modelBuilder.Entity("CoreGrid.Api.Domain.MaintenanceRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal?>("ActualCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("AssetId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("AssigneeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CancellationReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateOnly?>("CompletionDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal?>("EstimatedCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("ObservedCondition")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PhotoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("ResultingCondition")
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("WorkPerformed")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssetId");
-
-                    b.HasIndex("AssigneeId");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("Priority");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("Type");
-
-                    b.ToTable("MaintenanceRecords", t =>
-                        {
-                            t.HasCheckConstraint("CK_MaintenanceRecords_ObservedCondition", "\"ObservedCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
-
-                            t.HasCheckConstraint("CK_MaintenanceRecords_Priority", "\"Priority\" IN ('LOW','MEDIUM','HIGH','CRITICAL')");
-
-                            t.HasCheckConstraint("CK_MaintenanceRecords_ResultingCondition", "\"ResultingCondition\" IS NULL OR \"ResultingCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
-
-                            t.HasCheckConstraint("CK_MaintenanceRecords_Status", "\"Status\" IN ('REQUESTED','APPROVED','IN_PROGRESS','COMPLETED','CANCELLED')");
-
-                            t.HasCheckConstraint("CK_MaintenanceRecords_Type", "\"Type\" IN ('CORRECTIVE','PREVENTIVE')");
-                        });
-                });
-
             modelBuilder.Entity("CoreGrid.Api.Domain.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1438,32 +1336,6 @@ namespace CoreGrid.Api.Migrations
                     b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("CoreGrid.Api.Domain.MaintenanceRecord", b =>
-                {
-                    b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
-                        .WithMany("MaintenanceRecords")
-                        .HasForeignKey("AssetId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CoreGrid.Api.Domain.User", "Assignee")
-                        .WithMany()
-                        .HasForeignKey("AssigneeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Asset");
-
-                    b.Navigation("Assignee");
-
-                    b.Navigation("Organization");
-                });
-
             modelBuilder.Entity("CoreGrid.Api.Domain.OrganizationPolicy", b =>
                 {
                     b.HasOne("CoreGrid.Api.Domain.AssetType", "AssetType")
@@ -1600,8 +1472,6 @@ namespace CoreGrid.Api.Migrations
                     b.Navigation("AssetAttributeValues");
 
                     b.Navigation("AssetHistoryEntries");
-
-                    b.Navigation("MaintenanceRecords");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.AssetAttributeDefinition", b =>

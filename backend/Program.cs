@@ -64,6 +64,10 @@ builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
 builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalPreconditionService, CoreGrid.Api.Features.Disposals.DisposalPreconditionService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalService, CoreGrid.Api.Features.Disposals.DisposalService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferService, CoreGrid.Api.Features.Transfers.Services.TransferService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IAgentToolsService, CoreGrid.Api.Features.AgentTools.Services.AgentToolsService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>
@@ -143,7 +147,13 @@ app.UseHttpsRedirection();
 app.UseCors("Frontend");
 
 app.UseAuthentication();
-app.UseMiddleware<RoleEnrichmentMiddleware>();
+
+// Branch pipeline: Only apply human user RoleEnrichmentMiddleware to non-agent routes,
+// keeping RoleEnrichmentMiddleware completely untouched and eliminating any cross-cutting side effects.
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api/agent-tools", StringComparison.OrdinalIgnoreCase),
+    appBuilder => appBuilder.UseMiddleware<RoleEnrichmentMiddleware>());
+
 app.UseAuthorization();
 
 app.MapControllers();
