@@ -1,28 +1,59 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button, TextInput, NumberInput, Select, SelectItem, Checkbox, InlineNotification } from "@carbon/react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  Button,
+  TextInput,
+  NumberInput,
+  ComboBox,
+  Select,
+  SelectItem,
+  Checkbox,
+  InlineNotification,
+  CodeSnippet,
+  Tag,
+} from "@carbon/react";
+import {
+  useAssetDetail,
   useAssetTypes,
   useAssetTypeAttributes,
   useCreateAsset,
   useDepartments,
   useLocations,
+  useOrganizationCode,
+  useUpdateAsset,
 } from "../hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { ASSET_CONDITIONS, type AssetCondition, type AssetAttributeValueRequest } from "../types/asset";
+import {
+  ASSET_CONDITIONS,
+  type AssetCondition,
+  type AssetAttributeValueRequest,
+  type AssetType,
+  type Department,
+  type Location,
+} from "../types/asset";
 import { formatStatusLabel } from "@/shared/lib/statusTag";
 
 type AttributeValue = string | number | boolean;
 
-// POST /api/assets. The full asset code (org prefix + type code + sequence)
-// and its QR payload are generated server-side on save — see
-// backend/Features/Assets/Services/AssetService.cs — so this form can only
-// preview the type-code portion before submitting.
+// POST /api/assets to create, PUT /api/assets/{id} to update (id present in
+// the route). The full asset code (org code + category code + type code +
+// sequence) and its QR payload are generated server-side on first save and
+// never change afterwards — see backend/Features/Assets/Services/AssetService.cs.
 export default function AssetRegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id: assetId } = useParams<{ id: string }>();
+  const isEditMode = Boolean(assetId);
+
+  // Mounted under both /admin/assets/... and /inventory/assets/... (App.tsx)
+  // — derive the list path from the current role prefix rather than
+  // hardcoding one, so Cancel/Save stay within the current role's routes.
+  const assetsListPath = `/${location.pathname.split("/")[1]}/assets`;
 
   const { data: assetTypes } = useAssetTypes();
   const { data: departments } = useDepartments();
+  const { data: existingAsset, isLoading: isLoadingAsset } = useAssetDetail(assetId);
+  const { data: organizationCode } = useOrganizationCode();
 
   const [assetTypeId, setAssetTypeId] = useState("");
   const [name, setName] = useState("");
@@ -33,24 +64,81 @@ export default function AssetRegisterPage() {
   const [acquisitionCost, setAcquisitionCost] = useState<number | "">("");
   const [residualValue, setResidualValue] = useState<number | "">("");
   const [attributeValues, setAttributeValues] = useState<Record<string, AttributeValue>>({});
+  const [prefilled, setPrefilled] = useState(false);
+  const skipNextDepartmentReset = useRef(false);
+  const skipNextAttributeReset = useRef(false);
 
   const { data: locations } = useLocations(departmentId || undefined);
   const { data: attributeDefs } = useAssetTypeAttributes(assetTypeId);
   const createAsset = useCreateAsset();
+  const updateAsset = useUpdateAsset();
+  const saveAsset = isEditMode ? updateAsset : createAsset;
 
   const selectedType = assetTypes?.find((t) => t.id === assetTypeId);
 
-  // Department changed: the previously selected location may no longer belong to it.
+  // Inactive asset types aren't offered when registering a new asset, but an
+  // existing asset must keep displaying/keeping its own (possibly since
+  // deactivated) type.
+  const selectableAssetTypes =
+    assetTypes?.filter((t) => t.is_active || t.id === assetTypeId) ?? [];
+
+  // Inactive attributes aren't requested when registering a new asset; an
+  // existing asset must keep displaying (and not lose, on next save) values
+  // it already has for attributes that have since been deactivated.
+  const visibleAttributeDefs = isEditMode
+    ? (attributeDefs ?? [])
+    : (attributeDefs ?? []).filter((def) => def.is_active);
+
+  // Edit mode: once the existing asset loads, seed every field from it —
+  // once only, so the user's own edits afterwards aren't clobbered by a
+  // background refetch.
   useEffect(() => {
+    if (!existingAsset || prefilled) return;
+
+    setAssetTypeId(existingAsset.asset_type_id);
+    setName(existingAsset.name);
+    setDepartmentId(existingAsset.department_id);
+    setLocationId(existingAsset.location_id);
+    setAcquisitionDate(existingAsset.acquisition_date.slice(0, 10));
+    setAcquisitionCost(existingAsset.acquisition_cost);
+    setResidualValue(existingAsset.residual_value);
+
+    const values: Record<string, AttributeValue> = {};
+    for (const attr of existingAsset.attributes) {
+      if (attr.value_text !== null) values[attr.attribute_definition_id] = attr.value_text;
+      else if (attr.value_number !== null) values[attr.attribute_definition_id] = attr.value_number;
+      else if (attr.value_date !== null) values[attr.attribute_definition_id] = attr.value_date.slice(0, 10);
+      else if (attr.value_boolean !== null) values[attr.attribute_definition_id] = attr.value_boolean;
+    }
+    setAttributeValues(values);
+    skipNextDepartmentReset.current = true;
+    skipNextAttributeReset.current = true;
+    setPrefilled(true);
+  }, [existingAsset, prefilled]);
+
+  // Department changed: the previously selected location may no longer belong to it.
+  // Skipped once right after prefilling so the asset's own saved location survives.
+  useEffect(() => {
+    if (skipNextDepartmentReset.current) {
+      skipNextDepartmentReset.current = false;
+      return;
+    }
     setLocationId("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only department changes should trigger this reset
   }, [departmentId]);
 
   // Asset type changed: previous attribute values belonged to a different type's fields.
+  // Skipped once right after prefilling so the asset's own saved attribute values survive.
   useEffect(() => {
+    if (skipNextAttributeReset.current) {
+      skipNextAttributeReset.current = false;
+      return;
+    }
     setAttributeValues({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only asset type changes should trigger this reset
   }, [assetTypeId]);
 
-  const requiredAttributesFilled = (attributeDefs ?? []).every((def) => {
+  const requiredAttributesFilled = visibleAttributeDefs.every((def) => {
     if (!def.is_required) return true;
     const value = attributeValues[def.id];
     return value !== undefined && value !== "";
@@ -67,9 +155,9 @@ export default function AssetRegisterPage() {
     requiredAttributesFilled;
 
   const handleSubmit = () => {
-    if (!canSubmit || createAsset.isPending) return;
+    if (!canSubmit || saveAsset.isPending) return;
 
-    const attributes: AssetAttributeValueRequest[] = (attributeDefs ?? [])
+    const attributes: AssetAttributeValueRequest[] = visibleAttributeDefs
       .map((def): AssetAttributeValueRequest | null => {
         const value = attributeValues[def.id];
         if (value === undefined || value === "") return null;
@@ -95,6 +183,30 @@ export default function AssetRegisterPage() {
       })
       .filter((v): v is AssetAttributeValueRequest => v !== null);
 
+    if (isEditMode && assetId) {
+      updateAsset.mutate(
+        {
+          id: assetId,
+          payload: {
+            asset_type_id: assetTypeId,
+            department_id: departmentId,
+            location_id: locationId,
+            name: name.trim(),
+            acquisition_date: acquisitionDate,
+            acquisition_cost: acquisitionCost,
+            residual_value: residualValue === "" ? 0 : residualValue,
+            attributes,
+          },
+        },
+        {
+          onSuccess: (asset) => {
+            navigate(assetsListPath, { state: { openAssetId: asset.id } });
+          },
+        },
+      );
+      return;
+    }
+
     createAsset.mutate(
       {
         asset_type_id: assetTypeId,
@@ -115,30 +227,42 @@ export default function AssetRegisterPage() {
     );
   };
 
+  if (isEditMode && isLoadingAsset && !prefilled) {
+    return (
+      <div className="cg-page">
+        <div className="cg-placeholder">
+          <p>Loading asset…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="cg-page">
       <div className="cg-page__header">
         <div className="cg-page__header-left">
-          <h1 className="cg-page__title">Register new asset</h1>
+          <h1 className="cg-page__title">{isEditMode ? "Update asset" : "Register new asset"}</h1>
           <p className="cg-page__subtitle">
-            Attribute fields appear once a type is chosen — the form renders itself from that type's definitions.
+            {isEditMode
+              ? "Change any field and save — the asset code and QR payload stay fixed."
+              : "Attribute fields appear once a type is chosen — the form renders itself from that type's definitions."}
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button kind="secondary" onClick={() => navigate("/admin/assets")}>
+          <Button kind="secondary" onClick={() => navigate(assetsListPath)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || createAsset.isPending}>
-            {createAsset.isPending ? "Saving…" : "Save asset"}
+          <Button onClick={handleSubmit} disabled={!canSubmit || saveAsset.isPending}>
+            {saveAsset.isPending ? "Saving…" : isEditMode ? "Save changes" : "Save asset"}
           </Button>
         </div>
       </div>
 
-      {createAsset.isError && (
+      {saveAsset.isError && (
         <InlineNotification
           kind="error"
-          title="Could not create asset"
-          subtitle={getErrorMessage(createAsset.error, "Something went wrong. Please try again.")}
+          title={isEditMode ? "Could not update asset" : "Could not create asset"}
+          subtitle={getErrorMessage(saveAsset.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
           style={{ marginBottom: "1rem", maxWidth: "100%" }}
@@ -150,15 +274,15 @@ export default function AssetRegisterPage() {
           <div className="cg-section" style={{ margin: 0 }}>
             <p className="cg-section__title">Basic details</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
-              <Select
+              <ComboBox<AssetType>
                 id="register-asset-type"
-                labelText="Asset type"
-                value={assetTypeId}
-                onChange={(e) => setAssetTypeId(e.target.value)}
-              >
-                <SelectItem value="" text="Choose a type…" />
-                {assetTypes?.map((t) => <SelectItem key={t.id} value={t.id} text={t.name} />)}
-              </Select>
+                titleText="Asset type"
+                placeholder="Search asset types…"
+                items={selectableAssetTypes}
+                itemToString={(item) => (item ? `${item.name}${item.is_active ? "" : " — inactive"}` : "")}
+                selectedItem={selectableAssetTypes.find((t) => t.id === assetTypeId) ?? null}
+                onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
+              />
               <TextInput
                 id="register-asset-name"
                 labelText="Asset name"
@@ -166,38 +290,37 @@ export default function AssetRegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-              <Select
+              <ComboBox<Department>
                 id="register-asset-department"
-                labelText="Department"
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-              >
-                <SelectItem value="" text="Choose a department…" />
-                {departments?.map((d) => <SelectItem key={d.id} value={d.id} text={d.name} />)}
-              </Select>
-              <Select
+                titleText="Department"
+                placeholder="Search departments…"
+                items={departments ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={departments?.find((d) => d.id === departmentId) ?? null}
+                onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
+              />
+              <ComboBox<Location>
                 id="register-asset-location"
-                labelText="Location"
-                value={locationId}
+                titleText="Location"
+                placeholder={departmentId ? "Search locations…" : "Choose a department first"}
                 disabled={!departmentId}
-                onChange={(e) => setLocationId(e.target.value)}
-              >
-                <SelectItem
-                  value=""
-                  text={departmentId ? "Choose a location…" : "Choose a department first"}
-                />
-                {locations?.map((l) => <SelectItem key={l.id} value={l.id} text={l.name} />)}
-              </Select>
-              <Select
-                id="register-asset-condition"
-                labelText="Condition"
-                value={condition}
-                onChange={(e) => setCondition(e.target.value as AssetCondition)}
-              >
-                {ASSET_CONDITIONS.map((c) => (
-                  <SelectItem key={c} value={c} text={formatStatusLabel(c)} />
-                ))}
-              </Select>
+                items={locations ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={locations?.find((l) => l.id === locationId) ?? null}
+                onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
+              />
+              {!isEditMode && (
+                <Select
+                  id="register-asset-condition"
+                  labelText="Condition"
+                  value={condition}
+                  onChange={(e) => setCondition(e.target.value as AssetCondition)}
+                >
+                  {ASSET_CONDITIONS.map((c) => (
+                    <SelectItem key={c} value={c} text={formatStatusLabel(c)} />
+                  ))}
+                </Select>
+              )}
               <TextInput
                 id="register-asset-acquisition-date"
                 labelText="Purchase date"
@@ -207,7 +330,7 @@ export default function AssetRegisterPage() {
               />
               <NumberInput
                 id="register-asset-acquisition-cost"
-                label="Purchase cost"
+                label="Purchase cost (LKR)"
                 min={0}
                 value={acquisitionCost}
                 allowEmpty
@@ -215,7 +338,7 @@ export default function AssetRegisterPage() {
               />
               <NumberInput
                 id="register-asset-residual-value"
-                label="Residual value"
+                label="Residual value (LKR)"
                 helperText="Optional — defaults to 0"
                 min={0}
                 value={residualValue}
@@ -237,18 +360,20 @@ export default function AssetRegisterPage() {
               </div>
             )}
 
-            {assetTypeId && attributeDefs && attributeDefs.length === 0 && (
+            {assetTypeId && attributeDefs && visibleAttributeDefs.length === 0 && (
               <div className="cg-placeholder" style={{ marginTop: "1rem" }}>
                 <p>This type has no custom attributes configured.</p>
               </div>
             )}
 
-            {assetTypeId && attributeDefs && attributeDefs.length > 0 && (
+            {assetTypeId && attributeDefs && visibleAttributeDefs.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
-                {attributeDefs.map((def) => {
+                {visibleAttributeDefs.map((def) => {
                   const value = attributeValues[def.id];
                   const setValue = (v: AttributeValue) => setAttributeValues((prev) => ({ ...prev, [def.id]: v }));
-                  const label = def.is_required ? `${def.name} *` : def.name;
+                  const label = def.is_required
+                    ? `${def.name} *${def.is_active ? "" : " (inactive)"}`
+                    : `${def.name}${def.is_active ? "" : " (inactive)"}`;
 
                   if (def.data_type === "BOOLEAN") {
                     return (
@@ -320,15 +445,50 @@ export default function AssetRegisterPage() {
 
         <aside style={{ width: "18rem", flex: "none", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div className="cg-section" style={{ margin: 0 }}>
-            <div style={{ fontSize: "0.625rem", letterSpacing: "0.05em", color: "#8d8d8d", textTransform: "uppercase" }}>
-              Code preview
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span
+                style={{ fontSize: "0.625rem", letterSpacing: "0.05em", color: "#8d8d8d", textTransform: "uppercase", fontWeight: 600 }}
+              >
+                {isEditMode ? "Asset code" : "Code preview"}
+              </span>
+              {!isEditMode && <Tag type="cyan" size="sm">Auto-generated</Tag>}
             </div>
-            <div className="cg-table__mono" style={{ fontSize: "1.125rem", marginTop: "0.5rem" }}>
-              {selectedType ? `…-${selectedType.code}-####` : "…-••-••••"}
+
+            <div style={{ marginTop: "0.75rem" }}>
+              <CodeSnippet
+                type="single"
+                hideCopyButton
+                disabled={isEditMode ? !existingAsset?.asset_code : !selectedType}
+              >
+                {isEditMode
+                  ? (existingAsset?.asset_code ?? "…")
+                  : selectedType
+                    ? `${organizationCode?.code ?? "…"}-${selectedType.category_code}-${selectedType.code}-####`
+                    : `${organizationCode?.code ?? "…"}-••-••-••••`}
+              </CodeSnippet>
             </div>
-            <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "#525252" }}>
-              The full asset code (organisation prefix + type code + sequence) and its QR code are generated on
-              save.
+
+            {!isEditMode && selectedType && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.75rem" }}>
+                <Tag type="gray" size="sm" title="Organisation code">
+                  Org · {organizationCode?.code ?? "…"}
+                </Tag>
+                <Tag type="blue" size="sm" title="Asset category code">
+                  Category · {selectedType.category_code}
+                </Tag>
+                <Tag type="purple" size="sm" title="Asset type code">
+                  Type · {selectedType.code}
+                </Tag>
+                <Tag type="gray" size="sm" title="Sequential number">
+                  Seq · ####
+                </Tag>
+              </div>
+            )}
+
+            <p style={{ margin: "0.75rem 0 0", fontSize: "0.75rem", color: "#525252", lineHeight: 1.4 }}>
+              {isEditMode
+                ? "The asset code and QR payload were fixed at creation and cannot be changed."
+                : "The full asset code (organisation code + category code + type code + sequence) and its QR code are generated on save."}
             </p>
           </div>
         </aside>

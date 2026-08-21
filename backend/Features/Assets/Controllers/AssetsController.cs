@@ -181,6 +181,14 @@ public class AssetsController : CoreGridControllerBase
                 message = ex.Message
             });
         }
+        catch (DbUpdateException)
+        {
+            return Conflict(new
+            {
+                message =
+                    "Asset could not be updated because of a database conflict."
+            });
+        }
     }
 
     // =========================================================
@@ -229,6 +237,40 @@ public class AssetsController : CoreGridControllerBase
     }
 
     // =========================================================
+    // GET /api/assets/{id}/history
+    // =========================================================
+
+    [HttpGet("{id:guid}/history")]
+    public async Task<ActionResult<PagedResult<AssetHistoryDto>>> GetAssetHistory(
+        Guid id,
+        [FromQuery] AssetHistoryQueryParameters parameters,
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        var history = await _assetService.GetAssetHistoryAsync(
+            currentUser.OrganizationId,
+            id,
+            parameters);
+
+        if (history is null)
+        {
+            return NotFound(new
+            {
+                message = "Asset not found."
+            });
+        }
+
+        return Ok(history);
+    }
+
+    // =========================================================
     // GET /api/assets/qr/{code}
     // =========================================================
 
@@ -258,6 +300,36 @@ public class AssetsController : CoreGridControllerBase
         }
 
         return Ok(asset);
+    }
+
+    // =========================================================
+    // GET /api/assets/organization-code
+    // =========================================================
+    //
+    // The organisation's short code (e.g. "MOTAHSL") derived from its name —
+    // the same prefix used when generating an asset's AssetCode/QrPayload
+    // (see AssetService.CreateAssetAsync). Exposed here so the frontend can
+    // display the real value in the asset registration form's code preview.
+
+    [HttpGet("organization-code")]
+    public async Task<ActionResult<OrganizationCodeDto>> GetOrganizationCode(
+        CancellationToken cancellationToken)
+    {
+        var currentUser =
+            await GetCurrentUserAsync(cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Unauthorized();
+        }
+
+        var code = await _assetService.GetOrganizationCodeAsync(
+            currentUser.OrganizationId);
+
+        return Ok(new OrganizationCodeDto
+        {
+            Code = code
+        });
     }
 
 }

@@ -22,6 +22,169 @@ namespace CoreGrid.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CoreGrid.Api.Domain.AgentApproval", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DecidedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkflowId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WorkflowSnapshot")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("WorkflowId");
+
+                    b.ToTable("AgentApprovals", t =>
+                        {
+                            t.HasCheckConstraint("CK_AgentApprovals_Decision", "\"Decision\" IN ('APPROVE','REJECT','REVISE')");
+                        });
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AgentExecutionStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Agent")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DurationMs")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InputHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OutputSummary")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkflowId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkflowId");
+
+                    b.ToTable("AgentExecutionSteps");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AgentWorkflow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgentOutputs")
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("ApprovalStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FailureReason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("InitiatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsHighImpact")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Objective")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Plan")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Recommendation")
+                        .HasColumnType("text");
+
+                    b.Property<int>("RevisionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ToolCalls")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ValidationResult")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("InitiatedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("AgentWorkflows", t =>
+                        {
+                            t.HasCheckConstraint("CK_AgentWorkflows_Recommendation", "\"Recommendation\" IS NULL OR \"Recommendation\" IN ('REPAIR','REPLACE','TRANSFER','DISPOSE','RETAIN')");
+                        });
+                });
+
             modelBuilder.Entity("CoreGrid.Api.Domain.Asset", b =>
                 {
                     b.Property<Guid>("Id")
@@ -148,6 +311,9 @@ namespace CoreGrid.Api.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsRequired")
                         .HasColumnType("boolean");
 
@@ -250,6 +416,9 @@ namespace CoreGrid.Api.Migrations
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -422,6 +591,9 @@ namespace CoreGrid.Api.Migrations
 
                     b.Property<int?>("DefaultMaintenanceIntervalDays")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -668,6 +840,9 @@ namespace CoreGrid.Api.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<DateOnly?>("ValuationDate")
+                        .HasColumnType("date");
+
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -730,6 +905,111 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("Locations");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.MaintenanceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("ActualCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssigneeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateOnly?>("CompletionDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("EstimatedCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("ObservedCondition")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PhotoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ResultingCondition")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WorkPerformed")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("AssigneeId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Type");
+
+                    b.ToTable("MaintenanceRecords", t =>
+                        {
+                            t.HasCheckConstraint("CK_MaintenanceRecords_ObservedCondition", "\"ObservedCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
+
+                            t.HasCheckConstraint("CK_MaintenanceRecords_Priority", "\"Priority\" IN ('LOW','MEDIUM','HIGH','CRITICAL')");
+
+                            t.HasCheckConstraint("CK_MaintenanceRecords_ResultingCondition", "\"ResultingCondition\" IS NULL OR \"ResultingCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
+
+                            t.HasCheckConstraint("CK_MaintenanceRecords_Status", "\"Status\" IN ('REQUESTED','APPROVED','IN_PROGRESS','COMPLETED','CANCELLED')");
+
+                            t.HasCheckConstraint("CK_MaintenanceRecords_Type", "\"Type\" IN ('CORRECTIVE','PREVENTIVE')");
+                        });
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.Organization", b =>
@@ -994,6 +1274,63 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("VerificationTasks");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AgentApproval", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.User", "DecidedByUser")
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.AgentWorkflow", "Workflow")
+                        .WithMany("Approvals")
+                        .HasForeignKey("WorkflowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DecidedByUser");
+
+                    b.Navigation("Workflow");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AgentExecutionStep", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.AgentWorkflow", "Workflow")
+                        .WithMany("Steps")
+                        .HasForeignKey("WorkflowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Workflow");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.AgentWorkflow", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "InitiatedByUser")
+                        .WithMany()
+                        .HasForeignKey("InitiatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("InitiatedByUser");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.Asset", b =>
@@ -1321,6 +1658,32 @@ namespace CoreGrid.Api.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("CoreGrid.Api.Domain.MaintenanceRecord", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
+                        .WithMany("MaintenanceRecords")
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "Assignee")
+                        .WithMany()
+                        .HasForeignKey("AssigneeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Assignee");
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("CoreGrid.Api.Domain.OrganizationPolicy", b =>
                 {
                     b.HasOne("CoreGrid.Api.Domain.AssetType", "AssetType")
@@ -1452,11 +1815,20 @@ namespace CoreGrid.Api.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("CoreGrid.Api.Domain.AgentWorkflow", b =>
+                {
+                    b.Navigation("Approvals");
+
+                    b.Navigation("Steps");
+                });
+
             modelBuilder.Entity("CoreGrid.Api.Domain.Asset", b =>
                 {
                     b.Navigation("AssetAttributeValues");
 
                     b.Navigation("AssetHistoryEntries");
+
+                    b.Navigation("MaintenanceRecords");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.AssetAttributeDefinition", b =>

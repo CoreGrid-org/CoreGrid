@@ -46,6 +46,10 @@ Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named stude
 | 1.0 | 2026-08-08 | Hasitha Erandika | Complete functional, data, agentic-AI, non-functional, verification and traceability specification. Baselined for the seven-week implementation. | Baselined |
 | 1.1 | 2026-08-09 | Hasitha Erandika | React client design system mandated as IBM Carbon Design System (ADR-008); backend target environment corrected to .NET 10. | Draft |
 | 1.2 | 2026-08-10 | Hasitha Erandika | Generalised deployment and identity sections from government/ministry-specific language to a generic customer organisation, and documented the product's two-stage delivery plan: M0 (self-hosted, current baseline) and M1 (multi-tenant hosted SaaS, Section 17). Corrected an inaccurate claim that M1 would require per-tenant ThunderID organisations. | Draft |
+| 1.3 | 2026-08-17 | Hasitha Erandika | Relicensed from MIT to Apache License 2.0 (`LICENSE`, `NOTICE`) to support an open-core commercial model. Added Section 19, Business Plan: Community edition (self-hosted, open-source) sold to government/institutional buyers first; multi-tenant SaaS (M1) built only once Community-edition revenue funds it. Added Section 11.3, object-storage integration requirements (INT-09 to INT-14) and ADR-009, closing the previously unspecified `StorageKey` provider for photographic evidence — Cloudflare R2 for CoreGrid-operated editions, any S3-compatible endpoint for self-hosted Community-edition customers. | Draft |
+| 1.4 | 2026-08-17 | Hasitha Erandika | Added Section 19.4.1, What SaaS Adds: the multi-tenant SaaS edition differentiates by genuinely new, infrastructure-native capability drawn from Section 17 (cross-organisation analytics, additional agents, offline sync, managed operations), not by withholding any functional requirement from the Community edition — preserves the Section 19.2 rationale that self-hosting must remain feature-complete for the government/institutional buyer it targets. | Draft |
+| 1.5 | 2026-08-18 | Hasitha Erandika | Scope change: restricted the Flutter client's per-role reach to match Section 3.4's own stated design principle (React is the management/control interface, Flutter is the field operations interface). Auditor and Administrator are now web-console-only; Inventory Officer uses both clients; Staff remains mobile-only. Corrected FR-059 (dropped Auditor's Flutter scan-to-complete), FR-067 and FR-069 (Administrator's and Auditor's workflow-initiation/monitoring access is React only; Officer keeps both) and Section 3.4. No backend authorisation change — Appendix B's role-permission grants are unaffected, since they describe API authorisation, not client UI surface. | Draft |
+| 1.6 | 2026-08-18 | Hasitha Erandika | Added Section 3.4.1, Users by Role and Platform: a consolidated table and integration diagram (Figure 10) showing which platform each role uses and why, and how both clients share one ThunderID identity provider, claim contract and API. Documentation consolidation of the v1.5 scope change — no new requirement introduced. | Draft |
 
 ### Approval
 
@@ -88,6 +92,7 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 16. [Traceability](16-traceability.md)
 17. [Future Enhancements](17-future-enhancements.md)
 18. [Team Roster and Individual Work Allocation](18-team-roster-and-work-allocation.md)
+19. [Business Plan](19-business-plan.md)
 - [Appendix A — Status and Enumeration Reference](appendix-a-status-and-enumeration-reference.md)
 - [Appendix B — Route-Level Authorisation Map](appendix-b-route-level-authorisation-map.md)
 - [Appendix C — ThunderID Configuration Checklist](appendix-c-thunderid-configuration-checklist.md)

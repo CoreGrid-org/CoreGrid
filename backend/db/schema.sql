@@ -544,3 +544,152 @@ VALUES ('20260815032307_AddVerificationAndDiscrepancies', '10.0.10');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "AssetTypes" ADD "IsActive" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE "AssetCategories" ADD "IsActive" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE "AssetAttributeDefinitions" ADD "IsActive" boolean NOT NULL DEFAULT TRUE;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260817022114_AddIsActiveToAssetCategoryTypeAttribute', '10.0.10');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "MaintenanceRecords" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "AssetId" uuid NOT NULL,
+    "Description" text NOT NULL,
+    "ObservedCondition" character varying(15) NOT NULL,
+    "PhotoUrl" character varying(500),
+    "Type" character varying(20) NOT NULL,
+    "Priority" character varying(20) NOT NULL,
+    "Status" character varying(20) NOT NULL,
+    "EstimatedCost" numeric(18,2),
+    "ActualCost" numeric(18,2),
+    "WorkPerformed" text,
+    "CompletionDate" date,
+    "ResultingCondition" character varying(15),
+    "AssigneeId" uuid,
+    "CancellationReason" character varying(500),
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    "CreatedBy" uuid,
+    "UpdatedBy" uuid,
+    CONSTRAINT "PK_MaintenanceRecords" PRIMARY KEY ("Id"),
+    CONSTRAINT "CK_MaintenanceRecords_ObservedCondition" CHECK ("ObservedCondition" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')),
+    CONSTRAINT "CK_MaintenanceRecords_Priority" CHECK ("Priority" IN ('LOW','MEDIUM','HIGH','CRITICAL')),
+    CONSTRAINT "CK_MaintenanceRecords_ResultingCondition" CHECK ("ResultingCondition" IS NULL OR "ResultingCondition" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')),
+    CONSTRAINT "CK_MaintenanceRecords_Status" CHECK ("Status" IN ('REQUESTED','APPROVED','IN_PROGRESS','COMPLETED','CANCELLED')),
+    CONSTRAINT "CK_MaintenanceRecords_Type" CHECK ("Type" IN ('CORRECTIVE','PREVENTIVE')),
+    CONSTRAINT "FK_MaintenanceRecords_Assets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "Assets" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_MaintenanceRecords_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_MaintenanceRecords_Users_AssigneeId" FOREIGN KEY ("AssigneeId") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_MaintenanceRecords_AssetId" ON "MaintenanceRecords" ("AssetId");
+
+CREATE INDEX "IX_MaintenanceRecords_AssigneeId" ON "MaintenanceRecords" ("AssigneeId");
+
+CREATE INDEX "IX_MaintenanceRecords_OrganizationId" ON "MaintenanceRecords" ("OrganizationId");
+
+CREATE INDEX "IX_MaintenanceRecords_Priority" ON "MaintenanceRecords" ("Priority");
+
+CREATE INDEX "IX_MaintenanceRecords_Status" ON "MaintenanceRecords" ("Status");
+
+CREATE INDEX "IX_MaintenanceRecords_Type" ON "MaintenanceRecords" ("Type");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260817151743_AddMaintenanceRecord', '10.0.10');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE "DisposalRequests" ADD "ValuationDate" date;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260817202030_AddValuationDateToDisposalRequest', '10.0.10');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "AgentWorkflows" (
+    "Id" uuid NOT NULL,
+    "OrganizationId" uuid NOT NULL,
+    "AssetId" uuid NOT NULL,
+    "Objective" text NOT NULL,
+    "Status" integer NOT NULL,
+    "Plan" jsonb,
+    "AgentOutputs" jsonb,
+    "ToolCalls" jsonb,
+    "ValidationResult" jsonb,
+    "Recommendation" text,
+    "IsHighImpact" boolean NOT NULL,
+    "ApprovalStatus" integer NOT NULL,
+    "RevisionCount" integer NOT NULL,
+    "FailureReason" text,
+    "CorrelationId" text NOT NULL,
+    "InitiatedByUserId" uuid NOT NULL,
+    "StartedAt" timestamp with time zone,
+    "CompletedAt" timestamp with time zone,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_AgentWorkflows" PRIMARY KEY ("Id"),
+    CONSTRAINT "CK_AgentWorkflows_Recommendation" CHECK ("Recommendation" IS NULL OR "Recommendation" IN ('REPAIR','REPLACE','TRANSFER','DISPOSE','RETAIN')),
+    CONSTRAINT "FK_AgentWorkflows_Assets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "Assets" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AgentWorkflows_Organizations_OrganizationId" FOREIGN KEY ("OrganizationId") REFERENCES "Organizations" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AgentWorkflows_Users_InitiatedByUserId" FOREIGN KEY ("InitiatedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE "AgentApprovals" (
+    "Id" uuid NOT NULL,
+    "WorkflowId" uuid NOT NULL,
+    "Decision" text NOT NULL,
+    "DecidedByUserId" uuid NOT NULL,
+    "Reason" text NOT NULL,
+    "WorkflowSnapshot" jsonb,
+    "DecidedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_AgentApprovals" PRIMARY KEY ("Id"),
+    CONSTRAINT "CK_AgentApprovals_Decision" CHECK ("Decision" IN ('APPROVE','REJECT','REVISE')),
+    CONSTRAINT "FK_AgentApprovals_AgentWorkflows_WorkflowId" FOREIGN KEY ("WorkflowId") REFERENCES "AgentWorkflows" ("Id") ON DELETE CASCADE,
+    CONSTRAINT "FK_AgentApprovals_Users_DecidedByUserId" FOREIGN KEY ("DecidedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE "AgentExecutionSteps" (
+    "Id" uuid NOT NULL,
+    "WorkflowId" uuid NOT NULL,
+    "Agent" text NOT NULL,
+    "Sequence" integer NOT NULL,
+    "InputHash" text,
+    "OutputSummary" text,
+    "DurationMs" integer,
+    "Status" text NOT NULL,
+    "Error" text,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_AgentExecutionSteps" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_AgentExecutionSteps_AgentWorkflows_WorkflowId" FOREIGN KEY ("WorkflowId") REFERENCES "AgentWorkflows" ("Id") ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_AgentApprovals_DecidedByUserId" ON "AgentApprovals" ("DecidedByUserId");
+
+CREATE INDEX "IX_AgentApprovals_WorkflowId" ON "AgentApprovals" ("WorkflowId");
+
+CREATE INDEX "IX_AgentExecutionSteps_WorkflowId" ON "AgentExecutionSteps" ("WorkflowId");
+
+CREATE INDEX "IX_AgentWorkflows_AssetId" ON "AgentWorkflows" ("AssetId");
+
+CREATE INDEX "IX_AgentWorkflows_CorrelationId" ON "AgentWorkflows" ("CorrelationId");
+
+CREATE INDEX "IX_AgentWorkflows_InitiatedByUserId" ON "AgentWorkflows" ("InitiatedByUserId");
+
+CREATE INDEX "IX_AgentWorkflows_OrganizationId" ON "AgentWorkflows" ("OrganizationId");
+
+CREATE INDEX "IX_AgentWorkflows_Status" ON "AgentWorkflows" ("Status");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260821105606_AddAgentWorkflows', '10.0.10');
+
+COMMIT;
+

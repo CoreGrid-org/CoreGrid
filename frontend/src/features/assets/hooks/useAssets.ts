@@ -2,25 +2,38 @@ import { useCallback, useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
 import { useStubMutation } from "@/shared/hooks/useStubMutation";
 import {
+  activateAssetAttributeDefinition,
+  activateAssetCategory,
+  activateAssetType,
   createAsset,
   createAssetAttributeDefinition,
   createAssetCategory,
   createAssetType,
+  deleteAssetAttributeDefinition,
+  deleteAssetCategory,
+  deleteAssetType,
   getAsset,
   getAssetByQrCode,
+  getAssetHistory,
   getAssetTypeAttributes,
+  getOrganizationCode,
   listAssetCategories,
   listAssetTypes,
   listAssets,
   listDepartments,
   listLocations,
+  updateAsset,
+  updateAssetAttributeDefinition,
+  updateAssetCategory,
   updateAssetCondition,
+  updateAssetType,
 } from "../api/assets";
 import type {
   Asset,
   AssetAttributeDefinition,
   AssetCategory,
   AssetDetail,
+  AssetHistoryEntry,
   AssetQueryParameters,
   AssetType,
   CreateAssetAttributeDefinitionRequest,
@@ -29,8 +42,13 @@ import type {
   CreateAssetTypeRequest,
   Department,
   Location,
+  OrganizationCode,
   PagedResult,
+  UpdateAssetAttributeDefinitionRequest,
+  UpdateAssetCategoryRequest,
   UpdateAssetConditionRequest,
+  UpdateAssetRequest,
+  UpdateAssetTypeRequest,
 } from "../types/asset";
 
 export function useAssetsList(params: AssetQueryParameters) {
@@ -115,12 +133,74 @@ export function useAssetDetail(id: string | undefined) {
   return { data, error, isError: error !== undefined, isLoading, refetch };
 }
 
+export function useAssetHistory(assetId: string | undefined, page: number, pageSize: number) {
+  const { getAccessToken } = useThunderID();
+  const [data, setData] = useState<PagedResult<AssetHistoryEntry>>();
+  const [error, setError] = useState<unknown>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!assetId) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setError(undefined);
+
+    getAccessToken()
+      .then((token) => getAssetHistory(assetId, { page, pageSize }, token))
+      .then((result) => {
+        if (!cancelled) {
+          setData(result);
+          setIsLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assetId, page, pageSize, attempt, getAccessToken]);
+
+  const refetch = useCallback(() => setAttempt((n) => n + 1), []);
+
+  return { data, error, isError: error !== undefined, isLoading, refetch };
+}
+
 export function useAssetByQrCode() {
   const { getAccessToken } = useThunderID();
   return useStubMutation<string, AssetDetail>(async (code) => {
     const accessToken = await getAccessToken();
     return getAssetByQrCode(code, accessToken);
   });
+}
+
+// The organisation's short code (e.g. "MOTAHSL") — same prefix asset codes
+// use, shown for real in the asset registration form's code preview.
+export function useOrganizationCode() {
+  const { getAccessToken } = useThunderID();
+  const [data, setData] = useState<OrganizationCode>();
+
+  useEffect(() => {
+    let cancelled = false;
+    getAccessToken()
+      .then(getOrganizationCode)
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch(() => {
+        // Best-effort — the preview falls back to a placeholder.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken]);
+
+  return { data };
 }
 
 export function useAssetCategories() {
@@ -319,11 +399,67 @@ export function useCreateAssetCategory() {
   });
 }
 
+export function useUpdateAssetCategory() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string; payload: UpdateAssetCategoryRequest }, AssetCategory>(
+    async ({ id, payload }) => {
+      const accessToken = await getAccessToken();
+      return updateAssetCategory(id, payload, accessToken);
+    },
+  );
+}
+
+// Result is undefined when the category was hard-deleted (gone); otherwise
+// it's the now-deactivated category (still referenced by an AssetType).
+export function useDeleteAssetCategory() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetCategory | undefined>(async (id) => {
+    const accessToken = await getAccessToken();
+    return deleteAssetCategory(id, accessToken);
+  });
+}
+
+export function useActivateAssetCategory() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetCategory>(async (id) => {
+    const accessToken = await getAccessToken();
+    return activateAssetCategory(id, accessToken);
+  });
+}
+
 export function useCreateAssetType() {
   const { getAccessToken } = useThunderID();
   return useStubMutation<CreateAssetTypeRequest, AssetType>(async (payload) => {
     const accessToken = await getAccessToken();
     return createAssetType(payload, accessToken);
+  });
+}
+
+export function useUpdateAssetType() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string; payload: UpdateAssetTypeRequest }, AssetType>(
+    async ({ id, payload }) => {
+      const accessToken = await getAccessToken();
+      return updateAssetType(id, payload, accessToken);
+    },
+  );
+}
+
+// Result is undefined when the type was hard-deleted (gone); otherwise it's
+// the now-deactivated type (still referenced by an Asset).
+export function useDeleteAssetType() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetType | undefined>(async (id) => {
+    const accessToken = await getAccessToken();
+    return deleteAssetType(id, accessToken);
+  });
+}
+
+export function useActivateAssetType() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, AssetType>(async (id) => {
+    const accessToken = await getAccessToken();
+    return activateAssetType(id, accessToken);
   });
 }
 
@@ -336,6 +472,51 @@ export function useCreateAssetAttributeDefinition() {
     const accessToken = await getAccessToken();
     return createAssetAttributeDefinition(assetTypeId, payload, accessToken);
   });
+}
+
+export function useUpdateAssetAttributeDefinition() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<
+    { assetTypeId: string; attributeId: string; payload: UpdateAssetAttributeDefinitionRequest },
+    AssetAttributeDefinition
+  >(async ({ assetTypeId, attributeId, payload }) => {
+    const accessToken = await getAccessToken();
+    return updateAssetAttributeDefinition(assetTypeId, attributeId, payload, accessToken);
+  });
+}
+
+// Result is undefined when the attribute was hard-deleted (gone); otherwise
+// it's the now-deactivated definition (existing Assets still have values for it).
+export function useDeleteAssetAttributeDefinition() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<
+    { assetTypeId: string; attributeId: string },
+    AssetAttributeDefinition | undefined
+  >(async ({ assetTypeId, attributeId }) => {
+    const accessToken = await getAccessToken();
+    return deleteAssetAttributeDefinition(assetTypeId, attributeId, accessToken);
+  });
+}
+
+export function useActivateAssetAttributeDefinition() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<
+    { assetTypeId: string; attributeId: string },
+    AssetAttributeDefinition
+  >(async ({ assetTypeId, attributeId }) => {
+    const accessToken = await getAccessToken();
+    return activateAssetAttributeDefinition(assetTypeId, attributeId, accessToken);
+  });
+}
+
+export function useUpdateAsset() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string; payload: UpdateAssetRequest }, AssetDetail>(
+    async ({ id, payload }) => {
+      const accessToken = await getAccessToken();
+      return updateAsset(id, payload, accessToken);
+    },
+  );
 }
 
 export function useUpdateAssetCondition() {

@@ -22,6 +22,10 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
     public DbSet<VerificationCampaign> VerificationCampaigns => Set<VerificationCampaign>();
     public DbSet<VerificationTask> VerificationTasks => Set<VerificationTask>();
     public DbSet<Discrepancy> Discrepancies => Set<Discrepancy>();
+    public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
+    public DbSet<AgentWorkflow> AgentWorkflows => Set<AgentWorkflow>();
+    public DbSet<AgentExecutionStep> AgentExecutionSteps => Set<AgentExecutionStep>();
+    public DbSet<AgentApproval> AgentApprovals => Set<AgentApproval>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -490,6 +494,134 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
                 .WithMany()
                 .HasForeignKey(d => d.ResolvedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MaintenanceRecord>(entity =>
+        {
+            entity.HasIndex(m => m.OrganizationId);
+            entity.HasIndex(m => m.AssetId);
+            entity.HasIndex(m => m.Status);
+            entity.HasIndex(m => m.Priority);
+            entity.HasIndex(m => m.Type);
+            entity.HasIndex(m => m.AssigneeId);
+
+            entity.Property(m => m.Description).IsRequired();
+            entity.Property(m => m.ObservedCondition).HasMaxLength(15).IsRequired();
+            entity.Property(m => m.ResultingCondition).HasMaxLength(15);
+            entity.Property(m => m.PhotoUrl).HasMaxLength(500);
+            entity.Property(m => m.CancellationReason).HasMaxLength(500);
+
+            entity.Property(m => m.EstimatedCost).HasPrecision(18, 2);
+            entity.Property(m => m.ActualCost).HasPrecision(18, 2);
+
+            entity.Property(m => m.Type)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.Property(m => m.Priority)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.Property(m => m.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            entity.HasOne(m => m.Organization)
+                .WithMany()
+                .HasForeignKey(m => m.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.Asset)
+                .WithMany(a => a.MaintenanceRecords)
+                .HasForeignKey(m => m.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.Assignee)
+                .WithMany()
+                .HasForeignKey(m => m.AssigneeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable(tb =>
+            {
+                tb.HasCheckConstraint("CK_MaintenanceRecords_Status", "\"Status\" IN ('REQUESTED','APPROVED','IN_PROGRESS','COMPLETED','CANCELLED')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_Priority", "\"Priority\" IN ('LOW','MEDIUM','HIGH','CRITICAL')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_Type", "\"Type\" IN ('CORRECTIVE','PREVENTIVE')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_ObservedCondition", "\"ObservedCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
+                tb.HasCheckConstraint("CK_MaintenanceRecords_ResultingCondition", "\"ResultingCondition\" IS NULL OR \"ResultingCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
+            });
+        });
+
+        modelBuilder.Entity<AgentWorkflow>(entity =>
+        {
+            entity.HasIndex(w => w.OrganizationId);
+            entity.HasIndex(w => w.AssetId);
+            entity.HasIndex(w => w.Status);
+            entity.HasIndex(w => w.CorrelationId);
+
+            entity.Property(w => w.Objective).IsRequired();
+            entity.Property(w => w.CorrelationId).IsRequired();
+            entity.Property(w => w.Plan).HasColumnType("jsonb");
+            entity.Property(w => w.AgentOutputs).HasColumnType("jsonb");
+            entity.Property(w => w.ToolCalls).HasColumnType("jsonb");
+            entity.Property(w => w.ValidationResult).HasColumnType("jsonb");
+
+            entity.HasOne(w => w.Organization)
+                .WithMany()
+                .HasForeignKey(w => w.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(w => w.Asset)
+                .WithMany()
+                .HasForeignKey(w => w.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(w => w.InitiatedByUser)
+                .WithMany()
+                .HasForeignKey(w => w.InitiatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable(tb =>
+            {
+                tb.HasCheckConstraint("CK_AgentWorkflows_Recommendation",
+                    "\"Recommendation\" IS NULL OR \"Recommendation\" IN ('REPAIR','REPLACE','TRANSFER','DISPOSE','RETAIN')");
+            });
+        });
+
+        modelBuilder.Entity<AgentExecutionStep>(entity =>
+        {
+            entity.HasIndex(s => s.WorkflowId);
+
+            entity.Property(s => s.Agent).IsRequired();
+            entity.Property(s => s.Status).IsRequired();
+
+            entity.HasOne(s => s.Workflow)
+                .WithMany(w => w.Steps)
+                .HasForeignKey(s => s.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AgentApproval>(entity =>
+        {
+            entity.HasIndex(a => a.WorkflowId);
+
+            entity.Property(a => a.Decision).IsRequired();
+            entity.Property(a => a.Reason).IsRequired();
+            entity.Property(a => a.WorkflowSnapshot).HasColumnType("jsonb");
+
+            entity.HasOne(a => a.Workflow)
+                .WithMany(w => w.Approvals)
+                .HasForeignKey(a => a.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.DecidedByUser)
+                .WithMany()
+                .HasForeignKey(a => a.DecidedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable(tb =>
+            {
+                tb.HasCheckConstraint("CK_AgentApprovals_Decision", "\"Decision\" IN ('APPROVE','REJECT','REVISE')");
+            });
         });
     }
 }

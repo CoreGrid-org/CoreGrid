@@ -17,6 +17,7 @@ public class AssetType
     public required string Name { get; set; }
     public int UsefulLifeYears { get; set; }
     public int? DefaultMaintenanceIntervalDays { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

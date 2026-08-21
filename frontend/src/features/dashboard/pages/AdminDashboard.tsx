@@ -2,16 +2,17 @@ import { useThunderID } from "@thunderid/react";
 import { Tag, InlineNotification } from "@carbon/react";
 import { Asset, ToolBox, ArrowsHorizontal, Search, Bot, UserMultiple, Report, Settings } from "@carbon/icons-react";
 import { getRoleLabel } from "@/features/auth/lib/roles";
+import { formatStatusLabel } from "@/shared/lib/statusTag";
 import BarChart from "../components/BarChart";
 import LineChart from "../components/LineChart";
 import FeatureCard from "../components/FeatureCard";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
+import { useDashboardCharts } from "../hooks/useDashboardCharts";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import {
-  MOCK_ASSETS_BY_DEPARTMENT,
-  MOCK_ASSETS_BY_CONDITION,
-  MOCK_MAINTENANCE_COST_BY_MONTH,
-} from "../data/mockOverview";
+
+// FR-082 — "assets by condition" is always New→Unserviceable, positionally
+// zero-filled by the backend, so this ramp lines up with the response order.
+const CONDITION_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"];
 
 const FEATURE_CARDS = [
   { to: "/admin/assets", icon: Asset, title: "Asset Registry", description: "Register, search and track assets by QR code." },
@@ -24,11 +25,20 @@ const FEATURE_CARDS = [
   { to: "/admin/settings", icon: Settings, title: "Organisation Settings", description: "Departments, locations, asset types and policy." },
 ];
 
-const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+const formatCurrency = (value: number) => `LKR ${value.toLocaleString()}`;
 
 export default function AdminDashboard() {
   const { user } = useThunderID();
   const summary = useDashboardSummary();
+  const charts = useDashboardCharts();
+
+  const assetsByDepartment = charts.data?.assets_by_department.map((d) => ({ label: d.label, value: d.value })) ?? [];
+  const assetsByCondition = charts.data?.assets_by_condition.map((d, i) => ({
+    label: formatStatusLabel(d.label),
+    value: d.value,
+    color: CONDITION_COLORS[i],
+  })) ?? [];
+  const maintenanceCostByMonth = charts.data?.maintenance_cost_by_month.map((d) => ({ label: d.label, value: d.value })) ?? [];
 
   const statTiles = summary.data
     ? [
@@ -81,13 +91,24 @@ export default function AdminDashboard() {
             ))}
       </div>
 
+      {charts.isError && (
+        <InlineNotification
+          kind="error"
+          title="Could not load dashboard charts"
+          subtitle={getErrorMessage(charts.error, "Something went wrong. Please try again.")}
+          lowContrast
+          hideCloseButton
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        />
+      )}
+
       <div className="cg-chart-grid">
         <div className="cg-section">
           <div className="cg-section__header">
             <p className="cg-section__title">Assets by department</p>
           </div>
           <div className="cg-section__body">
-            <BarChart data={MOCK_ASSETS_BY_DEPARTMENT} />
+            {charts.isLoading ? <p className="cg-table__muted">Loading…</p> : <BarChart data={assetsByDepartment} />}
           </div>
         </div>
 
@@ -96,7 +117,7 @@ export default function AdminDashboard() {
             <p className="cg-section__title">Assets by condition</p>
           </div>
           <div className="cg-section__body">
-            <BarChart data={MOCK_ASSETS_BY_CONDITION} />
+            {charts.isLoading ? <p className="cg-table__muted">Loading…</p> : <BarChart data={assetsByCondition} />}
           </div>
         </div>
       </div>
@@ -106,7 +127,11 @@ export default function AdminDashboard() {
           <p className="cg-section__title">Maintenance cost by month</p>
         </div>
         <div className="cg-section__body">
-          <LineChart data={MOCK_MAINTENANCE_COST_BY_MONTH} valueFormatter={formatCurrency} />
+          {charts.isLoading ? (
+            <p className="cg-table__muted">Loading…</p>
+          ) : (
+            <LineChart data={maintenanceCostByMonth} valueFormatter={formatCurrency} />
+          )}
         </div>
       </div>
 

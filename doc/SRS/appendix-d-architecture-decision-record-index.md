@@ -12,3 +12,4 @@ Each decision is documented on a single page recording context, options consider
 | ADR-006 | Attribute-value tables for custom asset attributes; JSONB for agent workflow state. | JSONB for both; typed columns per domain; a document database alongside PostgreSQL. |
 | ADR-007 | Deployment platform and container strategy for the five components. | Alternative no-cost hosting platforms; a single combined deployment; local-only execution. |
 | ADR-008 | IBM Carbon Design System as the React client's component library and visual language. | A custom component library; Material UI; Tailwind CSS with hand-built components; Ant Design. |
+| ADR-009 | Cloudflare R2 (S3-compatible) as the default photographic-evidence object store for CoreGrid-operated editions, behind an `IBlobStorageService` abstraction (Section 11.3). | AWS S3; Azure Blob Storage; storing the object in PostgreSQL as a `bytea` column; mandating a single fixed provider with no self-hosted alternative. |

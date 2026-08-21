@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
@@ -47,21 +49,50 @@ public class AssetService : IAssetService
             .Where(a => a.OrganizationId == organizationId);
 
         // -------------------------
-        // Search
+        // Search (universal — asset code/name, category, type, and
+        // dynamic attribute values all match a single search term)
         // -------------------------
 
         if (!string.IsNullOrWhiteSpace(parameters.Search))
         {
             var search = parameters.Search.Trim();
+            var pattern = $"%{search}%";
+
+            var searchAsNumber = decimal.TryParse(search, out var parsedNumber)
+                ? parsedNumber
+                : (decimal?)null;
+
+            var searchAsDate = DateOnly.TryParse(search, out var parsedDate)
+                ? parsedDate
+                : (DateOnly?)null;
 
             query = query.Where(a =>
-                EF.Functions.ILike(a.AssetCode, $"%{search}%") ||
-                EF.Functions.ILike(a.Name, $"%{search}%"));
+                EF.Functions.ILike(a.AssetCode, pattern) ||
+                EF.Functions.ILike(a.Name, pattern) ||
+                (a.AssetType != null && EF.Functions.ILike(a.AssetType.Name, pattern)) ||
+                (a.AssetType != null && EF.Functions.ILike(a.AssetType.Code, pattern)) ||
+                (a.AssetType != null && a.AssetType.AssetCategory != null &&
+                    EF.Functions.ILike(a.AssetType.AssetCategory.Name, pattern)) ||
+                (a.AssetType != null && a.AssetType.AssetCategory != null &&
+                    EF.Functions.ILike(a.AssetType.AssetCategory.Code, pattern)) ||
+                a.AssetAttributeValues.Any(v =>
+                    (v.ValueText != null && EF.Functions.ILike(v.ValueText, pattern)) ||
+                    (searchAsNumber.HasValue && v.ValueNumber == searchAsNumber.Value) ||
+                    (searchAsDate.HasValue && v.ValueDate == searchAsDate.Value) ||
+                    (v.AssetAttributeDefinition != null &&
+                        EF.Functions.ILike(v.AssetAttributeDefinition.Name, pattern))));
         }
 
         // -------------------------
         // Filters
         // -------------------------
+
+        if (parameters.CategoryId.HasValue)
+        {
+            query = query.Where(a =>
+                a.AssetType != null &&
+                a.AssetType.AssetCategoryId == parameters.CategoryId.Value);
+        }
 
         if (parameters.AssetTypeId.HasValue)
         {
@@ -313,6 +344,7 @@ public class AssetService : IAssetService
 
         var assetType = await _context.AssetTypes
             .AsNoTracking()
+            .Include(at => at.AssetCategory)
             .FirstOrDefaultAsync(at =>
                 at.Id == request.AssetTypeId &&
                 at.OrganizationId == organizationId);
@@ -402,8 +434,11 @@ public class AssetService : IAssetService
 
         var nextSequence = existingCount + 1;
 
+        var categoryCode = assetType.AssetCategory?.Code ?? "GEN";
+
         var assetCode = AssetCodeGenerator.Generate(
             organizationCode,
+            categoryCode,
             assetType.Code,
             nextSequence);
 
@@ -416,6 +451,7 @@ public class AssetService : IAssetService
 
             assetCode = AssetCodeGenerator.Generate(
                 organizationCode,
+                categoryCode,
                 assetType.Code,
                 nextSequence);
         }
@@ -473,6 +509,19 @@ public class AssetService : IAssetService
         }
 
         _context.Assets.Add(asset);
+
+        _context.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = asset.Id,
+            ActorUserId = userId,
+            EventType = AssetHistoryEventTypes.StatusChange,
+            Description = "Asset registered.",
+            PreviousValue = null,
+            NewValue = JsonSerializer.Serialize(new { status = asset.Status }),
+            CreatedAt = now
+        });
 
         await _context.SaveChangesAsync();
 
@@ -596,6 +645,22 @@ public class AssetService : IAssetService
         var now = DateTimeOffset.UtcNow;
 
         // -------------------------
+        // Snapshot "before" state for AssetHistory (FR-026)
+        // -------------------------
+
+        var previousFields = new AssetFieldSnapshot(
+            asset.AssetTypeId,
+            asset.DepartmentId,
+            asset.LocationId,
+            asset.Name,
+            asset.AcquisitionDate,
+            asset.AcquisitionCost,
+            asset.ResidualValue);
+
+        var previousAttributes = BuildAttributeSnapshot(
+            asset.AssetAttributeValues);
+
+        // -------------------------
         // Update basic information
         // -------------------------
 
@@ -619,14 +684,56 @@ public class AssetService : IAssetService
         _context.AssetAttributeValues.RemoveRange(
             asset.AssetAttributeValues);
 
+        var newAttributeValues = new List<AssetAttributeValue>();
+
         foreach (var requestValue in request.Attributes)
         {
-            _context.AssetAttributeValues.Add(
-                CreateAttributeValue(
-                    asset.Id,
-                    requestValue,
-                    now,
-                    userId));
+            var attributeValue = CreateAttributeValue(
+                asset.Id,
+                requestValue,
+                now,
+                userId);
+
+            newAttributeValues.Add(attributeValue);
+
+            _context.AssetAttributeValues.Add(attributeValue);
+        }
+
+        // -------------------------
+        // Record what changed in AssetHistory (FR-026)
+        // -------------------------
+
+        var newFields = new AssetFieldSnapshot(
+            asset.AssetTypeId,
+            asset.DepartmentId,
+            asset.LocationId,
+            asset.Name,
+            asset.AcquisitionDate,
+            asset.AcquisitionCost,
+            asset.ResidualValue);
+
+        var newAttributes = BuildAttributeSnapshot(newAttributeValues);
+
+        var amendment = DiffAssetFields(
+            previousFields,
+            newFields,
+            previousAttributes,
+            newAttributes);
+
+        if (amendment is not null)
+        {
+            _context.AssetHistoryEntries.Add(new AssetHistory
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                AssetId = asset.Id,
+                ActorUserId = userId,
+                EventType = AssetHistoryEventTypes.FieldAmendment,
+                Description = amendment.Value.Description,
+                PreviousValue = JsonSerializer.Serialize(amendment.Value.Previous),
+                NewValue = JsonSerializer.Serialize(amendment.Value.New),
+                CreatedAt = now
+            });
         }
 
         await _context.SaveChangesAsync();
@@ -659,9 +766,28 @@ public class AssetService : IAssetService
         var condition = NormalizeCondition(
             request.Condition);
 
+        var previousCondition = asset.Condition;
+        var now = DateTimeOffset.UtcNow;
+
         asset.Condition = condition;
-        asset.UpdatedAt = DateTimeOffset.UtcNow;
+        asset.UpdatedAt = now;
         asset.UpdatedBy = userId;
+
+        if (!string.Equals(previousCondition, condition, StringComparison.Ordinal))
+        {
+            _context.AssetHistoryEntries.Add(new AssetHistory
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                AssetId = asset.Id,
+                ActorUserId = userId,
+                EventType = AssetHistoryEventTypes.FieldAmendment,
+                Description = $"Condition changed from {previousCondition} to {condition}.",
+                PreviousValue = JsonSerializer.Serialize(new { condition = previousCondition }),
+                NewValue = JsonSerializer.Serialize(new { condition }),
+                CreatedAt = now
+            });
+        }
 
         await _context.SaveChangesAsync();
 
@@ -703,8 +829,210 @@ public class AssetService : IAssetService
     }
 
     // =========================================================
+    // ORGANIZATION CODE
+    // =========================================================
+
+    public async Task<string> GetOrganizationCodeAsync(Guid organizationId)
+    {
+        var organization = await _context.Organizations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == organizationId);
+
+        return OrganizationCodeGenerator.Generate(organization?.Name ?? "ORG");
+    }
+
+    // =========================================================
+    // 7. GET ASSET HISTORY
+    // =========================================================
+
+    public async Task<PagedResult<AssetHistoryDto>?> GetAssetHistoryAsync(
+        Guid organizationId,
+        Guid assetId,
+        AssetHistoryQueryParameters parameters)
+    {
+        var assetExists = await _context.Assets
+            .AsNoTracking()
+            .AnyAsync(a =>
+                a.Id == assetId &&
+                a.OrganizationId == organizationId);
+
+        if (!assetExists)
+        {
+            return null;
+        }
+
+        var page = parameters.Page < 1
+            ? 1
+            : parameters.Page;
+
+        var pageSize = parameters.PageSize is < 1 or > 100
+            ? 20
+            : parameters.PageSize;
+
+        var query = _context.AssetHistoryEntries
+            .AsNoTracking()
+            .Where(h =>
+                h.AssetId == assetId &&
+                h.OrganizationId == organizationId);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(h => h.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(h => new AssetHistoryDto
+            {
+                Id = h.Id,
+                AssetId = h.AssetId,
+
+                ActorUserId = h.ActorUserId,
+                ActorEmail = h.ActorUser != null
+                    ? h.ActorUser.Email
+                    : null,
+
+                EventType = h.EventType,
+                Description = h.Description,
+
+                PreviousValue = h.PreviousValue,
+                NewValue = h.NewValue,
+
+                CreatedAt = h.CreatedAt
+            })
+            .ToListAsync();
+
+        var totalPages = totalCount == 0
+            ? 0
+            : (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        return new PagedResult<AssetHistoryDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages
+        };
+    }
+
+    // =========================================================
     // PRIVATE HELPERS
     // =========================================================
+
+    // "Before"/"after" snapshot of the amendable core fields on Asset,
+    // used to diff UpdateAssetAsync changes into an AssetHistory entry.
+    private readonly record struct AssetFieldSnapshot(
+        Guid AssetTypeId,
+        Guid DepartmentId,
+        Guid LocationId,
+        string Name,
+        DateOnly AcquisitionDate,
+        decimal AcquisitionCost,
+        decimal ResidualValue);
+
+    private readonly record struct AssetAmendment(
+        string Description,
+        Dictionary<string, object?> Previous,
+        Dictionary<string, object?> New);
+
+    private static Dictionary<Guid, string?> BuildAttributeSnapshot(
+        IEnumerable<AssetAttributeValue> values)
+    {
+        return values.ToDictionary(
+            v => v.AssetAttributeDefinitionId,
+            AttributeValueToString);
+    }
+
+    private static string? AttributeValueToString(AssetAttributeValue value)
+    {
+        if (value.ValueText is not null)
+        {
+            return value.ValueText;
+        }
+
+        if (value.ValueNumber.HasValue)
+        {
+            return value.ValueNumber.Value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        if (value.ValueDate.HasValue)
+        {
+            return value.ValueDate.Value.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        if (value.ValueBoolean.HasValue)
+        {
+            return value.ValueBoolean.Value.ToString();
+        }
+
+        return null;
+    }
+
+    private static AssetAmendment? DiffAssetFields(
+        AssetFieldSnapshot previous,
+        AssetFieldSnapshot next,
+        Dictionary<Guid, string?> previousAttributes,
+        Dictionary<Guid, string?> newAttributes)
+    {
+        var previousChanges = new Dictionary<string, object?>();
+        var newChanges = new Dictionary<string, object?>();
+        var changedLabels = new List<string>();
+
+        void TrackChange<T>(string label, T previousValue, T newValue)
+        {
+            if (EqualityComparer<T>.Default.Equals(previousValue, newValue))
+            {
+                return;
+            }
+
+            changedLabels.Add(label);
+            previousChanges[label] = previousValue;
+            newChanges[label] = newValue;
+        }
+
+        TrackChange("assetTypeId", previous.AssetTypeId, next.AssetTypeId);
+        TrackChange("departmentId", previous.DepartmentId, next.DepartmentId);
+        TrackChange("locationId", previous.LocationId, next.LocationId);
+        TrackChange("name", previous.Name, next.Name);
+        TrackChange("acquisitionDate", previous.AcquisitionDate, next.AcquisitionDate);
+        TrackChange("acquisitionCost", previous.AcquisitionCost, next.AcquisitionCost);
+        TrackChange("residualValue", previous.ResidualValue, next.ResidualValue);
+
+        var changedAttributeCount = 0;
+
+        foreach (var definitionId in previousAttributes.Keys.Union(newAttributes.Keys))
+        {
+            previousAttributes.TryGetValue(definitionId, out var previousValue);
+            newAttributes.TryGetValue(definitionId, out var newValue);
+
+            if (string.Equals(previousValue, newValue, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            changedAttributeCount++;
+            previousChanges[$"attribute:{definitionId}"] = previousValue;
+            newChanges[$"attribute:{definitionId}"] = newValue;
+        }
+
+        if (changedAttributeCount > 0)
+        {
+            changedLabels.Add(
+                changedAttributeCount == 1
+                    ? "1 attribute"
+                    : $"{changedAttributeCount} attributes");
+        }
+
+        if (changedLabels.Count == 0)
+        {
+            return null;
+        }
+
+        return new AssetAmendment(
+            $"Updated: {string.Join(", ", changedLabels)}.",
+            previousChanges,
+            newChanges);
+    }
 
     private static string NormalizeCondition(
         string condition)

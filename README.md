@@ -16,8 +16,8 @@ CoreGrid registers, identifies, maintains, transfers and disposes of an organisa
 |---|---|
 | `frontend/` | Marketing/landing site (React + Vite) - see [`frontend/README.md`](frontend/README.md) |
 | `doc/SRS/` | Baselined Software Requirements Specification |
-| `LICENSE` | MIT License |
+| `LICENSE` | Apache License 2.0 |
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+Apache License 2.0 - see [LICENSE](LICENSE) and [NOTICE](NOTICE).

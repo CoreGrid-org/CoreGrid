@@ -9,12 +9,18 @@ using Microsoft.IdentityModel.Tokens;
 using CoreGrid.Api.Features.Assets.Services;
 using CoreGrid.Api.Features.OrgConfig.Services;
 using CoreGrid.Api.Features.Verification.Services;
+using CoreGrid.Api.Features.Maintenance.Services;
 using Microsoft.OpenApi;
 
 
 
 
 AppContext.SetSwitch("System.Net.Security.UseNetworkFramework", true);
+
+// FR-084/FR-085 (campaign report PDF export) — Community licence, free for
+// this project's size; must be set once before any Document.GeneratePdf().
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
@@ -61,6 +67,16 @@ builder.Services.AddScoped<IOrganizationPolicyService, OrganizationPolicyService
 builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignService>();
 builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
 builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
+builder.Services.AddScoped<ICampaignReportService, CampaignReportService>();
+builder.Services.AddScoped<IAuditReportService, AuditReportService>();
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalPreconditionService, CoreGrid.Api.Features.Disposals.DisposalPreconditionService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalService, CoreGrid.Api.Features.Disposals.DisposalService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferService, CoreGrid.Api.Features.Transfers.Services.TransferService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IAgentToolsService, CoreGrid.Api.Features.AgentTools.Services.AgentToolsService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyRuleEngine, CoreGrid.Api.Features.Agents.Services.PolicyRuleEngine>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAgentWorkflowService, CoreGrid.Api.Features.Agents.Services.AgentWorkflowService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>
@@ -87,8 +103,11 @@ builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((
 // This mirrors OpenSchool's confirmed-working ThunderID integration, whose
 // backend never registers a separate protected-resource audience either;
 // see doc/setup/ThunderID.md's note on ThunderID__Audience for the same
-// finding. The `roles` claim (a JSON array) is what CoreGridRole-based
-// [Authorize(Roles = ...)] policies read, via RoleClaimType below.
+// finding. The `roles` claim is what CoreGridRole-based
+// [Authorize(Roles = ...)] policies read, via RoleClaimType below — but its
+// value at this point is only ThunderID's, so RoleEnrichmentMiddleware
+// (registered below, after UseAuthentication) overwrites it from CoreGrid's
+// own Users.Role before UseAuthorization ever evaluates a policy.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -121,7 +140,11 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy => policy
         .WithOrigins(allowedOrigins)
         .AllowAnyHeader()
-        .AllowAnyMethod());
+        .AllowAnyMethod()
+        // FR-084/FR-085: report export filenames are set via
+        // Content-Disposition, which isn't CORS-safelisted by default — the
+        // frontend needs this to read the server-chosen filename.
+        .WithExposedHeaders("Content-Disposition"));
 });
 
 var app = builder.Build();
@@ -137,8 +160,19 @@ app.UseHttpsRedirection();
 app.UseCors("Frontend");
 
 app.UseAuthentication();
+
+// Branch pipeline: Only apply human user RoleEnrichmentMiddleware to non-agent routes,
+// keeping RoleEnrichmentMiddleware completely untouched and eliminating any cross-cutting side effects.
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api/agent-tools", StringComparison.OrdinalIgnoreCase),
+    appBuilder => appBuilder.UseMiddleware<RoleEnrichmentMiddleware>());
+
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
+// Exposes the top-level Program class to WebApplicationFactory<Program> for
+// integration testing (CoreGrid.Api.Tests) — otherwise it stays internal.
+public partial class Program { }

@@ -12,6 +12,7 @@ namespace CoreGrid.Api.Features.Shared;
 // own Users mirror is authoritative for OrganizationId/role scoping.
 public abstract class CoreGridControllerBase(CoreGridDbContext db) : ControllerBase
 {
+    protected readonly CoreGridDbContext Db = db;
     protected async Task<User?> GetCurrentUserAsync(
         CancellationToken cancellationToken)
     {
@@ -24,7 +25,7 @@ public abstract class CoreGridControllerBase(CoreGridDbContext db) : ControllerB
             return null;
         }
 
-        return await db.Users
+        return await Db.Users
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 u => u.ExternalSubjectId == externalSubjectId,
