@@ -31,6 +31,12 @@ npm run build   # runs tsc -b, then vite build
 npm run preview
 ```
 
+## Report exports
+
+The Asset Inventory report uses the `jspdf` npm package for direct PDF downloads. CSV exports are generated from
+the same filtered asset data in the browser. `npm install` or `npm ci` installs `jspdf` from `package.json` and
+`package-lock.json`.
+
 ## Assets
 
 - `public/CoreGrid.png` — official logo (full colour, hexagon skyline mark).
