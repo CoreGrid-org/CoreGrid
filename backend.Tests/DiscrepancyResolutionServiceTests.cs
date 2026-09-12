@@ -1,3 +1,4 @@
+using backend.Tests;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Verification.DTOs;
@@ -17,7 +18,7 @@ public class DiscrepancyResolutionServiceTests
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        return new CoreGridDbContext(options);
+        return new CoreGridDbContext(options, new NullCurrentOrganizationProvider());
     }
 
     private static (Asset asset, VerificationTask task, Discrepancy discrepancy) BuildSeed(

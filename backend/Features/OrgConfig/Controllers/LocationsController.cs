@@ -1,4 +1,5 @@
 using CoreGrid.Api.Data;
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.OrgConfig.DTOs;
 using CoreGrid.Api.Features.OrgConfig.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +10,16 @@ using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.OrgConfig.Controllers;
 
+// FR-005 / SRS §4.6: same split as DepartmentsController.
 [ApiController]
 [Route("api/locations")]
 [Authorize]
 public class LocationsController : CoreGridControllerBase
 {
+    private const string ReadRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+    private const string ManageRoles = nameof(CoreGridRole.Administrator);
+
     private readonly ILocationService _locationService;
 
     public LocationsController(
@@ -25,6 +31,7 @@ public class LocationsController : CoreGridControllerBase
 
     // GET /api/locations?departmentId=
     [HttpGet]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<List<LocationDto>>> GetLocations(
         [FromQuery] Guid? departmentId,
         CancellationToken cancellationToken)
@@ -46,6 +53,7 @@ public class LocationsController : CoreGridControllerBase
 
     // POST /api/locations
     [HttpPost]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<LocationDto>> CreateLocation(
         [FromBody] CreateLocationRequest request,
         CancellationToken cancellationToken)
@@ -84,6 +92,7 @@ public class LocationsController : CoreGridControllerBase
 
     // PUT /api/locations/{id}
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<LocationDto>> UpdateLocation(
         Guid id,
         [FromBody] UpdateLocationRequest request,
@@ -132,6 +141,7 @@ public class LocationsController : CoreGridControllerBase
 
     // PATCH /api/locations/{id}/deactivate
     [HttpPatch("{id:guid}/deactivate")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<LocationDto>> DeactivateLocation(
         Guid id,
         CancellationToken cancellationToken)
@@ -141,6 +151,7 @@ public class LocationsController : CoreGridControllerBase
 
     // PATCH /api/locations/{id}/activate
     [HttpPatch("{id:guid}/activate")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<LocationDto>> ActivateLocation(
         Guid id,
         CancellationToken cancellationToken)

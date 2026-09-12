@@ -391,7 +391,7 @@ public class MaintenanceService : IMaintenanceService
         // Transition maintenance record.
         record.Status = MaintenanceStatus.COMPLETED;
         record.ActualCost = request.ActualCost;
-        record.WorkPerformed = request.WorkPerformed.Trim();
+        record.WorkPerformed = request.WorkPerformed?.Trim() ?? string.Empty;
         record.CompletionDate = request.CompletionDate;
         record.ResultingCondition = conditionUpper;
         record.UpdatedAt = now;

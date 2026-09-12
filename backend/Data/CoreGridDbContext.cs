@@ -1,9 +1,19 @@
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Data;
 
-public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : DbContext(options)
+// FR-006: every entity with an OrganizationId column gets a global query
+// filter scoped to currentOrganizationProvider.OrganizationId, on top of
+// (not instead of) each service's existing manual `.Where(x.OrganizationId
+// == ...)` — defense in depth, not a replacement for it. The filter is a
+// no-op when there's no org context yet (null) — see
+// Identity/ICurrentOrganizationProvider.cs for exactly which requests that
+// covers and why it's safe.
+public class CoreGridDbContext(
+    DbContextOptions<CoreGridDbContext> options,
+    ICurrentOrganizationProvider currentOrganizationProvider) : DbContext(options)
 {
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<User> Users => Set<User>();
@@ -31,6 +41,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
     {
         modelBuilder.Entity<User>(entity =>
         {
+            entity.HasQueryFilter(u => currentOrganizationProvider.OrganizationId == null || u.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(u => u.ExternalSubjectId).IsUnique();
             entity.HasIndex(u => u.Email).IsUnique();
             entity.HasIndex(u => u.OrganizationId);
@@ -49,6 +61,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<Department>(entity =>
         {
+            entity.HasQueryFilter(d => currentOrganizationProvider.OrganizationId == null || d.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(d => d.OrganizationId);
             entity.HasIndex(d => new { d.OrganizationId, d.Code }).IsUnique();
 
@@ -63,6 +77,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<Location>(entity =>
         {
+            entity.HasQueryFilter(l => currentOrganizationProvider.OrganizationId == null || l.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(l => l.OrganizationId);
             entity.HasIndex(l => l.DepartmentId);
 
@@ -82,6 +98,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<AssetCategory>(entity =>
         {
+            entity.HasQueryFilter(ac => currentOrganizationProvider.OrganizationId == null || ac.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(ac => ac.OrganizationId);
             entity.HasIndex(ac => new { ac.OrganizationId, ac.Code }).IsUnique();
 
@@ -96,6 +114,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<AssetType>(entity =>
         {
+            entity.HasQueryFilter(at => currentOrganizationProvider.OrganizationId == null || at.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(at => at.OrganizationId);
             entity.HasIndex(at => at.AssetCategoryId);
             entity.HasIndex(at => new { at.OrganizationId, at.Code }).IsUnique();
@@ -118,6 +138,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<OrganizationPolicy>(entity =>
         {
+            entity.HasQueryFilter(op => currentOrganizationProvider.OrganizationId == null || op.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(op => op.OrganizationId);
             entity.HasIndex(op => new { op.OrganizationId, op.AssetTypeId }).IsUnique();
 
@@ -161,6 +183,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<Asset>(entity =>
         {
+            entity.HasQueryFilter(a => currentOrganizationProvider.OrganizationId == null || a.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(a => a.OrganizationId);
             entity.HasIndex(a => a.Status);
             entity.HasIndex(a => a.Condition);
@@ -235,6 +259,7 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
         modelBuilder.Entity<AssetHistory>(entity =>
         {
             entity.ToTable("AssetHistory");
+            entity.HasQueryFilter(ah => currentOrganizationProvider.OrganizationId == null || ah.OrganizationId == currentOrganizationProvider.OrganizationId);
             entity.HasIndex(ah => ah.OrganizationId);
             entity.HasIndex(ah => ah.AssetId);
             entity.HasIndex(ah => ah.CreatedAt);
@@ -267,6 +292,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<AssetTransfer>(entity =>
         {
+            entity.HasQueryFilter(t => currentOrganizationProvider.OrganizationId == null || t.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.Property<uint>("xmin")
                 .HasColumnType("xid")
                 .ValueGeneratedOnAddOrUpdate()
@@ -320,6 +347,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<DisposalRequest>(entity =>
         {
+            entity.HasQueryFilter(d => currentOrganizationProvider.OrganizationId == null || d.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.Property<uint>("xmin")
                 .HasColumnType("xid")
                 .ValueGeneratedOnAddOrUpdate()
@@ -351,6 +380,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<AuditLogEntry>(entity =>
         {
+            entity.HasQueryFilter(a => currentOrganizationProvider.OrganizationId == null || a.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(a => a.OrganizationId);
             entity.HasIndex(a => a.ActorUserId);
             entity.HasIndex(a => a.EntityType);
@@ -379,6 +410,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<VerificationCampaign>(entity =>
         {
+            entity.HasQueryFilter(c => currentOrganizationProvider.OrganizationId == null || c.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(c => c.OrganizationId);
             entity.HasIndex(c => c.Status);
 
@@ -417,6 +450,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<VerificationTask>(entity =>
         {
+            entity.HasQueryFilter(t => currentOrganizationProvider.OrganizationId == null || t.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(t => t.OrganizationId);
             entity.HasIndex(t => t.CampaignId);
             entity.HasIndex(t => t.AssetId);
@@ -456,6 +491,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<Discrepancy>(entity =>
         {
+            entity.HasQueryFilter(d => currentOrganizationProvider.OrganizationId == null || d.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(d => d.OrganizationId);
             entity.HasIndex(d => d.CampaignId);
             entity.HasIndex(d => d.VerificationTaskId);
@@ -498,6 +535,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<MaintenanceRecord>(entity =>
         {
+            entity.HasQueryFilter(m => currentOrganizationProvider.OrganizationId == null || m.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(m => m.OrganizationId);
             entity.HasIndex(m => m.AssetId);
             entity.HasIndex(m => m.Status);
@@ -553,6 +592,8 @@ public class CoreGridDbContext(DbContextOptions<CoreGridDbContext> options) : Db
 
         modelBuilder.Entity<AgentWorkflow>(entity =>
         {
+            entity.HasQueryFilter(w => currentOrganizationProvider.OrganizationId == null || w.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(w => w.OrganizationId);
             entity.HasIndex(w => w.AssetId);
             entity.HasIndex(w => w.Status);

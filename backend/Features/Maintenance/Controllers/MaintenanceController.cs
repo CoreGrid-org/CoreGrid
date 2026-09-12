@@ -12,11 +12,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Maintenance.Controllers;
 
+// FR-005 / SRS §4.6: maintenance:request is Staff/Officer/Administrator
+// (not Auditor); maintenance:manage (cancel) is Officer/Administrator; read
+// endpoints stay broad (all four roles have a legitimate reason to see a
+// maintenance record — Staff who reported it, Auditor for reports).
 [ApiController]
 [Route("api/maintenance")]
 [Authorize]
 public class MaintenanceController : CoreGridControllerBase
 {
+    private const string RequestRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}";
+    private const string ManageRoles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}";
+    private const string ReadRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+
     private readonly IMaintenanceService _maintenanceService;
     private readonly CoreGridDbContext _db;
 
@@ -29,6 +39,7 @@ public class MaintenanceController : CoreGridControllerBase
     }
 
     [HttpPost("faults")]
+    [Authorize(Roles = RequestRoles)]
     public async Task<ActionResult<MaintenanceRecordDto>> ReportFault(
         [FromBody] ReportFaultRequest request)
     {
@@ -62,6 +73,7 @@ public class MaintenanceController : CoreGridControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<MaintenanceRecordDto>> GetById(Guid id)
     {
         var currentUser = await GetCurrentUserAsync(default);
@@ -235,6 +247,7 @@ public class MaintenanceController : CoreGridControllerBase
     }
 
     [HttpPost("{id:guid}/cancel")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<MaintenanceRecordDto>> CancelMaintenance(
         Guid id,
         [FromBody] CancelMaintenanceRequest request)
@@ -266,6 +279,7 @@ public class MaintenanceController : CoreGridControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<IEnumerable<MaintenanceRecordDto>>> ListMaintenanceRecords(
         [FromQuery] MaintenanceRecordFilter filter)
     {
@@ -282,8 +296,13 @@ public class MaintenanceController : CoreGridControllerBase
         return Ok(records);
     }
 
+    // FR-005 correction, 2026-09-12: this demo/dev seeding endpoint was
+    // [AllowAnonymous] — reachable by anyone, unauthenticated, to insert
+    // organisation/maintenance data. No frontend page calls it (grepped the
+    // whole frontend — zero hits), so nothing relies on anonymous access;
+    // restricted to Administrator.
     [HttpPost("seed")]
-    [AllowAnonymous]
+    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
     public async Task<IActionResult> Seed()
     {
         using var transaction = await _db.Database.BeginTransactionAsync();

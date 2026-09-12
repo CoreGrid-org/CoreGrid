@@ -8,11 +8,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Verification.Controllers;
 
+// FR-005 / SRS §4.6: audit:log-read is Auditor/Administrator only, and
+// discrepancy handling is only ever reached through the Audit page in the
+// frontend (App.tsx routes it to Auditor/Administrator alone — Officer's
+// own routes have no discrepancies view) — so both read and manual raise
+// get the same restriction as the already-gated Resolve action below.
 [ApiController]
 [Route("api")]
 [Authorize]
 public class DiscrepanciesController : CoreGridControllerBase
 {
+    private const string AuditRoles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+
     private readonly IDiscrepancyService _discrepancyService;
 
     public DiscrepanciesController(
@@ -24,6 +31,7 @@ public class DiscrepanciesController : CoreGridControllerBase
 
     // GET /api/discrepancies?campaignId=&onlyOpen=
     [HttpGet("discrepancies")]
+    [Authorize(Roles = AuditRoles)]
     public async Task<ActionResult<List<DiscrepancyDto>>> GetDiscrepancies(
         [FromQuery] Guid? campaignId,
         [FromQuery] bool onlyOpen,
@@ -37,6 +45,7 @@ public class DiscrepanciesController : CoreGridControllerBase
 
     // FR-061: manual discrepancy raising against a specific task.
     [HttpPost("verification-tasks/{taskId:guid}/discrepancies")]
+    [Authorize(Roles = AuditRoles)]
     public async Task<ActionResult<DiscrepancyDto>> RaiseDiscrepancy(
         Guid taskId,
         [FromBody] RaiseDiscrepancyRequest request,
@@ -65,7 +74,7 @@ public class DiscrepanciesController : CoreGridControllerBase
 
     // FR-062: An Auditor resolves a discrepancy.
     [HttpPatch("discrepancies/{id:guid}/resolve")]
-    [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]
+    [Authorize(Roles = AuditRoles)]
     public async Task<ActionResult<DiscrepancyDto>> ResolveDiscrepancy(
         Guid id,
         [FromBody] ResolveDiscrepancyRequest request,

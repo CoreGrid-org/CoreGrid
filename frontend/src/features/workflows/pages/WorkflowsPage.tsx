@@ -4,7 +4,7 @@ import { Add, CheckmarkFilled, WarningAltFilled, CloseFilled } from "@carbon/ico
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useMe } from "@/features/auth/hooks/useMe";
-import { useWorkflowsList } from "../hooks/useWorkflows";
+import { useRunPolicyAgent, useWorkflowsList } from "../hooks/useWorkflows";
 import CreateWorkflowModal from "../components/CreateWorkflowModal";
 import EvaluatePolicyModal from "../components/EvaluatePolicyModal";
 import DecideWorkflowModal from "../components/DecideWorkflowModal";
@@ -24,10 +24,17 @@ export default function WorkflowsPage() {
   const canDecide = me?.role === "Administrator";
 
   const workflows = useWorkflowsList();
+  const runAgent = useRunPolicyAgent();
 
   const [showCreate, setShowCreate] = useState(false);
   const [evaluating, setEvaluating] = useState<AgentWorkflow | null>(null);
   const [deciding, setDeciding] = useState<{ workflow: AgentWorkflow; decision: "APPROVE" | "REJECT" | "REVISE" } | null>(null);
+  const [runningId, setRunningId] = useState<string | null>(null);
+
+  const handleRunAgent = (id: string) => {
+    setRunningId(id);
+    runAgent.mutate({ id }, { onSuccess: () => workflows.refetch() });
+  };
 
   const active = workflows.data?.filter((w) => IN_FLIGHT_STATUSES.includes(w.status)) ?? [];
   const awaitingApproval = workflows.data?.filter((w) => w.status === "AWAITING_APPROVAL") ?? [];
@@ -54,9 +61,20 @@ export default function WorkflowsPage() {
         lowContrast
         hideCloseButton
         title="The Planner, Maintenance Analysis and Budget Analysis agents aren't built yet"
-        subtitle="Policy Compliance — this workflow's deterministic gate and the human-approval checkpoint — is real. Use “Evaluate policy compliance” on an active workflow to supply the recommendation those three agents would otherwise produce, and run it through the gate yourself."
+        subtitle="Policy Compliance is real end to end: “Run Policy Compliance Agent” assembles the asset's policy/compliance facts and proposes a recommendation via a deterministic rule engine (no LLM), which then runs through the same approval gate. “Evaluate policy compliance” remains available to manually override the recommendation for testing."
         style={{ marginBottom: "1rem", maxWidth: "100%" }}
       />
+
+      {runAgent.isError && (
+        <InlineNotification
+          kind="error"
+          title="Could not run the Policy Compliance Agent"
+          subtitle={getErrorMessage(runAgent.error, "Something went wrong. Please try again.")}
+          lowContrast
+          onCloseButtonClick={() => setRunningId(null)}
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        />
+      )}
 
       {workflows.isError && (
         <InlineNotification
@@ -105,9 +123,19 @@ export default function WorkflowsPage() {
                         <td className="cg-table__muted">{w.started_at ? new Date(w.started_at).toLocaleString() : "—"}</td>
                         <td>
                           {canInitiate && (
-                            <Button kind="ghost" size="sm" onClick={() => setEvaluating(w)}>
-                              Evaluate policy compliance
-                            </Button>
+                            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                              <Button
+                                kind="tertiary"
+                                size="sm"
+                                disabled={runAgent.isPending && runningId === w.id}
+                                onClick={() => handleRunAgent(w.id)}
+                              >
+                                {runAgent.isPending && runningId === w.id ? "Running…" : "Run Policy Compliance Agent"}
+                              </Button>
+                              <Button kind="ghost" size="sm" onClick={() => setEvaluating(w)}>
+                                Evaluate manually
+                              </Button>
+                            </div>
                           )}
                         </td>
                       </tr>

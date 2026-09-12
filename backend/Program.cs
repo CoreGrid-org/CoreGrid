@@ -52,6 +52,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
+builder.Services.AddScoped<CoreGrid.Api.Identity.ICurrentOrganizationProvider, CoreGrid.Api.Identity.CurrentOrganizationProvider>();
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
 
 builder.Services.AddDbContext<CoreGridDbContext>((serviceProvider, options) =>
@@ -77,6 +78,8 @@ builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferSer
 builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IAgentToolsService, CoreGrid.Api.Features.AgentTools.Services.AgentToolsService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyRuleEngine, CoreGrid.Api.Features.Agents.Services.PolicyRuleEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAgentWorkflowService, CoreGrid.Api.Features.Agents.Services.AgentWorkflowService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAssetActionRecommendationEngine, CoreGrid.Api.Features.Agents.Services.AssetActionRecommendationEngine>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyComplianceAgentService, CoreGrid.Api.Features.Agents.Services.PolicyComplianceAgentService>();
 
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
 import { useStubMutation } from "@/shared/hooks/useStubMutation";
-import { createWorkflow, decideWorkflow, evaluatePolicy, listWorkflows } from "../api/workflows";
+import { createWorkflow, decideWorkflow, evaluatePolicy, listWorkflows, runPolicyAgent } from "../api/workflows";
 import type {
   AgentWorkflow,
   CreateWorkflowRequest,
@@ -59,6 +59,14 @@ export function useEvaluatePolicy() {
   return useStubMutation<{ id: string; payload: EvaluatePolicyRequest }, AgentWorkflow>(async ({ id, payload }) => {
     const accessToken = await getAccessToken();
     return evaluatePolicy(id, payload, accessToken);
+  });
+}
+
+export function useRunPolicyAgent() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string }, AgentWorkflow>(async ({ id }) => {
+    const accessToken = await getAccessToken();
+    return runPolicyAgent(id, accessToken);
   });
 }
 

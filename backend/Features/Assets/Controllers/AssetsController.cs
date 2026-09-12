@@ -1,4 +1,5 @@
 using CoreGrid.Api.Data;
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +10,20 @@ using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
+// FR-005 / SRS §4.6, Appendix B: asset:read is Staff/Officer/Auditor/Admin
+// (Staff restricted to their own department by a service-layer filter, not
+// blocked here); asset:create and asset:update are Officer/Admin only,
+// matching the frontend's own routing (only Administrator and
+// InventoryOfficer ever reach AssetRegisterPage — App.tsx).
 [ApiController]
 [Route("api/assets")]
 [Authorize]
 public class AssetsController : CoreGridControllerBase
 {
+    private const string ReadRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+    private const string ManageRoles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}";
+
     private readonly IAssetService _assetService;
 
     public AssetsController(
@@ -28,6 +38,7 @@ public class AssetsController : CoreGridControllerBase
     // =========================================================
 
     [HttpGet]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<PagedResult<AssetDto>>> GetAssets(
         [FromQuery] AssetQueryParameters parameters,
         CancellationToken cancellationToken)
@@ -62,6 +73,7 @@ public class AssetsController : CoreGridControllerBase
     // =========================================================
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<AssetDetailDto>> GetAssetById(
         Guid id,
         CancellationToken cancellationToken)
@@ -94,6 +106,7 @@ public class AssetsController : CoreGridControllerBase
     // =========================================================
 
     [HttpPost]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetDetailDto>> CreateAsset(
         [FromBody] CreateAssetRequest request,
         CancellationToken cancellationToken)
@@ -143,6 +156,7 @@ public class AssetsController : CoreGridControllerBase
     // =========================================================
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetDetailDto>> UpdateAsset(
         Guid id,
         [FromBody] UpdateAssetRequest request,
@@ -196,6 +210,7 @@ public class AssetsController : CoreGridControllerBase
     // =========================================================
 
     [HttpPatch("{id:guid}/condition")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<IActionResult> UpdateCondition(
         Guid id,
         [FromBody] UpdateAssetConditionRequest request,
@@ -241,6 +256,7 @@ public class AssetsController : CoreGridControllerBase
     // =========================================================
 
     [HttpGet("{id:guid}/history")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<PagedResult<AssetHistoryDto>>> GetAssetHistory(
         Guid id,
         [FromQuery] AssetHistoryQueryParameters parameters,
@@ -275,6 +291,7 @@ public class AssetsController : CoreGridControllerBase
     // =========================================================
 
     [HttpGet("qr/{code}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<AssetDetailDto>> GetAssetByQrCode(
         string code,
         CancellationToken cancellationToken)
@@ -312,6 +329,7 @@ public class AssetsController : CoreGridControllerBase
     // display the real value in the asset registration form's code preview.
 
     [HttpGet("organization-code")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<OrganizationCodeDto>> GetOrganizationCode(
         CancellationToken cancellationToken)
     {

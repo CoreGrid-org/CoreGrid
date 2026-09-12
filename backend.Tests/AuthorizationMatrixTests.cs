@@ -108,6 +108,94 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
         Assert.Equal(expected, response.StatusCode);
     }
 
+    // FR-005 correction, 2026-09-12: AssetCategoriesController/AssetTypesController
+    // writes were blanket [Authorize] (any role) — now Administrator-only,
+    // matching AssetConfigPage's Administrator-only route in App.tsx.
+    [Theory]
+    [InlineData(CoreGridRole.Staff, HttpStatusCode.Forbidden)]
+    [InlineData(CoreGridRole.InventoryOfficer, HttpStatusCode.Forbidden)]
+    [InlineData(CoreGridRole.Auditor, HttpStatusCode.Forbidden)]
+    public async Task CreateAssetCategory_EnforcesAdministratorOnly(CoreGridRole role, HttpStatusCode expected)
+    {
+        var response = await ClientAs(role).PostAsJsonAsync("/api/asset-categories", new { name = "Test", code = "TST" });
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAssetCategory_AllowsAdministratorThroughTheGate()
+    {
+        var response = await ClientAs(CoreGridRole.Administrator)
+            .PostAsJsonAsync("/api/asset-categories", new { name = "Test", code = "TST" });
+        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // FR-005 correction, 2026-09-12: DepartmentsController/LocationsController
+    // writes were blanket [Authorize] — now Administrator-only (config:manage).
+    [Theory]
+    [InlineData(CoreGridRole.Staff, HttpStatusCode.Forbidden)]
+    [InlineData(CoreGridRole.InventoryOfficer, HttpStatusCode.Forbidden)]
+    [InlineData(CoreGridRole.Auditor, HttpStatusCode.Forbidden)]
+    public async Task CreateDepartment_EnforcesAdministratorOnly(CoreGridRole role, HttpStatusCode expected)
+    {
+        var response = await ClientAs(role).PostAsJsonAsync("/api/departments", new { name = "Test", code = "TST" });
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    // FR-005 correction, 2026-09-12: VerificationTasksController.CompleteTask
+    // had no role restriction at all — Staff has no role in verification
+    // per SRS §4.6's asset:verify row and is now excluded.
+    [Fact]
+    public async Task CompleteVerificationTask_ExcludesStaff()
+    {
+        var response = await ClientAs(CoreGridRole.Staff)
+            .PatchAsync($"/api/verification-tasks/{Guid.NewGuid()}/complete", JsonContent.Create(new { }));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(CoreGridRole.InventoryOfficer)]
+    [InlineData(CoreGridRole.Auditor)]
+    [InlineData(CoreGridRole.Administrator)]
+    public async Task CompleteVerificationTask_AllowsVerificationRolesThroughTheGate(CoreGridRole role)
+    {
+        var response = await ClientAs(role)
+            .PatchAsync($"/api/verification-tasks/{Guid.NewGuid()}/complete", JsonContent.Create(new { }));
+        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // FR-005 correction, 2026-09-12: DiscrepanciesController.GetDiscrepancies
+    // had no role restriction — now Auditor/Administrator only, matching
+    // audit:log-read and the fact Officer's own routes have no discrepancies view.
+    [Theory]
+    [InlineData(CoreGridRole.Staff, HttpStatusCode.Forbidden)]
+    [InlineData(CoreGridRole.InventoryOfficer, HttpStatusCode.Forbidden)]
+    [InlineData(CoreGridRole.Auditor, HttpStatusCode.OK)]
+    [InlineData(CoreGridRole.Administrator, HttpStatusCode.OK)]
+    public async Task GetDiscrepancies_EnforcesAuditRolesOnly(CoreGridRole role, HttpStatusCode expected)
+    {
+        var response = await ClientAs(role).GetAsync("/api/discrepancies");
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    // FR-005 correction, 2026-09-12: MaintenanceController's demo/dev "seed"
+    // endpoint was [AllowAnonymous] — reachable unauthenticated. Now
+    // Administrator-only; an unauthenticated caller gets 401, not through to
+    // the seeding logic at all.
+    [Fact]
+    public async Task MaintenanceSeed_RejectsUnauthenticatedCaller()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.PostAsync("/api/maintenance/seed", null);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MaintenanceSeed_RejectsNonAdministrator()
+    {
+        var response = await ClientAs(CoreGridRole.InventoryOfficer).PostAsync("/api/maintenance/seed", null);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     // FR-009: a deactivated user is denied even with an otherwise-valid identity.
     [Fact]
     public async Task DeactivatedUser_IsRejectedRegardlessOfRole()

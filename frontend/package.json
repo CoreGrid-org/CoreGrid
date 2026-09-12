@@ -12,6 +12,7 @@
     "@carbon/icons-react": "^11.85.0",
     "@carbon/react": "^1.113.0",
     "@thunderid/react": "^0.13.0",
+    "jspdf": "^4.2.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

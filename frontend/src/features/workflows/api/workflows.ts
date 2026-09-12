@@ -108,6 +108,14 @@ export async function evaluatePolicy(
   return handle(response, "Could not run the policy evaluation.");
 }
 
+export async function runPolicyAgent(id: string, accessToken: string): Promise<AgentWorkflow> {
+  const response = await fetch(`${API_URL}/agent-workflows/${id}/run-policy-agent`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not run the Policy Compliance Agent.");
+}
+
 export async function decideWorkflow(
   id: string,
   payload: DecideWorkflowRequest,
