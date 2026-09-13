@@ -631,7 +631,7 @@ export default function InventoryTransfersPage() {
             <SelectItem value="AUCTION" text="Auction / Public Sale" />
             <SelectItem value="SCRAP" text="Scrap / Salvage" />
             <SelectItem value="DONATION" text="Donation" />
-            <SelectItem value="DESTRUCTION" text="Destruction / Recycling" />
+            <SelectItem value="DESTROY" text="Destruction / Recycling" />
           </Select>
 
           <NumberInput

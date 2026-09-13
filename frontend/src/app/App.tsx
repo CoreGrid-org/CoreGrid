@@ -24,6 +24,7 @@ import CreateMaintenancePage from "@/features/maintenance/pages/CreateMaintenanc
 import ReportFaultPage from "@/features/maintenance/pages/ReportFaultPage";
 import TransfersPage from "@/features/transfers/pages/TransfersPage";
 import InventoryTransfersPage from "@/features/transfers/pages/InventoryTransfersPage";
+import AuditorTransfersPage from "@/features/transfers/pages/AuditorTransfersPage";
 import AuditPage from "@/features/audit/pages/AuditPage";
 import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
 import ReportsPage from "@/features/reports/pages/ReportsPage";
@@ -96,7 +97,7 @@ export default function App() {
         <Route path="assets" element={<ComingSoon feature="Asset Registry" />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
+        <Route path="transfers" element={<AuditorTransfersPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
       </Route>
 

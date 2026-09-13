@@ -11,15 +11,13 @@ export type TransferStatus =
   | "CANCELLED";
 
 export type DisposalStatus =
-  | "DRAFT"
   | "PENDING"
-  | "REVISION_REQUESTED"
   | "APPROVED"
   | "REJECTED"
-  | "COMPLETED"
-  | "CANCELLED";
+  | "REVISION_REQUESTED"
+  | "DISPOSED";
 
-export type DisposalMethod = "AUCTION" | "SCRAP" | "DONATION" | "DESTRUCTION";
+export type DisposalMethod = "SCRAP" | "AUCTION" | "DONATION" | "DESTROY";
 
 // DTOs matching backend/Features/Transfers/DTOs/TransferDtos.cs
 export interface InitiateTransferRequest {
