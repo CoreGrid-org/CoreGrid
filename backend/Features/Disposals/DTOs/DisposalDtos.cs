@@ -29,6 +29,11 @@ public class SubmitDisposalRequest
     public string? Notes { get; set; }
 }
 
+public class RequestDisposalRevisionRequest
+{
+    public required string Comments { get; set; }
+}
+
 public class DisposalResponse
 {
     public Guid Id { get; set; }

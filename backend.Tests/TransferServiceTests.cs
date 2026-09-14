@@ -432,8 +432,44 @@ public class TransferServiceTests
 
         var deptA = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D1", Name = "Dept 1" };
         var deptB = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D2", Name = "Dept 2" };
-        var locA = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "L1", Name = "Loc 1" };
-        var locB = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "L2", Name = "Loc 2" };
+        var locA = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptA.Id, Name = "Loc 1", Type = "store" };
+        var locB = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptB.Id, Name = "Loc 2", Type = "store" };
+
+        var asset = new Asset
+        {
+            Id = assetId,
+            OrganizationId = orgId,
+            AssetTypeId = Guid.NewGuid(),
+            DepartmentId = deptA.Id,
+            LocationId = locA.Id,
+            AssetCode = "AST-HIST-1",
+            Name = "History Asset",
+            Status = AssetStatusConstants.Active,
+            Condition = "GOOD",
+            QrPayload = "AST-HIST-1"
+        };
+        var otherAsset = new Asset
+        {
+            Id = otherAssetId,
+            OrganizationId = orgId,
+            AssetTypeId = Guid.NewGuid(),
+            DepartmentId = deptA.Id,
+            LocationId = locA.Id,
+            AssetCode = "AST-HIST-2",
+            Name = "Other History Asset",
+            Status = AssetStatusConstants.Active,
+            Condition = "GOOD",
+            QrPayload = "AST-HIST-2"
+        };
+        var initiator = new User
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            ExternalSubjectId = "sub-initiator",
+            Email = "initiator@example.com",
+            GivenName = "Init",
+            FamilyName = "Iator"
+        };
 
         var t1 = new AssetTransfer
         {
@@ -444,7 +480,7 @@ public class TransferServiceTests
             ToDepartmentId = deptB.Id,
             FromLocationId = locA.Id,
             ToLocationId = locB.Id,
-            InitiatedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = initiator.Id,
             Status = TransferStatus.COMPLETED,
             RequestedAt = DateTimeOffset.UtcNow.AddDays(-10)
         };
@@ -458,7 +494,7 @@ public class TransferServiceTests
             ToDepartmentId = deptA.Id,
             FromLocationId = locB.Id,
             ToLocationId = locA.Id,
-            InitiatedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = initiator.Id,
             Status = TransferStatus.REJECTED,
             RequestedAt = DateTimeOffset.UtcNow.AddDays(-2)
         };
@@ -472,13 +508,15 @@ public class TransferServiceTests
             ToDepartmentId = deptB.Id,
             FromLocationId = locA.Id,
             ToLocationId = locB.Id,
-            InitiatedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = initiator.Id,
             Status = TransferStatus.APPROVED,
             RequestedAt = DateTimeOffset.UtcNow
         };
 
         dbContext.Departments.AddRange(deptA, deptB);
         dbContext.Locations.AddRange(locA, locB);
+        dbContext.Assets.AddRange(asset, otherAsset);
+        dbContext.Users.Add(initiator);
         dbContext.AssetTransfers.AddRange(t1, t2, otherTransfer);
         await dbContext.SaveChangesAsync();
 

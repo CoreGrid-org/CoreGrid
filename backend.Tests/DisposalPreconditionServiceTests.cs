@@ -190,7 +190,7 @@ public class DisposalPreconditionServiceTests
         // Assert
         Assert.False(result.Passed);
         Assert.NotNull(result.FailureReason);
-        Assert.Contains("Both", result.FailureReason);
+        Assert.Contains("both missing", result.FailureReason);
     }
 
     [Fact]

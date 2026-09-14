@@ -635,6 +635,15 @@ public class DisposalServiceTests
             AcquisitionDate = new DateOnly(2020, 1, 1),
             QrPayload = "qr"
         };
+        var requester = new User
+        {
+            Id = requesterId,
+            OrganizationId = orgId,
+            ExternalSubjectId = "sub-requester-1",
+            Email = "requester1@example.com",
+            GivenName = "Req",
+            FamilyName = "Uester"
+        };
 
         var disposalRequest = new DisposalRequest
         {
@@ -652,6 +661,7 @@ public class DisposalServiceTests
 
         dbContext.AssetTypes.Add(assetType);
         dbContext.Assets.Add(asset);
+        dbContext.Users.Add(requester);
         dbContext.DisposalRequests.Add(disposalRequest);
         await dbContext.SaveChangesAsync();
 
@@ -697,6 +707,15 @@ public class DisposalServiceTests
             AcquisitionDate = new DateOnly(2020, 1, 1),
             QrPayload = "qr"
         };
+        var requester = new User
+        {
+            Id = requesterId,
+            OrganizationId = orgId,
+            ExternalSubjectId = "sub-requester",
+            Email = "requester@example.com",
+            GivenName = "Req",
+            FamilyName = "Uester"
+        };
 
         var disposalRequest = new DisposalRequest
         {
@@ -713,6 +732,7 @@ public class DisposalServiceTests
 
         dbContext.AssetTypes.Add(assetType);
         dbContext.Assets.Add(asset);
+        dbContext.Users.Add(requester);
         dbContext.DisposalRequests.Add(disposalRequest);
         await dbContext.SaveChangesAsync();
 

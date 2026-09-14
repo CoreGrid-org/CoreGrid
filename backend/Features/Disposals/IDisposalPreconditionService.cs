@@ -14,6 +14,6 @@ public interface IDisposalPreconditionService
     PreconditionCheck CheckP3ServiceLifeElapsed(Asset asset, OrganizationPolicy? policy, AssetType? assetType, DateOnly? evaluationDate = null);
     Task<PreconditionCheck> CheckP4NoOpenMaintenanceAsync(Guid assetId, CancellationToken cancellationToken = default);
     Task<PreconditionCheck> CheckP5NoOpenTransfersAsync(Guid assetId, CancellationToken cancellationToken = default);
-    PreconditionCheck CheckP6AgentWorkflowPass(DisposalRequest request);
+    Task<PreconditionCheck> CheckP6AgentWorkflowLinkedAsync(Guid assetId, CancellationToken cancellationToken = default);
     (bool Passed, string? Reason) CheckSeparationOfDuties(DisposalRequest request, Guid approvingUserId);
 }
