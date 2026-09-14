@@ -5,6 +5,7 @@ import { ArrowLeft, Checkmark, Play, TrashCan } from "@carbon/icons-react";
 import { useMaintenanceDetail, useStartMaintenance } from "../hooks/useMaintenance";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useRolePrefix } from "@/shared/hooks/useRolePrefix";
 
 import ApproveMaintenanceModal from "../components/ApproveMaintenanceModal";
 import CompleteMaintenanceModal from "../components/CompleteMaintenanceModal";
@@ -13,6 +14,8 @@ import CancelMaintenanceModal from "../components/CancelMaintenanceModal";
 export default function MaintenanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const rolePrefix = useRolePrefix();
+  const maintenanceListPath = `${rolePrefix}/maintenance`;
 
   const { data: record, isLoading, isError, error, refetch } = useMaintenanceDetail(id);
   const startMaintenance = useStartMaintenance();
@@ -46,7 +49,7 @@ export default function MaintenanceDetailPage() {
           lowContrast
           hideCloseButton
         />
-        <Button onClick={() => navigate("..")} renderIcon={ArrowLeft}>Back</Button>
+        <Button onClick={() => navigate(maintenanceListPath)} renderIcon={ArrowLeft}>Back</Button>
       </div>
     );
   }
@@ -57,7 +60,7 @@ export default function MaintenanceDetailPage() {
         <div className="cg-page__header-left">
           <Button
             kind="ghost"
-            onClick={() => navigate("..")}
+            onClick={() => navigate(maintenanceListPath)}
             renderIcon={ArrowLeft}
             style={{ marginBottom: "1rem" }}
           >

@@ -11,7 +11,7 @@ export default function ReportsPage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Reports</h1>
-          <p className="cg-page__subtitle">Inventory, maintenance, disposal and audit reports (FR-081 to FR-086).</p>
+          <p className="cg-page__subtitle">Inventory, maintenance, disposal and audit reports.</p>
         </div>
       </div>
 
@@ -29,7 +29,7 @@ export default function ReportsPage() {
                 <InventoryReportPanel />
               ) : (
                 <>
-              <MockNotice requirements={[report.requirement, "FR-085", "FR-086"]}>
+              <MockNotice>
                 {`${report.description} Real exports reflect exactly the filters applied on screen and are restricted to the departments the caller's role permits them to see.`}
               </MockNotice>
 

@@ -53,6 +53,20 @@ export async function getMaintenanceRecord(
   return handle(response, "Could not load maintenance record.");
 }
 
+// backend/Features/Maintenance/Controllers/MaintenanceController.cs UploadPhoto
+export async function uploadMaintenancePhoto(file: File, accessToken: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  const response = await fetch(`${API_URL}/maintenance/photos`, {
+    method: "POST",
+    headers: authHeaders(accessToken), // no Content-Type — the browser sets the multipart boundary
+    body: formData,
+  });
+  const result = await handle<{ url: string }>(response, "Could not upload the photo.");
+  return result.url;
+}
+
 export async function reportFault(
   payload: ReportFaultRequest,
   accessToken: string,

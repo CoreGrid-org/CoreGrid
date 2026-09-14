@@ -608,4 +608,151 @@ public class DisposalServiceTests
         Assert.True(result.PreconditionEvaluation.SeparationOfDutiesPassed);
         Assert.True(result.PreconditionEvaluation.AllPassed);
     }
+
+    // =========================================================================
+    // FR-053: Return for revision (RequestDisposalRevisionAsync)
+    // =========================================================================
+
+    [Fact]
+    public async Task RequestDisposalRevision_WhenStatusIsPending_SucceedsAndRecordsComments()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        var assetType = new AssetType { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "VEH", Name = "Vehicle", UsefulLifeYears = 5 };
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetTypeId = assetType.Id,
+            AssetCode = "AST-REV-1",
+            Name = "Van",
+            Status = AssetStatusConstants.Condemned,
+            Condition = AssetStatusConstants.ConditionPoor,
+            AcquisitionDate = new DateOnly(2020, 1, 1),
+            QrPayload = "qr"
+        };
+        var requester = new User
+        {
+            Id = requesterId,
+            OrganizationId = orgId,
+            ExternalSubjectId = "sub-requester-1",
+            Email = "requester1@example.com",
+            GivenName = "Req",
+            FamilyName = "Uester"
+        };
+
+        var disposalRequest = new DisposalRequest
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = asset.Id,
+            InitiatedByUserId = requesterId,
+            DisposalMethod = DisposalMethod.AUCTION,
+            EstimatedResidualValue = 1000m,
+            ValuationDate = new DateOnly(2026, 8, 1),
+            Status = DisposalStatus.PENDING,
+            Notes = "Initial submission notes",
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.AssetTypes.Add(assetType);
+        dbContext.Assets.Add(asset);
+        dbContext.Users.Add(requester);
+        dbContext.DisposalRequests.Add(disposalRequest);
+        await dbContext.SaveChangesAsync();
+
+        var preconditionService = new DisposalPreconditionService(dbContext);
+        var service = new DisposalService(dbContext, preconditionService);
+
+        // Act
+        var comments = "Please obtain a secondary valuation quote before proceeding.";
+        var result = await service.RequestDisposalRevisionAsync(orgId, disposalRequest.Id, adminId, comments);
+
+        // Assert
+        Assert.Equal(DisposalStatus.REVISION_REQUESTED, result.Status);
+        Assert.Contains(comments, result.Notes);
+        Assert.Contains("Initial submission notes", result.Notes); // Prior notes preserved
+
+        var dbRequest = await dbContext.DisposalRequests.FindAsync(disposalRequest.Id);
+        Assert.NotNull(dbRequest);
+        Assert.Equal(DisposalStatus.REVISION_REQUESTED, dbRequest.Status);
+    }
+
+    [Theory]
+    [InlineData(DisposalStatus.APPROVED)]
+    [InlineData(DisposalStatus.REJECTED)]
+    [InlineData(DisposalStatus.DISPOSED)]
+    public async Task RequestDisposalRevision_WhenStatusIsNotPending_ThrowsInvalidOperationException(DisposalStatus initialStatus)
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        var assetType = new AssetType { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "VEH", Name = "Vehicle", UsefulLifeYears = 5 };
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetTypeId = assetType.Id,
+            AssetCode = "AST-REV-2",
+            Name = "Truck",
+            Status = AssetStatusConstants.Condemned,
+            Condition = AssetStatusConstants.ConditionPoor,
+            AcquisitionDate = new DateOnly(2020, 1, 1),
+            QrPayload = "qr"
+        };
+        var requester = new User
+        {
+            Id = requesterId,
+            OrganizationId = orgId,
+            ExternalSubjectId = "sub-requester",
+            Email = "requester@example.com",
+            GivenName = "Req",
+            FamilyName = "Uester"
+        };
+
+        var disposalRequest = new DisposalRequest
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = asset.Id,
+            InitiatedByUserId = requesterId,
+            DisposalMethod = DisposalMethod.SCRAP,
+            EstimatedResidualValue = 0m,
+            ValuationDate = new DateOnly(2026, 8, 1),
+            Status = initialStatus,
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.AssetTypes.Add(assetType);
+        dbContext.Assets.Add(asset);
+        dbContext.Users.Add(requester);
+        dbContext.DisposalRequests.Add(disposalRequest);
+        await dbContext.SaveChangesAsync();
+
+        var preconditionService = new DisposalPreconditionService(dbContext);
+        var service = new DisposalService(dbContext, preconditionService);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RequestDisposalRevisionAsync(orgId, disposalRequest.Id, adminId, "Needs revision"));
+    }
+
+    [Fact]
+    public async Task RequestDisposalRevision_WhenCommentsEmpty_ThrowsArgumentException()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var service = new DisposalService(dbContext, new DisposalPreconditionService(dbContext));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.RequestDisposalRevisionAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "   "));
+    }
 }

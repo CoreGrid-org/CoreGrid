@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Modal, Select, SelectItem, NumberInput, InlineNotification } from "@carbon/react";
+import { Modal, ComboBox, NumberInput, InlineNotification } from "@carbon/react";
 import { useCreateOrganizationPolicy, useUpdateOrganizationPolicy } from "../hooks/useOrgConfig";
 import { useAssetTypes } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import type { OrganizationPolicy, SaveOrganizationPolicyRequest } from "../api/orgConfig";
+
+const ORGANIZATION_WIDE_DEFAULT = { id: "", name: "Organisation-wide default" };
 
 interface PolicyModalProps {
   policy?: OrganizationPolicy;
@@ -79,19 +81,23 @@ export default function PolicyModal({ policy, onClose, onSaved }: PolicyModalPro
           subtitle={getErrorMessage(mutation.error, "Something went wrong. Please try again.")}
           hideCloseButton
           lowContrast
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-panel-notification"
         />
       )}
       <div style={{ display: "grid", gap: "1rem" }}>
-        <Select
+        <ComboBox<{ id: string; name: string }>
           id="policy-asset-type"
-          labelText="Applies to"
-          value={form.asset_type_id ?? ""}
-          onChange={(e) => set("asset_type_id", e.target.value || null)}
-        >
-          <SelectItem value="" text="Organisation-wide default" />
-          {assetTypes?.map((t) => <SelectItem key={t.id} value={t.id} text={t.name} />)}
-        </Select>
+          titleText="Applies to"
+          placeholder="Search asset types…"
+          items={[ORGANIZATION_WIDE_DEFAULT, ...(assetTypes ?? [])]}
+          itemToString={(item) => item?.name ?? ""}
+          selectedItem={
+            form.asset_type_id
+              ? assetTypes?.find((t) => t.id === form.asset_type_id) ?? null
+              : ORGANIZATION_WIDE_DEFAULT
+          }
+          onChange={({ selectedItem }) => set("asset_type_id", selectedItem?.id || null)}
+        />
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
           <NumberInput

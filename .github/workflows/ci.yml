@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main, development]
   pull_request:
     branches: [main, development]
 
@@ -24,9 +22,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    env:
-      ConnectionStrings__CoreGrid: "Host=localhost;Port=5432;Database=coregrid;Username=coregrid;Password=coregrid"
-      TEST_DB_CONNECTION: "Host=localhost;Port=5432;Database=coregrid;Username=coregrid;Password=coregrid"
     steps:
       - uses: actions/checkout@v4
 
@@ -54,7 +49,7 @@ jobs:
         working-directory: backend.Tests
 
   frontend:
-    name: Frontend (typecheck, build)
+    name: Frontend (test, typecheck, build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,44 +65,13 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      - name: Test (Vitest + React Testing Library)
+        run: npm test
+        working-directory: frontend
+
       - name: Build (tsc -b && vite build — doubles as the typecheck; no separate lint script exists yet)
         run: npm run build
         working-directory: frontend
-
-  # No mobile/ or flutter/ directory exists yet (SRS §18.9 — Flutter work
-  # hasn't started for any component). This job is a no-op until one
-  # appears, so CI is ready the moment Flutter work lands without another
-  # workflow edit — see doc/PROGRESS.md.
-  flutter:
-    name: Flutter (build, test)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for a Flutter project
-        id: check
-        run: |
-          if [ -d "mobile" ] || [ -d "flutter" ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "No mobile/ or flutter/ directory yet — skipping."
-          fi
-
-      - name: Setup Flutter
-        if: steps.check.outputs.exists == 'true'
-        uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-
-      - name: Analyze, test, build
-        if: steps.check.outputs.exists == 'true'
-        run: |
-          cd $( [ -d mobile ] && echo mobile || echo flutter )
-          flutter pub get
-          flutter analyze
-          flutter test
-          flutter build apk --debug
 
   secret-scan:
     name: Secret scanning

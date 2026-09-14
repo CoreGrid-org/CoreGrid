@@ -10,6 +10,7 @@ import {
   startMaintenance,
   completeMaintenance,
   cancelMaintenance,
+  uploadMaintenancePhoto,
 } from "../api/maintenance";
 import type {
   MaintenanceRecord,
@@ -97,6 +98,14 @@ export function useMaintenanceDetail(id: string | undefined) {
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 
   return { data, error, isError: error !== undefined, isLoading, refetch };
+}
+
+export function useUploadMaintenancePhoto() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<File, string>(async (file) => {
+    const accessToken = await getAccessToken();
+    return uploadMaintenancePhoto(file, accessToken);
+  });
 }
 
 export function useReportFault() {

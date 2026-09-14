@@ -416,4 +416,137 @@ public class TransferServiceTests
         Assert.NotNull(persistentAsset);
         Assert.Equal(AssetStatusConstants.Condemned, persistentAsset.Status);
     }
+
+    // =========================================================================
+    // FR-047: Asset transfer history (GetTransferHistoryForAssetAsync)
+    // =========================================================================
+
+    [Fact]
+    public async Task GetTransferHistoryForAsset_WhenTransfersExist_ReturnsAllOrderedByRequestedAtDesc()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var otherAssetId = Guid.NewGuid();
+
+        var deptA = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D1", Name = "Dept 1" };
+        var deptB = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D2", Name = "Dept 2" };
+        var locA = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptA.Id, Name = "Loc 1", Type = "store" };
+        var locB = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptB.Id, Name = "Loc 2", Type = "store" };
+
+        var asset = new Asset
+        {
+            Id = assetId,
+            OrganizationId = orgId,
+            AssetTypeId = Guid.NewGuid(),
+            DepartmentId = deptA.Id,
+            LocationId = locA.Id,
+            AssetCode = "AST-HIST-1",
+            Name = "History Asset",
+            Status = AssetStatusConstants.Active,
+            Condition = "GOOD",
+            QrPayload = "AST-HIST-1"
+        };
+        var otherAsset = new Asset
+        {
+            Id = otherAssetId,
+            OrganizationId = orgId,
+            AssetTypeId = Guid.NewGuid(),
+            DepartmentId = deptA.Id,
+            LocationId = locA.Id,
+            AssetCode = "AST-HIST-2",
+            Name = "Other History Asset",
+            Status = AssetStatusConstants.Active,
+            Condition = "GOOD",
+            QrPayload = "AST-HIST-2"
+        };
+        var initiator = new User
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            ExternalSubjectId = "sub-initiator",
+            Email = "initiator@example.com",
+            GivenName = "Init",
+            FamilyName = "Iator"
+        };
+
+        var t1 = new AssetTransfer
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = assetId,
+            FromDepartmentId = deptA.Id,
+            ToDepartmentId = deptB.Id,
+            FromLocationId = locA.Id,
+            ToLocationId = locB.Id,
+            InitiatedByUserId = initiator.Id,
+            Status = TransferStatus.COMPLETED,
+            RequestedAt = DateTimeOffset.UtcNow.AddDays(-10)
+        };
+
+        var t2 = new AssetTransfer
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = assetId,
+            FromDepartmentId = deptB.Id,
+            ToDepartmentId = deptA.Id,
+            FromLocationId = locB.Id,
+            ToLocationId = locA.Id,
+            InitiatedByUserId = initiator.Id,
+            Status = TransferStatus.REJECTED,
+            RequestedAt = DateTimeOffset.UtcNow.AddDays(-2)
+        };
+
+        var otherTransfer = new AssetTransfer
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = otherAssetId,
+            FromDepartmentId = deptA.Id,
+            ToDepartmentId = deptB.Id,
+            FromLocationId = locA.Id,
+            ToLocationId = locB.Id,
+            InitiatedByUserId = initiator.Id,
+            Status = TransferStatus.APPROVED,
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Departments.AddRange(deptA, deptB);
+        dbContext.Locations.AddRange(locA, locB);
+        dbContext.Assets.AddRange(asset, otherAsset);
+        dbContext.Users.Add(initiator);
+        dbContext.AssetTransfers.AddRange(t1, t2, otherTransfer);
+        await dbContext.SaveChangesAsync();
+
+        var service = new TransferService(dbContext);
+
+        // Act
+        var result = await service.GetTransferHistoryForAssetAsync(orgId, assetId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+        Assert.Equal(t2.Id, result[0].Id); // Most recent first
+        Assert.Equal(t1.Id, result[1].Id);
+        Assert.All(result, r => Assert.Equal(assetId, r.AssetId));
+    }
+
+    [Fact]
+    public async Task GetTransferHistoryForAsset_WhenNoTransfersExist_ReturnsEmptyList()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var service = new TransferService(dbContext);
+        var orgId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+
+        // Act
+        var result = await service.GetTransferHistoryForAssetAsync(orgId, assetId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result);
+    }
 }

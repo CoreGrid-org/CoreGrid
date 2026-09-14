@@ -9,10 +9,8 @@ import AdminDashboard from "@/features/dashboard/pages/AdminDashboard";
 import AdminLayout from "@/features/dashboard/components/AdminLayout";
 import InventoryLayout from "@/features/dashboard/components/InventoryLayout";
 import AuditLayout from "@/features/dashboard/components/AuditLayout";
-import StaffLayout from "@/features/dashboard/components/StaffLayout";
 import InventoryDashboard from "@/features/dashboard/pages/InventoryDashboard";
 import AuditDashboard from "@/features/dashboard/pages/AuditDashboard";
-import StaffDashboard from "@/features/dashboard/pages/StaffDashboard";
 import UsersPage from "@/features/users/pages/UsersPage";
 import AssetsPage from "@/features/assets/pages/AssetsPage";
 import AssetRegisterPage from "@/features/assets/pages/AssetRegisterPage";
@@ -23,6 +21,8 @@ import MaintenanceDetailPage from "@/features/maintenance/pages/MaintenanceDetai
 import CreateMaintenancePage from "@/features/maintenance/pages/CreateMaintenancePage";
 import ReportFaultPage from "@/features/maintenance/pages/ReportFaultPage";
 import TransfersPage from "@/features/transfers/pages/TransfersPage";
+import InventoryTransfersPage from "@/features/transfers/pages/InventoryTransfersPage";
+import AuditorTransfersPage from "@/features/transfers/pages/AuditorTransfersPage";
 import AuditPage from "@/features/audit/pages/AuditPage";
 import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
 import ReportsPage from "@/features/reports/pages/ReportsPage";
@@ -76,8 +76,9 @@ export default function App() {
         <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/new" element={<CreateMaintenancePage />} />
+        <Route path="maintenance/report" element={<ReportFaultPage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
+        <Route path="transfers" element={<InventoryTransfersPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
       </Route>
 
@@ -95,24 +96,10 @@ export default function App() {
         <Route path="assets" element={<ComingSoon feature="Asset Registry" />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
+        <Route path="transfers" element={<AuditorTransfersPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
       </Route>
 
-      <Route
-        path="staff"
-        element={
-          <RoleRoute role="Staff">
-            <StaffLayout />
-          </RoleRoute>
-        }
-      >
-        <Route index element={<StaffDashboard />} />
-        <Route path="assets" element={<ComingSoon feature="My Assets" />} />
-        <Route path="maintenance" element={<MaintenancePage />} />
-        <Route path="maintenance/report" element={<ReportFaultPage />} />
-        <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-      </Route>
       <Route path="signin" element={<SignIn />} />
       <Route path="setup" element={<Setup />} />
       <Route path="forgot-password" element={<ForgotPassword />} />

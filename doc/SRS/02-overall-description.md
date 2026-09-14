@@ -2,7 +2,7 @@
 
 ## 2.1 Product Perspective
 
-CoreGrid is a new, self-contained product rather than a replacement component within an existing system. It comprises five cooperating parts: an ASP.NET Core Web API that is the sole authoritative application layer; a PostgreSQL relational database; a React single-page application used as the management and control centre; a Flutter mobile application used for field operations; and a Python LangGraph service that executes the agentic workflow as an internal, non-public service.
+CoreGrid is a new, self-contained product rather than a replacement component within an existing system. It comprises five cooperating parts: an ASP.NET Core Web API that is the sole authoritative application layer; a PostgreSQL relational database; a React single-page application used as the management and control centre; a Flutter mobile application used for field operations; and an agentic-AI subsystem that executes the agentic workflow, reachable only internally. The Budget Analysis Agent runs today as a standalone Python/LangGraph service; team direction as of 2026-09-14 is to build the remaining agent nodes .NET-native inside the API itself (as the Policy Compliance Agent already does) rather than as further standalone Python processes — see Section 3.6.
 
 Two external services sit outside the product boundary but are essential to it. ThunderID provides identity: it authenticates every human user, holds the user directory, and issues the OpenID Connect tokens that the API validates. A transactional email provider delivers notifications triggered by business events. Both are reached over HTTPS, and the email provider is reached exclusively through the backend so that credentials never leave the server boundary.
 
@@ -132,7 +132,7 @@ The table above states each role's primary client(s); the two tables below state
 | PostgreSQL | PostgreSQL 15 or later, managed instance with restricted network access and credentials supplied only through environment configuration; schema managed exclusively by EF Core migrations. |
 | React web application | Modern evergreen browsers (Chrome, Edge, Firefox, Safari — current and previous major version). Built with Vite and served as static assets from a hosting platform configured to call the deployed API. |
 | Flutter mobile application | Android 8.0 (API 26) and above; release APK produced for evaluation. Requires camera permission for QR scanning and photo capture, and network connectivity for all business operations. |
-| LangGraph agent service | Python 3.11 or later, containerised, reachable only from the API over a private network path or a shared-secret-authenticated internal endpoint; no public ingress. |
+| Agentic-AI subsystem | Budget Analysis Agent: standalone LangGraph service, Python 3.11 or later, containerised, reachable only from the API over a private network path or a shared-secret-authenticated internal endpoint, no public ingress. Remaining agent nodes (Planner, Maintenance Analysis): .NET-native, in-process within the API — no separate runtime or network path. |
 | Identity provider | ThunderID, self-hosted alongside the API and database as part of each customer organisation's own deployment (M0: one ThunderID instance per deployment, single organisation unit — Section 4.2). |
 | Email provider | Transactional email API on a free tier, invoked only from the backend, with credentials held in server-side configuration. |
 
