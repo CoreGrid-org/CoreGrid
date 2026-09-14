@@ -17,6 +17,39 @@ public class AgentToolsService : IAgentToolsService
         _dbContext = dbContext;
     }
 
+    public async Task<AssetSummaryDto?> GetAssetSummaryAsync(
+        Guid organizationId,
+        Guid assetId,
+        CancellationToken cancellationToken = default)
+    {
+        var asset = await _dbContext.Assets
+            .AsNoTracking()
+            .Include(a => a.AssetType)
+                .ThenInclude(t => t!.AssetCategory)
+            .Include(a => a.Department)
+            .Include(a => a.Location)
+            .FirstOrDefaultAsync(
+                a => a.Id == assetId && a.OrganizationId == organizationId,
+                cancellationToken);
+
+        if (asset is null) return null;
+
+        return new AssetSummaryDto
+        {
+            AssetId = asset.Id,
+            AssetCode = asset.AssetCode,
+            Name = asset.Name,
+            AssetType = asset.AssetType?.Name ?? string.Empty,
+            Category = asset.AssetType?.AssetCategory?.Name ?? string.Empty,
+            Status = asset.Status,
+            Condition = asset.Condition,
+            Department = asset.Department?.Name ?? string.Empty,
+            Location = asset.Location?.Name ?? string.Empty,
+            AcquisitionDate = asset.AcquisitionDate,
+            AcquisitionCost = asset.AcquisitionCost
+        };
+    }
+
     public async Task<AssetFinancialsDto?> GetAssetFinancialsAsync(
         Guid organizationId,
         Guid assetId,

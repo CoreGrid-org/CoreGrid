@@ -60,8 +60,8 @@ export default function WorkflowsPage() {
         kind="info"
         lowContrast
         hideCloseButton
-        title="The Planner, Maintenance Analysis and Budget Analysis agents aren't built yet"
-        subtitle="Policy Compliance is real end to end: “Run Policy Compliance Agent” assembles the asset's policy/compliance facts and proposes a recommendation via a deterministic rule engine (no LLM), which then runs through the same approval gate. “Evaluate policy compliance” remains available to manually override the recommendation for testing."
+        title="Planner Agent is connected"
+        subtitle="New evaluations now call the Planner Agent, persist its typed execution plan, and move to analysis. Maintenance and Budget agents still need to be connected; Policy Compliance remains available through the existing action."
         style={{ marginBottom: "1rem", maxWidth: "100%" }}
       />
 
@@ -107,6 +107,7 @@ export default function WorkflowsPage() {
                     <tr>
                       <th>Asset</th>
                       <th>Objective</th>
+                      <th>Plan</th>
                       <th>Status</th>
                       <th>Started</th>
                       <th></th>
@@ -117,6 +118,9 @@ export default function WorkflowsPage() {
                       <tr key={w.id}>
                         <td className="cg-table__mono">{w.asset_code}</td>
                         <td className="cg-table__muted">{w.objective}</td>
+                        <td className="cg-table__muted">
+                          {w.plan?.inScope ? `${w.plan.steps.length} steps` : w.plan?.rejectionReason ?? "—"}
+                        </td>
                         <td>
                           <Tag type={statusTagColor(w.status)}>{formatStatusLabel(w.status)}</Tag>
                         </td>
