@@ -82,6 +82,13 @@ builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferSer
 builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IAgentToolsService, CoreGrid.Api.Features.AgentTools.Services.AgentToolsService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyRuleEngine, CoreGrid.Api.Features.Agents.Services.PolicyRuleEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAgentWorkflowService, CoreGrid.Api.Features.Agents.Services.AgentWorkflowService>();
+builder.Services.AddHttpClient<CoreGrid.Api.Features.Agents.Services.IPlannerAgentClient, CoreGrid.Api.Features.Agents.Services.PlannerAgentClient>(client =>
+{
+    var baseUrl = builder.Configuration["PlannerAgent:BaseUrl"]
+        ?? throw new InvalidOperationException("Missing required configuration 'PlannerAgent:BaseUrl'.");
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAssetActionRecommendationEngine, CoreGrid.Api.Features.Agents.Services.AssetActionRecommendationEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyComplianceAgentService, CoreGrid.Api.Features.Agents.Services.PolicyComplianceAgentService>();
 
@@ -161,8 +168,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
+else
+{
+    // In dev the frontend talks to the plain-HTTP endpoint (VITE_API_URL,
+    // Cors:AllowedOrigins are both http://localhost:5173/:5083). Redirecting
+    // to https://localhost:7240 there just breaks fetch() on the untrusted
+    // dev cert — "Can't reach CoreGrid / Failed to fetch".
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("Frontend");
 

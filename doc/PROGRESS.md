@@ -50,7 +50,7 @@ Status as of 2026-09-14 (this update: corrected against the live codebase, not r
 | Database (`AssetCategories`, `AssetTypes`, `AssetAttributeDefinitions`, `AssetAttributeValues`, `Assets`, `AssetHistory`) | ✅ (department/location CRUD moved to `backend/Features/OrgConfig` — Component D, 2026-08-15 backend file structure cleanup; migration `AddIsActiveToAssetCategoryTypeAttribute` added an `IsActive` column to `AssetCategories`/`AssetTypes`/`AssetAttributeDefinitions` 2026-08-17 for the hard-delete-vs-deactivate rule — `Assets` itself deliberately untouched) |
 | React (asset list/detail/register/update, dynamic attribute forms, category/type/attribute config incl. edit/delete/reactivate, searchable pickers, real organisation-code display in the code preview) | ✅ (`frontend/src/features/assets`; 2026-08-17: added a paginated History section to `AssetDetailModal` and a separate, read-only `AssetHistoryModal` reachable via a dedicated icon on each Asset Register row, both backed by `GET /api/assets/{id}/history`) |
 | Flutter (QR scanner, asset lookup, condition update) | ❌ |
-| Planner Agent | ❌ |
+| Planner Agent | ✅ (2026-09-14: `planner-agent/` provides the standalone FastAPI/LangGraph service; it rejects out-of-scope objectives before calling its only allowed tool, `get_asset_summary`, and returns a validated typed `ExecutionPlan`. `AgentWorkflowService` calls it when a workflow is created, persists `AgentWorkflows.Plan`, records a successful Planner execution step, and advances an in-scope workflow from `PLANNING` to `ANALYZING`. Agent/API availability and end-to-end automated coverage still need verification.) |
 | Tests | ❌ |
 
 ## Component B — Maintenance Management (Seneja Ramanayaka, FR-033–042, FR-077–080)
@@ -121,7 +121,7 @@ The coursework's minimum acceptance rule requires one stateful graph of four dis
 
 | Member | Agent | Graph node | Tool allow-list | Status |
 |---|---|---|---|---|
-| Jayashan Guruge (Component A) | Planner Agent | 1 — interprets the objective, rejects out-of-scope requests, produces the typed plan | `get_asset_summary` | ❌ not started |
+| Jayashan Guruge (Component A) | Planner Agent | 1 — interprets the objective, rejects out-of-scope requests, produces the typed plan | `get_asset_summary` | ✅ implemented — `planner-agent/` is a standalone FastAPI/LangGraph service using only `get_asset_summary`; successful in-scope plans are persisted and move the workflow to `ANALYZING`. Automated end-to-end verification remains pending. |
 | Seneja Ramanayaka (Component B) | Maintenance Analysis Agent | 2 — repair count, MTBF, cost trend, 12-month projection | `get_maintenance_history`, `compute_failure_statistics` | ❌ not started |
 | Bhanuka Samarasinghe (Component C) | Budget Analysis Agent | 3 — residual value, replacement estimate, repair:replace ratio, ranked options | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` | ✅ done — tool endpoints (`backend/Features/AgentTools`, `POST /api/agent-tools/*`) and the standalone Python/LangGraph agent calling them (`agent-service/`) are both built and unit-tested; not yet wired into a shared orchestration with the other three agents |
 | Hasitha Erandika (Component D, Group Leader) | Policy Compliance Agent | 4 — assembles policy/compliance facts; verdict is the deterministic rule engine (PR-01–PR-09, §7.6), not the model | `get_organization_policies`, `get_asset_compliance_state` | 🟡 in progress — the two tools, the rule engine (`PolicyRuleEngine`), the node-4 recommendation step (`AssetActionRecommendationEngine`, deterministic — see Component D row for why no LLM is used), and the human-approval checkpoint are all real, unit-tested, and verified end to end; the LangGraph orchestration tying this into the other three members' agents isn't started |
@@ -188,39 +188,13 @@ Derived from the ❌/🟡 rows above, grouped by owner ([SRS §18](SRS/18-team-r
 | Backend and frontend tests: consider MSW for the frontend | 2026-09-14 — the new Audit/Workflows/Reports tests mock each `api/*.ts` module's functions directly; [MSW](https://mswjs.io) (intercepting at the real `fetch`/network layer instead) is a commonly-used step up in fidelity for exactly this shape of app and would remove the need to keep each test's mocked function signatures in sync with the real ones by hand. Not done — flagged as a direction to evaluate, not a regression. |
 
 ### Jayashan Guruge — Component A: Asset Registry & QR (FR-016–032)
-
-**✅ Completed**
-
-No Component A items have closed since the last full audit — see the Component A table above for what's already shipped.
-
-**🟡 Ongoing**
-
-| Task | Notes |
-|---|---|
-| FR-020: Flutter dynamic attribute detail form | Development started per team status (2026-09-14); not yet reflected in this repo. |
-| FR-024: Flutter QR scan-to-record (<3s) | Same. |
-| FR-025: Flutter manual code entry | Same. |
-| Flutter: scanner, asset lookup, condition update | Same. |
-
-**❌ Not Started**
-
-| Task | Notes |
-|---|---|
-| Confirm: Auditor's Asset Registry access | 2026-09-14 finding, needs Jayashan's decision — `AuditLayout.tsx`'s sidebar already links "Asset Registry" to `/audit/assets` (`App.tsx`), but that route renders `<ComingSoon feature="Asset Registry" />`, not the real `AssetsPage` — unlike `/admin/assets` and `/inventory/assets`, which both get the real page. FR-028 ("Users shall search assets... All users") explicitly includes Auditor, so this reads as a real gap rather than an intentionally Auditor-excluded feature — but confirm and decide (wire `/audit/assets` to a real, presumably read-only, asset view vs. explicitly descope it) is Jayashan's call as Component A owner, not made here. |
-| FR-019: evaluate `ValidationRule` against submitted attribute values | Rule is stored but never enforced. |
-| FR-023: printable QR label download | A real QR renders in-app; no print/download path yet. |
-| FR-030: compute residual value server-side | Straight-line depreciation from acquisition cost/date + useful life — currently a free-entry client field. |
-| FR-031: `POST /api/assets/{id}/verify` (officer physical verification) | Flutter-only per SRS, blocked on Flutter start. |
-| FR-032: confirm assets exit only via disposal | Component A's own half (no delete endpoint) is already satisfied; re-confirm now that Component C's disposal workflow has a frontend. |
-| Planner Agent | Not started. |
-| Tests | Not started. |
-| UI/UX: `AssetScanPage.tsx` redesign | Correct card padding; replace the "Awaiting a scan or a typed code" placeholder with a system-banner-style state making clear this is the web fallback, not the scan flow itself. |
-| UI/UX: Asset config (category/type/attribute) screens | Card padding incorrect; on the attribute screen, move the search bar to match the type list's search bar position/style. |
-| UI/UX: Carbon conformance pass | Category/type/attribute search bars need to conform to IBM Carbon patterns, plus a general UI/UX pass across the Asset feature pages. |
-| Reports > Asset Inventory tab pagination | Same shared `ReportsPage.tsx` — coordinate with Seneja/Bhanuka/Hasitha. |
-| Copy cleanup | Remove `(FR-0XX ...)` references and em-dashes from `AssetsPage.tsx`. |
-| Hardcoded colors: use `index.scss` tokens | 2026-09-14 — audit Component A's own files (`AssetsPage.tsx`, `AssetRegisterPage.tsx`, `AssetScanPage.tsx`, `AssetConfigPage.tsx`, related components) for inline hex colors / one-off `style={{...}}` objects; use the `$cg-*` SCSS variables and shared classes in `src/styles/index.scss` instead (add a class there if a matching one doesn't exist yet — see the new `.cg-row-actions`/`.cg-panel-*` classes added 2026-09-14 as an example of the pattern). |
-| Shared components: don't reimplement | 2026-09-14 — audit Component A's own files for hand-rolled logic (e.g. search/filter bars, list scaffolding) that duplicates something already built elsewhere in the codebase (or should be extracted into `shared/` so it isn't rebuilt a third time); reuse instead of reimplementing, and refactor existing duplicates where found. |
+- FR-019: evaluate `ValidationRule` against submitted attribute values — rule is stored but never enforced.
+- FR-023: printable QR label download (a real QR renders in-app; no print/download path yet).
+- FR-030: compute residual value server-side (straight-line depreciation from acquisition cost/date + useful life) — currently a free-entry client field.
+- FR-031: `POST /api/assets/{id}/verify` (officer physical verification) — Flutter-only per SRS, blocked on Flutter start.
+- FR-032: confirm assets actually exit only via disposal once Component C's disposal workflow has a frontend (Component A's own half — no-delete-endpoint — is already satisfied).
+- FR-020/024/025: Flutter — dynamic attribute detail form, QR scan-to-record (<3s), manual code entry.
+- Flutter: scanner, asset lookup, condition update; tests — none started.
 
 ### Seneja Ramanayaka — Component B: Maintenance Management (FR-033–042, FR-077–080)
 

@@ -10,10 +10,9 @@ interface CreateWorkflowModalProps {
   onCreated: (workflow: AgentWorkflow) => void;
 }
 
-// FR-067/FR-068: initiate an asset lifecycle evaluation. Returns immediately
-// with a workflow id — see EvaluatePolicyModal for the next step, since the
-// Planner/Maintenance/Budget agents that would normally run automatically
-// between here and there don't exist yet (SRS §7.2 nodes 1-3).
+// FR-067/FR-068: initiate an asset lifecycle evaluation. The backend now
+// calls the Planner Agent and persists its typed execution plan before this
+// request returns.
 export default function CreateWorkflowModal({ onClose, onCreated }: CreateWorkflowModalProps) {
   const createWorkflow = useCreateWorkflow();
   const { data: assetsData, isLoading: isLoadingAssets } = useAssetsList({ pageSize: 100 });

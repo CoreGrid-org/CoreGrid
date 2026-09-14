@@ -26,6 +26,32 @@ public class AgentToolsController : CoreGridControllerBase
         _maintenanceAnalysisToolsService = maintenanceAnalysisToolsService;
     }
 
+    // GET /api/agent-tools/assets/{assetId}/summary — Planner Agent tool.
+    [HttpGet("api/agent-tools/assets/{assetId:guid}/summary")]
+    public async Task<ActionResult<AssetSummaryDto>> GetAssetSummary(
+        Guid assetId,
+        [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
+    {
+        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
+        if (orgId is null)
+        {
+            return Unauthorized(new { message = "Unable to resolve organization context." });
+        }
+
+        var result = await _agentToolsService.GetAssetSummaryAsync(
+            orgId.Value,
+            assetId,
+            cancellationToken);
+
+        if (result is null)
+        {
+            return NotFound(new { message = $"Asset with ID {assetId} not found." });
+        }
+
+        return Ok(result);
+    }
+
     // =========================================================
     // GET /api/agent-tools/assets/{assetId}/financials
     // =========================================================

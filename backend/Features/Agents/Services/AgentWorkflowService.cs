@@ -22,12 +22,18 @@ public class AgentWorkflowService : IAgentWorkflowService
     private readonly CoreGridDbContext _db;
     private readonly IAgentToolsService _agentTools;
     private readonly IPolicyRuleEngine _ruleEngine;
+    private readonly IPlannerAgentClient _plannerAgent;
 
-    public AgentWorkflowService(CoreGridDbContext db, IAgentToolsService agentTools, IPolicyRuleEngine ruleEngine)
+    public AgentWorkflowService(
+        CoreGridDbContext db,
+        IAgentToolsService agentTools,
+        IPolicyRuleEngine ruleEngine,
+        IPlannerAgentClient plannerAgent)
     {
         _db = db;
         _agentTools = agentTools;
         _ruleEngine = ruleEngine;
+        _plannerAgent = plannerAgent;
     }
 
     public async Task<List<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, string? status, CancellationToken cancellationToken)
@@ -104,6 +110,47 @@ public class AgentWorkflowService : IAgentWorkflowService
 
         _db.AgentWorkflows.Add(workflow);
         await _db.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            var started = DateTimeOffset.UtcNow;
+            var plan = await _plannerAgent.CreatePlanAsync(
+                workflow.AssetId,
+                workflow.Objective,
+                workflow.InitiatedByUserId,
+                workflow.OrganizationId,
+                cancellationToken);
+
+            workflow.Plan = JsonSerializer.Serialize(plan);
+            workflow.Status = plan.InScope ? WorkflowStatus.ANALYZING : WorkflowStatus.FAILED_SAFE;
+            workflow.FailureReason = plan.InScope ? null : plan.RejectionReason;
+            workflow.CompletedAt = plan.InScope ? null : DateTimeOffset.UtcNow;
+            workflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            _db.AgentExecutionSteps.Add(new AgentExecutionStep
+            {
+                Id = Guid.NewGuid(),
+                WorkflowId = workflow.Id,
+                Agent = "Planner",
+                Sequence = 1,
+                OutputSummary = plan.InScope
+                    ? $"Plan created with {plan.Steps.Count} steps."
+                    : $"Rejected: {plan.RejectionReason}",
+                DurationMs = (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds),
+                Status = "SUCCESS",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+        {
+            workflow.Status = WorkflowStatus.FAILED_SAFE;
+            workflow.FailureReason = "Planner Agent failed: " + ex.Message;
+            workflow.CompletedAt = DateTimeOffset.UtcNow;
+            workflow.UpdatedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
 
         return await GetWorkflowByIdAsync(organizationId, workflow.Id, cancellationToken)
             ?? throw new InvalidOperationException("Workflow could not be reloaded after creation.");
@@ -318,6 +365,9 @@ public class AgentWorkflowService : IAgentWorkflowService
         ApprovalStatus = w.ApprovalStatus.ToString(),
         RevisionCount = w.RevisionCount,
         FailureReason = w.FailureReason,
+        Plan = string.IsNullOrEmpty(w.Plan)
+            ? null
+            : JsonSerializer.Deserialize<PlannerExecutionPlan>(w.Plan),
         ValidationResult = string.IsNullOrEmpty(w.ValidationResult)
             ? null
             : JsonSerializer.Deserialize<DTOs.PolicyValidation>(w.ValidationResult),
