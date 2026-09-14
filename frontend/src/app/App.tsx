@@ -23,8 +23,6 @@ import MaintenanceDetailPage from "@/features/maintenance/pages/MaintenanceDetai
 import CreateMaintenancePage from "@/features/maintenance/pages/CreateMaintenancePage";
 import ReportFaultPage from "@/features/maintenance/pages/ReportFaultPage";
 import TransfersPage from "@/features/transfers/pages/TransfersPage";
-import InventoryTransfersPage from "@/features/transfers/pages/InventoryTransfersPage";
-import AuditorTransfersPage from "@/features/transfers/pages/AuditorTransfersPage";
 import AuditPage from "@/features/audit/pages/AuditPage";
 import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
 import ReportsPage from "@/features/reports/pages/ReportsPage";
@@ -79,7 +77,7 @@ export default function App() {
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/new" element={<CreateMaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<InventoryTransfersPage />} />
+        <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
         <Route path="workflows" element={<WorkflowsPage />} />
       </Route>
 
@@ -97,7 +95,7 @@ export default function App() {
         <Route path="assets" element={<ComingSoon feature="Asset Registry" />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<AuditorTransfersPage />} />
+        <Route path="transfers" element={<ComingSoon feature="Transfers & Disposals" />} />
         <Route path="workflows" element={<WorkflowsPage />} />
       </Route>
 
