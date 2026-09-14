@@ -54,7 +54,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("WorkflowId");
 
-                    b.ToTable("AgentApprovals", null, t =>
+                    b.ToTable("AgentApprovals", t =>
                         {
                             t.HasCheckConstraint("CK_AgentApprovals_Decision", "\"Decision\" IN ('APPROVE','REJECT','REVISE')");
                         });
@@ -99,7 +99,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("WorkflowId");
 
-                    b.ToTable("AgentExecutionSteps", (string)null);
+                    b.ToTable("AgentExecutionSteps");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.AgentWorkflow", b =>
@@ -179,7 +179,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("AgentWorkflows", null, t =>
+                    b.ToTable("AgentWorkflows", t =>
                         {
                             t.HasCheckConstraint("CK_AgentWorkflows_Recommendation", "\"Recommendation\" IS NULL OR \"Recommendation\" IN ('REPAIR','REPLACE','TRANSFER','DISPOSE','RETAIN')");
                         });
@@ -278,7 +278,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("OrganizationId", "AssetCode")
                         .IsUnique();
 
-                    b.ToTable("Assets", null, t =>
+                    b.ToTable("Assets", t =>
                         {
                             t.HasCheckConstraint("CK_Assets_AcquisitionCost", "\"AcquisitionCost\" >= 0");
 
@@ -340,7 +340,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("AssetTypeId", "Name")
                         .IsUnique();
 
-                    b.ToTable("AssetAttributeDefinitions", null, t =>
+                    b.ToTable("AssetAttributeDefinitions", t =>
                         {
                             t.HasCheckConstraint("CK_AssetAttributeDefinitions_DataType", "\"DataType\" IN ('TEXT','NUMBER','DATE','BOOLEAN','SELECT')");
 
@@ -394,7 +394,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("AssetId", "AssetAttributeDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("AssetAttributeValues", null, t =>
+                    b.ToTable("AssetAttributeValues", t =>
                         {
                             t.HasCheckConstraint("CK_AssetAttributeValues_ExactlyOneValue", "num_nonnulls(\"ValueText\", \"ValueNumber\", \"ValueDate\", \"ValueBoolean\") = 1");
                         });
@@ -440,7 +440,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
 
-                    b.ToTable("AssetCategories", (string)null);
+                    b.ToTable("AssetCategories");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.AssetHistory", b =>
@@ -566,7 +566,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("ToLocationId");
 
-                    b.ToTable("AssetTransfers", (string)null);
+                    b.ToTable("AssetTransfers");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.AssetType", b =>
@@ -620,7 +620,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
 
-                    b.ToTable("AssetTypes", null, t =>
+                    b.ToTable("AssetTypes", t =>
                         {
                             t.HasCheckConstraint("CK_AssetTypes_UsefulLifeYears", "\"UsefulLifeYears\" > 0");
                         });
@@ -672,7 +672,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("AuditLogEntries", null, t =>
+                    b.ToTable("AuditLogEntries", t =>
                         {
                             t.HasCheckConstraint("CK_AuditLogEntries_Operation", "\"Operation\" IN ('Create','Update','Delete')");
                         });
@@ -718,7 +718,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
 
-                    b.ToTable("Departments", (string)null);
+                    b.ToTable("Departments");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.Discrepancy", b =>
@@ -797,7 +797,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("VerificationTaskId");
 
-                    b.ToTable("Discrepancies", (string)null);
+                    b.ToTable("Discrepancies");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.DisposalRequest", b =>
@@ -859,7 +859,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("DisposalRequests", (string)null);
+                    b.ToTable("DisposalRequests");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.Location", b =>
@@ -904,7 +904,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("Locations", (string)null);
+                    b.ToTable("Locations");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.MaintenanceRecord", b =>
@@ -998,7 +998,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("Type");
 
-                    b.ToTable("MaintenanceRecords", null, t =>
+                    b.ToTable("MaintenanceRecords", t =>
                         {
                             t.HasCheckConstraint("CK_MaintenanceRecords_ObservedCondition", "\"ObservedCondition\" IN ('NEW','GOOD','FAIR','POOR','UNSERVICEABLE')");
 
@@ -1010,6 +1010,55 @@ namespace CoreGrid.Api.Migrations
 
                             t.HasCheckConstraint("CK_MaintenanceRecords_Type", "\"Type\" IN ('CORRECTIVE','PREVENTIVE')");
                         });
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RecipientUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("RelatedEntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RelatedEntityType")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("RecipientUserId", "IsRead");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.Organization", b =>
@@ -1036,7 +1085,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Organizations", (string)null);
+                    b.ToTable("Organizations");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.OrganizationPolicy", b =>
@@ -1101,7 +1150,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("OrganizationId", "AssetTypeId")
                         .IsUnique();
 
-                    b.ToTable("OrganizationPolicies", (string)null);
+                    b.ToTable("OrganizationPolicies");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.User", b =>
@@ -1153,7 +1202,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.VerificationCampaign", b =>
@@ -1212,7 +1261,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("VerificationCampaigns", (string)null);
+                    b.ToTable("VerificationCampaigns");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.VerificationTask", b =>
@@ -1273,7 +1322,7 @@ namespace CoreGrid.Api.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("VerificationTasks", (string)null);
+                    b.ToTable("VerificationTasks");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.AgentApproval", b =>
@@ -1682,6 +1731,25 @@ namespace CoreGrid.Api.Migrations
                     b.Navigation("Assignee");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("CoreGrid.Api.Domain.Notification", b =>
+                {
+                    b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CoreGrid.Api.Domain.User", "RecipientUser")
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("RecipientUser");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.OrganizationPolicy", b =>
