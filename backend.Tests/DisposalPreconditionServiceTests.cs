@@ -510,4 +510,134 @@ public class DisposalPreconditionServiceTests
         Assert.Equal(6, result.Checks.Count);
         Assert.All(result.Checks, c => Assert.True(c.Passed));
     }
+
+    // =========================================================================
+    // P6 — Where an agentic workflow is linked to the request, it has reached
+    // AWAITING_APPROVAL and its deterministic validation result is PASS.
+    // =========================================================================
+
+    [Fact]
+    public async Task CheckP6_WhenNoWorkflowExists_ReturnsPassed()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var service = new DisposalPreconditionService(dbContext);
+        var assetId = Guid.NewGuid();
+
+        // Act
+        var result = await service.CheckP6AgentWorkflowLinkedAsync(assetId);
+
+        // Assert
+        Assert.True(result.Passed);
+        Assert.Null(result.FailureReason);
+        Assert.Equal("P6", result.Code);
+    }
+
+    [Fact]
+    public async Task CheckP6_WhenWorkflowRecommendsOtherThanDispose_ReturnsPassed()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var assetId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+
+        var nonDisposeWorkflow = new AgentWorkflow
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = assetId,
+            Objective = "Evaluate repair options",
+            Recommendation = "REPAIR",
+            Status = WorkflowStatus.ANALYZING,
+            CorrelationId = "corr-1",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.AgentWorkflows.Add(nonDisposeWorkflow);
+        await dbContext.SaveChangesAsync();
+
+        var service = new DisposalPreconditionService(dbContext);
+
+        // Act
+        var result = await service.CheckP6AgentWorkflowLinkedAsync(assetId);
+
+        // Assert
+        Assert.True(result.Passed);
+        Assert.Null(result.FailureReason);
+    }
+
+    [Fact]
+    public async Task CheckP6_WhenDisposeWorkflowInAwaitingApproval_ReturnsPassed()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var assetId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+
+        var disposeWorkflow = new AgentWorkflow
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = assetId,
+            Objective = "Evaluate end of life disposal",
+            Recommendation = "DISPOSE",
+            Status = WorkflowStatus.AWAITING_APPROVAL,
+            CorrelationId = "corr-2",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.AgentWorkflows.Add(disposeWorkflow);
+        await dbContext.SaveChangesAsync();
+
+        var service = new DisposalPreconditionService(dbContext);
+
+        // Act
+        var result = await service.CheckP6AgentWorkflowLinkedAsync(assetId);
+
+        // Assert
+        Assert.True(result.Passed);
+        Assert.Null(result.FailureReason);
+        Assert.Equal("P6", result.Code);
+    }
+
+    [Theory]
+    [InlineData(WorkflowStatus.PLANNING)]
+    [InlineData(WorkflowStatus.ANALYZING)]
+    [InlineData(WorkflowStatus.VALIDATING)]
+    [InlineData(WorkflowStatus.FAILED_SAFE)]
+    [InlineData(WorkflowStatus.REJECTED)]
+    [InlineData(WorkflowStatus.REVISION_REQUESTED)]
+    public async Task CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(WorkflowStatus status)
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var assetId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+
+        var disposeWorkflow = new AgentWorkflow
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = assetId,
+            Objective = "Evaluate end of life disposal",
+            Recommendation = "DISPOSE",
+            Status = status,
+            CorrelationId = "corr-3",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.AgentWorkflows.Add(disposeWorkflow);
+        await dbContext.SaveChangesAsync();
+
+        var service = new DisposalPreconditionService(dbContext);
+
+        // Act
+        var result = await service.CheckP6AgentWorkflowLinkedAsync(assetId);
+
+        // Assert
+        Assert.False(result.Passed);
+        Assert.NotNull(result.FailureReason);
+        Assert.Contains(nameof(WorkflowStatus.AWAITING_APPROVAL), result.FailureReason);
+        Assert.Contains(status.ToString(), result.FailureReason);
+    }
 }
