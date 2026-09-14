@@ -20,7 +20,6 @@
 
 - [ ] Backend (ASP.NET Core API)
 - [ ] Frontend (React)
-- [ ] Flutter mobile
 - [ ] Agentic AI (LangGraph)
 - [ ] Docs / SRS
 - [ ] Infrastructure (Docker, CI)

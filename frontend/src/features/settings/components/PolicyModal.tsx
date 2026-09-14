@@ -81,7 +81,7 @@ export default function PolicyModal({ policy, onClose, onSaved }: PolicyModalPro
           subtitle={getErrorMessage(mutation.error, "Something went wrong. Please try again.")}
           hideCloseButton
           lowContrast
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-panel-notification"
         />
       )}
       <div style={{ display: "grid", gap: "1rem" }}>

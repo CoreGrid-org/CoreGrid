@@ -15,9 +15,11 @@ import type { FileChangeData } from "@carbon/react/lib/components/FileUploader/F
 import { useReportFault, useUploadMaintenancePhoto } from "../hooks/useMaintenance";
 import { useAssetsList } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useRolePrefix } from "@/shared/hooks/useRolePrefix";
 
 export default function ReportFaultPage() {
   const navigate = useNavigate();
+  const rolePrefix = useRolePrefix();
   const reportFault = useReportFault();
   const uploadPhoto = useUploadMaintenancePhoto();
 
@@ -59,7 +61,7 @@ export default function ReportFaultPage() {
         photo_url: photoUrl ?? undefined,
       },
       {
-        onSuccess: () => navigate(".."),
+        onSuccess: () => navigate(`${rolePrefix}/maintenance`),
       }
     );
   };
@@ -142,7 +144,7 @@ export default function ReportFaultPage() {
           </FormGroup>
 
           <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>
-            <Button type="button" kind="secondary" onClick={() => navigate("..")} disabled={reportFault.isPending}>
+            <Button type="button" kind="secondary" onClick={() => navigate(`${rolePrefix}/maintenance`)} disabled={reportFault.isPending}>
               Cancel
             </Button>
             <Button type="submit" kind="primary" disabled={reportFault.isPending || uploadPhoto.isPending}>
