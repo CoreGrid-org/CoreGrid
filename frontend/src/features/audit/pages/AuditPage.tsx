@@ -67,7 +67,7 @@ export default function AuditPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Audit & Compliance</h1>
           <p className="cg-page__subtitle">
-            Verification campaigns, discrepancies and the audit log (FR-056 to FR-066).
+            Verification campaigns, discrepancies and the audit log.
           </p>
         </div>
         <Button renderIcon={Add} onClick={() => setShowCreateCampaign(true)}>
@@ -87,9 +87,8 @@ export default function AuditPage() {
             <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
               A campaign is a scoped, time-boxed physical verification: it generates one task per in-scope asset,
               assigns each to the responsible officer, and tracks completion and discrepancies as officers scan and
-              confirm assets against the register (FR-056, FR-057). Once a campaign has run, open its report to see
-              how it went — verified vs. outstanding, discrepancies by type and resolution — and export it as a PDF
-              or CSV record (FR-065).
+              confirm assets against the register. Once a campaign has run, open its report to see how it went
+              (verified vs. outstanding, discrepancies by type and resolution) and export it as a PDF or CSV record.
             </p>
 
             {campaigns.isError && (
@@ -251,8 +250,8 @@ export default function AuditPage() {
           {/* ── Audit log ───────────────────────────────────────────────── */}
           <TabPanel>
             <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
-              Every state-changing operation writes an immutable entry — actor, entity, operation, before/after
-              values, timestamp and correlation id. Not editable or deletable through any API (FR-063, FR-064).
+              Every state-changing operation writes an immutable entry (actor, entity, operation, before/after
+              values, timestamp and correlation id). Not editable or deletable through any API.
             </p>
 
             <div className="cg-section" style={{ marginBottom: "1rem" }}>

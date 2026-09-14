@@ -140,7 +140,7 @@ export default function MaintenancePage() {
 
           {/* ── Notifications ───────────────────────────────────────────── */}
           <TabPanel>
-            <MockNotice requirements={["FR-077", "FR-078", "FR-079", "FR-080"]}>
+            <MockNotice>
               Real notifications are queued server-side on maintenance assignment, transfer/disposal/workflow
               approval requirements and approval decisions; dispatch never blocks or rolls back the business
               operation that triggered it.

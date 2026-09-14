@@ -70,6 +70,10 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      - name: Test (Vitest + React Testing Library)
+        run: npm test
+        working-directory: frontend
+
       - name: Build (tsc -b && vite build — doubles as the typecheck; no separate lint script exists yet)
         run: npm run build
         working-directory: frontend

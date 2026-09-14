@@ -46,7 +46,7 @@ export default function WorkflowsPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Agentic Workflows</h1>
           <p className="cg-page__subtitle">
-            Review and approve agent-recommended actions (FR-067 to FR-076; §7 of the SRS).
+            Review and approve agent-recommended actions.
           </p>
         </div>
         {canInitiate && (
@@ -163,7 +163,7 @@ export default function WorkflowsPage() {
                 <div className="cg-section__header">
                   <div>
                     <p className="cg-section__title">
-                      {w.asset_code} — recommends {formatStatusLabel(w.recommendation ?? "")}
+                      {w.asset_code}: recommends {formatStatusLabel(w.recommendation ?? "")}
                     </p>
                     <p className="cg-table__muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
                       {w.objective}
@@ -173,7 +173,7 @@ export default function WorkflowsPage() {
                 </div>
                 <div className="cg-section__body">
                   <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.5rem" }}>
-                    Policy validation — {w.validation_result?.verdict}
+                    Policy validation: {w.validation_result?.verdict}
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
                     {w.validation_result?.rule_results.map((r) => {
@@ -183,7 +183,7 @@ export default function WorkflowsPage() {
                           {Icon && <Icon size={16} style={{ fill: OUTCOME_COLOR[r.outcome], flexShrink: 0 }} />}
                           <span style={{ fontSize: "0.8125rem", color: "#525252", fontWeight: 600, minWidth: "3.5rem" }}>{r.rule_id}</span>
                           <span style={{ fontSize: "0.8125rem", color: "#525252" }}>
-                            {r.expected} — {r.actual}
+                            {r.expected} → {r.actual}
                           </span>
                           <Tag type={r.outcome === "PASS" ? "green" : r.outcome === "FAIL" ? "red" : "gray"} size="sm">
                             {r.outcome}

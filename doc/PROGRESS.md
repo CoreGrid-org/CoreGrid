@@ -2,7 +2,7 @@
 
 A living checklist against the ownership and evidence requirements in [SRS §12](SRS/12-individual-contribution-and-work-allocation.md) and [SRS §18](SRS/18-team-roster-and-work-allocation.md). Tick an item only once it's actually in the repo — this file reflects what exists, not what's planned; [SRS §18.9](SRS/18-team-roster-and-work-allocation.md#189-suggested-delivery-rhythm) is the plan. Update it in the same PR that lands the work it describes.
 
-Status as of 2026-09-12 (this update: corrected against the live codebase, not restating new work — see individual rows for evidence): cross-cutting identity/admin slice is up (real ThunderID auth, CI pipeline, 147 backend tests, no frontend tests). All four components now have a working backend. Component A (Asset Registry) has a working backend + React slice. Component B (Maintenance) has a working backend + React slice, but photograph attachment, email notifications, and the Notification Centre panel don't exist in any form — not even a stub — despite earlier notes here claiming otherwise. Component C (Transfer & Disposal) has a fully built, unit-tested backend, but its React screens (`frontend/src/features/transfers`) are an Administrator-only mock-data shell — a real-looking transfer/disposal list and P1–P6 precondition checklist, but reading from `mockTransfers.ts`, not the API; other roles see a placeholder. Component D (Audit & Compliance + Org Config + User Admin) is the most complete: real React screens exist for org structure, users, policy, verification campaigns, and discrepancy resolution (an earlier note here claiming "no React screens at all" for campaigns/discrepancies was stale and has been removed), plus an audit dashboard/report; of the four Reports tabs only Asset Inventory is wired end to end, Maintenance/Disposal remain mock. The agentic subsystem's Policy Compliance agent (node 4) is now fully built end to end — tool endpoints, a deterministic recommendation step, the rule engine, and the human-approval workflow — deliberately with no LLM call anywhere in it, a team decision made 2026-09-12 rather than a gap; Budget Analysis has its tool endpoints but no recommendation step yet; Planner and Maintenance Analysis haven't started; no LangGraph orchestration ties the four together yet. No mobile app.
+Status as of 2026-09-14 (this update: corrected against the live codebase, not restating new work — see individual rows for evidence): cross-cutting identity/admin slice is up (real ThunderID auth, CI pipeline, 163 backend tests, no frontend tests). All four components now have a working backend. Component A (Asset Registry) has a working backend + React slice. Component B (Maintenance) has a working backend + React slice; as of 2026-09-14 its in-app Notification Centre (FR-080) is real too — backend `Notifications` feature, migration, and a wired header panel with unread count — though outbound email/SMS delivery (FR-077–079) and photograph attachment (FR-034) still don't exist in any form. Component C (Transfer & Disposal) has a fully built, unit-tested backend and, as of 2026-09-14, real React screens for all three roles (Administrator, Inventory Officer, Auditor) wired to the live API — this was briefly regressed to an Administrator-only mock-data shell by an unrelated commit in PR #13 (2026-09-14) and has since been found and reverted; see Component C's row for the incident writeup. Component D (Audit & Compliance + Org Config + User Admin) is the most complete: real React screens exist for org structure, users, policy, verification campaigns, and discrepancy resolution, plus an audit dashboard/report; of the four Reports tabs only Asset Inventory is wired end to end, Maintenance/Disposal remain mock. The agentic subsystem's Policy Compliance agent (node 4) is now fully built end to end — tool endpoints, a deterministic recommendation step, the rule engine, and the human-approval workflow — deliberately with no LLM call anywhere in it, a team decision made 2026-09-12 rather than a gap; the Budget Analysis Agent is now also fully built as a standalone Python/LangGraph service (`agent-service/`) with its tool endpoints and a provider-agnostic model call, though it isn't yet wired into a shared four-agent orchestration; Planner and Maintenance Analysis haven't started; no LangGraph orchestration ties the four together yet. Team direction as of 2026-09-14: the remaining agent nodes (Planner, Maintenance Analysis) will be built .NET-native inside the API — matching the Policy Compliance Agent's approach — rather than as further standalone Python processes; the existing Budget Analysis Agent's Python/LangGraph implementation is unaffected and stays as-is. Flutter mobile app: 2026-09-14 update — development has started and is ongoing (per team status, not yet reflected in this repo — no `mobile/`/`flutter/` directory exists here as of this update; update this line with real evidence once work lands).
 
 ## Cross-cutting (Identity, Access, Admin Shell)
 
@@ -24,7 +24,7 @@ Status as of 2026-09-12 (this update: corrected against the live codebase, not r
 | EF Core migrations + generated `db/schema.sql` export (SRS §2.3 C-02) | ✅ (2026-08-15: `db/schema.sql` and `db/migrations/*.sql` had drifted behind two real migrations — regenerated via `dotnet ef migrations script`) |
 | CI pipeline (build/test/lint on push and PR) — §13.6 | ✅ (2026-08-21: `.github/workflows/ci.yml` — see Component D's row below for detail) |
 | Any backend or frontend test project | 🟡 (`backend.Tests` exists — 119 tests, xUnit, InMemory + a real-Postgres suite for append-only/authorization — this line was already stale before 2026-08-21: Component C's 70 tests existed since before this session; no frontend test project exists yet) |
-| Flutter mobile app | ❌ (not started — no `mobile/`/`flutter/` directory exists yet) |
+| Flutter mobile app | 🟡 2026-09-14 correction: development has started and is ongoing per team status — previously ❌; not yet reflected in this repo (no `mobile/`/`flutter/` directory exists here as of this update, so per this file's own rule of tracking what's in the repo, treat this as in-progress-elsewhere until it lands here) |
 
 ## Component A — Asset Registry & QR Identification (Jayashan Guruge, FR-016–032)
 
@@ -57,7 +57,7 @@ Status as of 2026-09-12 (this update: corrected against the live codebase, not r
 
 | Requirement / Specification | Status | Details / Implementation |
 |---|---|---|
-| **FR-033: Fault Reporting** | 🟡 | React  (`ReportFaultPage.tsx` with searchable asset pickers); Flutter ❌ (mobile not started) |
+| **FR-033: Fault Reporting** | ✅ | React ✅ (`ReportFaultPage.tsx` updated 2026-09-14 with searchable asset `ComboBox` and related UI); Flutter ❌ (mobile not started) |
 | **FR-034: Photograph Attachment** | ❌ | No file-upload storage/infrastructure built yet (stores photoUrl as string only) |
 | **FR-035: Direct Maintenance Entry** | ✅ | React ✅ (`CreateMaintenancePage.tsx` with corrective/preventive type and priority selection) |
 | **FR-036: Approval & Assignment** | ✅ | React ✅ (`ApproveMaintenanceModal.tsx` fetches database user list for assignment, logs estimated cost in LKR) |
@@ -65,20 +65,20 @@ Status as of 2026-09-12 (this update: corrected against the live codebase, not r
 | **FR-038: Complete Maintenance** | ✅ | React ✅ (`CompleteMaintenanceModal.tsx` inputs actual cost, work done, date, resulting condition) |
 | **FR-039: Asset UNDER_MAINTENANCE Lock** | ✅ | Managed via backend API during transition to `IN_PROGRESS`; blocks transfer/disposal |
 | **FR-040: Cumulative Recalculations** | ✅ | Recomputes cumulative cost, repair count, and latest repair date atomically on completion |
-| **FR-041: Preventive scheduling** | 🟡  | Background service `PreventiveMaintenanceBackgroundService` polls and auto-schedules based on interval |
+| **FR-041: Preventive scheduling** | 🟡  | Background service `PreventiveMaintenanceBackgroundService` polls and auto-schedules based on interval; correctness needs a closer review/tests before calling it done |
 | **FR-042: List & Filter Dashboard** | ✅ | React ✅ (`MaintenancePage.tsx` table with status filters and LKR currency mapping) |
-| **FR-077–079: Email Notifications** | ❌ | 2026-09-12 correction: no email/notification code exists anywhere in the backend — not even a stub (`grep` for `IEmailSender`/`SmtpClient`/`MailKit`/`SendEmail` across `backend/` returns nothing). The only "email" hits are DTOs surfacing a user's own address (e.g. `AssigneeEmail` in `MaintenanceService.cs`), unrelated to sending mail |
-| **FR-080: Notification Centre** | ❌ | Header notification global action button is static; no panel UI is built yet |
+| **FR-077–079: Email Notifications** | ❌ | Still not implemented — no `IEmailSender`/`SmtpClient`/`MailKit`/`SendEmail` code exists anywhere in the backend. 2026-09-14: distinct from FR-080 below — an in-app Notification Centre now exists, but outbound email/SMS delivery does not. |
+| **FR-080: Notification Centre** | ✅ | 2026-09-14: implemented end to end — backend `Notifications` feature (`backend/Features/Notifications/Controllers/NotificationsController.cs`, `Services/NotificationService.cs`), `Notification` domain entity + migration `20260912055250_AddNotifications` (`backend/db/migrations/0011_add_notifications.sql`); frontend `useNotificationCenter` hook + `NotificationPanel.tsx` (`frontend/src/features/notifications/`) wired into the header bell in `RoleLayout.tsx` with a live unread-count badge. Verified present and wired via direct file/grep check, not just the commit message. |
 | **Business Rules & Acceptance Criteria (FR-038)** | | |
 | *BR1: Cost-variance tolerance* | ✅ | Backend enforces variance checks against organization policies during completion |
 | *BR2: Resulting condition Unserviceable* | ✅ | Automatically sets asset status to `CONDEMNED` (releasing disposal path) on completion |
-| *BR3: Atomic transaction* | ✅ | Completion actions wrapped in a single database transaction rollback on any failure |
+| *BR3: Atomic transaction* | ✅ | Completion actions wrapped in a single database transaction; rollback on any failure |
 | *AC1: Re-completion block (409)* | ✅ | Completed records throw an exception and return 409 Conflict if completed again |
 | *AC2: Cost aggregation correctness* | ✅ | Cumulative cost correctly aggregates historical actual costs |
 | *AC3: Condemnation verification* | ❌ | Verification pending automated integration test setup |
-| *AC4: Notification failure isolation* | ❌ | 2026-09-12 correction: previously marked ✅, but no notification dispatch code exists at all (see FR-077–079 row) — there is nothing to fail, log, or retry, so this claim was aspirational, not implemented |
+| *AC4: Notification failure isolation* | ❌ | Applies only to the still-unbuilt FR-077–079 email/SMS dispatch — there is no delivery provider yet to fail, log, or retry against, so this can't be evaluated until that exists. Unrelated to the now-real in-app Notification Centre (FR-080), which doesn't involve external delivery. |
 | **Maintenance Analysis Agent** | ❌ | AI Agent pending graph execution framework integration |
-| **Tests** | ❌ | Testing projects not yet started |
+| **Tests** | ❌ | Testing projects not yet started; the new Notifications feature and maintenance edge cases (photo upload, email dispatch) have no test coverage yet either |
 
 ## Component C — Transfer & Disposal (Bhanuka Samarasinghe, FR-043–055)
 
@@ -87,6 +87,8 @@ Status as of 2026-09-12 (this update: corrected against the live codebase, not r
 | Backend (transfer/disposal controllers, approval preconditions P1–P6) | ✅ (Full transfer state machine (FR-044/045/046) and disposal workflow (FR-049 condemn, FR-050 submit, FR-051/052 precondition evaluation, FR-054/055 approval + terminal state) implemented and unit tested. FR-053 (disposal revision) and FR-047 (transfer history endpoint) implemented — both were gaps found via a full SRS scope audit after initial FR-043-055 completion. FR-053: RequestDisposalRevisionAsync, POST /api/disposals/{id}/request-revision, valid only from PENDING, preserves prior notes with timestamped revision entries. FR-047: GetTransferHistoryForAssetAsync, GET /api/assets/{assetId}/transfers, full multi-status history ordered by RequestedAt descending. All FR-043 through FR-055 now genuinely verified complete against actual code, not assumption. P4 (maintenance check) now fully implemented against Component B's MaintenanceRecords table. P6 now fully implemented against Component D's AgentWorkflows table — checks for the most recent workflow on the asset recommending DISPOSE, requires Status == AWAITING_APPROVAL (confirmed to only occur on deterministic PASS verdict). Interpretation of 'linked workflow' is an explicit assumption pending confirmation from Component D owner — see code comment in DisposalPreconditionService.cs. All six preconditions (P1-P6) plus separation-of-duties are now fully implemented with zero stubs remaining. Role-based authorization matching existing codebase convention (SRS Appendix B named-policy layer deferred by team lead until after mobile app development). Agent tool endpoints (/api/agent-tools/*: get_asset_financials, get_department_budget_summary, compute_depreciation) implemented for the Budget Analysis Agent. Replacement estimate and department budget allocation/committed/spent data return explicit null/NOT_CONFIGURED markers — no such tables exist yet in the schema. M2M auth via ThunderID service account (client_credentials), isolated to /api/agent-tools/* via UseWhen pipeline branching — RoleEnrichmentMiddleware.cs left untouched. Manual ThunderID console setup required before agent can authenticate (doc/setup/agent-service-account.md).) |
 | Database (`AssetTransfers`, `DisposalRequests`) | ✅ (2026-08-15: fixed — `AssetId`/department/location columns had been left as bare `Guid`s with `TODO: add FK` comments even after `Asset`/`Department`/`Location` existed; added the real FK constraints + migration `AddTransferDisposalForeignKeys`, and repaired an out-of-sync `CoreGridDbContextModelSnapshot.cs` — the two entities' `DbSet` properties and model-snapshot blocks had been dropped, silently breaking `dotnet ef migrations add` for anyone touching this schema; 2026-08-17: added nullable `ValuationDate` to `DisposalRequests` via migration `AddValuationDateToDisposalRequest` to support real P2 valuation precondition check) |
 | React (transfer/disposal queues, precondition checklist) | ✅ (Fully wired to real backend. TransfersPage.tsx (Administrator): live transfer/disposal lists, dynamic P1-P6 precondition checklist reading precondition_evaluation.checks, separation-of-duties warning, approve/reject/request-revision actions with error handling. InventoryTransfersPage.tsx (Inventory Officer, replaces prior ComingSoon): initiate transfer (with department-scoped location picker), confirm receipt, condemn asset, submit disposal — all wired to real endpoints. Verified via actual `npm run build` (zero TypeScript errors, confirmed after fixing 2 real compile errors found during verification — a mis-called useLocations hook and a nonexistent Location.code field reference). Auditor read-only view added (AuditorTransfersPage.tsx, route /audit/transfers, replaces ComingSoon): full organization-wide transfer and disposal registers across all statuses, zero mutating actions (audited via grep — 1 button total, a passive 'Inspect compliance' modal opener), read-only P1-P6 precondition inspection. All three roles (Administrator, Inventory Officer, Auditor) now have real, verified frontend views for FR-043-055. Also fixed a real bug found during verification: types.ts had unused placeholder enum values (DRAFT, CANCELLED, COMPLETED, DESTRUCTION) not matching the real 5-value DisposalStatus / 4-value DisposalMethod enums; InventoryTransfersPage.tsx's disposal method picker was sending 'DESTRUCTION' instead of the real backend value 'DESTROY' — would have caused a submission failure. Cleaned up and verified against real backend enums.) |
+| | 🟡 2026-09-14 correction: the permission matrix (SRS §4.6) grants both `transfer:request` and `disposal:request` to Administrator, not just Inventory Officer — but `TransfersPage.tsx` (the Administrator route) only exposes Approve/Reject/Request-Revision actions; raising a transfer, condemning an asset, and submitting a disposal request exist only in `InventoryTransfersPage.tsx`, gated to the `InventoryOfficer` role (`App.tsx` `RoleRoute role="InventoryOfficer"`). Administrator therefore has no UI path today to exercise a permission the SRS grants them. Not yet fixed — documenting the gap only. |
+| | 🔴→✅ 2026-09-14 regression found and reverted: PR #13 (`seneja/feature-notify-maintanance`, merged as `36ab263`) included an unrelated commit `99a0201 "refactor(transfers): remove legacy transfer modules and consolidate UI"` that silently undid essentially all of this PR's work — `InventoryTransfersPage.tsx` and `AuditorTransfersPage.tsx` were deleted outright (App.tsx routed both InventoryOfficer and Auditor `/transfers` back to `<ComingSoon>`, via commit `a37fdd4`, which also removed the imports); `TransfersPage.tsx` was reverted from real API-wired hooks back to static `mockTransfers.ts` data with no working approve/reject/revision actions; `useTransfers.ts`/`useDisposals.ts`/`services/transfers.ts`/`services/disposals.ts`/`types.ts` were all deleted; backend lost the FR-053 revision endpoint (`POST /api/disposals/{id}/request-revision` + `DisposalService.RequestDisposalRevisionAsync` + its DTO), the FR-047 history endpoint (`GET /api/assets/{assetId}/transfers` + `TransferService.GetTransferHistoryForAssetAsync`), and P6 was reverted from its real `AgentWorkflows`-table check back to a hardcoded `Passed = true` stub — meaning disposal approval's agent-workflow precondition would have silently always passed. Separately, the same PR's `refactor(tests): remove unused project reference from backend.Tests.csproj` (`77abbe6`) removed the `ProjectReference` to `backend/CoreGrid.Api.csproj` that the test project actually needs (it was not unused), so `backend.Tests` could not compile at all (137 errors) as of `36ab263` — meaning CI's test step must have been red on `development` going into this. All of the above was verified by direct diff/build, not assumption, and has now been reverted file-by-file back to the pre-PR13 (`2f59a37`) versions — PR #13's own legitimate work (notifications feature, maintenance analysis tools, file storage service) was left untouched. While recovering, also fixed two pre-existing latent bugs the restored `TransferServiceTests.cs`/`DisposalServiceTests.cs` had carried since PR #12 itself and had apparently never actually been run green: `Location` test fixtures used a `Code` field that doesn't exist on the current `Location` entity (`DepartmentId`/`Type` are the real required fields), and several `AssetTransfer`/`DisposalRequest` test fixtures set `InitiatedByUserId` to a random `Guid` with no matching `User` row — since that FK is non-nullable, EF Core treats the navigation as required and silently inner-join-excludes the parent row on `.Include()`, which is why `GetTransferHistoryForAsset...` returned 0 rows and the revision tests threw `KeyNotFoundException` instead of exercising the code path under test. `dotnet build` (backend: 0 errors; backend.Tests: 0 errors), `dotnet test` (163/163 passing), and `npm run build` (frontend, 0 TypeScript errors) all reverified clean after the recovery. |
 | Flutter (transfer request, scan-to-confirm receipt, condemnation) | ❌ |
 | Budget Analysis Agent | ✅ (Standalone Python/LangGraph agent in `agent-service/` implementing `FinancialAssessmentRequest` / `FinancialAssessment` contract, provider-agnostic `init_chat_model()` defaulting to Google Gemini, ThunderID M2M client, prompt injection defenses, NFR-49 compliance, unit tests passing) |
 | Tests | ✅ (86 Component C-specific unit tests across `DisposalPreconditionServiceTests` [29 tests], `DisposalServiceTests` [28 tests], `TransferServiceTests` [22 tests], and `AgentToolsServiceTests` [7 tests]. Repo-wide backend test suite contains 163 tests total across all components.) |
@@ -121,7 +123,7 @@ The coursework's minimum acceptance rule requires one stateful graph of four dis
 |---|---|---|---|---|
 | Jayashan Guruge (Component A) | Planner Agent | 1 — interprets the objective, rejects out-of-scope requests, produces the typed plan | `get_asset_summary` | ❌ not started |
 | Seneja Ramanayaka (Component B) | Maintenance Analysis Agent | 2 — repair count, MTBF, cost trend, 12-month projection | `get_maintenance_history`, `compute_failure_statistics` | ❌ not started |
-| Bhanuka Samarasinghe (Component C) | Budget Analysis Agent | 3 — residual value, replacement estimate, repair:replace ratio, ranked options | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` | 🟡 in progress — keep building on it: the three tools are live (`backend/Features/AgentTools`, `POST /api/agent-tools/*`), the LangGraph agent that calls them isn't started yet |
+| Bhanuka Samarasinghe (Component C) | Budget Analysis Agent | 3 — residual value, replacement estimate, repair:replace ratio, ranked options | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` | ✅ done — tool endpoints (`backend/Features/AgentTools`, `POST /api/agent-tools/*`) and the standalone Python/LangGraph agent calling them (`agent-service/`) are both built and unit-tested; not yet wired into a shared orchestration with the other three agents |
 | Hasitha Erandika (Component D, Group Leader) | Policy Compliance Agent | 4 — assembles policy/compliance facts; verdict is the deterministic rule engine (PR-01–PR-09, §7.6), not the model | `get_organization_policies`, `get_asset_compliance_state` | 🟡 in progress — the two tools, the rule engine (`PolicyRuleEngine`), the node-4 recommendation step (`AssetActionRecommendationEngine`, deterministic — see Component D row for why no LLM is used), and the human-approval checkpoint are all real, unit-tested, and verified end to end; the LangGraph orchestration tying this into the other three members' agents isn't started |
 
 Also cross-cutting all four and not tied to any single agent's contract, but owned by Hasitha per §18.6 (rule engine + human-approval interrupt/resume mechanics): the `AgentWorkflows`/`AgentExecutionSteps`/`AgentApprovals` persistence schema (§7.5, migration `AddAgentWorkflows`) and the three-stage deterministic gate (§7.6) that sits between the agents' output and any consequence — both built 2026-08-21 (`Features/Agents/`). Stage 1 (schema validation) and stage 3 (authorisation) of the gate aren't implemented yet, only stage 2 (business rules, PR-01–09) — the other two don't have much to validate against until real agent output exists to validate.
@@ -143,43 +145,134 @@ Also cross-cutting all four and not tied to any single agent's contract, but own
 
 ## Next Up — Per-Member Task List
 
-Derived from the ❌/🟡 rows above, grouped by owner ([SRS §18](SRS/18-team-roster-and-work-allocation.md)). Not a new plan — just this file's open items restated as a to-do list.
+Derived from the ❌/🟡 rows above, grouped by owner ([SRS §18](SRS/18-team-roster-and-work-allocation.md)) and split into Completed / Ongoing / Not Started. Not a new plan — just this file's open items restated as a to-do list. Nothing below has been dropped from the previous version of this file; items just moved into a status bucket.
 
 ### Hasitha Erandika — Group Leader (Cross-cutting + Component D, FR-010–015, FR-056–066)
-- ~~FR-004: create/refresh local user mirror on first request; audit role changes~~ — done 2026-09-12 (`RoleEnrichmentMiddleware`; see Cross-cutting table for why Role is deliberately excluded from the refresh).
-- ~~FR-003/FR-006: surface `OrganizationId` from the mirror and add it as a real scoping filter~~ — done 2026-09-12 (`organization_id` claim + `CoreGridDbContext` global query filter; see Cross-cutting table).
-- ~~FR-005: finish rolling real role policies onto the remaining blanket-`[Authorize]` GET endpoints~~ — done 2026-09-12 (Assets/AssetTypes/AssetCategories/OrgConfig/Verification/Maintenance; also found and closed an `[AllowAnonymous]` hole on `POST /api/maintenance/seed`; see Cross-cutting table). Named ASP.NET Core policies matching Appendix B's literal names remain deferred, per the team's own existing note.
-- ~~FR-008: verify sign-out end to end~~ — done 2026-09-12 (verified by reading `@thunderid/browser`'s actual `signOut()` implementation; see Cross-cutting table).
-- Flutter: verification task list + field verification flow (not started).
-- Policy Compliance Agent: only the LangGraph orchestration (ADR-005) is left — the node-4 recommendation step is now built too (deterministic, no LLM — see Component D row); AI-17 (executing an approved action through Component A/B/C's business services) is still stubbed, recorded but not wired up.
-- The append-only fix is only half done: `coregrid_app` role + grants exist and are proven correct by `AppendOnlyTests`, but the app's actual runtime connection still connects as the migration-owner role, which Postgres can't restrict via REVOKE at all — needs the runtime connection split from the migration one to actually take effect for the running app, not just in the test suite.
-- Frontend test project (React/Vite) — still doesn't exist; `backend.Tests` (147 tests) covers only the backend.
+
+**✅ Completed**
+
+| Task | Notes |
+|---|---|
+| FR-004: create/refresh local user mirror on first request; audit role changes | Done 2026-09-12 — `RoleEnrichmentMiddleware`. Role is deliberately excluded from the refresh (see Cross-cutting table). |
+| FR-003/FR-006: surface `OrganizationId` from the mirror as a real scoping filter | Done 2026-09-12 — `organization_id` claim + `CoreGridDbContext` global query filter. |
+| FR-005: roll real role policies onto the remaining blanket-`[Authorize]` GET endpoints | Done 2026-09-12 — also closed an `[AllowAnonymous]` hole on `POST /api/maintenance/seed`. Named ASP.NET Core policies matching Appendix B's literal names remain deferred. |
+| FR-008: verify sign-out end to end | Done 2026-09-12 — verified against `@thunderid/browser`'s actual `signOut()` implementation. |
+| UI/UX: Organisation Settings > Policy Parameters | Done 2026-09-14 — each policy is now a collapsed-by-default `Accordion`/`AccordionItem`; each parameter is inline-editable in place (click the value, edit, save/cancel) via the existing `PUT /api/organization-policies/{id}` with the rest of the record spread in, no backend change needed; `PolicyModal.tsx`'s "Applies to" field is now a searchable `ComboBox` instead of a plain `Select`. |
+| Reports > Audit tab pagination | Done 2026-09-14 — `AuditReportDto` gained a `Discrepancies` line-item list (asset, department, classification, status, raised/resolved) alongside the existing classification summary, populated in `AuditReportService` and included in both CSV and PDF exports; `AuditReportPanel.tsx` renders it as a table with a Carbon `Pagination` control, matching the list-detail pattern Asset Inventory already uses. Also cleaned that panel's own rendered `(FR-0XX ...)`/em-dash copy while in the file, same as the Copy cleanup row below. |
+| Copy cleanup | Done 2026-09-14 — removed rendered `(FR-0XX ...)` references and stylistic em-dashes from `SettingsPage.tsx`, `AuditPage.tsx`, `WorkflowsPage.tsx`, `ReportsPage.tsx`, `MaintenancePage.tsx`, and `MockNotice` (which no longer prints a requirements list into the UI at all). The four dashboard pages needed no changes — their `FR-0XX` mentions were already code comments, never rendered. Code comments and the `"—"` empty-value placeholder convention were left alone everywhere — the task was about copy, not those. |
+| Frontend test project (React/Vite) | Done 2026-09-14 — Vitest + React Testing Library wired up (`vite.config.ts`'s `test` block, `src/test/setup.ts`, `npm test`/`npm run test:watch`), CI runs it as a new frontend job step. 3 files, 13 tests, covering `statusTag.ts`, `errorMessage.ts` and `MockNotice.tsx` as a first example of both a pure-function and a component test for the rest of the team to extend. |
+
+**🟡 Ongoing**
+
+| Task | Notes |
+|---|---|
+| Flutter: verification task list + field verification flow | Development started per team status (2026-09-14); not yet reflected in this repo. |
+| Policy Compliance Agent: orchestration + AI-17 | Node-4 recommendation step is built; only the LangGraph orchestration tying nodes 1–4 together and AI-17 (executing an approved action through Component A/B/C's business services) remain. |
+| Append-only enforcement | `coregrid_app` role + grants exist and are proven correct by `AppendOnlyTests`, but the app's runtime connection still connects as the migration-owner role — needs the runtime connection split from the migration one to actually take effect for the running app. |
+
+**❌ Not Started**
+
+Nothing currently open in this bucket — everything that was here is now Completed above. Remaining open items for this owner are the two in Ongoing (Flutter, Policy Compliance Agent orchestration) and the append-only enforcement item.
 
 ### Jayashan Guruge — Component A: Asset Registry & QR (FR-016–032)
-- FR-019: evaluate `ValidationRule` against submitted attribute values — rule is stored but never enforced.
-- FR-023: printable QR label download (a real QR renders in-app; no print/download path yet).
-- FR-030: compute residual value server-side (straight-line depreciation from acquisition cost/date + useful life) — currently a free-entry client field.
-- FR-031: `POST /api/assets/{id}/verify` (officer physical verification) — Flutter-only per SRS, blocked on Flutter start.
-- FR-032: confirm assets actually exit only via disposal once Component C's disposal workflow has a frontend (Component A's own half — no-delete-endpoint — is already satisfied).
-- FR-020/024/025: Flutter — dynamic attribute detail form, QR scan-to-record (<3s), manual code entry.
-- Flutter: scanner, asset lookup, condition update; Planner Agent; tests — none started.
+
+**✅ Completed**
+
+No Component A items have closed since the last full audit — see the Component A table above for what's already shipped.
+
+**🟡 Ongoing**
+
+| Task | Notes |
+|---|---|
+| FR-020: Flutter dynamic attribute detail form | Development started per team status (2026-09-14); not yet reflected in this repo. |
+| FR-024: Flutter QR scan-to-record (<3s) | Same. |
+| FR-025: Flutter manual code entry | Same. |
+| Flutter: scanner, asset lookup, condition update | Same. |
+
+**❌ Not Started**
+
+| Task | Notes |
+|---|---|
+| Confirm: Auditor's Asset Registry access | 2026-09-14 finding, needs Jayashan's decision — `AuditLayout.tsx`'s sidebar already links "Asset Registry" to `/audit/assets` (`App.tsx`), but that route renders `<ComingSoon feature="Asset Registry" />`, not the real `AssetsPage` — unlike `/admin/assets` and `/inventory/assets`, which both get the real page. FR-028 ("Users shall search assets... All users") explicitly includes Auditor, so this reads as a real gap rather than an intentionally Auditor-excluded feature — but confirm and decide (wire `/audit/assets` to a real, presumably read-only, asset view vs. explicitly descope it) is Jayashan's call as Component A owner, not made here. |
+| FR-019: evaluate `ValidationRule` against submitted attribute values | Rule is stored but never enforced. |
+| FR-023: printable QR label download | A real QR renders in-app; no print/download path yet. |
+| FR-030: compute residual value server-side | Straight-line depreciation from acquisition cost/date + useful life — currently a free-entry client field. |
+| FR-031: `POST /api/assets/{id}/verify` (officer physical verification) | Flutter-only per SRS, blocked on Flutter start. |
+| FR-032: confirm assets exit only via disposal | Component A's own half (no delete endpoint) is already satisfied; re-confirm now that Component C's disposal workflow has a frontend. |
+| Planner Agent | Not started. |
+| Tests | Not started. |
+| UI/UX: `AssetScanPage.tsx` redesign | Correct card padding; replace the "Awaiting a scan or a typed code" placeholder with a system-banner-style state making clear this is the web fallback, not the scan flow itself. |
+| UI/UX: Asset config (category/type/attribute) screens | Card padding incorrect; on the attribute screen, move the search bar to match the type list's search bar position/style. |
+| UI/UX: Carbon conformance pass | Category/type/attribute search bars need to conform to IBM Carbon patterns, plus a general UI/UX pass across the Asset feature pages. |
+| Reports > Asset Inventory tab pagination | Same shared `ReportsPage.tsx` — coordinate with Seneja/Bhanuka/Hasitha. |
+| Copy cleanup | Remove `(FR-0XX ...)` references and em-dashes from `AssetsPage.tsx`. |
 
 ### Seneja Ramanayaka — Component B: Maintenance Management (FR-033–042, FR-077–080)
-- FR-034: photograph attachment — needs real file-upload storage (currently a URL string field).
-- FR-033: Flutter fault reporting (React side is done).
-- FR-077–079: build email delivery from scratch — no email/notification code exists yet, not even a stub (corrected 2026-09-12).
-- FR-080: build the Notification Centre panel — header bell is currently static.
-- AC3: automated integration test for condemnation-on-Unserviceable-completion.
-- FR-041: preventive scheduling exists via a background poller — worth a closer correctness pass/tests before calling it done.
-- Maintenance Analysis Agent; test project — none started.
+
+**✅ Completed**
+
+| Task | Notes |
+|---|---|
+| FR-080: Notification Centre panel | Done 2026-09-14 — backend `Notifications` feature + migration, `NotificationPanel.tsx` wired into `RoleLayout.tsx` with a live unread count. |
+| FR-033: React fault reporting | Done, updated 2026-09-14 with a searchable asset `ComboBox`. |
+
+**🟡 Ongoing**
+
+| Task | Notes |
+|---|---|
+| FR-033: Flutter fault reporting | Development started per team status (2026-09-14); not yet reflected in this repo. |
+| FR-041: preventive scheduling | Background poller exists; needs a closer correctness pass/tests before calling it done. |
+
+**❌ Not Started**
+
+| Task | Notes |
+|---|---|
+| FR-034: photograph attachment | Needs real file-upload storage — currently a URL string field. |
+| FR-077–079: email delivery | No email/notification code exists yet, not even a stub. Distinct from FR-080, which is done. |
+| AC3: automated integration test | Condemnation-on-Unserviceable-completion. |
+| Maintenance Analysis Agent | Not started. |
+| Test project | Not started — the new Notifications feature also has no test coverage yet. |
+| FR-084: Reports > Maintenance tab is still mock data | `mockReports.ts`'s `maintenance` entry — no real records, stats or filters. Two existing patterns to copy: Asset Inventory (Jayashan) fetches every page of the existing `GET /api/maintenance` list client-side and aggregates/exports in the browser, no new backend endpoint; Audit (Hasitha) has a dedicated backend report service (`AuditReportService`, `GET /api/reports/audit(/export)`) doing the aggregation server-side. Needs date/department/category/status/condition filters (FR-084), PDF/CSV export (FR-085), org/department scoping (FR-086), and pagination on the list output once real. |
+| Copy cleanup | Remove `(FR-0XX ...)` references and em-dashes from `CreateMaintenancePage.tsx`, `ReportFaultPage.tsx`, `MaintenancePage.tsx`. |
 
 ### Bhanuka Samarasinghe — Component C: Transfer & Disposal (FR-043–055)
-- ~~P6 precondition (agent workflow check) — un-stubbed and implemented against AgentWorkflows table (2026-09-12)~~.
-- ~~React: `TransfersPage.tsx` (Administrator) and `InventoryTransfersPage.tsx` (Inventory Officer) fully wired to real backend endpoints with live precondition evaluation and error handling (2026-09-13)~~.
-- Flutter: transfer request, scan-to-confirm receipt, condemnation flow.
-- Budget Analysis Agent — tool endpoints exist (`/api/agent-tools/*`); the Python agent that calls them is not started.
-- SRS Appendix B named-policy authorisation layer — deliberately deferred until after mobile work; revisit once Flutter lands.
+
+**✅ Completed**
+
+| Task | Notes |
+|---|---|
+| P6 precondition (agent workflow check) | Un-stubbed, implemented against `AgentWorkflows` table (2026-09-12). |
+| React: Administrator + Inventory Officer transfer/disposal screens | `TransfersPage.tsx` and `InventoryTransfersPage.tsx` fully wired to real backend endpoints with live precondition evaluation and error handling (2026-09-13). |
+| Budget Analysis Agent | Standalone Python/LangGraph agent in `agent-service/`, calling the live `/api/agent-tools/*` endpoints — built and unit-tested (see Component C table for full detail). |
+
+**🟡 Ongoing**
+
+| Task | Notes |
+|---|---|
+| Flutter: transfer request, scan-to-confirm receipt, condemnation | Development started per team status (2026-09-14); not yet reflected in this repo. |
+
+**❌ Not Started**
+
+| Task | Notes |
+|---|---|
+| SRS Appendix B named-policy authorisation layer | Deliberately deferred until after mobile work; revisit once Flutter lands. |
+| FR-084: Reports > Disposal tab is still mock data | `mockReports.ts`'s `disposal` entry — no real records, stats or filters. Same two patterns available as Seneja's Maintenance tab: client-side aggregation over the existing `GET /api/disposals` list (Asset Inventory's approach), or a dedicated backend report service (Audit's approach). Needs date/department/category/status/condition filters (FR-084), PDF/CSV export (FR-085), org/department scoping (FR-086), and pagination on the list output once real. |
+| Copy cleanup | Remove `(FR-0XX ...)` references and em-dashes from `TransfersPage.tsx`, `AuditorTransfersPage.tsx`, `InventoryTransfersPage.tsx`. |
+
+Team direction (2026-09-14): the remaining agent nodes (Planner, Maintenance Analysis) will be built .NET-native inside the API — matching the Policy Compliance Agent's approach — rather than as further standalone Python processes. The existing Budget Analysis Agent's Python/LangGraph implementation above is unaffected and stays as-is.
 
 ### Program-wide (no single owner)
-- Flutter mobile app: not started for any component — every FR marked Flutter-only above is blocked on this.
-- No backend or frontend test project exists at all yet — each owner's "Tests" row above is ❌ for the same underlying reason.
+
+**🟡 Ongoing**
+
+| Task | Notes |
+|---|---|
+| Flutter mobile app | Development has started and is ongoing per team status (2026-09-14); every FR marked Flutter-only above remains blocked until that work lands in this repo (no `mobile/`/`flutter/` directory exists here as of this update). |
+
+**❌ Not Started**
+
+| Task | Notes |
+|---|---|
+| Frontend test project | No React/Vite test project exists; each owner's "Tests" row above is ❌ for this same reason — `backend.Tests` already exists and is not the gap. |
+
+FR-084 names exactly four report types — asset inventory, maintenance, disposal, audit campaign — and all four already exist as tabs on the shared `ReportsPage.tsx`; the SRS specifies no additional report types beyond these. Asset Inventory (Jayashan) and Audit (Hasitha) are real; Maintenance (Seneja) and Disposal (Bhanuka) are still mock — see each owner's table above.
