@@ -13,6 +13,8 @@ import {
 } from "@carbon/react";
 import { Notification, Logout, UserAvatar, Dashboard as DashboardIcon } from "@carbon/icons-react";
 import { SignOutButton } from "@thunderid/react";
+import { useNotificationCenter } from "@/features/notifications/hooks/useNotifications";
+import NotificationPanel from "@/features/notifications/components/NotificationPanel";
 
 export interface RoleNavItem {
   to: string;
@@ -41,6 +43,7 @@ interface RoleLayoutProps {
 // nav content instead of duplicating this file three times.
 export default function RoleLayout({ ariaLabel, homeTo, navItems, navGroups = [] }: RoleLayoutProps) {
   const { pathname } = useLocation();
+  const notificationCenter = useNotificationCenter();
 
   return (
     <>
@@ -54,9 +57,46 @@ export default function RoleLayout({ ariaLabel, homeTo, navItems, navGroups = []
           </span>
         </HeaderName>
         <HeaderGlobalBar>
-          <HeaderGlobalAction aria-label="Notifications">
-            <Notification size={20} className="cg-header-icon" />
-          </HeaderGlobalAction>
+          <div style={{ position: "relative" }}>
+            <HeaderGlobalAction
+              aria-label={`Notifications${notificationCenter.unreadCount > 0 ? ` (${notificationCenter.unreadCount} unread)` : ""}`}
+              onClick={notificationCenter.toggle}
+              isActive={notificationCenter.isOpen}
+            >
+              <Notification size={20} className="cg-header-icon" />
+              {notificationCenter.unreadCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: "0.5rem",
+                    right: "0.5rem",
+                    minWidth: "0.9rem",
+                    height: "0.9rem",
+                    padding: "0 0.2rem",
+                    borderRadius: "0.5rem",
+                    background: "#da1e28",
+                    color: "#fff",
+                    fontSize: "0.625rem",
+                    lineHeight: "0.9rem",
+                    textAlign: "center",
+                  }}
+                >
+                  {notificationCenter.unreadCount > 9 ? "9+" : notificationCenter.unreadCount}
+                </span>
+              )}
+            </HeaderGlobalAction>
+            {notificationCenter.isOpen && (
+              <NotificationPanel
+                notifications={notificationCenter.notifications}
+                isLoading={notificationCenter.isLoading}
+                isError={notificationCenter.isError}
+                onClose={notificationCenter.close}
+                onMarkAsRead={notificationCenter.markAsRead}
+                onMarkAllAsRead={notificationCenter.markAllAsRead}
+              />
+            )}
+          </div>
           <SignOutButton>
             {({ signOut }) => (
               <HeaderGlobalAction aria-label="Sign out" onClick={() => signOut()}>

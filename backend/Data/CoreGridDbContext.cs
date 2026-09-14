@@ -36,6 +36,7 @@ public class CoreGridDbContext(
     public DbSet<AgentWorkflow> AgentWorkflows => Set<AgentWorkflow>();
     public DbSet<AgentExecutionStep> AgentExecutionSteps => Set<AgentExecutionStep>();
     public DbSet<AgentApproval> AgentApprovals => Set<AgentApproval>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -663,6 +664,30 @@ public class CoreGridDbContext(
             {
                 tb.HasCheckConstraint("CK_AgentApprovals_Decision", "\"Decision\" IN ('APPROVE','REJECT','REVISE')");
             });
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasQueryFilter(n => currentOrganizationProvider.OrganizationId == null || n.OrganizationId == currentOrganizationProvider.OrganizationId);
+
+            entity.HasIndex(n => n.OrganizationId);
+            entity.HasIndex(n => new { n.RecipientUserId, n.IsRead });
+            entity.HasIndex(n => n.CreatedAt);
+
+            entity.Property(n => n.Type).HasMaxLength(40).IsRequired();
+            entity.Property(n => n.Title).IsRequired();
+            entity.Property(n => n.Message).IsRequired();
+            entity.Property(n => n.RelatedEntityType).HasMaxLength(60);
+
+            entity.HasOne(n => n.Organization)
+                .WithMany()
+                .HasForeignKey(n => n.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(n => n.RecipientUser)
+                .WithMany()
+                .HasForeignKey(n => n.RecipientUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

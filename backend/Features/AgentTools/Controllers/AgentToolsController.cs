@@ -15,10 +15,15 @@ namespace CoreGrid.Api.Features.AgentTools.Controllers;
 public class AgentToolsController : CoreGridControllerBase
 {
     private readonly IAgentToolsService _agentToolsService;
+    private readonly IMaintenanceAnalysisToolsService _maintenanceAnalysisToolsService;
 
-    public AgentToolsController(IAgentToolsService agentToolsService, CoreGridDbContext db) : base(db)
+    public AgentToolsController(
+        IAgentToolsService agentToolsService,
+        IMaintenanceAnalysisToolsService maintenanceAnalysisToolsService,
+        CoreGridDbContext db) : base(db)
     {
         _agentToolsService = agentToolsService;
+        _maintenanceAnalysisToolsService = maintenanceAnalysisToolsService;
     }
 
     // =========================================================
@@ -117,6 +122,44 @@ public class AgentToolsController : CoreGridControllerBase
         {
             return NotFound(new { message = $"Asset with ID {assetId} not found." });
         }
+
+        return Ok(result);
+    }
+
+    // =========================================================
+    // GET /api/agent-tools/assets/{assetId}/maintenance-history
+    // Maintenance Analysis Agent tool (§7.4, node 2).
+    // =========================================================
+    [HttpGet("api/agent-tools/assets/{assetId:guid}/maintenance-history")]
+    public async Task<ActionResult<MaintenanceHistoryDto>> GetMaintenanceHistory(
+        Guid assetId,
+        [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
+    {
+        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
+        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
+
+        var result = await _maintenanceAnalysisToolsService.GetMaintenanceHistoryAsync(orgId.Value, assetId, cancellationToken);
+        if (result is null) return NotFound(new { message = $"Asset with ID {assetId} not found." });
+
+        return Ok(result);
+    }
+
+    // =========================================================
+    // GET /api/agent-tools/assets/{assetId}/failure-statistics
+    // Maintenance Analysis Agent tool (§7.4, node 2).
+    // =========================================================
+    [HttpGet("api/agent-tools/assets/{assetId:guid}/failure-statistics")]
+    public async Task<ActionResult<FailureStatisticsDto>> GetFailureStatistics(
+        Guid assetId,
+        [FromQuery] Guid? organizationId,
+        CancellationToken cancellationToken)
+    {
+        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
+        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
+
+        var result = await _maintenanceAnalysisToolsService.ComputeFailureStatisticsAsync(orgId.Value, assetId, cancellationToken);
+        if (result is null) return NotFound(new { message = $"Asset with ID {assetId} not found." });
 
         return Ok(result);
     }

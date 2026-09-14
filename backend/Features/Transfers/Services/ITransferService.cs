@@ -17,6 +17,4 @@ public interface ITransferService
     Task<List<TransferResponse>> GetTransfersAsync(Guid organizationId, TransferQueryParameters parameters, CancellationToken cancellationToken = default);
 
     Task<TransferResponse?> GetTransferByIdAsync(Guid organizationId, Guid transferId, CancellationToken cancellationToken = default);
-
-    Task<List<TransferResponse>> GetTransferHistoryForAssetAsync(Guid organizationId, Guid assetId, CancellationToken cancellationToken = default);
 }

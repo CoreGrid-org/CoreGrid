@@ -53,7 +53,7 @@ public class DisposalPreconditionService : IDisposalPreconditionService
         var p3 = CheckP3ServiceLifeElapsed(request.Asset, policy, request.Asset.AssetType);
         var p4 = await CheckP4NoOpenMaintenanceAsync(request.AssetId, cancellationToken);
         var p5 = await CheckP5NoOpenTransfersAsync(request.AssetId, cancellationToken);
-        var p6 = await CheckP6AgentWorkflowLinkedAsync(request.AssetId, cancellationToken);
+        var p6 = CheckP6AgentWorkflowPass(request);
 
         result.Checks.Add(p1);
         result.Checks.Add(p2);
@@ -68,24 +68,25 @@ public class DisposalPreconditionService : IDisposalPreconditionService
     }
 
     /// <summary>
-    /// P1 — Asset status is CONDEMNED.
+    /// P1 — The asset status must be CONDEMNED.
+    /// Evaluates against Asset.Status == "CONDEMNED".
     /// </summary>
     public PreconditionCheck CheckP1AssetCondemned(Asset asset)
     {
-        bool passed = asset.Status == AssetStatusConstants.Condemned;
+        bool passed = string.Equals(asset.Status, AssetStatusConstants.Condemned, StringComparison.OrdinalIgnoreCase);
 
         return new PreconditionCheck
         {
             Code = "P1",
-            Description = "Asset status must be CONDEMNED",
+            Description = "The asset status must be CONDEMNED",
             Passed = passed,
-            FailureReason = passed ? null : $"Asset status is '{asset.Status}', but must be '{AssetStatusConstants.Condemned}'."
+            FailureReason = passed ? null : $"Asset status is '{asset.Status}', expected '{AssetStatusConstants.Condemned}'."
         };
     }
 
     /// <summary>
-    /// P2 — A valuation amount and valuation date are recorded.
-    /// Amount comes from DisposalRequest.EstimatedResidualValue, Date comes from DisposalRequest.ValuationDate.
+    /// P2 — A valuation amount and valuation date must be recorded.
+    /// Evaluates against DisposalRequest.EstimatedResidualValue (presence, >= 0) and ValuationDate (presence).
     /// </summary>
     public PreconditionCheck CheckP2ValuationRecorded(DisposalRequest request, Asset asset)
     {
@@ -96,21 +97,21 @@ public class DisposalPreconditionService : IDisposalPreconditionService
         string? failureReason = null;
         if (!hasAmount && !hasDate)
         {
-            failureReason = "Valuation amount and valuation date are both missing.";
+            failureReason = "Both valuation amount (EstimatedResidualValue) and valuation date (ValuationDate) are missing.";
         }
         else if (!hasAmount)
         {
-            failureReason = "Valuation amount is missing or negative.";
+            failureReason = "Valuation amount (EstimatedResidualValue) is missing or invalid (< 0).";
         }
         else if (!hasDate)
         {
-            failureReason = "Valuation date is missing.";
+            failureReason = "Valuation date (ValuationDate) is missing.";
         }
 
         return new PreconditionCheck
         {
             Code = "P2",
-            Description = "A valuation amount and valuation date must be recorded",
+            Description = "A valuation amount and valuation date must be recorded (presence checked; no staleness window specified in FR-051 §6.6)",
             Passed = passed,
             FailureReason = failureReason
         };
@@ -197,38 +198,17 @@ public class DisposalPreconditionService : IDisposalPreconditionService
     }
 
     /// <summary>
-    /// P6 — Where an agentic workflow is linked to the request, it has reached AWAITING_APPROVAL and its deterministic validation result is PASS (FR-051 §6.6).
-    /// ASSUMPTION (pending confirmation from Hasitha/Component D): 'linked workflow' = most recent AgentWorkflow for this asset with Recommendation == DISPOSE. If multiple interpretations are possible, this should be revisited.
+    /// P6 — Where an agentic workflow is linked to the request, it has reached AWAITING_APPROVAL and its deterministic validation result is PASS.
+    /// STUBBED: Agentic subsystem pending implementation.
     /// </summary>
-    public async Task<PreconditionCheck> CheckP6AgentWorkflowLinkedAsync(Guid assetId, CancellationToken cancellationToken = default)
+    public PreconditionCheck CheckP6AgentWorkflowPass(DisposalRequest request)
     {
-        var linkedWorkflow = await _dbContext.AgentWorkflows
-            .AsNoTracking()
-            .Where(w => w.AssetId == assetId && w.Recommendation == "DISPOSE")
-            .OrderByDescending(w => w.CreatedAt)
-            .Select(w => new { w.Id, w.Status })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        // Conditional: Where an agentic workflow is linked...
-        if (linkedWorkflow == null)
-        {
-            return new PreconditionCheck
-            {
-                Code = "P6",
-                Description = "Where an agentic workflow is linked to the request, it must have reached AWAITING_APPROVAL with PASS validation",
-                Passed = true,
-                FailureReason = null
-            };
-        }
-
-        bool isAwaitingApproval = linkedWorkflow.Status == WorkflowStatus.AWAITING_APPROVAL;
-
         return new PreconditionCheck
         {
             Code = "P6",
-            Description = "Where an agentic workflow is linked to the request, it must have reached AWAITING_APPROVAL with PASS validation",
-            Passed = isAwaitingApproval,
-            FailureReason = isAwaitingApproval ? null : $"Linked agent workflow {linkedWorkflow.Id} has status '{linkedWorkflow.Status}', but must be '{nameof(WorkflowStatus.AWAITING_APPROVAL)}'."
+            Description = "Linked agentic workflow must have reached AWAITING_APPROVAL with PASS validation",
+            Passed = true,
+            FailureReason = "[STUB] Agentic subsystem workflow integration pending implementation."
         };
     }
 

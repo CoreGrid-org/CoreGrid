@@ -11,14 +11,16 @@ import {
   FileUploader,
   ComboBox,
 } from "@carbon/react";
-import { useReportFault } from "../hooks/useMaintenance";
+import type { FileChangeData } from "@carbon/react/lib/components/FileUploader/FileUploader";
+import { useReportFault, useUploadMaintenancePhoto } from "../hooks/useMaintenance";
 import { useAssetsList } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 
 export default function ReportFaultPage() {
   const navigate = useNavigate();
   const reportFault = useReportFault();
-  
+  const uploadPhoto = useUploadMaintenancePhoto();
+
   // Load assets to populate the ComboBox
   const { data: assetsData, isLoading: isLoadingAssets } = useAssetsList({ pageSize: 100 });
   const assets = assetsData?.items || [];
@@ -26,7 +28,21 @@ export default function ReportFaultPage() {
   const [assetId, setAssetId] = useState("");
   const [description, setDescription] = useState("");
   const [observedCondition, setCondition] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handlePhotoChange = (_event: React.SyntheticEvent<HTMLElement>, data?: FileChangeData) => {
+    const file = data?.addedFiles[0]?.file;
+    if (!file) return;
+    setPhotoUrl(null);
+    uploadPhoto.mutate(file, {
+      onSuccess: (url) => setPhotoUrl(url),
+    });
+  };
+
+  const handlePhotoRemove = () => {
+    setPhotoUrl(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +56,7 @@ export default function ReportFaultPage() {
         asset_id: assetId,
         description,
         observed_condition: observedCondition,
+        photo_url: photoUrl ?? undefined,
       },
       {
         onSuccess: () => navigate(".."),
@@ -106,14 +123,21 @@ export default function ReportFaultPage() {
             <div style={{ marginBottom: "1rem" }}>
               <FileUploader
                 labelTitle="Attach a Photo (Optional)"
-                labelDescription="Max file size 5MB"
+                labelDescription="Max file size 5MB — JPEG, PNG or WebP"
                 buttonLabel="Add file"
                 buttonKind="ghost"
                 size="md"
-                filenameStatus="edit"
-                accept={[".jpg", ".png", ".jpeg"]}
+                filenameStatus={uploadPhoto.isPending ? "uploading" : uploadPhoto.isError ? "edit" : photoUrl ? "complete" : "edit"}
+                accept={[".jpg", ".jpeg", ".png", ".webp"]}
                 multiple={false}
+                onChange={handlePhotoChange}
+                onDelete={handlePhotoRemove}
               />
+              {uploadPhoto.isError && (
+                <p style={{ color: "#da1e28", fontSize: "0.75rem", marginTop: "0.25rem" }}>
+                  {getErrorMessage(uploadPhoto.error, "Photo upload failed. You can still submit without one.")}
+                </p>
+              )}
             </div>
           </FormGroup>
 
@@ -121,8 +145,8 @@ export default function ReportFaultPage() {
             <Button type="button" kind="secondary" onClick={() => navigate("..")} disabled={reportFault.isPending}>
               Cancel
             </Button>
-            <Button type="submit" kind="primary" disabled={reportFault.isPending}>
-              {reportFault.isPending ? "Submitting..." : "Report Fault"}
+            <Button type="submit" kind="primary" disabled={reportFault.isPending || uploadPhoto.isPending}>
+              {reportFault.isPending ? "Submitting..." : uploadPhoto.isPending ? "Uploading photo..." : "Report Fault"}
             </Button>
           </div>
         </Form>

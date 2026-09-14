@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Maintenance.DTOs;
+using CoreGrid.Api.Features.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Maintenance.Services;
@@ -12,10 +13,12 @@ namespace CoreGrid.Api.Features.Maintenance.Services;
 public class MaintenanceService : IMaintenanceService
 {
     private readonly CoreGridDbContext _context;
+    private readonly INotificationService _notificationService;
 
-    public MaintenanceService(CoreGridDbContext context)
+    public MaintenanceService(CoreGridDbContext context, INotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(Guid organizationId, Guid id)
@@ -180,6 +183,7 @@ public class MaintenanceService : IMaintenanceService
         }
 
         var record = await _context.MaintenanceRecords
+            .Include(m => m.Asset)
             .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
 
         if (record is null)
@@ -210,6 +214,17 @@ public class MaintenanceService : IMaintenanceService
         record.UpdatedBy = currentUserId;
 
         await _context.SaveChangesAsync();
+
+        // FR-080: notify the newly assigned officer.
+        await _notificationService.NotifyAsync(
+            organizationId,
+            request.AssigneeId,
+            "MAINTENANCE_ASSIGNED",
+            "Maintenance assigned to you",
+            $"You've been assigned maintenance for {record.Asset?.AssetCode ?? "an asset"}: {record.Description}",
+            "MaintenanceRecord",
+            record.Id,
+            default);
 
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
@@ -442,6 +457,23 @@ public class MaintenanceService : IMaintenanceService
         // Single SaveChangesAsync - satisfies BR3 (atomic).
         await _context.SaveChangesAsync();
 
+        // FR-080: notify whoever originally reported/requested this work,
+        // if that's someone other than the person completing it. AC4:
+        // NotifyAsync never throws, so a notification failure here can
+        // never undo the completion that already committed above.
+        if (record.CreatedBy.HasValue && record.CreatedBy.Value != currentUserId)
+        {
+            await _notificationService.NotifyAsync(
+                organizationId,
+                record.CreatedBy.Value,
+                "MAINTENANCE_COMPLETED",
+                "Maintenance completed",
+                $"Maintenance for {asset.AssetCode} has been completed. Resulting condition: {conditionUpper}.",
+                "MaintenanceRecord",
+                record.Id,
+                default);
+        }
+
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
 
@@ -494,6 +526,28 @@ public class MaintenanceService : IMaintenanceService
         }
 
         await _context.SaveChangesAsync();
+
+        // FR-080: notify the assignee and the original reporter (if either
+        // is someone other than whoever cancelled it), so nobody keeps
+        // working toward a record that no longer exists.
+        var recipientIds = new[] { record.AssigneeId, record.CreatedBy }
+            .Where(id => id.HasValue && id.Value != currentUserId)
+            .Select(id => id!.Value)
+            .Distinct();
+
+        foreach (var recipientId in recipientIds)
+        {
+            await _notificationService.NotifyAsync(
+                organizationId,
+                recipientId,
+                "MAINTENANCE_CANCELLED",
+                "Maintenance cancelled",
+                $"Maintenance for {asset?.AssetCode ?? "an asset"} was cancelled" +
+                    (string.IsNullOrWhiteSpace(request.Reason) ? "." : $": {request.Reason}"),
+                "MaintenanceRecord",
+                record.Id,
+                default);
+        }
 
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }

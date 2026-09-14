@@ -315,29 +315,6 @@ public class TransferService : ITransferService
         return transfer != null ? MapToResponse(transfer) : null;
     }
 
-    // FR-047: Complete transfer history per asset showing origin, destination, requester, approver, receiver, and all timestamps
-    public async Task<List<TransferResponse>> GetTransferHistoryForAssetAsync(
-        Guid organizationId,
-        Guid assetId,
-        CancellationToken cancellationToken = default)
-    {
-        var list = await _dbContext.AssetTransfers
-            .AsNoTracking()
-            .Include(t => t.Asset)
-            .Include(t => t.FromDepartment)
-            .Include(t => t.ToDepartment)
-            .Include(t => t.FromLocation)
-            .Include(t => t.ToLocation)
-            .Include(t => t.InitiatedByUser)
-            .Include(t => t.ApprovedByUser)
-            .Include(t => t.ConfirmedByUser)
-            .Where(t => t.OrganizationId == organizationId && t.AssetId == assetId)
-            .OrderByDescending(t => t.RequestedAt)
-            .ToListAsync(cancellationToken);
-
-        return list.Select(MapToResponse).ToList();
-    }
-
     private static TransferResponse MapToResponse(AssetTransfer t)
     {
         return new TransferResponse
