@@ -4,7 +4,7 @@ import { Add, CheckmarkFilled, WarningAltFilled, CloseFilled } from "@carbon/ico
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useMe } from "@/features/auth/hooks/useMe";
-import { useWorkflowsList } from "../hooks/useWorkflows";
+import { useRunPolicyAgent, useWorkflowsList } from "../hooks/useWorkflows";
 import CreateWorkflowModal from "../components/CreateWorkflowModal";
 import EvaluatePolicyModal from "../components/EvaluatePolicyModal";
 import DecideWorkflowModal from "../components/DecideWorkflowModal";
@@ -24,10 +24,17 @@ export default function WorkflowsPage() {
   const canDecide = me?.role === "Administrator";
 
   const workflows = useWorkflowsList();
+  const runAgent = useRunPolicyAgent();
 
   const [showCreate, setShowCreate] = useState(false);
   const [evaluating, setEvaluating] = useState<AgentWorkflow | null>(null);
   const [deciding, setDeciding] = useState<{ workflow: AgentWorkflow; decision: "APPROVE" | "REJECT" | "REVISE" } | null>(null);
+  const [runningId, setRunningId] = useState<string | null>(null);
+
+  const handleRunAgent = (id: string) => {
+    setRunningId(id);
+    runAgent.mutate({ id }, { onSuccess: () => workflows.refetch() });
+  };
 
   const active = workflows.data?.filter((w) => IN_FLIGHT_STATUSES.includes(w.status)) ?? [];
   const awaitingApproval = workflows.data?.filter((w) => w.status === "AWAITING_APPROVAL") ?? [];
@@ -39,7 +46,7 @@ export default function WorkflowsPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Agentic Workflows</h1>
           <p className="cg-page__subtitle">
-            Review and approve agent-recommended actions (FR-067 to FR-076; §7 of the SRS).
+            Review and approve agent-recommended actions.
           </p>
         </div>
         {canInitiate && (
@@ -53,10 +60,21 @@ export default function WorkflowsPage() {
         kind="info"
         lowContrast
         hideCloseButton
-        title="The Planner, Maintenance Analysis and Budget Analysis agents aren't built yet"
-        subtitle="Policy Compliance — this workflow's deterministic gate and the human-approval checkpoint — is real. Use “Evaluate policy compliance” on an active workflow to supply the recommendation those three agents would otherwise produce, and run it through the gate yourself."
+        title="Planner Agent is connected"
+        subtitle="New evaluations now call the Planner Agent, persist its typed execution plan, and move to analysis. Maintenance and Budget agents still need to be connected; Policy Compliance remains available through the existing action."
         style={{ marginBottom: "1rem", maxWidth: "100%" }}
       />
+
+      {runAgent.isError && (
+        <InlineNotification
+          kind="error"
+          title="Could not run the Policy Compliance Agent"
+          subtitle={getErrorMessage(runAgent.error, "Something went wrong. Please try again.")}
+          lowContrast
+          onCloseButtonClick={() => setRunningId(null)}
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        />
+      )}
 
       {workflows.isError && (
         <InlineNotification
@@ -89,6 +107,7 @@ export default function WorkflowsPage() {
                     <tr>
                       <th>Asset</th>
                       <th>Objective</th>
+                      <th>Plan</th>
                       <th>Status</th>
                       <th>Started</th>
                       <th></th>
@@ -99,15 +118,28 @@ export default function WorkflowsPage() {
                       <tr key={w.id}>
                         <td className="cg-table__mono">{w.asset_code}</td>
                         <td className="cg-table__muted">{w.objective}</td>
+                        <td className="cg-table__muted">
+                          {w.plan?.inScope ? `${w.plan.steps.length} steps` : w.plan?.rejectionReason ?? "—"}
+                        </td>
                         <td>
                           <Tag type={statusTagColor(w.status)}>{formatStatusLabel(w.status)}</Tag>
                         </td>
                         <td className="cg-table__muted">{w.started_at ? new Date(w.started_at).toLocaleString() : "—"}</td>
                         <td>
                           {canInitiate && (
-                            <Button kind="ghost" size="sm" onClick={() => setEvaluating(w)}>
-                              Evaluate policy compliance
-                            </Button>
+                            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                              <Button
+                                kind="tertiary"
+                                size="sm"
+                                disabled={runAgent.isPending && runningId === w.id}
+                                onClick={() => handleRunAgent(w.id)}
+                              >
+                                {runAgent.isPending && runningId === w.id ? "Running…" : "Run Policy Compliance Agent"}
+                              </Button>
+                              <Button kind="ghost" size="sm" onClick={() => setEvaluating(w)}>
+                                Evaluate manually
+                              </Button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -135,7 +167,7 @@ export default function WorkflowsPage() {
                 <div className="cg-section__header">
                   <div>
                     <p className="cg-section__title">
-                      {w.asset_code} — recommends {formatStatusLabel(w.recommendation ?? "")}
+                      {w.asset_code}: recommends {formatStatusLabel(w.recommendation ?? "")}
                     </p>
                     <p className="cg-table__muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
                       {w.objective}
@@ -145,7 +177,7 @@ export default function WorkflowsPage() {
                 </div>
                 <div className="cg-section__body">
                   <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.5rem" }}>
-                    Policy validation — {w.validation_result?.verdict}
+                    Policy validation: {w.validation_result?.verdict}
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
                     {w.validation_result?.rule_results.map((r) => {
@@ -155,7 +187,7 @@ export default function WorkflowsPage() {
                           {Icon && <Icon size={16} style={{ fill: OUTCOME_COLOR[r.outcome], flexShrink: 0 }} />}
                           <span style={{ fontSize: "0.8125rem", color: "#525252", fontWeight: 600, minWidth: "3.5rem" }}>{r.rule_id}</span>
                           <span style={{ fontSize: "0.8125rem", color: "#525252" }}>
-                            {r.expected} — {r.actual}
+                            {r.expected} → {r.actual}
                           </span>
                           <Tag type={r.outcome === "PASS" ? "green" : r.outcome === "FAIL" ? "red" : "gray"} size="sm">
                             {r.outcome}

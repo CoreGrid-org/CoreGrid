@@ -52,7 +52,7 @@ export default function LocationModal({ location, departments, onClose, onSaved 
           subtitle={getErrorMessage(mutation.error, "Something went wrong. Please try again.")}
           hideCloseButton
           lowContrast
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-panel-notification"
         />
       )}
       <div style={{ display: "grid", gap: "1rem" }}>

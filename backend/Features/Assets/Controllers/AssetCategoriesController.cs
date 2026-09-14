@@ -1,4 +1,5 @@
 using CoreGrid.Api.Data;
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +10,18 @@ using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
+// FR-005 / SRS §4.6: same split as AssetTypesController — broad read,
+// Administrator-only writes (matches AssetConfigPage's Administrator-only
+// route in App.tsx).
 [ApiController]
 [Route("api/asset-categories")]
 [Authorize]
 public class AssetCategoriesController : CoreGridControllerBase
 {
+    private const string ReadRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+    private const string ManageRoles = nameof(CoreGridRole.Administrator);
+
     private readonly IAssetCategoryService _assetCategoryService;
 
     public AssetCategoriesController(
@@ -25,6 +33,7 @@ public class AssetCategoriesController : CoreGridControllerBase
 
     // GET /api/asset-categories
     [HttpGet]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<List<AssetCategoryDto>>> GetCategories(
         CancellationToken cancellationToken)
     {
@@ -44,6 +53,7 @@ public class AssetCategoriesController : CoreGridControllerBase
 
     // GET /api/asset-categories/{id}
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<AssetCategoryDto>> GetCategoryById(
         Guid id,
         CancellationToken cancellationToken)
@@ -73,6 +83,7 @@ public class AssetCategoriesController : CoreGridControllerBase
 
     // POST /api/asset-categories
     [HttpPost]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetCategoryDto>> CreateCategory(
         [FromBody] CreateAssetCategoryRequest request,
         CancellationToken cancellationToken)
@@ -117,6 +128,7 @@ public class AssetCategoriesController : CoreGridControllerBase
 
     // PUT /api/asset-categories/{id}
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetCategoryDto>> UpdateCategory(
         Guid id,
         [FromBody] UpdateAssetCategoryRequest request,
@@ -169,6 +181,7 @@ public class AssetCategoriesController : CoreGridControllerBase
     // deactivates it instead (IsActive = false) so existing AssetTypes keep
     // working, while it stops appearing as a choice for new ones.
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<IActionResult> DeleteCategory(
         Guid id,
         CancellationToken cancellationToken)
@@ -210,6 +223,7 @@ public class AssetCategoriesController : CoreGridControllerBase
 
     // PATCH /api/asset-categories/{id}/activate
     [HttpPatch("{id:guid}/activate")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetCategoryDto>> ActivateCategory(
         Guid id,
         CancellationToken cancellationToken)

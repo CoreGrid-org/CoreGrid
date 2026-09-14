@@ -3,6 +3,7 @@ import { DocumentPdf, DocumentExport } from "@carbon/icons-react";
 import MockNotice from "@/shared/components/MockNotice";
 import { MOCK_REPORTS } from "../data/mockReports";
 import AuditReportPanel from "../components/AuditReportPanel";
+import InventoryReportPanel from "../components/InventoryReportPanel";
 
 export default function ReportsPage() {
   return (
@@ -10,7 +11,7 @@ export default function ReportsPage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Reports</h1>
-          <p className="cg-page__subtitle">Inventory, maintenance, disposal and audit reports (FR-081 to FR-086).</p>
+          <p className="cg-page__subtitle">Inventory, maintenance, disposal and audit reports.</p>
         </div>
       </div>
 
@@ -24,7 +25,11 @@ export default function ReportsPage() {
         <TabPanels>
           {MOCK_REPORTS.map((report) => (
             <TabPanel key={report.key}>
-              <MockNotice requirements={[report.requirement, "FR-085", "FR-086"]}>
+              {report.key === "inventory" ? (
+                <InventoryReportPanel />
+              ) : (
+                <>
+              <MockNotice>
                 {`${report.description} Real exports reflect exactly the filters applied on screen and are restricted to the departments the caller's role permits them to see.`}
               </MockNotice>
 
@@ -75,6 +80,8 @@ export default function ReportsPage() {
                   </tbody>
                 </table>
               </div>
+                </>
+              )}
             </TabPanel>
           ))}
 

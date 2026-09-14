@@ -16,6 +16,11 @@ public class AuditReportDto
 
     public List<AuditReportClassificationRow> ByClassification { get; set; } = [];
 
+    // The individual discrepancies behind ByClassification's counts — every
+    // row matching the same filter, unpaginated (exports reflect this list
+    // in full; the React client paginates it for on-screen display only).
+    public List<AuditReportDiscrepancyRow> Discrepancies { get; set; } = [];
+
     public DateTimeOffset GeneratedAt { get; set; }
 }
 
@@ -24,6 +29,17 @@ public class AuditReportClassificationRow
     public required string Classification { get; set; }
     public int Raised { get; set; }
     public int Resolved { get; set; }
+}
+
+public class AuditReportDiscrepancyRow
+{
+    public required string AssetCode { get; set; }
+    public required string AssetName { get; set; }
+    public required string DepartmentName { get; set; }
+    public required string Classification { get; set; }
+    public required string Status { get; set; }
+    public required DateTimeOffset RaisedAt { get; set; }
+    public DateTimeOffset? ResolvedAt { get; set; }
 }
 
 public class AuditReportFilter

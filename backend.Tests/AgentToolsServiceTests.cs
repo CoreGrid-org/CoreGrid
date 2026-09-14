@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using backend.Tests;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.DTOs;
@@ -17,7 +18,7 @@ public class AgentToolsServiceTests
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        return new CoreGridDbContext(options);
+        return new CoreGridDbContext(options, new NullCurrentOrganizationProvider());
     }
 
     [Fact]

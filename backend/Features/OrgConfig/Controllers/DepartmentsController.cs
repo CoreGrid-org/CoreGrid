@@ -1,4 +1,5 @@
 using CoreGrid.Api.Data;
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.OrgConfig.DTOs;
 using CoreGrid.Api.Features.OrgConfig.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +10,18 @@ using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.OrgConfig.Controllers;
 
+// FR-005 / SRS §4.6: config:manage is Administrator-only; reads stay broad
+// since every role needs department lists to register/filter assets, pick a
+// user's department, etc.
 [ApiController]
 [Route("api/departments")]
 [Authorize]
 public class DepartmentsController : CoreGridControllerBase
 {
+    private const string ReadRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+    private const string ManageRoles = nameof(CoreGridRole.Administrator);
+
     private readonly IDepartmentService _departmentService;
 
     public DepartmentsController(
@@ -25,6 +33,7 @@ public class DepartmentsController : CoreGridControllerBase
 
     // GET /api/departments
     [HttpGet]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<List<DepartmentDto>>> GetDepartments(
         CancellationToken cancellationToken)
     {
@@ -44,6 +53,7 @@ public class DepartmentsController : CoreGridControllerBase
 
     // POST /api/departments
     [HttpPost]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<DepartmentDto>> CreateDepartment(
         [FromBody] CreateDepartmentRequest request,
         CancellationToken cancellationToken)
@@ -82,6 +92,7 @@ public class DepartmentsController : CoreGridControllerBase
 
     // PUT /api/departments/{id}
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<DepartmentDto>> UpdateDepartment(
         Guid id,
         [FromBody] UpdateDepartmentRequest request,
@@ -130,6 +141,7 @@ public class DepartmentsController : CoreGridControllerBase
 
     // PATCH /api/departments/{id}/deactivate
     [HttpPatch("{id:guid}/deactivate")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<DepartmentDto>> DeactivateDepartment(
         Guid id,
         CancellationToken cancellationToken)
@@ -139,6 +151,7 @@ public class DepartmentsController : CoreGridControllerBase
 
     // PATCH /api/departments/{id}/activate
     [HttpPatch("{id:guid}/activate")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<DepartmentDto>> ActivateDepartment(
         Guid id,
         CancellationToken cancellationToken)

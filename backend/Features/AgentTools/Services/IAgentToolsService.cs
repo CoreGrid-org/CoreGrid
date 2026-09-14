@@ -7,6 +7,8 @@ namespace CoreGrid.Api.Features.AgentTools.Services;
 
 public interface IAgentToolsService
 {
+    Task<AssetSummaryDto?> GetAssetSummaryAsync(Guid organizationId, Guid assetId, CancellationToken cancellationToken = default);
+
     Task<AssetFinancialsDto?> GetAssetFinancialsAsync(Guid organizationId, Guid assetId, CancellationToken cancellationToken = default);
 
     Task<DepartmentBudgetSummaryDto?> GetDepartmentBudgetSummaryAsync(Guid organizationId, Guid departmentId, int fiscalYear, CancellationToken cancellationToken = default);

@@ -1,3 +1,4 @@
+using backend.Tests;
 using CoreGrid.Api.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -21,7 +22,7 @@ public class CoreGridWebApplicationFactory : WebApplicationFactory<Program>
         var options = new DbContextOptionsBuilder<CoreGridDbContext>()
             .UseInMemoryDatabase(databaseName: DatabaseName)
             .Options;
-        return new CoreGridDbContext(options);
+        return new CoreGridDbContext(options, new NullCurrentOrganizationProvider());
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

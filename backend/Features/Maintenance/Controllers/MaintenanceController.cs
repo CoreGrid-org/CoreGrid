@@ -1,34 +1,91 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Maintenance.DTOs;
 using CoreGrid.Api.Features.Maintenance.Services;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Maintenance.Controllers;
 
+// FR-005 / SRS §4.6: maintenance:request is Staff/Officer/Administrator
+// (not Auditor); maintenance:manage (cancel) is Officer/Administrator; read
+// endpoints stay broad (all four roles have a legitimate reason to see a
+// maintenance record — Staff who reported it, Auditor for reports).
 [ApiController]
 [Route("api/maintenance")]
 [Authorize]
 public class MaintenanceController : CoreGridControllerBase
 {
+    private const string RequestRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}";
+    private const string ManageRoles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}";
+    private const string ReadRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+
+    private static readonly string[] AllowedPhotoContentTypes = ["image/jpeg", "image/png", "image/webp"];
+    private const long MaxPhotoSizeBytes = 5 * 1024 * 1024; // 5MB, matches ReportFaultPage's stated limit
+
     private readonly IMaintenanceService _maintenanceService;
+    private readonly IFileStorageService _fileStorageService;
     private readonly CoreGridDbContext _db;
 
     public MaintenanceController(
         IMaintenanceService maintenanceService,
+        IFileStorageService fileStorageService,
         CoreGridDbContext db) : base(db)
     {
         _maintenanceService = maintenanceService;
+        _fileStorageService = fileStorageService;
         _db = db;
     }
 
+    // FR-034: upload a fault-report photo to Cloudflare R2 and get back the
+    // URL to include in ReportFaultRequest/CreateMaintenanceRequest's
+    // PhotoUrl — a separate step from submitting the fault report itself so
+    // the JSON endpoints below don't need to change to multipart/form-data.
+    [HttpPost("photos")]
+    [Authorize(Roles = RequestRoles)]
+    [RequestSizeLimit(MaxPhotoSizeBytes)]
+    public async Task<ActionResult<UploadPhotoResponse>> UploadPhoto(
+        IFormFile photo, CancellationToken cancellationToken)
+    {
+        if (photo.Length == 0)
+        {
+            return BadRequest(new { message = "No file was uploaded." });
+        }
+
+        if (photo.Length > MaxPhotoSizeBytes)
+        {
+            return BadRequest(new { message = "Photo must be 5MB or smaller." });
+        }
+
+        if (!AllowedPhotoContentTypes.Contains(photo.ContentType))
+        {
+            return BadRequest(new { message = "Only JPEG, PNG or WebP photos are accepted." });
+        }
+
+        try
+        {
+            await using var stream = photo.OpenReadStream();
+            var url = await _fileStorageService.UploadAsync("maintenance", photo.FileName, photo.ContentType, stream, cancellationToken);
+            return Ok(new UploadPhotoResponse { Url = url });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Cloudflare R2 not configured yet, or the upload itself failed.
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
+    }
+
     [HttpPost("faults")]
+    [Authorize(Roles = RequestRoles)]
     public async Task<ActionResult<MaintenanceRecordDto>> ReportFault(
         [FromBody] ReportFaultRequest request)
     {
@@ -62,6 +119,7 @@ public class MaintenanceController : CoreGridControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<MaintenanceRecordDto>> GetById(Guid id)
     {
         var currentUser = await GetCurrentUserAsync(default);
@@ -235,6 +293,7 @@ public class MaintenanceController : CoreGridControllerBase
     }
 
     [HttpPost("{id:guid}/cancel")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<MaintenanceRecordDto>> CancelMaintenance(
         Guid id,
         [FromBody] CancelMaintenanceRequest request)
@@ -266,6 +325,7 @@ public class MaintenanceController : CoreGridControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<IEnumerable<MaintenanceRecordDto>>> ListMaintenanceRecords(
         [FromQuery] MaintenanceRecordFilter filter)
     {
@@ -282,8 +342,13 @@ public class MaintenanceController : CoreGridControllerBase
         return Ok(records);
     }
 
+    // FR-005 correction, 2026-09-12: this demo/dev seeding endpoint was
+    // [AllowAnonymous] — reachable by anyone, unauthenticated, to insert
+    // organisation/maintenance data. No frontend page calls it (grepped the
+    // whole frontend — zero hits), so nothing relies on anonymous access;
+    // restricted to Administrator.
     [HttpPost("seed")]
-    [AllowAnonymous]
+    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
     public async Task<IActionResult> Seed()
     {
         using var transaction = await _db.Database.BeginTransactionAsync();

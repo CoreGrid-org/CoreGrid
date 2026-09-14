@@ -32,6 +32,6 @@ public class MeController(CoreGridDbContext db) : ControllerBase
             return NotFound();
         }
 
-        return Ok(new MeResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.IsActive));
+        return Ok(new MeResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.IsActive, user.OrganizationId));
     }
 }

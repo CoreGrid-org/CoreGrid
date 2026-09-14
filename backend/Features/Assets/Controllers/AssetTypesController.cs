@@ -1,4 +1,5 @@
 using CoreGrid.Api.Data;
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +10,21 @@ using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
+// FR-005 / SRS §4.6: asset type/attribute definitions are catalog
+// configuration, not asset instances — reads are broad (all four roles need
+// them to populate forms/filters), writes are Administrator-only, matching
+// the frontend's own routing (only Administrator ever reaches
+// AssetConfigPage — App.tsx; InventoryOfficer gets asset create/edit but not
+// /assets/config).
 [ApiController]
 [Route("api/asset-types")]
 [Authorize]
 public class AssetTypesController : CoreGridControllerBase
 {
+    private const string ReadRoles =
+        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+    private const string ManageRoles = nameof(CoreGridRole.Administrator);
+
     private readonly IAssetTypeService _assetTypeService;
 
     public AssetTypesController(
@@ -28,6 +39,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpGet]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<List<AssetTypeDto>>> GetAssetTypes(
         CancellationToken cancellationToken)
     {
@@ -51,6 +63,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<AssetTypeDto>> GetAssetTypeById(
         Guid id,
         CancellationToken cancellationToken)
@@ -84,6 +97,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpGet("{id:guid}/attributes")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<List<AssetAttributeDefinitionDto>>>
         GetAttributeDefinitions(
             Guid id,
@@ -123,6 +137,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpPost]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetTypeDto>> CreateAssetType(
         [FromBody] CreateAssetTypeRequest request,
         CancellationToken cancellationToken)
@@ -171,6 +186,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetTypeDto>> UpdateAssetType(
         Guid id,
         [FromBody] UpdateAssetTypeRequest request,
@@ -226,6 +242,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<IActionResult> DeleteAssetType(
         Guid id,
         CancellationToken cancellationToken)
@@ -271,6 +288,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpPatch("{id:guid}/activate")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetTypeDto>> ActivateAssetType(
         Guid id,
         CancellationToken cancellationToken)
@@ -305,6 +323,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpPost("{id:guid}/attributes")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetAttributeDefinitionDto>> CreateAttributeDefinition(
         Guid id,
         [FromBody] CreateAssetAttributeDefinitionRequest request,
@@ -363,6 +382,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpPut("{id:guid}/attributes/{attributeId:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetAttributeDefinitionDto>> UpdateAttributeDefinition(
         Guid id,
         Guid attributeId,
@@ -421,6 +441,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpDelete("{id:guid}/attributes/{attributeId:guid}")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<IActionResult> DeleteAttributeDefinition(
         Guid id,
         Guid attributeId,
@@ -468,6 +489,7 @@ public class AssetTypesController : CoreGridControllerBase
     // =========================================================
 
     [HttpPatch("{id:guid}/attributes/{attributeId:guid}/activate")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<ActionResult<AssetAttributeDefinitionDto>> ActivateAttributeDefinition(
         Guid id,
         Guid attributeId,

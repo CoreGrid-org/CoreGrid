@@ -39,6 +39,27 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
         else if (Request.Headers.TryGetValue("Test-Sub", out var sub))
         {
             claims.Add(new Claim("sub", sub.ToString()));
+
+            // Optional token claims for UserMirrorProvisioningTests (FR-004)
+            // — a real ThunderID token would carry these; TestAuthHandler
+            // only fakes them when a test explicitly asks for a subject with
+            // no matching Users row yet.
+            if (Request.Headers.TryGetValue("Test-Email", out var email))
+            {
+                claims.Add(new Claim("email", email.ToString()));
+            }
+            if (Request.Headers.TryGetValue("Test-GivenName", out var givenName))
+            {
+                claims.Add(new Claim("given_name", givenName.ToString()));
+            }
+            if (Request.Headers.TryGetValue("Test-FamilyName", out var familyName))
+            {
+                claims.Add(new Claim("family_name", familyName.ToString()));
+            }
+            if (Request.Headers.TryGetValue("Test-Role", out var role))
+            {
+                claims.Add(new Claim("roles", role.ToString()));
+            }
         }
         else
         {

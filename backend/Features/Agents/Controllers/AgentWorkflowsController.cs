@@ -16,10 +16,15 @@ namespace CoreGrid.Api.Features.Agents.Controllers;
 public class AgentWorkflowsController : CoreGridControllerBase
 {
     private readonly IAgentWorkflowService _workflowService;
+    private readonly IPolicyComplianceAgentService _policyComplianceAgent;
 
-    public AgentWorkflowsController(IAgentWorkflowService workflowService, CoreGridDbContext db) : base(db)
+    public AgentWorkflowsController(
+        IAgentWorkflowService workflowService,
+        IPolicyComplianceAgentService policyComplianceAgent,
+        CoreGridDbContext db) : base(db)
     {
         _workflowService = workflowService;
+        _policyComplianceAgent = policyComplianceAgent;
     }
 
     // FR-069: Officer, Auditor, Administrator may view workflow status.
@@ -82,6 +87,31 @@ public class AgentWorkflowsController : CoreGridControllerBase
         try
         {
             var workflow = await _workflowService.EvaluatePolicyAsync(currentUser.OrganizationId, id, request, cancellationToken);
+            if (workflow is null) return NotFound(new { message = "Workflow not found." });
+            return Ok(workflow);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // Runs the real Policy Compliance Agent (SRS §7.3, node 4): assembles
+    // policy/compliance facts via its own tool allow-list, runs a
+    // deterministic heuristic for a proposed recommendation (no LLM), then
+    // runs that through the same deterministic gate /evaluate does. Same
+    // roles as /evaluate — this replaces manually typing a recommendation,
+    // not who may trigger it.
+    [HttpPost("{id:guid}/run-policy-agent")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
+    public async Task<ActionResult<AgentWorkflowDto>> RunPolicyAgent(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        try
+        {
+            var workflow = await _policyComplianceAgent.RunAsync(currentUser.OrganizationId, id, cancellationToken);
             if (workflow is null) return NotFound(new { message = "Workflow not found." });
             return Ok(workflow);
         }

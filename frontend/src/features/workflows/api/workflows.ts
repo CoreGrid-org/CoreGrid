@@ -37,6 +37,19 @@ export interface PolicyValidation {
   is_high_impact: boolean;
 }
 
+export interface PlannerPlanStep {
+  seq: number;
+  agent: string;
+  purpose: string;
+  expected_output: string;
+}
+
+export interface PlannerExecutionPlan {
+  inScope: boolean;
+  rejectionReason: string | null;
+  steps: PlannerPlanStep[];
+}
+
 export interface AgentWorkflow {
   id: string;
   asset_id: string;
@@ -48,6 +61,7 @@ export interface AgentWorkflow {
   approval_status: "NOT_REQUIRED" | "PENDING" | "APPROVED" | "REJECTED";
   revision_count: number;
   failure_reason: string | null;
+  plan: PlannerExecutionPlan | null;
   validation_result: PolicyValidation | null;
   correlation_id: string;
   initiated_by_user_id: string;
@@ -106,6 +120,14 @@ export async function evaluatePolicy(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not run the policy evaluation.");
+}
+
+export async function runPolicyAgent(id: string, accessToken: string): Promise<AgentWorkflow> {
+  const response = await fetch(`${API_URL}/agent-workflows/${id}/run-policy-agent`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not run the Policy Compliance Agent.");
 }
 
 export async function decideWorkflow(

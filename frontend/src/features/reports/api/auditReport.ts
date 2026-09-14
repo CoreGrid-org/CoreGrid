@@ -10,6 +10,16 @@ export interface AuditReportClassificationRow {
   resolved: number;
 }
 
+export interface AuditReportDiscrepancyRow {
+  asset_code: string;
+  asset_name: string;
+  department_name: string;
+  classification: string;
+  status: string;
+  raised_at: string;
+  resolved_at: string | null;
+}
+
 export interface AuditReport {
   from: string | null;
   to: string | null;
@@ -18,6 +28,7 @@ export interface AuditReport {
   assets_in_scope: number;
   open_discrepancies: number;
   by_classification: AuditReportClassificationRow[];
+  discrepancies: AuditReportDiscrepancyRow[];
   generated_at: string;
 }
 
