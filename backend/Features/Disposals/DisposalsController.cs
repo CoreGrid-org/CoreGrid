@@ -147,45 +147,6 @@ public class DisposalsController : CoreGridControllerBase
     }
 
     // =========================================================
-    // POST /api/disposals/{id}/request-revision — FR-053 / disposal:approve (Administrator only)
-    // =========================================================
-    [HttpPost("api/disposals/{id:guid}/request-revision")]
-    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
-    public async Task<ActionResult<DisposalResponse>> RequestDisposalRevision(
-        Guid id,
-        [FromBody] RequestDisposalRevisionRequest request,
-        CancellationToken cancellationToken)
-    {
-        var currentUser = await GetCurrentUserAsync(cancellationToken);
-        if (currentUser is null) return Unauthorized();
-
-        if (string.IsNullOrWhiteSpace(request?.Comments))
-        {
-            return BadRequest(new { message = "Revision comments are required." });
-        }
-
-        try
-        {
-            var result = await _disposalService.RequestDisposalRevisionAsync(
-                currentUser.OrganizationId,
-                id,
-                currentUser.Id,
-                request.Comments,
-                cancellationToken);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
-    // =========================================================
     // GET /api/disposals — list with filters
     // =========================================================
     [HttpGet("api/disposals")]

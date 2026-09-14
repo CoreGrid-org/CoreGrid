@@ -152,21 +152,4 @@ public class TransfersController : CoreGridControllerBase
 
         return Ok(result);
     }
-
-    // GET /api/assets/{assetId}/transfers — FR-047: Complete transfer history for an asset
-    [HttpGet("/api/assets/{assetId:guid}/transfers")]
-    public async Task<ActionResult<List<TransferResponse>>> GetTransferHistoryForAsset(
-        Guid assetId,
-        CancellationToken cancellationToken)
-    {
-        var currentUser = await GetCurrentUserAsync(cancellationToken);
-        if (currentUser is null) return Unauthorized();
-
-        var result = await _transferService.GetTransferHistoryForAssetAsync(
-            currentUser.OrganizationId,
-            assetId,
-            cancellationToken);
-
-        return Ok(result);
-    }
 }

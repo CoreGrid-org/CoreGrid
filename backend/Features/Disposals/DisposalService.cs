@@ -293,53 +293,6 @@ public class DisposalService : IDisposalService
         };
     }
 
-    // FR-053: Return a disposal request for revision with recorded comments without rejecting outright
-    public async Task<DisposalResponse> RequestDisposalRevisionAsync(
-        Guid organizationId,
-        Guid disposalRequestId,
-        Guid requestedByUserId,
-        string comments,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(comments))
-        {
-            throw new ArgumentException("Revision comments must not be empty.", nameof(comments));
-        }
-
-        var disposalRequest = await _dbContext.DisposalRequests
-            .Include(d => d.Asset)
-            .Include(d => d.InitiatedByUser)
-            .FirstOrDefaultAsync(d => d.Id == disposalRequestId && d.OrganizationId == organizationId, cancellationToken);
-
-        if (disposalRequest == null)
-        {
-            throw new KeyNotFoundException($"DisposalRequest with ID {disposalRequestId} not found.");
-        }
-
-        if (disposalRequest.Status != DisposalStatus.PENDING)
-        {
-            throw new InvalidOperationException($"Cannot request revision for disposal request in status '{disposalRequest.Status}'. Status must be '{DisposalStatus.PENDING}'.");
-        }
-
-        disposalRequest.Status = DisposalStatus.REVISION_REQUESTED;
-
-        // Preserve any prior notes and append revision comments with timestamp/actor
-        var timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'");
-        var revisionEntry = $"[Revision Requested - {timestamp}]: {comments.Trim()}";
-        if (string.IsNullOrWhiteSpace(disposalRequest.Notes))
-        {
-            disposalRequest.Notes = revisionEntry;
-        }
-        else
-        {
-            disposalRequest.Notes = $"{disposalRequest.Notes}\n{revisionEntry}";
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return MapToResponse(disposalRequest, null);
-    }
-
     public async Task<List<DisposalResponse>> GetDisposalRequestsAsync(
         Guid organizationId,
         DisposalQueryParameters parameters,

@@ -15,8 +15,6 @@ public interface IDisposalService
 
     Task<DisposalApprovalResult> ApproveDisposalAsync(Guid organizationId, Guid disposalRequestId, Guid approvingUserId, CancellationToken cancellationToken = default);
 
-    Task<DisposalResponse> RequestDisposalRevisionAsync(Guid organizationId, Guid disposalRequestId, Guid requestedByUserId, string comments, CancellationToken cancellationToken = default);
-
     Task<List<DisposalResponse>> GetDisposalRequestsAsync(Guid organizationId, DisposalQueryParameters parameters, CancellationToken cancellationToken = default);
 
     Task<DisposalResponse?> GetDisposalRequestByIdAsync(Guid organizationId, Guid disposalRequestId, Guid viewingUserId, CancellationToken cancellationToken = default);
