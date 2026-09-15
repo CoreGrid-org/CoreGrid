@@ -1,14 +1,65 @@
-import { useState } from "react";
-import { Modal, TextInput, NumberInput, Select, SelectItem, Checkbox, InlineNotification } from "@carbon/react";
+import { useState, useRef } from "react";
+import {
+  Modal,
+  TextInput,
+  NumberInput,
+  Select,
+  SelectItem,
+  Checkbox,
+  InlineNotification,
+  Button,
+  Tag,
+} from "@carbon/react";
+import { Add, TrashCan } from "@carbon/icons-react";
 import { useCreateAssetAttributeDefinition } from "../hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { ASSET_ATTRIBUTE_DATA_TYPES, type AssetAttributeDefinition, type AssetAttributeDataType } from "../types/asset";
+import {
+  ASSET_ATTRIBUTE_DATA_TYPES,
+  type AssetAttributeDefinition,
+  type AssetAttributeDataType,
+} from "../types/asset";
 
 interface CreateAssetAttributeModalProps {
   assetTypeId: string;
   assetTypeName: string;
   onClose: () => void;
   onCreated: (definition: AssetAttributeDefinition) => void;
+}
+
+interface ValidationRuleFields {
+  min: string;
+  max: string;
+  minLength: string;
+  maxLength: string;
+  minDate: string;
+  maxDate: string;
+}
+
+const emptyRuleFields = (): ValidationRuleFields => ({
+  min: "",
+  max: "",
+  minLength: "",
+  maxLength: "",
+  minDate: "",
+  maxDate: "",
+});
+
+function buildValidationRule(
+  dataType: AssetAttributeDataType,
+  fields: ValidationRuleFields
+): string | null {
+  const parts: string[] = [];
+  if (dataType === "NUMBER") {
+    if (fields.min.trim()) parts.push(`min:${fields.min.trim()}`);
+    if (fields.max.trim()) parts.push(`max:${fields.max.trim()}`);
+  } else if (dataType === "TEXT") {
+    if (fields.minLength.trim()) parts.push(`minLength:${fields.minLength.trim()}`);
+    if (fields.maxLength.trim()) parts.push(`maxLength:${fields.maxLength.trim()}`);
+  } else if (dataType === "DATE") {
+    if (fields.minDate.trim()) parts.push(`minDate:${fields.minDate.trim()}`);
+    if (fields.maxDate.trim()) parts.push(`maxDate:${fields.maxDate.trim()}`);
+  }
+  return parts.length > 0 ? parts.join(",") : null;
 }
 
 // POST /api/asset-types/{id}/attributes.
@@ -23,16 +74,37 @@ export default function CreateAssetAttributeModal({
   const [name, setName] = useState("");
   const [dataType, setDataType] = useState<AssetAttributeDataType>("TEXT");
   const [isRequired, setIsRequired] = useState(false);
-  const [selectOptions, setSelectOptions] = useState("");
-  const [validationRule, setValidationRule] = useState("");
   const [displayOrder, setDisplayOrder] = useState<number | "">("");
+  const [ruleFields, setRuleFields] = useState<ValidationRuleFields>(emptyRuleFields());
 
-  const options = selectOptions
-    .split(",")
-    .map((o) => o.trim())
-    .filter((o) => o.length > 0);
+  // SELECT options managed as a list
+  const [options, setOptions] = useState<string[]>([]);
+  const [newOption, setNewOption] = useState("");
+  const optionInputRef = useRef<HTMLInputElement>(null);
 
-  const canSubmit = name.trim().length > 0 && (dataType !== "SELECT" || options.length > 0);
+  const addOption = () => {
+    const trimmed = newOption.trim();
+    if (!trimmed || options.includes(trimmed)) return;
+    setOptions((prev) => [...prev, trimmed]);
+    setNewOption("");
+    optionInputRef.current?.focus();
+  };
+
+  const removeOption = (index: number) =>
+    setOptions((prev) => prev.filter((_, i) => i !== index));
+
+  const canSubmit =
+    name.trim().length > 0 && (dataType !== "SELECT" || options.length > 0);
+
+  const setRule = (key: keyof ValidationRuleFields, value: string) =>
+    setRuleFields((prev) => ({ ...prev, [key]: value }));
+
+  const handleDataTypeChange = (newType: AssetAttributeDataType) => {
+    setDataType(newType);
+    setRuleFields(emptyRuleFields());
+    setOptions([]);
+    setNewOption("");
+  };
 
   const handleSubmit = () => {
     if (!canSubmit || createAttribute.isPending) return;
@@ -43,12 +115,12 @@ export default function CreateAssetAttributeModal({
           name: name.trim(),
           data_type: dataType,
           is_required: isRequired,
-          validation_rule: validationRule.trim() || null,
+          validation_rule: buildValidationRule(dataType, ruleFields),
           select_options: dataType === "SELECT" ? options : null,
           display_order: displayOrder === "" ? null : displayOrder,
         },
       },
-      { onSuccess: onCreated },
+      { onSuccess: onCreated }
     );
   };
 
@@ -73,47 +145,171 @@ export default function CreateAssetAttributeModal({
           style={{ marginBottom: "1rem", maxWidth: "100%" }}
         />
       )}
+
       <div style={{ display: "grid", gap: "1rem" }}>
+        {/* ── Name ── */}
         <TextInput
           id="create-attribute-name"
           labelText="Field label"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
+
+        {/* ── Data type ── */}
         <Select
           id="create-attribute-data-type"
           labelText="Data type"
           value={dataType}
-          onChange={(e) => setDataType(e.target.value as AssetAttributeDataType)}
+          onChange={(e) => handleDataTypeChange(e.target.value as AssetAttributeDataType)}
         >
           {ASSET_ATTRIBUTE_DATA_TYPES.map((t) => (
             <SelectItem key={t} value={t} text={t} />
           ))}
         </Select>
+
+        {/* ── SELECT — options builder ── */}
         {dataType === "SELECT" && (
-          <TextInput
-            id="create-attribute-options"
-            labelText="Options"
-            helperText="Comma-separated, e.g. Black, Grey, Blue"
-            value={selectOptions}
-            onChange={(e) => setSelectOptions(e.target.value)}
-            invalid={options.length === 0}
-            invalidText="At least one option is required for a SELECT attribute."
-          />
+          <div>
+            <p style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.5rem", color: "#525252" }}>
+              Options
+            </p>
+
+            {/* existing options list */}
+            {options.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                {options.map((opt, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.375rem",
+                      background: "#e0e0e0",
+                      borderRadius: "1rem",
+                      padding: "0.25rem 0.625rem",
+                      fontSize: "0.8125rem",
+                    }}
+                  >
+                    <span>{opt}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove option ${opt}`}
+                      onClick={() => removeOption(idx)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        color: "#525252",
+                      }}
+                    >
+                      <TrashCan size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* add new option row */}
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+              <div style={{ flex: 1 }}>
+                <TextInput
+                  ref={optionInputRef}
+                  id="create-attribute-new-option"
+                  labelText="New option"
+                  placeholder="e.g. Blue"
+                  value={newOption}
+                  onChange={(e) => setNewOption(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addOption())}
+                  invalid={options.length === 0}
+                  invalidText="At least one option is required."
+                />
+              </div>
+              <Button
+                kind="secondary"
+                size="md"
+                renderIcon={Add}
+                iconDescription="Add option"
+                onClick={addOption}
+                disabled={!newOption.trim() || options.includes(newOption.trim())}
+              >
+                Add
+              </Button>
+            </div>
+          </div>
         )}
+
+        {/* ── Required ── */}
         <Checkbox
           id="create-attribute-required"
           labelText="Required"
           checked={isRequired}
           onChange={(_, { checked }) => setIsRequired(checked)}
         />
-        <TextInput
-          id="create-attribute-validation-rule"
-          labelText="Validation rule"
-          helperText="Optional"
-          value={validationRule}
-          onChange={(e) => setValidationRule(e.target.value)}
-        />
+
+        {/* ── NUMBER validation ── */}
+        {dataType === "NUMBER" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <TextInput
+              id="create-attribute-rule-min"
+              labelText="Minimum value"
+              helperText="Optional"
+              value={ruleFields.min}
+              onChange={(e) => setRule("min", e.target.value)}
+            />
+            <TextInput
+              id="create-attribute-rule-max"
+              labelText="Maximum value"
+              helperText="Optional"
+              value={ruleFields.max}
+              onChange={(e) => setRule("max", e.target.value)}
+            />
+          </div>
+        )}
+
+        {/* ── TEXT validation ── */}
+        {dataType === "TEXT" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <TextInput
+              id="create-attribute-rule-minlength"
+              labelText="Minimum length"
+              helperText="Optional — characters"
+              value={ruleFields.minLength}
+              onChange={(e) => setRule("minLength", e.target.value)}
+            />
+            <TextInput
+              id="create-attribute-rule-maxlength"
+              labelText="Maximum length"
+              helperText="Optional — characters"
+              value={ruleFields.maxLength}
+              onChange={(e) => setRule("maxLength", e.target.value)}
+            />
+          </div>
+        )}
+
+        {/* ── DATE validation ── */}
+        {dataType === "DATE" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <TextInput
+              id="create-attribute-rule-mindate"
+              labelText="Minimum date"
+              helperText="Optional — YYYY-MM-DD"
+              value={ruleFields.minDate}
+              onChange={(e) => setRule("minDate", e.target.value)}
+            />
+            <TextInput
+              id="create-attribute-rule-maxdate"
+              labelText="Maximum date"
+              helperText="Optional — YYYY-MM-DD"
+              value={ruleFields.maxDate}
+              onChange={(e) => setRule("maxDate", e.target.value)}
+            />
+          </div>
+        )}
+
+        {/* ── Display order ── */}
         <NumberInput
           id="create-attribute-display-order"
           label="Display order"

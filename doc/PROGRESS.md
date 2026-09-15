@@ -33,7 +33,7 @@ Status as of 2026-09-14 (this update: corrected against the live codebase, not r
 | Create asset categories — FR-016 | ✅ (`POST /api/asset-categories`; `PUT .../{id}` update, and `DELETE .../{id}` + `PATCH .../{id}/activate` added 2026-08-17 — delete hard-removes an unreferenced category, otherwise deactivates it (`IsActive`) so it stops appearing as a choice for new types while existing types/assets keep working; reactivatable) |
 | Create asset types (name, code, category, useful life, default maintenance interval) — FR-017 | ✅ (`POST /api/asset-types`; `PUT .../{id}` update, and `DELETE .../{id}` + `PATCH .../{id}/activate` added 2026-08-17 — same hard-delete-if-unreferenced/deactivate-otherwise rule, keyed off whether any `Asset` references the type; deleting an unreferenced type also cascades its own attribute definitions) |
 | Ordered custom attribute definitions per asset type — FR-018 | ✅ (`POST /api/asset-types/{id}/attributes`; `PUT .../attributes/{attributeId}` update, and `DELETE .../attributes/{attributeId}` + `PATCH .../attributes/{attributeId}/activate` added 2026-08-17 — same rule, keyed off whether any `AssetAttributeValue` references the definition) |
-| Attribute value validation on create and update — FR-019 | 🟡 (required-field and data-type checks are enforced on both create and update; `ValidationRule` is stored and returned to clients but no code path evaluates a submitted value against it — rule enforcement itself isn't implemented) |
+| Attribute value validation on create and update — FR-019 | ✅ (2026-09-15: `ValidationRule` is now evaluated on every create and update — `AttributeValidationRuleEngine` parses the stored rule string and enforces it against the submitted value; supported constraints: `min`/`max` for NUMBER, `minLength`/`maxLength` for TEXT, `maxDate` for DATE. Required-field and data-type checks were already enforced; rule enforcement was the remaining gap, now closed. `backend/Features/Assets/Helpers/AttributeValidationRuleEngine.cs` [new], one call added to `AssetService.ValidateAttributeValue`.) |
 | Dynamic attribute-driven detail form, both clients — FR-020 | 🟡 React ✅ (`AssetRegisterPage` renders fields purely from the selected type's attribute definitions, no hardcoded domain knowledge); Flutter ❌ (not started) |
 | Register an asset (type, name, department, location, acquisition date/cost, attributes) — FR-021 | ✅ |
 | Unique human-readable asset code (org prefix + monotonic sequence, DB-constrained) — FR-022 | ✅ (`AssetCodeGenerator`; `IX_Assets_OrganizationId_AssetCode` unique index) |
@@ -188,13 +188,23 @@ Derived from the ❌/🟡 rows above, grouped by owner ([SRS §18](SRS/18-team-r
 | Backend and frontend tests: consider MSW for the frontend | 2026-09-14 — the new Audit/Workflows/Reports tests mock each `api/*.ts` module's functions directly; [MSW](https://mswjs.io) (intercepting at the real `fetch`/network layer instead) is a commonly-used step up in fidelity for exactly this shape of app and would remove the need to keep each test's mocked function signatures in sync with the real ones by hand. Not done — flagged as a direction to evaluate, not a regression. |
 
 ### Jayashan Guruge — Component A: Asset Registry & QR (FR-016–032)
-- FR-019: evaluate `ValidationRule` against submitted attribute values — rule is stored but never enforced.
-- FR-023: printable QR label download (a real QR renders in-app; no print/download path yet).
-- FR-030: compute residual value server-side (straight-line depreciation from acquisition cost/date + useful life) — currently a free-entry client field.
-- FR-031: `POST /api/assets/{id}/verify` (officer physical verification) — Flutter-only per SRS, blocked on Flutter start.
-- FR-032: confirm assets actually exit only via disposal once Component C's disposal workflow has a frontend (Component A's own half — no-delete-endpoint — is already satisfied).
-- FR-020/024/025: Flutter — dynamic attribute detail form, QR scan-to-record (<3s), manual code entry.
-- Flutter: scanner, asset lookup, condition update; tests — none started.
+
+**✅ Completed**
+
+| Task | Notes |
+|---|---|
+| FR-019: evaluate `ValidationRule` against submitted attribute values | Done 2026-09-15 — `AttributeValidationRuleEngine` (new file, `backend/Features/Assets/Helpers/`) parses the stored `ValidationRule` string and enforces it on every create and update. Supported rules: `min`/`max` (NUMBER), `minLength`/`maxLength` (TEXT), `maxDate` (DATE). Required-field and data-type checks were already in place; this closes the rule-enforcement gap. One call added to `AssetService.ValidateAttributeValue` — both create and update paths are covered with no further wiring. Error messages use plain English ("at least N", "at most N"). Build: 0 errors, 0 warnings. |
+
+**❌ Not Started**
+
+| Task | Notes |
+|---|---|
+| FR-023: printable QR label download | A real QR renders in-app via the `qrcode` package; no print/download path yet. |
+| FR-030: compute residual value server-side | Straight-line depreciation from acquisition cost/date + useful life — currently a free-entry client field. |
+| FR-031: `POST /api/assets/{id}/verify` (officer physical verification) | Flutter-only per SRS, blocked on Flutter start. |
+| FR-032: confirm assets exit only via disposal | Component A's own half (no-delete-endpoint) is already satisfied; needs confirmation once Component C's disposal frontend exists. |
+| FR-020/024/025: Flutter | Dynamic attribute detail form, QR scan-to-record (<3s), manual code entry — none started. |
+| Flutter: scanner, asset lookup, condition update; tests | None started. |
 
 ### Seneja Ramanayaka — Component B: Maintenance Management (FR-033–042, FR-077–080)
 

@@ -479,8 +479,8 @@ public class AssetService : IAssetService
             Condition = condition,
 
             AcquisitionDate = request.AcquisitionDate,
-            AcquisitionCost = request.AcquisitionCost,
-            ResidualValue = request.ResidualValue,
+            AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero),
+            ResidualValue = Math.Round(request.ResidualValue, 2, MidpointRounding.AwayFromZero),
 
             CumulativeMaintenanceCost = 0,
             RepairCount = 0,
@@ -671,8 +671,8 @@ public class AssetService : IAssetService
         asset.Name = request.Name.Trim();
 
         asset.AcquisitionDate = request.AcquisitionDate;
-        asset.AcquisitionCost = request.AcquisitionCost;
-        asset.ResidualValue = request.ResidualValue;
+        asset.AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero);
+        asset.ResidualValue = Math.Round(request.ResidualValue, 2, MidpointRounding.AwayFromZero);
 
         asset.UpdatedAt = now;
         asset.UpdatedBy = userId;
@@ -1212,6 +1212,10 @@ public class AssetService : IAssetService
                 throw new InvalidOperationException(
                     $"Unsupported attribute type '{definition.DataType}'.");
         }
+
+        // Enforce any additional rule stored on the definition (min/max,
+        // minLength/maxLength, regex, minDate/maxDate).
+        AttributeValidationRuleEngine.Enforce(definition, value);
     }
 
     private static AssetAttributeValue CreateAttributeValue(
