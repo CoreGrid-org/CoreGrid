@@ -151,8 +151,8 @@ This is a suggested pacing, not a new requirement — it operationalises the sev
 | 2 | Full CRUD with search/filter/sort/pagination for the owned component. |
 | 3 | Owned state machine implemented with guarded transitions and negative tests. |
 | 4 | Owned business-specific operation (verify / complete / approve-disposal / resolve-discrepancy) working end to end with its transaction and audit trail. |
-| 5 | Own agent built against a stubbed model call, wired into the LangGraph graph as one node. |
-| 6 | Real model call integrated; full four-agent graph run together; owned golden cases (§18.7) passing. |
+| 5 | Own agent built as an `IAgentNode`, wired into the Orchestrator; a stubbed `IModelClient` response for any node whose §7.2.1 criteria require a model call. |
+| 6 | Real model call integrated where §7.2.1 requires one; full four-agent graph run together; owned golden cases (§18.7) passing. |
 | 7 | Tests complete, CI green, hardening, authorisation matrix run. |
 | 8 (stabilisation) | No new features: regression testing, AI usage logs and reflections finalised, ADR set checked complete, documentation, viva preparation. |
 

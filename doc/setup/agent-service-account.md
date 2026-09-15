@@ -1,13 +1,13 @@
 # Agent Service Account & Machine-to-Machine (M2M) Authentication
 
-This document details the configuration required in **ThunderID** and **CoreGrid API** for the **Budget Analysis Agent** (and subsequent AI agents) to securely communicate with the backend's `/api/agent-tools/*` endpoints via OAuth2 `client_credentials`.
+This document details the configuration required in **ThunderID** and **CoreGrid API** for an agent node still running as a **standalone external process** to securely communicate with the backend's `/api/agent-tools/*` endpoints via OAuth2 `client_credentials`. Under the target architecture (SRS §7.2.1, ADR-010) every node eventually runs in-process and needs none of this — it applies only until a given node is migrated.
 
 ---
 
 ## 1. Overview & Architecture
 
 Per **SRS §4.6, §7.4, and SEC-ID-10**:
-- This M2M setup applies to agents that run as standalone external processes — today that's only the Budget Analysis Agent (Python/LangGraph, `agent-service/`). Team direction as of 2026-09-14 is to build the remaining agent nodes .NET-native inside the API (matching the Policy Compliance Agent, which already runs in-process and doesn't need this setup at all — it calls its tool endpoints directly, no token request required).
+- This M2M setup applies to agents that run as standalone external processes — today that's only the Planner Agent (Python/LangGraph, `planner-agent/`), pending its own migration in-process. The Budget Analysis Agent's prior standalone implementation was removed 2026-09-15 once the target design (SRS §7.2.1, ADR-010) made it redundant before it was ever wired in; its replacement will be built in-process from the start. Maintenance Analysis and Policy Compliance run in-process and need none of this setup at all — they call their tool services directly, no token request required.
 - Agents act as advisory and read-only services.
 - Agents authenticate as an **"Agent Service Principal"** using the standard OAuth2 `client_credentials` grant against ThunderID.
 - The issued JWT token is presented as a `Bearer` token to the CoreGrid backend.

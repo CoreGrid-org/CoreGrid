@@ -30,7 +30,7 @@ The single-line team-members field above names who is on the group; this table i
 
 Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named student to fill in — they are not invented here. See [§18.2](18-team-roster-and-work-allocation.md#182-roster) for what a complete roster row must capture and why each field is required, and [§18.11](18-team-roster-and-work-allocation.md#1811-keeping-the-roster-current) for how this table is kept in sync as the project proceeds.
 | Identity provider | ThunderID (OIDC / OAuth 2.0); organisation scoping is done in CoreGrid's own database, not ThunderID (Section 4.2) |
-| Mandatory stack | ASP.NET Core Web API · PostgreSQL · React (IBM Carbon Design System) · Flutter · Agentic AI (LangGraph) |
+| Mandatory stack | ASP.NET Core Web API · PostgreSQL · React (IBM Carbon Design System) · Flutter · Agentic AI (.NET-native `IAgentNode`/`IModelClient`, Section 7.2.1, ADR-010) |
 | Status | Approved baseline for implementation |
 
 ## Document Control
@@ -64,7 +64,7 @@ Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named stude
 
 ### Purpose of Baselining
 
-Version 1.0 of this Software Requirements Specification is the development contract for the CoreGrid implementation. Every artefact produced during the project — the database schema, the ASP.NET Core API surface, the React and Flutter screens, the LangGraph agent definitions, the automated test suite and the consolidated report — traces back to a requirement identifier in this document. Any change requested after baselining must be raised as a GitHub issue labelled "scope-change", assessed against the seven-week implementation schedule, approved by the group and recorded in the revision history above before work begins.
+Version 1.0 of this Software Requirements Specification is the development contract for the CoreGrid implementation. Every artefact produced during the project — the database schema, the ASP.NET Core API surface, the React and Flutter screens, the agent node and orchestrator definitions, the automated test suite and the consolidated report — traces back to a requirement identifier in this document. Any change requested after baselining must be raised as a GitHub issue labelled "scope-change", assessed against the seven-week implementation schedule, approved by the group and recorded in the revision history above before work begins.
 
 ### Relationship to the SE3090 assignment specification
 

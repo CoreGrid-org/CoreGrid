@@ -34,7 +34,7 @@ One scenario is designated the golden workflow. It is the demonstration centrepi
   2  Officer scans AST-00042 → GET /api/assets/qr/AST-00042.
   3  Officer taps "Evaluate lifecycle" → POST /api/workflows/asset-evaluation.
   4  API authorises, validates asset state, persists AgentWorkflow, returns id.
-  5  LangGraph: Planner → Maintenance → Budget → Policy, tool calls recorded.
+  5  Orchestrator: Planner → Maintenance → Budget → Policy, tool calls recorded.
   6  Deterministic gate: schema PASS, rules PASS, action = DISPOSE (high impact).
   7  Workflow interrupts; checkpoint persisted; status AWAITING_APPROVAL;
      notification dispatched to the Administrator.
