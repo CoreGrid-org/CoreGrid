@@ -118,6 +118,89 @@ public class VerificationCampaignService : IVerificationCampaignService
             ?? throw new InvalidOperationException("Campaign could not be reloaded after creation.");
     }
 
+    public async Task<CampaignDto?> UpdateCampaignAsync(
+        Guid organizationId,
+        Guid id,
+        UpdateCampaignRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new InvalidOperationException("Campaign name is required.");
+        }
+
+        if (request.PeriodEnd < request.PeriodStart)
+        {
+            throw new InvalidOperationException("Campaign period end cannot be before its start.");
+        }
+
+        var campaign = await _context.VerificationCampaigns
+            .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == organizationId);
+
+        if (campaign is null)
+        {
+            return null;
+        }
+
+        campaign.Name = request.Name.Trim();
+        campaign.PeriodStart = request.PeriodStart;
+        campaign.PeriodEnd = request.PeriodEnd;
+        campaign.Status = request.Status;
+
+        var pendingTasks = await _context.VerificationTasks
+            .Where(t => t.CampaignId == id && t.OrganizationId == organizationId && t.Status == VerificationTaskStatus.Pending)
+            .ToListAsync();
+
+        foreach (var task in pendingTasks)
+        {
+            task.DueDate = request.PeriodEnd;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return await GetCampaignByIdAsync(organizationId, campaign.Id);
+    }
+
+    public async Task<bool> DeleteCampaignAsync(Guid organizationId, Guid id)
+    {
+        var campaign = await _context.VerificationCampaigns
+            .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == organizationId);
+
+        if (campaign is null)
+        {
+            return false;
+        }
+
+        var taskIds = await _context.VerificationTasks
+            .Where(t => t.CampaignId == id && t.OrganizationId == organizationId)
+            .Select(t => t.Id)
+            .ToListAsync();
+
+        var discrepancies = await _context.Discrepancies
+            .Where(d => d.CampaignId == id || taskIds.Contains(d.VerificationTaskId))
+            .ToListAsync();
+
+        if (discrepancies.Any())
+        {
+            _context.Discrepancies.RemoveRange(discrepancies);
+            await _context.SaveChangesAsync();
+        }
+
+        var tasks = await _context.VerificationTasks
+            .Where(t => t.CampaignId == id && t.OrganizationId == organizationId)
+            .ToListAsync();
+
+        if (tasks.Any())
+        {
+            _context.VerificationTasks.RemoveRange(tasks);
+            await _context.SaveChangesAsync();
+        }
+
+        _context.VerificationCampaigns.Remove(campaign);
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
+
     private async Task ValidateScopeAsync(Guid organizationId, CreateCampaignRequest request)
     {
         if (request.ScopeDepartmentId.HasValue)
@@ -196,17 +279,30 @@ public class VerificationCampaignService : IVerificationCampaignService
             .GroupBy(u => u.DepartmentId!.Value)
             .ToDictionaryAsync(g => g.Key, g => g.First().Id);
 
+        var defaultOfficerId = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.OrganizationId == campaign.OrganizationId
+                && u.Role == CoreGridRole.InventoryOfficer
+                && u.IsActive)
+            .OrderBy(u => u.CreatedAt)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefaultAsync();
+
         var now = DateTimeOffset.UtcNow;
 
         foreach (var asset in assets)
         {
+            var assignedUserId = officersByDepartment.TryGetValue(asset.DepartmentId, out var deptOfficerId)
+                ? (Guid?)deptOfficerId
+                : defaultOfficerId;
+
             _context.VerificationTasks.Add(new VerificationTask
             {
                 Id = Guid.NewGuid(),
                 OrganizationId = campaign.OrganizationId,
                 CampaignId = campaign.Id,
                 AssetId = asset.Id,
-                AssignedToUserId = officersByDepartment.GetValueOrDefault(asset.DepartmentId),
+                AssignedToUserId = assignedUserId,
                 DueDate = campaign.PeriodEnd,
                 Status = VerificationTaskStatus.Pending,
                 CreatedAt = now

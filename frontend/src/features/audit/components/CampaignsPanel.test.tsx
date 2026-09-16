@@ -27,6 +27,9 @@ vi.mock("./CreateCampaignModal", () => ({
 vi.mock("./CampaignReportModal", () => ({
   default: ({ campaignName }: { campaignName: string }) => <div role="dialog">Report for {campaignName}</div>,
 }));
+vi.mock("./CampaignTasksModal", () => ({
+  default: ({ campaignName }: { campaignName: string }) => <div role="dialog">Tasks for {campaignName}</div>,
+}));
 
 import CampaignsPanel from "./CampaignsPanel";
 
@@ -98,5 +101,15 @@ describe("CampaignsPanel", () => {
     await user.click(await screen.findByRole("button", { name: "View report" }));
 
     expect(screen.getByText("Report for Q3 Ward Verification")).toBeInTheDocument();
+  });
+
+  it("opens the campaign tasks modal from a row's 'View tasks' button", async () => {
+    listCampaignsMock.mockResolvedValue([CAMPAIGN]);
+    const user = userEvent.setup();
+    render(<CampaignsPanel />);
+
+    await user.click(await screen.findByRole("button", { name: "View tasks" }));
+
+    expect(screen.getByText("Tasks for Q3 Ward Verification")).toBeInTheDocument();
   });
 });

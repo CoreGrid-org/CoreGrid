@@ -12,4 +12,11 @@ public interface IVerificationCampaignService
         Guid organizationId,
         Guid userId,
         CreateCampaignRequest request);
+
+    Task<CampaignDto?> UpdateCampaignAsync(
+        Guid organizationId,
+        Guid id,
+        UpdateCampaignRequest request);
+
+    Task<bool> DeleteCampaignAsync(Guid organizationId, Guid id);
 }
