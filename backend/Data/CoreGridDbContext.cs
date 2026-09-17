@@ -548,7 +548,7 @@ public class CoreGridDbContext(
             entity.Property(m => m.Description).IsRequired();
             entity.Property(m => m.ObservedCondition).HasMaxLength(15).IsRequired();
             entity.Property(m => m.ResultingCondition).HasMaxLength(15);
-            entity.Property(m => m.PhotoUrl).HasMaxLength(500);
+            entity.Property(m => m.PhotoObjectKey).HasMaxLength(500);
             entity.Property(m => m.CancellationReason).HasMaxLength(500);
 
             entity.Property(m => m.EstimatedCost).HasPrecision(18, 2);

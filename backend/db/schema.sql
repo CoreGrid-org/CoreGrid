@@ -721,3 +721,19 @@ VALUES ('20260912055250_AddNotifications', '10.0.10');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "AgentWorkflows" ADD "MaintenanceAnalysis" text;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260917083415_AddMaintenanceAnalysisToAgentWorkflow', '10.0.10');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE "MaintenanceRecords" RENAME COLUMN "PhotoUrl" TO "PhotoObjectKey";
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260917090120_RenameMaintenancePhotoUrlToPhotoObjectKey', '10.0.10');
+
+COMMIT;
+
