@@ -1,6 +1,7 @@
 import type {
   MaintenanceRecord,
   MaintenanceQueryParameters,
+  PagedMaintenanceRecords,
   ReportFaultRequest,
   CreateMaintenanceRequest,
   ApproveMaintenanceRequest,
@@ -25,18 +26,28 @@ function authHeaders(accessToken: string) {
 
 function buildQuery(params: MaintenanceQueryParameters): string {
   const search = new URLSearchParams();
-  if (params.asset_id) search.set("assetId", params.asset_id);
+  if (params.assetId) search.set("assetId", params.assetId);
+  if (params.departmentId) search.set("departmentId", params.departmentId);
+  if (params.assigneeId) search.set("assigneeId", params.assigneeId);
   if (params.status) search.set("status", params.status);
   if (params.type) search.set("type", params.type);
   if (params.priority) search.set("priority", params.priority);
+  if (params.dateFrom) search.set("dateFrom", params.dateFrom);
+  if (params.dateTo) search.set("dateTo", params.dateTo);
+  if (params.sortBy) search.set("sortBy", params.sortBy);
+  if (params.sortDirection) search.set("sortDirection", params.sortDirection);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
   const query = search.toString();
   return query ? `?${query}` : "";
 }
 
+// FR-042: GET /api/maintenance now returns a PagedResult<MaintenanceRecordDto>
+// (server-side filter/sort/pagination), not a bare array.
 export async function listMaintenanceRecords(
   params: MaintenanceQueryParameters,
   accessToken: string,
-): Promise<MaintenanceRecord[]> {
+): Promise<PagedMaintenanceRecords> {
   const response = await fetch(`${API_URL}/maintenance${buildQuery(params)}`, {
     headers: authHeaders(accessToken),
   });
