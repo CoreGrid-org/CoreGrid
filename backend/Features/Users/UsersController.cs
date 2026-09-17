@@ -1,5 +1,6 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared;
 using CoreGrid.Api.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,16 +16,50 @@ namespace CoreGrid.Api.Features.Users;
 [Authorize]
 public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDirectory) : ControllerBase
 {
+    // Search + pagination — added for the Users & Roles admin page. Org
+    // scoping is already handled by the global OrganizationId query filter
+    // (FR-006), same as every other query against db.Users in this file.
     [HttpGet]
     [Authorize(Roles = $"{nameof(CoreGridRole.Administrator)},{nameof(CoreGridRole.InventoryOfficer)}")]
-    public async Task<ActionResult<IReadOnlyList<UserResponse>>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResult<UserResponse>>> List(
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var users = await db.Users
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 20 : Math.Min(pageSize, 100);
+
+        var query = db.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = $"%{search.Trim()}%";
+            query = query.Where(u =>
+                EF.Functions.ILike(u.Email, pattern) ||
+                EF.Functions.ILike(u.GivenName, pattern) ||
+                EF.Functions.ILike(u.FamilyName, pattern));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
             .OrderBy(u => u.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(u => new UserResponse(u.Id, u.Email, u.GivenName, u.FamilyName, u.Role, u.DepartmentId, u.IsActive, u.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        return Ok(users);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        return Ok(new PagedResult<UserResponse>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages
+        });
     }
 
     [HttpPost]

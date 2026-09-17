@@ -31,12 +31,18 @@ public class AuditReportController : CoreGridControllerBase
         [FromQuery] Guid? departmentId,
         [FromQuery] Guid? categoryId,
         [FromQuery] string? status,
-        CancellationToken cancellationToken)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        var filter = new AuditReportFilter { From = from, To = to, DepartmentId = departmentId, AssetCategoryId = categoryId, Status = status };
+        var filter = new AuditReportFilter
+        {
+            From = from, To = to, DepartmentId = departmentId, AssetCategoryId = categoryId, Status = status,
+            Page = page, PageSize = pageSize
+        };
         var report = await _reportService.GetReportAsync(currentUser.OrganizationId, filter, cancellationToken);
 
         return Ok(report);
