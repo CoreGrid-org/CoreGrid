@@ -1,6 +1,7 @@
 namespace CoreGrid.Api.Features.Agents.DTOs;
 
 using System.Text.Json.Serialization;
+using CoreGrid.Api.Features.AgentTools.DTOs;
 
 public class AgentWorkflowDto
 {
@@ -16,6 +17,7 @@ public class AgentWorkflowDto
     public string? FailureReason { get; set; }
     public PlannerExecutionPlan? Plan { get; set; }
     public PolicyValidation? ValidationResult { get; set; }
+    public FailureStatisticsDto? MaintenanceAnalysis { get; set; }
     public required string CorrelationId { get; set; }
     public Guid InitiatedByUserId { get; set; }
     public string? InitiatedByEmail { get; set; }
