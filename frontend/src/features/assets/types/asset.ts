@@ -159,7 +159,6 @@ export interface CreateAssetRequest {
   name: string;
   acquisition_date: string;
   acquisition_cost: number;
-  residual_value: number;
   condition: AssetCondition;
   attributes: AssetAttributeValueRequest[];
 }
@@ -171,7 +170,6 @@ export interface UpdateAssetRequest {
   name: string;
   acquisition_date: string;
   acquisition_cost: number;
-  residual_value: number;
   attributes: AssetAttributeValueRequest[];
 }
 

@@ -8,7 +8,6 @@ import {
   Checkbox,
   InlineNotification,
   Button,
-  Tag,
 } from "@carbon/react";
 import { Add, TrashCan } from "@carbon/icons-react";
 import { useCreateAssetAttributeDefinition } from "../hooks/useAssets";
