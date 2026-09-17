@@ -1,18 +1,33 @@
 import { Tabs, TabList, Tab, TabPanels, TabPanel, Button } from "@carbon/react";
 import { DocumentPdf, DocumentExport } from "@carbon/icons-react";
 import MockNotice from "@/shared/components/MockNotice";
+import { useMe } from "@/features/auth/hooks/useMe";
 import { MOCK_REPORTS } from "../data/mockReports";
 import AuditReportPanel from "../components/AuditReportPanel";
 import InventoryReportPanel from "../components/InventoryReportPanel";
 import MaintenanceReportPanel from "../components/MaintenanceReportPanel";
 
+// FR-084/FR-085: the backend's own AuditReportController is
+// Auditor/Administrator-only (audit is a compliance function, not an
+// inventory-operations one) — this page is shared across all three roles
+// (App.tsx mounts it at /admin/reports, /inventory/reports, /audit/reports),
+// so it has to match that gate itself rather than showing an Inventory
+// Officer a tab that just 403s. Inventory/Maintenance/Disposal stay visible
+// to all three roles — their own backend read endpoints already are.
 export default function ReportsPage() {
+  const { data: me } = useMe();
+  const canSeeAudit = me?.role === "Auditor" || me?.role === "Administrator";
+
   return (
     <div className="cg-page">
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Reports</h1>
-          <p className="cg-page__subtitle">Inventory, maintenance, disposal and audit reports.</p>
+          <p className="cg-page__subtitle">
+            {canSeeAudit
+              ? "Inventory, maintenance, disposal and audit reports."
+              : "Inventory, maintenance and disposal reports."}
+          </p>
         </div>
       </div>
 
@@ -21,7 +36,7 @@ export default function ReportsPage() {
           {MOCK_REPORTS.map((r) => (
             <Tab key={r.key}>{r.title.replace(" Report", "")}</Tab>
           ))}
-          <Tab>Audit</Tab>
+          {canSeeAudit && <Tab>Audit</Tab>}
         </TabList>
         <TabPanels>
           {MOCK_REPORTS.map((report) => (
@@ -88,9 +103,11 @@ export default function ReportsPage() {
             </TabPanel>
           ))}
 
-          <TabPanel>
-            <AuditReportPanel />
-          </TabPanel>
+          {canSeeAudit && (
+            <TabPanel>
+              <AuditReportPanel />
+            </TabPanel>
+          )}
         </TabPanels>
       </Tabs>
     </div>
