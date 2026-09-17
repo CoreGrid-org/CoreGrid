@@ -6,6 +6,7 @@ import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { formatAttributeValue, formatCurrency, formatDate } from "../utils/format";
 import { ASSET_CONDITIONS, type AssetCondition } from "../types/asset";
 import QrCode from "./QrCode";
+import { downloadPrintableLabel } from "../utils/qrcode";
 
 interface AssetDetailModalProps {
   assetId: string;
@@ -120,6 +121,14 @@ export default function AssetDetailModal({ assetId, onClose, onConditionUpdated 
                   on QrPayload (== asset_code), not a frontend URL. */}
               <QrCode value={asset.qr_payload} size={140} />
               <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem", color: "#8d8d8d" }}>Scan to look up this asset</p>
+              <Button
+                kind="tertiary"
+                size="sm"
+                style={{ marginTop: "1rem", width: "100%", justifyContent: "center" }}
+                onClick={() => downloadPrintableLabel(asset.asset_code, asset.name, asset.qr_payload)}
+              >
+                Download label
+              </Button>
             </div>
           </div>
 

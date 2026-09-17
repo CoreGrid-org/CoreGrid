@@ -43,6 +43,7 @@ const AWAITING: AgentWorkflow = {
   status: "AWAITING_APPROVAL",
   recommendation: "DISPOSE",
   is_high_impact: true,
+  plan: null,
   approval_status: "PENDING",
   revision_count: 0,
   failure_reason: null,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Button,
@@ -62,7 +62,7 @@ export default function AssetRegisterPage() {
   const [condition, setCondition] = useState<AssetCondition>("NEW");
   const [acquisitionDate, setAcquisitionDate] = useState("");
   const [acquisitionCost, setAcquisitionCost] = useState<number | "">("");
-  const [residualValue, setResidualValue] = useState<number | "">("");
+
   const [attributeValues, setAttributeValues] = useState<Record<string, AttributeValue>>({});
   const [prefilled, setPrefilled] = useState(false);
   const skipNextDepartmentReset = useRef(false);
@@ -101,7 +101,7 @@ export default function AssetRegisterPage() {
     setLocationId(existingAsset.location_id);
     setAcquisitionDate(existingAsset.acquisition_date.slice(0, 10));
     setAcquisitionCost(existingAsset.acquisition_cost);
-    setResidualValue(existingAsset.residual_value);
+
 
     const values: Record<string, AttributeValue> = {};
     for (const attr of existingAsset.attributes) {
@@ -154,6 +154,25 @@ export default function AssetRegisterPage() {
     acquisitionCost >= 0 &&
     requiredAttributesFilled;
 
+  const computedResidualValue = useMemo(() => {
+    if (acquisitionCost === "" || acquisitionCost < 0) return 0;
+    if (!acquisitionDate) return acquisitionCost;
+    if (!selectedType || selectedType.useful_life_years <= 0) return acquisitionCost;
+
+    const acqDate = new Date(acquisitionDate);
+    if (isNaN(acqDate.getTime())) return acquisitionCost;
+
+    const now = new Date();
+    const elapsedDays = (now.getTime() - acqDate.getTime()) / (1000 * 60 * 60 * 24);
+    const elapsedYears = elapsedDays / 365.25;
+
+    if (elapsedYears <= 0) return acquisitionCost;
+
+    const depreciation = (acquisitionCost / selectedType.useful_life_years) * elapsedYears;
+    const residual = acquisitionCost - depreciation;
+    return Math.max(0, residual);
+  }, [acquisitionCost, acquisitionDate, selectedType]);
+
   const handleSubmit = () => {
     if (!canSubmit || saveAsset.isPending) return;
 
@@ -194,7 +213,7 @@ export default function AssetRegisterPage() {
             name: name.trim(),
             acquisition_date: acquisitionDate,
             acquisition_cost: acquisitionCost,
-            residual_value: residualValue === "" ? 0 : residualValue,
+
             attributes,
           },
         },
@@ -215,7 +234,7 @@ export default function AssetRegisterPage() {
         name: name.trim(),
         acquisition_date: acquisitionDate,
         acquisition_cost: acquisitionCost,
-        residual_value: residualValue === "" ? 0 : residualValue,
+
         condition,
         attributes,
       },
@@ -336,15 +355,12 @@ export default function AssetRegisterPage() {
                 allowEmpty
                 onChange={(_, { value }) => setAcquisitionCost(value === "" ? "" : Number(value))}
               />
-              <NumberInput
-                id="register-asset-residual-value"
-                label="Residual value (LKR)"
-                helperText="Optional — defaults to 0"
-                min={0}
-                value={residualValue}
-                allowEmpty
-                onChange={(_, { value }) => setResidualValue(value === "" ? "" : Number(value))}
-              />
+              <div className="cg-kv-item" style={{ flex: 1, minWidth: "200px" }}>
+                <p className="cg-kv-item__label">Calculated residual value (LKR)</p>
+                <p className="cg-kv-item__value">
+                  {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(computedResidualValue)}
+                </p>
+              </div>
             </div>
           </div>
 
