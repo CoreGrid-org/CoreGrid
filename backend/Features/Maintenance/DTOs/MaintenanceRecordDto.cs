@@ -9,6 +9,9 @@ public class MaintenanceRecordDto
     public Guid AssetId { get; set; }
     public string AssetCode { get; set; } = string.Empty;
     public string AssetName { get; set; } = string.Empty;
+    public string AssetTypeName { get; set; } = string.Empty;
+    public Guid? DepartmentId { get; set; }
+    public string DepartmentName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string ObservedCondition { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }

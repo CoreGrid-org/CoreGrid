@@ -4,6 +4,7 @@ import MockNotice from "@/shared/components/MockNotice";
 import { MOCK_REPORTS } from "../data/mockReports";
 import AuditReportPanel from "../components/AuditReportPanel";
 import InventoryReportPanel from "../components/InventoryReportPanel";
+import MaintenanceReportPanel from "../components/MaintenanceReportPanel";
 
 export default function ReportsPage() {
   return (
@@ -27,6 +28,8 @@ export default function ReportsPage() {
             <TabPanel key={report.key}>
               {report.key === "inventory" ? (
                 <InventoryReportPanel />
+              ) : report.key === "maintenance" ? (
+                <MaintenanceReportPanel />
               ) : (
                 <>
               <MockNotice>

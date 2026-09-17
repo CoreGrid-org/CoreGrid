@@ -26,6 +26,9 @@ public class MaintenanceService : IMaintenanceService
         return await _context.MaintenanceRecords
             .AsNoTracking()
             .Include(m => m.Asset)
+                .ThenInclude(a => a!.AssetType)
+            .Include(m => m.Asset)
+                .ThenInclude(a => a!.Department)
             .Include(m => m.Assignee)
             .Where(m => m.Id == id && m.OrganizationId == organizationId)
             .Select(m => new MaintenanceRecordDto
@@ -34,6 +37,9 @@ public class MaintenanceService : IMaintenanceService
                 AssetId = m.AssetId,
                 AssetCode = m.Asset != null ? m.Asset.AssetCode : string.Empty,
                 AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
+                AssetTypeName = m.Asset != null && m.Asset.AssetType != null ? m.Asset.AssetType.Name : string.Empty,
+                DepartmentId = m.Asset != null ? m.Asset.DepartmentId : null,
+                DepartmentName = m.Asset != null && m.Asset.Department != null ? m.Asset.Department.Name : string.Empty,
                 Description = m.Description,
                 ObservedCondition = m.ObservedCondition,
                 PhotoUrl = m.PhotoUrl,
@@ -559,6 +565,9 @@ public class MaintenanceService : IMaintenanceService
         var query = _context.MaintenanceRecords
             .AsNoTracking()
             .Include(m => m.Asset)
+                .ThenInclude(a => a!.AssetType)
+            .Include(m => m.Asset)
+                .ThenInclude(a => a!.Department)
             .Include(m => m.Assignee)
             .Where(m => m.OrganizationId == organizationId)
             .AsQueryable();
@@ -590,6 +599,9 @@ public class MaintenanceService : IMaintenanceService
                 AssetId = m.AssetId,
                 AssetCode = m.Asset != null ? m.Asset.AssetCode : string.Empty,
                 AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
+                AssetTypeName = m.Asset != null && m.Asset.AssetType != null ? m.Asset.AssetType.Name : string.Empty,
+                DepartmentId = m.Asset != null ? m.Asset.DepartmentId : null,
+                DepartmentName = m.Asset != null && m.Asset.Department != null ? m.Asset.Department.Name : string.Empty,
                 Description = m.Description,
                 ObservedCondition = m.ObservedCondition,
                 PhotoUrl = m.PhotoUrl,

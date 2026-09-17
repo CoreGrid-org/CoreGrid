@@ -14,6 +14,9 @@ export interface MaintenanceRecord {
   asset_id: string;
   asset_code: string;
   asset_name: string;
+  asset_type_name: string;
+  department_id?: string;
+  department_name: string;
   description: string;
   observed_condition: string;
   photo_url?: string;

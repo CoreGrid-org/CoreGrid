@@ -1,19 +1,32 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button, InlineNotification, Select, SelectItem } from "@carbon/react";
-import { Add, NotificationNew } from "@carbon/icons-react";
+import { Add, NotificationNew, Warning } from "@carbon/icons-react";
 import MockNotice from "@/shared/components/MockNotice";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { MOCK_PREVENTIVE_SCHEDULE, MOCK_NOTIFICATIONS } from "../data/mockMaintenance";
 import { useMaintenanceList } from "../hooks/useMaintenance";
+import { useMe } from "@/features/auth/hooks/useMe";
 
 export default function MaintenancePage() {
   const navigate = useNavigate();
+  const { data: me } = useMe();
+  const role = me?.role;
   const [statusFilter, setStatusFilter] = useState("");
   const { data: records, isLoading, isError, error } = useMaintenanceList({
     status: statusFilter ? (statusFilter as any) : undefined,
   });
+
+  // Determine what action button to show based on the user's role:
+  // Officer/Administrator → create a full record directly (FR-035)
+  // Staff → report a fault (FR-033)
+  // Auditor → read-only; no write action
+  const headerAction = role === "Administrator" || role === "InventoryOfficer" ? (
+    <Button renderIcon={Add} onClick={() => navigate("new")}>New maintenance record</Button>
+  ) : role === "Staff" ? (
+    <Button renderIcon={Warning} onClick={() => navigate("report")}>Report a Fault</Button>
+  ) : null;
 
   return (
     <div className="cg-page">
@@ -22,7 +35,7 @@ export default function MaintenancePage() {
           <h1 className="cg-page__title">Maintenance</h1>
           <p className="cg-page__subtitle">Faults, repairs and preventive schedules</p>
         </div>
-        <Button renderIcon={Add} onClick={() => navigate("new")}>New maintenance record</Button>
+        {headerAction}
       </div>
 
       <Tabs>
