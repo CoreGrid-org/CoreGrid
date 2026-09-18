@@ -116,8 +116,12 @@ public class MaintenanceService : IMaintenanceService
 
     public async Task<MaintenanceRecordDto?> ReportFaultAsync(Guid organizationId, Guid currentUserId, ReportFaultRequest request)
     {
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assetId = request.AssetId!.Value;
+
         var asset = await _context.Assets
-            .FirstOrDefaultAsync(a => a.Id == request.AssetId && a.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId);
 
         if (asset is null)
         {
@@ -140,7 +144,7 @@ public class MaintenanceService : IMaintenanceService
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
-            AssetId = request.AssetId,
+            AssetId = assetId,
             Description = request.Description.Trim(),
             ObservedCondition = conditionUpper,
             PhotoObjectKey = request.PhotoUrl,
@@ -167,8 +171,14 @@ public class MaintenanceService : IMaintenanceService
         Guid currentUserId,
         CreateMaintenanceRequest request)
     {
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assetId = request.AssetId!.Value;
+        var type = request.Type!.Value;
+        var priority = request.Priority!.Value;
+
         var asset = await _context.Assets
-            .FirstOrDefaultAsync(a => a.Id == request.AssetId && a.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId);
 
         if (asset is null)
         {
@@ -208,12 +218,12 @@ public class MaintenanceService : IMaintenanceService
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
-            AssetId = request.AssetId,
+            AssetId = assetId,
             Description = request.Description.Trim(),
             ObservedCondition = conditionUpper,
             PhotoObjectKey = request.PhotoUrl,
-            Type = request.Type,
-            Priority = request.Priority,
+            Type = type,
+            Priority = priority,
             Status = MaintenanceStatus.REQUESTED,
             EstimatedCost = request.EstimatedCost,
             AssigneeId = request.AssigneeId,
@@ -238,7 +248,12 @@ public class MaintenanceService : IMaintenanceService
         Guid maintenanceId,
         ApproveMaintenanceRequest request)
     {
-        if (request.EstimatedCost < 0)
+        // [Required][Range] on the DTO makes a missing/invalid value 400
+        // for a model-bound HTTP caller before this method ever runs.
+        var assigneeId = request.AssigneeId!.Value;
+        var estimatedCost = request.EstimatedCost!.Value;
+
+        if (estimatedCost < 0)
         {
             throw new InvalidOperationException("Estimated cost must be a non-negative value.");
         }
@@ -261,7 +276,7 @@ public class MaintenanceService : IMaintenanceService
 
         // Verify the specified assignee belongs to this organisation.
         var assigneeExists = await _context.Users
-            .AnyAsync(u => u.Id == request.AssigneeId && u.OrganizationId == organizationId);
+            .AnyAsync(u => u.Id == assigneeId && u.OrganizationId == organizationId);
 
         if (!assigneeExists)
         {
@@ -269,8 +284,8 @@ public class MaintenanceService : IMaintenanceService
         }
 
         record.Status = MaintenanceStatus.APPROVED;
-        record.AssigneeId = request.AssigneeId;
-        record.EstimatedCost = request.EstimatedCost;
+        record.AssigneeId = assigneeId;
+        record.EstimatedCost = estimatedCost;
         record.UpdatedAt = DateTimeOffset.UtcNow;
         record.UpdatedBy = currentUserId;
 
@@ -279,7 +294,7 @@ public class MaintenanceService : IMaintenanceService
         // FR-080: notify the newly assigned officer.
         await _notificationService.NotifyAsync(
             organizationId,
-            request.AssigneeId,
+            assigneeId,
             "MAINTENANCE_ASSIGNED",
             "Maintenance assigned to you",
             $"You've been assigned maintenance for {record.Asset?.AssetCode ?? "an asset"}: {record.Description}",
@@ -371,7 +386,12 @@ public class MaintenanceService : IMaintenanceService
     {
 
 
-        if (request.ActualCost < 0)
+        // [Required][Range] on the DTO makes a missing/invalid value 400
+        // for a model-bound HTTP caller before this method ever runs.
+        var actualCost = request.ActualCost!.Value;
+        var completionDate = request.CompletionDate!.Value;
+
+        if (actualCost < 0)
         {
             throw new InvalidOperationException("Actual cost must be a non-negative value.");
         }
@@ -391,7 +411,7 @@ public class MaintenanceService : IMaintenanceService
                 "Invalid resulting condition. Use: NEW, GOOD, FAIR, POOR or UNSERVICEABLE.");
         }
 
-        if (request.CompletionDate > DateOnly.FromDateTime(DateTime.UtcNow))
+        if (completionDate > DateOnly.FromDateTime(DateTime.UtcNow))
         {
             throw new InvalidOperationException(
                 "Completion date cannot be in the future.");
@@ -443,7 +463,7 @@ public class MaintenanceService : IMaintenanceService
             if (policy is not null && policy.CostVarianceTolerancePercent > 0)
             {
                 var overrunPercent =
-                    ((request.ActualCost - record.EstimatedCost.Value) / record.EstimatedCost.Value) * 100m;
+                    ((actualCost - record.EstimatedCost.Value) / record.EstimatedCost.Value) * 100m;
 
                 if (overrunPercent > policy.CostVarianceTolerancePercent)
                 {
@@ -466,9 +486,9 @@ public class MaintenanceService : IMaintenanceService
 
         // Transition maintenance record.
         record.Status = MaintenanceStatus.COMPLETED;
-        record.ActualCost = request.ActualCost;
+        record.ActualCost = actualCost;
         record.WorkPerformed = request.WorkPerformed?.Trim() ?? string.Empty;
-        record.CompletionDate = request.CompletionDate;
+        record.CompletionDate = completionDate;
         record.ResultingCondition = conditionUpper;
         record.UpdatedAt = now;
         record.UpdatedBy = currentUserId;
@@ -477,9 +497,9 @@ public class MaintenanceService : IMaintenanceService
         asset.Condition = conditionUpper;
 
         // FR-040 - Recalculate cumulative cost, repair count, last repair date.
-        asset.CumulativeMaintenanceCost += request.ActualCost;
+        asset.CumulativeMaintenanceCost += actualCost;
         asset.RepairCount += 1;
-        asset.LastRepairDate = request.CompletionDate;
+        asset.LastRepairDate = completionDate;
 
         // BR2 - UNSERVICEABLE resulting condition → CONDEMNED, not ACTIVE.
         asset.Status = conditionUpper == "UNSERVICEABLE" ? "CONDEMNED" : "ACTIVE";
@@ -501,7 +521,7 @@ public class MaintenanceService : IMaintenanceService
             {
                 status = previousAssetStatus,
                 condition = previousAssetCondition,
-                cumulativeMaintenanceCost = asset.CumulativeMaintenanceCost - request.ActualCost,
+                cumulativeMaintenanceCost = asset.CumulativeMaintenanceCost - actualCost,
                 repairCount = asset.RepairCount - 1
             }),
             NewValue = JsonSerializer.Serialize(new

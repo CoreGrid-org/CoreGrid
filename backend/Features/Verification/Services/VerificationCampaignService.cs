@@ -85,7 +85,12 @@ public class VerificationCampaignService : IVerificationCampaignService
             throw new InvalidOperationException("Campaign name is required.");
         }
 
-        if (request.PeriodEnd < request.PeriodStart)
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var periodStart = request.PeriodStart!.Value;
+        var periodEnd = request.PeriodEnd!.Value;
+
+        if (periodEnd < periodStart)
         {
             throw new InvalidOperationException("Campaign period end cannot be before its start.");
         }
@@ -97,8 +102,8 @@ public class VerificationCampaignService : IVerificationCampaignService
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             Name = request.Name.Trim(),
-            PeriodStart = request.PeriodStart,
-            PeriodEnd = request.PeriodEnd,
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
             ScopeDepartmentId = request.ScopeDepartmentId,
             ScopeLocationId = request.ScopeLocationId,
             ScopeAssetCategoryId = request.ScopeAssetCategoryId,
@@ -128,7 +133,13 @@ public class VerificationCampaignService : IVerificationCampaignService
             throw new InvalidOperationException("Campaign name is required.");
         }
 
-        if (request.PeriodEnd < request.PeriodStart)
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var periodStart = request.PeriodStart!.Value;
+        var periodEnd = request.PeriodEnd!.Value;
+        var status = request.Status!.Value;
+
+        if (periodEnd < periodStart)
         {
             throw new InvalidOperationException("Campaign period end cannot be before its start.");
         }
@@ -142,9 +153,9 @@ public class VerificationCampaignService : IVerificationCampaignService
         }
 
         campaign.Name = request.Name.Trim();
-        campaign.PeriodStart = request.PeriodStart;
-        campaign.PeriodEnd = request.PeriodEnd;
-        campaign.Status = request.Status;
+        campaign.PeriodStart = periodStart;
+        campaign.PeriodEnd = periodEnd;
+        campaign.Status = status;
 
         var pendingTasks = await _context.VerificationTasks
             .Where(t => t.CampaignId == id && t.OrganizationId == organizationId && t.Status == VerificationTaskStatus.Pending)
@@ -152,7 +163,7 @@ public class VerificationCampaignService : IVerificationCampaignService
 
         foreach (var task in pendingTasks)
         {
-            task.DueDate = request.PeriodEnd;
+            task.DueDate = periodEnd;
         }
 
         await _context.SaveChangesAsync();

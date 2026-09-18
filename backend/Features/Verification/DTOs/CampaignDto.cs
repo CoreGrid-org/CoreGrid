@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Verification.DTOs;
@@ -30,8 +31,12 @@ public class CampaignDto
 public class CreateCampaignRequest
 {
     public required string Name { get; set; }
-    public DateOnly PeriodStart { get; set; }
-    public DateOnly PeriodEnd { get; set; }
+
+    [Required]
+    public DateOnly? PeriodStart { get; set; }
+
+    [Required]
+    public DateOnly? PeriodEnd { get; set; }
 
     public Guid? ScopeDepartmentId { get; set; }
     public Guid? ScopeLocationId { get; set; }
@@ -42,7 +47,13 @@ public class CreateCampaignRequest
 public class UpdateCampaignRequest
 {
     public required string Name { get; set; }
-    public DateOnly PeriodStart { get; set; }
-    public DateOnly PeriodEnd { get; set; }
-    public CampaignStatus Status { get; set; }
+
+    [Required]
+    public DateOnly? PeriodStart { get; set; }
+
+    [Required]
+    public DateOnly? PeriodEnd { get; set; }
+
+    [Required]
+    public CampaignStatus? Status { get; set; }
 }

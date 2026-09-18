@@ -1,12 +1,18 @@
+using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Transfers.DTOs;
 
 public class InitiateTransferRequest
 {
-    public Guid AssetId { get; set; }
-    public Guid ToDepartmentId { get; set; }
-    public Guid ToLocationId { get; set; }
+    [Required]
+    public Guid? AssetId { get; set; }
+
+    [Required]
+    public Guid? ToDepartmentId { get; set; }
+
+    [Required]
+    public Guid? ToLocationId { get; set; }
 }
 
 public class TransferResponse

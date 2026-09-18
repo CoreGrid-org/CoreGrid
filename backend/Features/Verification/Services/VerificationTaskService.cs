@@ -101,7 +101,11 @@ public class VerificationTaskService : IVerificationTaskService
             throw new InvalidOperationException("This task is assigned to a different officer.");
         }
 
-        if (request.AssertedPresent)
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assertedPresent = request.AssertedPresent!.Value;
+
+        if (assertedPresent)
         {
             if (request.AssertedLocationId is null || string.IsNullOrWhiteSpace(request.AssertedCondition))
             {
@@ -127,7 +131,7 @@ public class VerificationTaskService : IVerificationTaskService
             task.AssertedLocationId = request.AssertedLocationId;
         }
 
-        task.AssertedPresent = request.AssertedPresent;
+        task.AssertedPresent = assertedPresent;
         task.Status = VerificationTaskStatus.Completed;
         task.CompletedByUserId = currentUserId;
         task.CompletedAt = DateTimeOffset.UtcNow;

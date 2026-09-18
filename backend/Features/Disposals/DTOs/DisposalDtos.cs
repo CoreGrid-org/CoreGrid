@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Disposals.DTOs;
@@ -22,9 +23,19 @@ public class CondemnAssetResponse
 
 public class SubmitDisposalRequest
 {
-    public Guid AssetId { get; set; }
-    public DisposalMethod DisposalMethod { get; set; }
-    public decimal EstimatedResidualValue { get; set; }
+    [Required]
+    public Guid? AssetId { get; set; }
+
+    [Required]
+    public DisposalMethod? DisposalMethod { get; set; }
+
+    // P2 (disposal precondition) checks that a valuation amount is
+    // recorded — an absent value defaulting to 0 would silently pass that
+    // check instead of failing model validation.
+    [Required]
+    [Range(0, 1_000_000_000_000)]
+    public decimal? EstimatedResidualValue { get; set; }
+
     public DateOnly? ValuationDate { get; set; }
     public string? Notes { get; set; }
 }

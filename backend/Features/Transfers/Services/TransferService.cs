@@ -26,12 +26,18 @@ public class TransferService : ITransferService
         Guid initiatedByUserId,
         CancellationToken cancellationToken = default)
     {
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assetId = request.AssetId!.Value;
+        var toDepartmentId = request.ToDepartmentId!.Value;
+        var toLocationId = request.ToLocationId!.Value;
+
         var asset = await _dbContext.Assets
-            .FirstOrDefaultAsync(a => a.Id == request.AssetId && a.OrganizationId == organizationId, cancellationToken);
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
 
         if (asset == null)
         {
-            throw new KeyNotFoundException($"Asset with ID {request.AssetId} not found in this organization.");
+            throw new KeyNotFoundException($"Asset with ID {assetId} not found in this organization.");
         }
 
         // Guard: Asset.Status must be ACTIVE (FR-044).
@@ -43,17 +49,17 @@ public class TransferService : ITransferService
 
         // Verify destination department and location exist within the organization
         var toDepartment = await _dbContext.Departments
-            .FirstOrDefaultAsync(d => d.Id == request.ToDepartmentId && d.OrganizationId == organizationId, cancellationToken);
+            .FirstOrDefaultAsync(d => d.Id == toDepartmentId && d.OrganizationId == organizationId, cancellationToken);
         if (toDepartment == null)
         {
-            throw new KeyNotFoundException($"Destination Department with ID {request.ToDepartmentId} not found.");
+            throw new KeyNotFoundException($"Destination Department with ID {toDepartmentId} not found.");
         }
 
         var toLocation = await _dbContext.Locations
-            .FirstOrDefaultAsync(l => l.Id == request.ToLocationId && l.OrganizationId == organizationId, cancellationToken);
+            .FirstOrDefaultAsync(l => l.Id == toLocationId && l.OrganizationId == organizationId, cancellationToken);
         if (toLocation == null)
         {
-            throw new KeyNotFoundException($"Destination Location with ID {request.ToLocationId} not found.");
+            throw new KeyNotFoundException($"Destination Location with ID {toLocationId} not found.");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -64,9 +70,9 @@ public class TransferService : ITransferService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             FromDepartmentId = asset.DepartmentId,
-            ToDepartmentId = request.ToDepartmentId,
+            ToDepartmentId = toDepartmentId,
             FromLocationId = asset.LocationId,
-            ToLocationId = request.ToLocationId,
+            ToLocationId = toLocationId,
             InitiatedByUserId = initiatedByUserId,
             Status = TransferStatus.REQUESTED,
             RequestedAt = now

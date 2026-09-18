@@ -63,10 +63,12 @@ public class LocationService : ILocationService
                 "Location type is required.");
         }
 
+        var departmentId = request.DepartmentId!.Value;
+
         var department = await _context.Departments
             .AsNoTracking()
             .FirstOrDefaultAsync(d =>
-                d.Id == request.DepartmentId &&
+                d.Id == departmentId &&
                 d.OrganizationId == organizationId &&
                 d.IsActive);
 
@@ -82,7 +84,7 @@ public class LocationService : ILocationService
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
-            DepartmentId = request.DepartmentId,
+            DepartmentId = departmentId,
             Name = request.Name.Trim(),
             Type = request.Type.Trim(),
             IsActive = true,
@@ -135,10 +137,12 @@ public class LocationService : ILocationService
                 "Location type is required.");
         }
 
+        var departmentId = request.DepartmentId!.Value;
+
         var department = await _context.Departments
             .AsNoTracking()
             .FirstOrDefaultAsync(d =>
-                d.Id == request.DepartmentId &&
+                d.Id == departmentId &&
                 d.OrganizationId == organizationId &&
                 d.IsActive);
 
@@ -150,7 +154,7 @@ public class LocationService : ILocationService
 
         location.Name = request.Name.Trim();
         location.Type = request.Type.Trim();
-        location.DepartmentId = request.DepartmentId;
+        location.DepartmentId = departmentId;
         location.UpdatedAt = DateTimeOffset.UtcNow;
         location.UpdatedBy = userId;
 

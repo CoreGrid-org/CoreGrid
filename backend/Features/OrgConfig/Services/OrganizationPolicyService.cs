@@ -45,19 +45,21 @@ public class OrganizationPolicyService : IOrganizationPolicyService
 
         var now = DateTimeOffset.UtcNow;
 
+        // [Required][Range] on the DTO makes a missing/out-of-range value
+        // 400 for a model-bound HTTP caller before this method ever runs.
         var policy = new OrganizationPolicy
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             AssetTypeId = request.AssetTypeId,
-            RepairToReplaceCostThreshold = request.RepairToReplaceCostThreshold,
-            MinimumServiceLifeYears = request.MinimumServiceLifeYears,
-            MaxAcceptableFailureFrequency = request.MaxAcceptableFailureFrequency,
-            ValuationValidityWindowDays = request.ValuationValidityWindowDays,
-            ConfidenceFloor = request.ConfidenceFloor,
-            CostVarianceTolerancePercent = request.CostVarianceTolerancePercent,
-            OutstandingTransferDays = request.OutstandingTransferDays,
-            ApprovalOverduePeriodHours = request.ApprovalOverduePeriodHours,
+            RepairToReplaceCostThreshold = request.RepairToReplaceCostThreshold!.Value,
+            MinimumServiceLifeYears = request.MinimumServiceLifeYears!.Value,
+            MaxAcceptableFailureFrequency = request.MaxAcceptableFailureFrequency!.Value,
+            ValuationValidityWindowDays = request.ValuationValidityWindowDays!.Value,
+            ConfidenceFloor = request.ConfidenceFloor!.Value,
+            CostVarianceTolerancePercent = request.CostVarianceTolerancePercent!.Value,
+            OutstandingTransferDays = request.OutstandingTransferDays!.Value,
+            ApprovalOverduePeriodHours = request.ApprovalOverduePeriodHours!.Value,
             CreatedAt = now,
             UpdatedAt = now,
             CreatedBy = userId,
@@ -88,14 +90,14 @@ public class OrganizationPolicyService : IOrganizationPolicyService
         await ValidateAsync(organizationId, request, existingPolicyId: id);
 
         policy.AssetTypeId = request.AssetTypeId;
-        policy.RepairToReplaceCostThreshold = request.RepairToReplaceCostThreshold;
-        policy.MinimumServiceLifeYears = request.MinimumServiceLifeYears;
-        policy.MaxAcceptableFailureFrequency = request.MaxAcceptableFailureFrequency;
-        policy.ValuationValidityWindowDays = request.ValuationValidityWindowDays;
-        policy.ConfidenceFloor = request.ConfidenceFloor;
-        policy.CostVarianceTolerancePercent = request.CostVarianceTolerancePercent;
-        policy.OutstandingTransferDays = request.OutstandingTransferDays;
-        policy.ApprovalOverduePeriodHours = request.ApprovalOverduePeriodHours;
+        policy.RepairToReplaceCostThreshold = request.RepairToReplaceCostThreshold!.Value;
+        policy.MinimumServiceLifeYears = request.MinimumServiceLifeYears!.Value;
+        policy.MaxAcceptableFailureFrequency = request.MaxAcceptableFailureFrequency!.Value;
+        policy.ValuationValidityWindowDays = request.ValuationValidityWindowDays!.Value;
+        policy.ConfidenceFloor = request.ConfidenceFloor!.Value;
+        policy.CostVarianceTolerancePercent = request.CostVarianceTolerancePercent!.Value;
+        policy.OutstandingTransferDays = request.OutstandingTransferDays!.Value;
+        policy.ApprovalOverduePeriodHours = request.ApprovalOverduePeriodHours!.Value;
         policy.UpdatedAt = DateTimeOffset.UtcNow;
         policy.UpdatedBy = userId;
 

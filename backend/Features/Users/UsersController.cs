@@ -71,12 +71,16 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         // must have for this endpoint to be reachable at all ([Authorize]).
         var organization = await db.Organizations.SingleAsync(cancellationToken);
 
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var role = request.Role!.Value;
+
         var externalSubjectId = await identityDirectory.ProvisionUserAsync(
             request.Email,
             request.GivenName,
             request.FamilyName,
             request.Password,
-            request.Role,
+            role,
             cancellationToken);
 
         var user = new User
@@ -87,7 +91,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
             Email = request.Email,
             GivenName = request.GivenName,
             FamilyName = request.FamilyName,
-            Role = request.Role,
+            Role = role,
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
@@ -120,7 +124,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
             }
         }
 
-        user.Role = request.Role;
+        user.Role = request.Role!.Value;
         user.DepartmentId = request.DepartmentId;
         await db.SaveChangesAsync(cancellationToken);
 

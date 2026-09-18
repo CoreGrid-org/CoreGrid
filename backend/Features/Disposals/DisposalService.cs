@@ -110,12 +110,18 @@ public class DisposalService : IDisposalService
         Guid initiatedByUserId,
         CancellationToken cancellationToken = default)
     {
+        // [Required] on the DTO makes a missing value 400 for a model-bound
+        // HTTP caller before this method ever runs.
+        var requestedAssetId = request.AssetId!.Value;
+        var disposalMethod = request.DisposalMethod!.Value;
+        var estimatedResidualValue = request.EstimatedResidualValue!.Value;
+
         var asset = await _dbContext.Assets
-            .FirstOrDefaultAsync(a => a.Id == request.AssetId && a.OrganizationId == organizationId, cancellationToken);
+            .FirstOrDefaultAsync(a => a.Id == requestedAssetId && a.OrganizationId == organizationId, cancellationToken);
 
         if (asset == null)
         {
-            throw new KeyNotFoundException($"Asset with ID {request.AssetId} not found.");
+            throw new KeyNotFoundException($"Asset with ID {requestedAssetId} not found.");
         }
 
         // FR-050: Guard: Asset.Status must be CONDEMNED
@@ -132,8 +138,8 @@ public class DisposalService : IDisposalService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             InitiatedByUserId = initiatedByUserId,
-            DisposalMethod = request.DisposalMethod,
-            EstimatedResidualValue = request.EstimatedResidualValue,
+            DisposalMethod = disposalMethod,
+            EstimatedResidualValue = estimatedResidualValue,
             ValuationDate = request.ValuationDate,
             Status = DisposalStatus.PENDING,
             RequestedAt = now,
