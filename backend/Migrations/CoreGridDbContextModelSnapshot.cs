@@ -136,6 +136,9 @@ namespace CoreGrid.Api.Migrations
                     b.Property<bool>("IsHighImpact")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("MaintenanceAnalysis")
+                        .HasColumnType("text");
+
                     b.Property<string>("Objective")
                         .IsRequired()
                         .HasColumnType("text");
@@ -952,7 +955,7 @@ namespace CoreGrid.Api.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("PhotoUrl")
+                    b.Property<string>("PhotoObjectKey")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 

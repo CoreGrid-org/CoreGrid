@@ -11,10 +11,7 @@ public class UpdateAssetRequest
     public required string Name { get; set; }
 
     public DateOnly AcquisitionDate { get; set; }
-
     public decimal AcquisitionCost { get; set; }
-
-    public decimal ResidualValue { get; set; }
 
     public List<AssetAttributeValueRequest> Attributes { get; set; } = [];
 }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared;
 using CoreGrid.Api.Features.Transfers.DTOs;
 
 namespace CoreGrid.Api.Features.Transfers.Services;
@@ -262,7 +263,7 @@ public class TransferService : ITransferService
         };
     }
 
-    public async Task<List<TransferResponse>> GetTransfersAsync(
+    public async Task<PagedResult<TransferResponse>> GetTransfersAsync(
         Guid organizationId,
         TransferQueryParameters parameters,
         CancellationToken cancellationToken = default)
@@ -289,11 +290,26 @@ public class TransferService : ITransferService
             query = query.Where(t => t.FromDepartmentId == parameters.DepartmentId.Value || t.ToDepartmentId == parameters.DepartmentId.Value);
         }
 
+        var page = parameters.Page < 1 ? 1 : parameters.Page;
+        var pageSize = parameters.PageSize < 1 ? 20 : (parameters.PageSize > 100 ? 100 : parameters.PageSize);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+
         var list = await query
             .OrderByDescending(t => t.RequestedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return list.Select(MapToResponse).ToList();
+        return new PagedResult<TransferResponse>
+        {
+            Items = list.Select(MapToResponse).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages
+        };
     }
 
     public async Task<TransferResponse?> GetTransferByIdAsync(

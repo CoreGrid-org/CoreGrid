@@ -28,10 +28,31 @@ export interface UpdateUserRequest {
   department_id: string | null;
 }
 
+export interface PagedUsers {
+  items: CoreGridUser[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface UserQueryParameters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 // Administrator-only (backend/Features/Users/UsersController.cs) — accessToken
 // is the caller's own ThunderID access token, obtained via useThunderID().
-export async function listUsers(accessToken: string): Promise<CoreGridUser[]> {
-  const response = await fetch(`${API_URL}/users`, {
+// GET /api/users now does server-side search + pagination.
+export async function listUsers(accessToken: string, params: UserQueryParameters = {}): Promise<PagedUsers> {
+  const search = new URLSearchParams();
+  if (params.search) search.set("search", params.search);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  const query = search.toString();
+
+  const response = await fetch(`${API_URL}/users${query ? `?${query}` : ""}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) {

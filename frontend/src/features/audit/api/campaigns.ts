@@ -44,6 +44,13 @@ export interface CreateCampaignRequest {
   scope_asset_type_id?: string | null;
 }
 
+export interface UpdateCampaignRequest {
+  name: string;
+  period_start: string;
+  period_end: string;
+  status: CampaignStatus;
+}
+
 // backend/Features/Verification/Controllers/VerificationCampaignsController.cs
 // — read is any authenticated org member, create is Auditor/Administrator
 // (FR-056). Task generation + officer assignment happens synchronously on
@@ -62,4 +69,35 @@ export async function createCampaign(payload: CreateCampaignRequest, accessToken
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create the campaign.");
+}
+
+export async function updateCampaign(
+  id: string,
+  payload: UpdateCampaignRequest,
+  accessToken: string
+): Promise<Campaign> {
+  const response = await fetch(`${API_URL}/verification-campaigns/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
+    body: JSON.stringify(payload),
+  });
+  return handle(response, "Could not update the campaign.");
+}
+
+export async function deleteCampaign(id: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${API_URL}/verification-campaigns/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    let detail = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.message) detail = json.message;
+    } catch {
+      // ignore
+    }
+    throw new Error(detail || "Could not delete the campaign.");
+  }
 }

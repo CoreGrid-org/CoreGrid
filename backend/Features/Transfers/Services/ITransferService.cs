@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using CoreGrid.Api.Features.Shared;
 using CoreGrid.Api.Features.Transfers.DTOs;
 
 namespace CoreGrid.Api.Features.Transfers.Services;
@@ -14,7 +15,7 @@ public interface ITransferService
 
     Task<TransferResponse> ConfirmReceiptAsync(Guid organizationId, Guid transferId, Guid confirmedByUserId, CancellationToken cancellationToken = default);
 
-    Task<List<TransferResponse>> GetTransfersAsync(Guid organizationId, TransferQueryParameters parameters, CancellationToken cancellationToken = default);
+    Task<PagedResult<TransferResponse>> GetTransfersAsync(Guid organizationId, TransferQueryParameters parameters, CancellationToken cancellationToken = default);
 
     Task<TransferResponse?> GetTransferByIdAsync(Guid organizationId, Guid transferId, CancellationToken cancellationToken = default);
 

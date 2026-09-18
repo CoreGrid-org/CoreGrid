@@ -39,7 +39,13 @@ const BASE_REPORT: AuditReport = {
   assets_verified: 30,
   open_discrepancies: 1,
   by_classification: [{ classification: "ConditionMismatch", raised: 2, resolved: 1 }],
+  // discrepancies is just this page's rows now (server-side pagination);
+  // discrepancies_total_count is the true count across every page.
   discrepancies: [discrepancyRow(1), discrepancyRow(2)],
+  discrepancies_total_count: 2,
+  page: 1,
+  page_size: 25,
+  total_pages: 1,
   generated_at: "2026-09-14T00:00:00Z",
 };
 
@@ -55,17 +61,17 @@ describe("AuditReportPanel", () => {
     render(<AuditReportPanel />);
 
     expect(await screen.findByText("40")).toBeInTheDocument(); // assets in scope
-    expect(screen.getByText("Showing 2 filtered discrepancies")).toBeInTheDocument();
+    expect(screen.getByText("Showing 2 of 2 filtered discrepancies")).toBeInTheDocument();
     expect(screen.getByText("MOHSL-TEST-0001")).toBeInTheDocument();
     expect(screen.getByText("MOHSL-TEST-0002")).toBeInTheDocument();
   });
 
   it("does not crash when the API response is missing discrepancies/by_classification (defensive null-guard)", async () => {
     const { discrepancies: _d, by_classification: _c, ...incomplete } = BASE_REPORT;
-    getAuditReportMock.mockResolvedValue(incomplete as unknown as AuditReport);
+    getAuditReportMock.mockResolvedValue({ ...incomplete, discrepancies_total_count: 0 } as unknown as AuditReport);
     render(<AuditReportPanel />);
 
-    expect(await screen.findByText("Showing 0 filtered discrepancies")).toBeInTheDocument();
+    expect(await screen.findByText("Showing 0 of 0 filtered discrepancies")).toBeInTheDocument();
     // Both the classification-summary table and the discrepancy-list table
     // fall back to the same empty-state copy when their array is empty.
     expect(screen.getAllByText("No discrepancies match these filters.")).toHaveLength(2);
@@ -77,13 +83,16 @@ describe("AuditReportPanel", () => {
     expect(await screen.findByText("Could not load the report")).toBeInTheDocument();
   });
 
-  it("paginates the discrepancy list once there are more rows than one page", async () => {
-    const manyDiscrepancies = Array.from({ length: 12 }, (_, i) => discrepancyRow(i + 1));
-    getAuditReportMock.mockResolvedValue({ ...BASE_REPORT, discrepancies: manyDiscrepancies });
+  it("shows the pagination control driven by the server-reported total, not just this page's rows", async () => {
+    // Server-side pagination: the mock returns only this page's 10 rows,
+    // but reports a true total of 12 across all pages.
+    const firstPage = Array.from({ length: 10 }, (_, i) => discrepancyRow(i + 1));
+    getAuditReportMock.mockResolvedValue({
+      ...BASE_REPORT, discrepancies: firstPage, discrepancies_total_count: 12, total_pages: 2,
+    });
     render(<AuditReportPanel />);
 
-    expect(await screen.findByText("Showing 12 filtered discrepancies")).toBeInTheDocument();
-    // Default page size is 10 — pagination control should appear.
+    expect(await screen.findByText("Showing 10 of 12 filtered discrepancies")).toBeInTheDocument();
     expect(screen.getByText(/of 12 items/i)).toBeInTheDocument();
   });
 });

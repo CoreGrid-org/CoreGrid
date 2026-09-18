@@ -18,6 +18,7 @@ vi.mock("../api/workflows", () => ({
   createWorkflow: vi.fn(),
   evaluatePolicy: vi.fn(),
   runPolicyAgent: vi.fn(),
+  runMaintenanceAgent: vi.fn(),
   decideWorkflow: vi.fn(),
 }));
 vi.mock("@/features/auth/services/me", () => ({
@@ -43,9 +44,12 @@ const AWAITING: AgentWorkflow = {
   status: "AWAITING_APPROVAL",
   recommendation: "DISPOSE",
   is_high_impact: true,
+  plan: null,
   approval_status: "PENDING",
   revision_count: 0,
   failure_reason: null,
+  plan: null,
+  maintenance_analysis: null,
   validation_result: {
     verdict: "PASS",
     rule_results: [{ rule_id: "PR-01", expected: "CONDEMNED", actual: "CONDEMNED", outcome: "PASS" }],

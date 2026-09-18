@@ -54,7 +54,10 @@ The initial release configures and demonstrates a single departmental domain end
 | HITL | Human-in-the-loop: the mandatory pause point at which an authorised user approves, rejects or requests revision of an agent recommendation. |
 | IdP | Identity provider. In CoreGrid this is ThunderID. |
 | JWKS | JSON Web Key Set — the public keys published by the IdP and used by the API to verify token signatures. |
-| LangGraph | The Python framework used to express the agentic workflow as an explicit directed graph with persisted state and interrupt points. |
+| Agent Orchestrator | `AgentWorkflowService` — the in-process, control-plane component that sequences the four agent nodes, enforces timeouts, runs the deterministic gate and drives the human-approval interrupt (Section 7.2.1). |
+| `IAgentNode` | The common contract each of the four agents implements: one typed input, one typed output, its own tool allow-list (Section 7.2.1). |
+| `IModelClient` | The provider-agnostic interface through which the one node that needs one (Planner) calls a language model; the concrete provider (Azure OpenAI, OpenAI, Anthropic, or an on-prem model) is a deployment-time configuration choice, not a code dependency (Section 7.2.1). |
+| LangGraph | The Python framework originally used, and still used by the not-yet-migrated Planner Agent implementation, to express an agent as an explicit directed graph with persisted state and interrupt points; superseded as the project-wide agentic framework by ADR-010 (Section 7.2.1, Appendix D). |
 | Organisation | The customer a CoreGrid deployment serves (Section 4.2). Held only in CoreGrid's own database — in M0 one deployment has exactly one; every user, department and asset within it belongs to it. |
 | PKCE | Proof Key for Code Exchange — the OAuth 2.0 extension required for public clients (the React SPA and the Flutter application). |
 | Residual value | The current book value of an asset after depreciation, used as one input to the repair-versus-replace decision. |

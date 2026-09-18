@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
 import { useStubMutation } from "@/shared/hooks/useStubMutation";
-import { createWorkflow, decideWorkflow, evaluatePolicy, listWorkflows, runPolicyAgent } from "../api/workflows";
+import {
+  createWorkflow,
+  decideWorkflow,
+  evaluatePolicy,
+  listWorkflows,
+  runMaintenanceAgent,
+  runPolicyAgent,
+} from "../api/workflows";
 import type {
   AgentWorkflow,
   CreateWorkflowRequest,
@@ -67,6 +74,14 @@ export function useRunPolicyAgent() {
   return useStubMutation<{ id: string }, AgentWorkflow>(async ({ id }) => {
     const accessToken = await getAccessToken();
     return runPolicyAgent(id, accessToken);
+  });
+}
+
+export function useRunMaintenanceAgent() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string }, AgentWorkflow>(async ({ id }) => {
+    const accessToken = await getAccessToken();
+    return runMaintenanceAgent(id, accessToken);
   });
 }
 

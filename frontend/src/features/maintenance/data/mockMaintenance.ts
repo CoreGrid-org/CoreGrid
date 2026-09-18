@@ -41,18 +41,6 @@ export const MOCK_PREVENTIVE_SCHEDULE: MockPreventiveSchedule[] = [
   { assetType: "Laptop", intervalDays: 180, lastCompleted: "2026-03-02", nextDue: "2026-08-29", daysUntilDue: 16 },
 ];
 
-export interface MockNotification {
-  title: string;
-  body: string;
-  isRead: boolean;
-  sentAt: string;
-}
-
-// FR-077 to FR-080.
-export const MOCK_NOTIFICATIONS: MockNotification[] = [
-  { title: "Maintenance assigned", body: "ORG-LAP-0143 assigned to Nadeesha Perera — action required.", isRead: false, sentAt: "2026-08-12 09:14" },
-  { title: "Disposal awaiting approval", body: "ORG-PMN-0034 disposal request needs your decision.", isRead: false, sentAt: "2026-08-12 08:02" },
-  { title: "Transfer approved", body: "ORG-VAN-0011 transfer to Depot B was approved.", isRead: true, sentAt: "2026-08-11 16:40" },
-  { title: "Workflow awaiting approval", body: "Agentic evaluation for ORG-VAN-0014 recommends REPLACE.", isRead: true, sentAt: "2026-08-11 11:20" },
-  { title: "Maintenance completed", body: "ORG-HBD-0061 preventive maintenance closed.", isRead: true, sentAt: "2026-08-10 14:55" },
-];
+// FR-080's real notifications live in the header bell (NotificationPanel.tsx,
+// features/notifications/) — MaintenancePage.tsx no longer duplicates that
+// with a second, mock in-page Notifications tab (removed 2026-09-17).

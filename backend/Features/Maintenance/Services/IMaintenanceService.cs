@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using CoreGrid.Api.Features.Maintenance.DTOs;
+using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Maintenance.Services;
 
@@ -30,5 +31,7 @@ public interface IMaintenanceService
 
     Task<MaintenanceRecordDto?> CancelMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CancelMaintenanceRequest request);
 
-    Task<IEnumerable<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(Guid organizationId, MaintenanceRecordFilter filter);
+    /// FR-042 — filter by status, priority, department, asset, assignee and
+    /// date range, with server-side sorting and pagination.
+    Task<PagedResult<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(Guid organizationId, MaintenanceRecordFilter filter);
 }

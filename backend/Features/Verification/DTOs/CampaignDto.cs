@@ -38,3 +38,11 @@ public class CreateCampaignRequest
     public Guid? ScopeAssetCategoryId { get; set; }
     public Guid? ScopeAssetTypeId { get; set; }
 }
+
+public class UpdateCampaignRequest
+{
+    public required string Name { get; set; }
+    public DateOnly PeriodStart { get; set; }
+    public DateOnly PeriodEnd { get; set; }
+    public CampaignStatus Status { get; set; }
+}

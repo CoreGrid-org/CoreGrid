@@ -239,7 +239,7 @@ public class AssetService : IAssetService
         Guid organizationId,
         Guid assetId)
     {
-        return await _context.Assets
+        var result = await _context.Assets
             .AsNoTracking()
             .Where(a =>
                 a.OrganizationId == organizationId &&
@@ -303,8 +303,22 @@ public class AssetService : IAssetService
                         ValueBoolean = v.ValueBoolean
                     })
                     .ToList()
+                    .ToList()
             })
             .FirstOrDefaultAsync();
+
+        if (result != null)
+        {
+            var usefulLifeYears = await _context.AssetTypes
+                .AsNoTracking()
+                .Where(at => at.Id == result.AssetTypeId)
+                .Select(at => at.UsefulLifeYears)
+                .FirstOrDefaultAsync();
+            
+            result.ResidualValue = CalculateResidualValue(result.AcquisitionCost, result.AcquisitionDate, usefulLifeYears);
+        }
+
+        return result;
     }
 
     // =========================================================
@@ -332,11 +346,6 @@ public class AssetService : IAssetService
                 "Acquisition cost cannot be negative.");
         }
 
-        if (request.ResidualValue < 0)
-        {
-            throw new InvalidOperationException(
-                "Residual value cannot be negative.");
-        }
 
         // -------------------------
         // Validate Asset Type
@@ -479,8 +488,8 @@ public class AssetService : IAssetService
             Condition = condition,
 
             AcquisitionDate = request.AcquisitionDate,
-            AcquisitionCost = request.AcquisitionCost,
-            ResidualValue = request.ResidualValue,
+            AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero),
+            ResidualValue = CalculateResidualValue(request.AcquisitionCost, request.AcquisitionDate, assetType.UsefulLifeYears),
 
             CumulativeMaintenanceCost = 0,
             RepairCount = 0,
@@ -565,23 +574,18 @@ public class AssetService : IAssetService
                 "Acquisition cost cannot be negative.");
         }
 
-        if (request.ResidualValue < 0)
-        {
-            throw new InvalidOperationException(
-                "Residual value cannot be negative.");
-        }
 
         // -------------------------
         // Validate Asset Type
         // -------------------------
 
-        var assetTypeExists = await _context.AssetTypes
+        var assetType = await _context.AssetTypes
             .AsNoTracking()
-            .AnyAsync(at =>
+            .FirstOrDefaultAsync(at =>
                 at.Id == request.AssetTypeId &&
                 at.OrganizationId == organizationId);
 
-        if (!assetTypeExists)
+        if (assetType is null)
         {
             throw new InvalidOperationException(
                 "Asset type was not found for this organization.");
@@ -671,8 +675,8 @@ public class AssetService : IAssetService
         asset.Name = request.Name.Trim();
 
         asset.AcquisitionDate = request.AcquisitionDate;
-        asset.AcquisitionCost = request.AcquisitionCost;
-        asset.ResidualValue = request.ResidualValue;
+        asset.AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero);
+        asset.ResidualValue = CalculateResidualValue(request.AcquisitionCost, request.AcquisitionDate, assetType.UsefulLifeYears);
 
         asset.UpdatedAt = now;
         asset.UpdatedBy = userId;
@@ -1056,6 +1060,33 @@ public class AssetService : IAssetService
         return normalized;
     }
 
+    private decimal CalculateResidualValue(
+        decimal acquisitionCost,
+        DateOnly acquisitionDate,
+        int usefulLifeYears)
+    {
+        if (usefulLifeYears <= 0)
+        {
+            return Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var acquisitionDateTime = acquisitionDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        
+        var elapsedDays = (now - acquisitionDateTime).TotalDays;
+        var elapsedYears = elapsedDays / 365.25;
+
+        if (elapsedYears <= 0)
+        {
+            return Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero);
+        }
+
+        var depreciation = (acquisitionCost / usefulLifeYears) * (decimal)elapsedYears;
+        var residualValue = acquisitionCost - depreciation;
+
+        return Math.Max(0m, Math.Round(residualValue, 2, MidpointRounding.AwayFromZero));
+    }
+
     private static void ValidateAttributes(
         List<AssetAttributeDefinition> definitions,
         List<AssetAttributeValueRequest> requestValues)
@@ -1212,6 +1243,10 @@ public class AssetService : IAssetService
                 throw new InvalidOperationException(
                     $"Unsupported attribute type '{definition.DataType}'.");
         }
+
+        // Enforce any additional rule stored on the definition (min/max,
+        // minLength/maxLength, regex, minDate/maxDate).
+        AttributeValidationRuleEngine.Enforce(definition, value);
     }
 
     private static AssetAttributeValue CreateAttributeValue(

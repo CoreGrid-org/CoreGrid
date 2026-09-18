@@ -73,6 +73,53 @@ public class VerificationCampaignsController : CoreGridControllerBase
         }
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]
+    public async Task<ActionResult<CampaignDto>> UpdateCampaign(
+        Guid id,
+        [FromBody] UpdateCampaignRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        try
+        {
+            var updated = await _campaignService.UpdateCampaignAsync(
+                currentUser.OrganizationId,
+                id,
+                request);
+
+            if (updated is null) return NotFound(new { message = "Campaign not found." });
+
+            return Ok(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]
+    public async Task<IActionResult> DeleteCampaign(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        try
+        {
+            var success = await _campaignService.DeleteCampaignAsync(currentUser.OrganizationId, id);
+            if (!success) return NotFound(new { message = "Campaign not found." });
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     // FR-065: campaign completion report — Auditor/Administrator, same as
     // creation, since generating one is itself an audit action.
     [HttpGet("{id:guid}/report")]

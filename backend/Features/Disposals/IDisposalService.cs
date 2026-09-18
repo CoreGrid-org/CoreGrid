@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Disposals.DTOs;
+using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Disposals;
 
@@ -17,7 +18,7 @@ public interface IDisposalService
 
     Task<DisposalResponse> RequestDisposalRevisionAsync(Guid organizationId, Guid disposalRequestId, Guid requestedByUserId, string comments, CancellationToken cancellationToken = default);
 
-    Task<List<DisposalResponse>> GetDisposalRequestsAsync(Guid organizationId, DisposalQueryParameters parameters, CancellationToken cancellationToken = default);
+    Task<PagedResult<DisposalResponse>> GetDisposalRequestsAsync(Guid organizationId, DisposalQueryParameters parameters, CancellationToken cancellationToken = default);
 
     Task<DisposalResponse?> GetDisposalRequestByIdAsync(Guid organizationId, Guid disposalRequestId, Guid viewingUserId, CancellationToken cancellationToken = default);
 }

@@ -2,6 +2,7 @@ using System.Text.Json;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.Services;
+using AgentToolsDtos = CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.Agents.DTOs;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,17 +24,20 @@ public class AgentWorkflowService : IAgentWorkflowService
     private readonly IAgentToolsService _agentTools;
     private readonly IPolicyRuleEngine _ruleEngine;
     private readonly IPlannerAgentClient _plannerAgent;
+    private readonly IMaintenanceAnalysisToolsService _maintenanceAnalysisTools;
 
     public AgentWorkflowService(
         CoreGridDbContext db,
         IAgentToolsService agentTools,
         IPolicyRuleEngine ruleEngine,
-        IPlannerAgentClient plannerAgent)
+        IPlannerAgentClient plannerAgent,
+        IMaintenanceAnalysisToolsService maintenanceAnalysisTools)
     {
         _db = db;
         _agentTools = agentTools;
         _ruleEngine = ruleEngine;
         _plannerAgent = plannerAgent;
+        _maintenanceAnalysisTools = maintenanceAnalysisTools;
     }
 
     public async Task<List<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, string? status, CancellationToken cancellationToken)
@@ -142,6 +146,18 @@ public class AgentWorkflowService : IAgentWorkflowService
             });
 
             await _db.SaveChangesAsync(cancellationToken);
+
+            // Node 2 (Maintenance Analysis, SRS §7.3): runs automatically
+            // right after Planner accepts the objective, same as node 4
+            // eventually will once node 3 exists too. In-process, no model
+            // call — it only assembles facts for nodes 3/4 (or a human
+            // reviewer) to read, so a failure here is recorded and
+            // swallowed rather than failing the whole workflow the way a
+            // Planner failure does; it never gates anything.
+            if (plan.InScope)
+            {
+                await RunMaintenanceAnalysisAsync(workflow, cancellationToken);
+            }
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
@@ -154,6 +170,57 @@ public class AgentWorkflowService : IAgentWorkflowService
 
         return await GetWorkflowByIdAsync(organizationId, workflow.Id, cancellationToken)
             ?? throw new InvalidOperationException("Workflow could not be reloaded after creation.");
+    }
+
+    private async Task RunMaintenanceAnalysisAsync(AgentWorkflow workflow, CancellationToken cancellationToken)
+    {
+        var started = DateTimeOffset.UtcNow;
+        try
+        {
+            var stats = await _maintenanceAnalysisTools.ComputeFailureStatisticsAsync(
+                workflow.OrganizationId, workflow.AssetId, cancellationToken);
+
+            if (stats is null)
+            {
+                return;
+            }
+
+            workflow.MaintenanceAnalysis = JsonSerializer.Serialize(stats);
+            workflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            _db.AgentExecutionSteps.Add(new AgentExecutionStep
+            {
+                Id = Guid.NewGuid(),
+                WorkflowId = workflow.Id,
+                Agent = "MaintenanceAnalysis",
+                Sequence = 2,
+                OutputSummary = $"RepairCount={stats.RepairCount}, CostTrend={stats.CostTrend}, "
+                    + $"Projected12moCost={stats.ProjectedNextTwelveMonthsCost}",
+                DurationMs = (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds),
+                Status = "SUCCESS",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Advisory-only node — record the failure, never fail the workflow over it.
+            _db.AgentExecutionSteps.Add(new AgentExecutionStep
+            {
+                Id = Guid.NewGuid(),
+                WorkflowId = workflow.Id,
+                Agent = "MaintenanceAnalysis",
+                Sequence = 2,
+                OutputSummary = "Maintenance analysis failed.",
+                DurationMs = (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds),
+                Status = "FAILED",
+                Error = ex.Message,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task<AgentWorkflowDto?> EvaluatePolicyAsync(
@@ -371,6 +438,9 @@ public class AgentWorkflowService : IAgentWorkflowService
         ValidationResult = string.IsNullOrEmpty(w.ValidationResult)
             ? null
             : JsonSerializer.Deserialize<DTOs.PolicyValidation>(w.ValidationResult),
+        MaintenanceAnalysis = string.IsNullOrEmpty(w.MaintenanceAnalysis)
+            ? null
+            : JsonSerializer.Deserialize<AgentToolsDtos.FailureStatisticsDto>(w.MaintenanceAnalysis),
         CorrelationId = w.CorrelationId,
         InitiatedByUserId = w.InitiatedByUserId,
         InitiatedByEmail = w.InitiatedByUser?.Email,

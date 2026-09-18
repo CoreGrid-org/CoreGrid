@@ -3,6 +3,7 @@ import type {
   CondemnAssetResponse,
   DisposalQueryParameters,
   DisposalResponse,
+  PagedResult,
   RequestDisposalRevisionRequest,
   SubmitDisposalRequest,
 } from "../types";
@@ -67,20 +68,22 @@ export async function submitDisposal(
   return handle<DisposalResponse>(response, "Could not submit disposal request.");
 }
 
-// GET /api/disposals — List disposal requests
+// GET /api/disposals — List disposal requests with optional filters and pagination
 export async function listDisposals(
   params?: DisposalQueryParameters,
   accessToken?: string
-): Promise<DisposalResponse[]> {
+): Promise<PagedResult<DisposalResponse>> {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
   if (params?.method) search.set("method", params.method);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.pageSize) search.set("pageSize", String(params.pageSize));
   const query = search.toString() ? `?${search.toString()}` : "";
 
   const response = await fetch(`${API_URL}/disposals${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  return handle<DisposalResponse[]>(response, "Could not load disposals.");
+  return handle<PagedResult<DisposalResponse>>(response, "Could not load disposals.");
 }
 
 // GET /api/disposals/{id} — Get disposal request with live precondition evaluation (FR-051/052)
