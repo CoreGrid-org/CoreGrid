@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Disposals.DTOs;
+using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Disposals;
 
@@ -340,7 +341,7 @@ public class DisposalService : IDisposalService
         return MapToResponse(disposalRequest, null);
     }
 
-    public async Task<List<DisposalResponse>> GetDisposalRequestsAsync(
+    public async Task<PagedResult<DisposalResponse>> GetDisposalRequestsAsync(
         Guid organizationId,
         DisposalQueryParameters parameters,
         CancellationToken cancellationToken = default)
@@ -362,11 +363,26 @@ public class DisposalService : IDisposalService
             query = query.Where(d => d.DisposalMethod == parameters.Method.Value);
         }
 
+        var page = parameters.Page < 1 ? 1 : parameters.Page;
+        var pageSize = parameters.PageSize < 1 ? 20 : (parameters.PageSize > 100 ? 100 : parameters.PageSize);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+
         var list = await query
             .OrderByDescending(d => d.RequestedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return list.Select(d => MapToResponse(d, null)).ToList();
+        return new PagedResult<DisposalResponse>
+        {
+            Items = list.Select(d => MapToResponse(d, null)).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages
+        };
     }
 
     public async Task<DisposalResponse?> GetDisposalRequestByIdAsync(

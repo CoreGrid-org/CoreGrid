@@ -429,11 +429,41 @@ public class TransferServiceTests
         var orgId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
         var otherAssetId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            ExternalSubjectId = "sub-test",
+            GivenName = "Test",
+            FamilyName = "User",
+            Email = "user@test.com",
+            Role = CoreGridRole.InventoryOfficer
+        };
+        var asset = new Asset
+        {
+            Id = assetId,
+            OrganizationId = orgId,
+            AssetCode = "AST-001",
+            Name = "Laptop",
+            Status = AssetStatusConstants.Active,
+            Condition = AssetStatusConstants.ConditionGood,
+            QrPayload = "qr"
+        };
+        var otherAsset = new Asset
+        {
+            Id = otherAssetId,
+            OrganizationId = orgId,
+            AssetCode = "AST-002",
+            Name = "Monitor",
+            Status = AssetStatusConstants.Active,
+            Condition = AssetStatusConstants.ConditionGood,
+            QrPayload = "qr"
+        };
 
         var deptA = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D1", Name = "Dept 1" };
         var deptB = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D2", Name = "Dept 2" };
-        var locA = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "L1", Name = "Loc 1" };
-        var locB = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "L2", Name = "Loc 2" };
+        var locA = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptA.Id, Name = "Loc 1", Type = "Office" };
+        var locB = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptB.Id, Name = "Loc 2", Type = "Office" };
 
         var t1 = new AssetTransfer
         {
@@ -444,7 +474,7 @@ public class TransferServiceTests
             ToDepartmentId = deptB.Id,
             FromLocationId = locA.Id,
             ToLocationId = locB.Id,
-            InitiatedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = user.Id,
             Status = TransferStatus.COMPLETED,
             RequestedAt = DateTimeOffset.UtcNow.AddDays(-10)
         };
@@ -458,7 +488,7 @@ public class TransferServiceTests
             ToDepartmentId = deptA.Id,
             FromLocationId = locB.Id,
             ToLocationId = locA.Id,
-            InitiatedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = user.Id,
             Status = TransferStatus.REJECTED,
             RequestedAt = DateTimeOffset.UtcNow.AddDays(-2)
         };
@@ -472,11 +502,13 @@ public class TransferServiceTests
             ToDepartmentId = deptB.Id,
             FromLocationId = locA.Id,
             ToLocationId = locB.Id,
-            InitiatedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = user.Id,
             Status = TransferStatus.APPROVED,
             RequestedAt = DateTimeOffset.UtcNow
         };
 
+        dbContext.Users.Add(user);
+        dbContext.Assets.AddRange(asset, otherAsset);
         dbContext.Departments.AddRange(deptA, deptB);
         dbContext.Locations.AddRange(locA, locB);
         dbContext.AssetTransfers.AddRange(t1, t2, otherTransfer);
@@ -510,5 +542,53 @@ public class TransferServiceTests
         // Assert
         Assert.NotNull(result);
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetTransfers_WithPagination_ReturnsPagedResult()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var user = new User { Id = Guid.NewGuid(), OrganizationId = orgId, ExternalSubjectId = "sub-page", GivenName = "P", FamilyName = "U", Email = "p@test.com", Role = CoreGridRole.InventoryOfficer };
+        var dept = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-P", Name = "Dept P" };
+        var loc = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = dept.Id, Name = "Loc P", Type = "Office" };
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-P", Name = "P-Asset", Status = AssetStatusConstants.Active, Condition = AssetStatusConstants.ConditionGood, QrPayload = "qr" };
+
+        for (int i = 0; i < 25; i++)
+        {
+            dbContext.AssetTransfers.Add(new AssetTransfer
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = orgId,
+                AssetId = asset.Id,
+                FromDepartmentId = dept.Id,
+                ToDepartmentId = dept.Id,
+                FromLocationId = loc.Id,
+                ToLocationId = loc.Id,
+                InitiatedByUserId = user.Id,
+                Status = TransferStatus.REQUESTED,
+                RequestedAt = DateTimeOffset.UtcNow.AddMinutes(i)
+            });
+        }
+
+        dbContext.Users.Add(user);
+        dbContext.Departments.Add(dept);
+        dbContext.Locations.Add(loc);
+        dbContext.Assets.Add(asset);
+        await dbContext.SaveChangesAsync();
+
+        var service = new TransferService(dbContext);
+
+        // Act
+        var result = await service.GetTransfersAsync(orgId, new TransferQueryParameters { Page = 2, PageSize = 10 });
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(25, result.TotalCount);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(10, result.PageSize);
+        Assert.Equal(3, result.TotalPages);
+        Assert.Equal(10, result.Items.Count);
     }
 }

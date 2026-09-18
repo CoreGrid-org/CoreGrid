@@ -189,7 +189,7 @@ public class DisposalsController : CoreGridControllerBase
     // GET /api/disposals — list with filters
     // =========================================================
     [HttpGet("api/disposals")]
-    public async Task<ActionResult<List<DisposalResponse>>> GetDisposals(
+    public async Task<ActionResult<PagedResult<DisposalResponse>>> GetDisposals(
         [FromQuery] DisposalQueryParameters parameters,
         CancellationToken cancellationToken)
     {

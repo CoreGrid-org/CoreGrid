@@ -116,7 +116,7 @@ public class TransfersController : CoreGridControllerBase
 
     // GET /api/transfers — authenticated + org-scoped list with status/department filters
     [HttpGet]
-    public async Task<ActionResult<List<TransferResponse>>> GetTransfers(
+    public async Task<ActionResult<PagedResult<TransferResponse>>> GetTransfers(
         [FromQuery] TransferQueryParameters parameters,
         CancellationToken cancellationToken)
     {
