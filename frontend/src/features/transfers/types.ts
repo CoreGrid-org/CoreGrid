@@ -53,9 +53,19 @@ export interface TransferResponse {
   rejection_reason: string | null;
 }
 
+export interface PagedResult<T> {
+  items: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export interface TransferQueryParameters {
   status?: TransferStatus;
   departmentId?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 // Precondition evaluation matching CoreGrid.Api.Domain.DisposalPreconditionResult
@@ -127,4 +137,6 @@ export interface DisposalResponse {
 export interface DisposalQueryParameters {
   status?: DisposalStatus;
   method?: DisposalMethod;
+  page?: number;
+  pageSize?: number;
 }

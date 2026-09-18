@@ -1,5 +1,6 @@
 import type {
   InitiateTransferRequest,
+  PagedResult,
   TransferQueryParameters,
   TransferResponse,
 } from "../types";
@@ -21,20 +22,22 @@ async function handle<T>(response: Response, fallback: string): Promise<T> {
   return response.json();
 }
 
-// GET /api/transfers — list transfers with optional status/department filters
+// GET /api/transfers — list transfers with optional status/department filters and pagination
 export async function listTransfers(
   params?: TransferQueryParameters,
   accessToken?: string
-): Promise<TransferResponse[]> {
+): Promise<PagedResult<TransferResponse>> {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
   if (params?.departmentId) search.set("departmentId", params.departmentId);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.pageSize) search.set("pageSize", String(params.pageSize));
   const query = search.toString() ? `?${search.toString()}` : "";
 
   const response = await fetch(`${API_URL}/transfers${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  return handle<TransferResponse[]>(response, "Could not load transfers.");
+  return handle<PagedResult<TransferResponse>>(response, "Could not load transfers.");
 }
 
 // GET /api/transfers/{id} — get transfer by id

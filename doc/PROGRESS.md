@@ -126,14 +126,14 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | Database (`AssetTransfers`, `DisposalRequests`) | Real FK constraints |
 | React (Administrator, Inventory Officer, Auditor screens) | Live precondition checklist, approve/reject/request-revision, initiate transfer, confirm receipt, condemn, submit disposal |
 | Agent tool endpoints for Budget Analysis Agent | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
-| Tests | 86 Component C-specific unit tests |
+| Budget Analysis Agent | Migrated from standalone Python/LangGraph to in-process C# service (BudgetAgentService.cs), following team-wide architecture decision and matching PlannerAgentService.cs's blueprint (deterministic tools -> LLM call -> deterministic fallback). Uses configurable OpenAI-compatible endpoint (Budget:Endpoint/Model/ApiKey config), defaulting to Gemini's OpenAI-compatible endpoint for cost consistency. BudgetScopeGuard provides structural validation and a real deterministic fallback using OrganizationPolicy's actual RepairToReplaceCostThreshold when configured. 19 new unit tests (188 total repo-wide, 0 failures on full unfiltered run including Postgres-backed AppendOnlyTests). Original Python implementation (agent-service/) preserved untouched pending final decommission decision. |
+| Tests | 105 Component C-specific unit tests (86 transfer/disposal/tools + 19 budget agent tests across BudgetScopeGuardTests and BudgetAgentServiceTests). Repo-wide suite: 188 total, 186 passed, 2 skipped, 0 failures on full unfiltered run |
 
 **🟡 In Progress**
 
 | Task | Notes |
 |---|---|
 | Administrator transfer/disposal actions | Permission matrix grants Administrator `transfer:request`/`disposal:request`, but only the Inventory Officer screen exposes those actions today |
-| Budget Analysis Agent | Standalone implementation removed; needs to be rebuilt as an in-process node against the existing agent-tool endpoints |
 
 **❌ Not Started**
 

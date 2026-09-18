@@ -9,6 +9,7 @@ import {
   Button,
   InlineNotification,
   Modal,
+  Pagination,
 } from "@carbon/react";
 import {
   CheckmarkFilled,
@@ -21,19 +22,24 @@ import { useTransfersList } from "../hooks/useTransfers";
 import { useDisposalsList, useDisposalDetail } from "../hooks/useDisposals";
 
 export default function AuditorTransfersPage() {
+  const [transferPage, setTransferPage] = useState(1);
+  const [transferPageSize, setTransferPageSize] = useState(25);
+  const [disposalPage, setDisposalPage] = useState(1);
+  const [disposalPageSize, setDisposalPageSize] = useState(25);
+
   const {
     data: transfers,
     isLoading: isLoadingTransfers,
     isError: isErrorTransfers,
     error: transfersError,
-  } = useTransfersList();
+  } = useTransfersList({ page: transferPage, pageSize: transferPageSize });
 
   const {
     data: disposals,
     isLoading: isLoadingDisposals,
     isError: isErrorDisposals,
     error: disposalsError,
-  } = useDisposalsList();
+  } = useDisposalsList({ page: disposalPage, pageSize: disposalPageSize });
 
   // Selected disposal ID for viewing full compliance audit details & P1–P6 checklist
   const [selectedDisposalId, setSelectedDisposalId] = useState<string | null>(null);
@@ -82,83 +88,96 @@ export default function AuditorTransfersPage() {
                 <div className="cg-placeholder">
                   <p>Loading transfer audit records…</p>
                 </div>
-              ) : transfers && transfers.length > 0 ? (
-                <table className="cg-table cg-table--no-hover">
-                  <thead>
-                    <tr>
-                      <th>Asset</th>
-                      <th>From</th>
-                      <th>To</th>
-                      <th>Status</th>
-                      <th>Requested By</th>
-                      <th>Approved By</th>
-                      <th>Confirmed By</th>
-                      <th>Requested At</th>
-                      <th>Notes / Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transfers.map((t) => (
-                      <tr key={t.id}>
-                        <td>
-                          <span className="cg-table__mono">{t.asset_code}</span>
-                          <br />
-                          <span className="cg-table__muted">{t.asset_name}</span>
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.from_department_name || "—"}
-                          {t.from_location_name ? ` (${t.from_location_name})` : ""}
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.to_department_name || "—"}
-                          {t.to_location_name ? ` (${t.to_location_name})` : ""}
-                        </td>
-                        <td>
-                          <Tag type={statusTagColor(t.status)}>
-                            {formatStatusLabel(t.status)}
-                          </Tag>
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.initiated_by_user_email || "—"}
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.approved_by_user_email ? (
-                            <div>
-                              <div>{t.approved_by_user_email}</div>
-                              {t.approved_at && (
-                                <span style={{ fontSize: "0.75rem", color: "#8d8d8d" }}>
-                                  {new Date(t.approved_at).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.confirmed_by_user_email ? (
-                            <div>
-                              <div>{t.confirmed_by_user_email}</div>
-                              {t.confirmed_at && (
-                                <span style={{ fontSize: "0.75rem", color: "#8d8d8d" }}>
-                                  {new Date(t.confirmed_at).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="cg-table__muted">
-                          {new Date(t.requested_at).toLocaleDateString()}
-                        </td>
-                        <td className="cg-table__muted" style={{ maxWidth: "200px", fontSize: "0.8125rem" }}>
-                          {t.rejection_reason || "—"}
-                        </td>
+              ) : transfers && transfers.items.length > 0 ? (
+                <>
+                  <table className="cg-table cg-table--no-hover">
+                    <thead>
+                      <tr>
+                        <th>Asset</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Status</th>
+                        <th>Requested By</th>
+                        <th>Approved By</th>
+                        <th>Confirmed By</th>
+                        <th>Requested At</th>
+                        <th>Notes / Reason</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {transfers.items.map((t) => (
+                        <tr key={t.id}>
+                          <td>
+                            <span className="cg-table__mono">{t.asset_code}</span>
+                            <br />
+                            <span className="cg-table__muted">{t.asset_name}</span>
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.from_department_name || "—"}
+                            {t.from_location_name ? ` (${t.from_location_name})` : ""}
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.to_department_name || "—"}
+                            {t.to_location_name ? ` (${t.to_location_name})` : ""}
+                          </td>
+                          <td>
+                            <Tag type={statusTagColor(t.status)}>
+                              {formatStatusLabel(t.status)}
+                            </Tag>
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.initiated_by_user_email || "—"}
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.approved_by_user_email ? (
+                              <div>
+                                <div>{t.approved_by_user_email}</div>
+                                {t.approved_at && (
+                                  <span style={{ fontSize: "0.75rem", color: "#8d8d8d" }}>
+                                    {new Date(t.approved_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.confirmed_by_user_email ? (
+                              <div>
+                                <div>{t.confirmed_by_user_email}</div>
+                                {t.confirmed_at && (
+                                  <span style={{ fontSize: "0.75rem", color: "#8d8d8d" }}>
+                                    {new Date(t.confirmed_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="cg-table__muted">
+                            {new Date(t.requested_at).toLocaleDateString()}
+                          </td>
+                          <td className="cg-table__muted" style={{ maxWidth: "200px", fontSize: "0.8125rem" }}>
+                            {t.rejection_reason || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={transfers.page}
+                    pageSize={transfers.page_size}
+                    pageSizes={[10, 25, 50, 100]}
+                    totalItems={transfers.total_count}
+                    onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+                      setTransferPage(nextPage);
+                      setTransferPageSize(nextPageSize);
+                    }}
+                    style={{ marginTop: "1rem" }}
+                  />
+                </>
               ) : (
                 <div className="cg-placeholder">
                   <p>No transfer records found in organization audit trail.</p>
@@ -188,75 +207,88 @@ export default function AuditorTransfersPage() {
                 <div className="cg-placeholder">
                   <p>Loading disposal audit records…</p>
                 </div>
-              ) : disposals && disposals.length > 0 ? (
-                <table className="cg-table cg-table--no-hover">
-                  <thead>
-                    <tr>
-                      <th>Asset</th>
-                      <th>Proposed Method</th>
-                      <th>Status</th>
-                      <th>Valuation (LKR)</th>
-                      <th>Requested By</th>
-                      <th>Approved By</th>
-                      <th>Requested At</th>
-                      <th style={{ textAlign: "right" }}>Compliance Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {disposals.map((d) => (
-                      <tr key={d.id}>
-                        <td>
-                          <span className="cg-table__mono">{d.asset_code}</span>
-                          <br />
-                          <span className="cg-table__muted">{d.asset_name}</span>
-                        </td>
-                        <td className="cg-table__muted">
-                          {formatStatusLabel(d.disposal_method)}
-                        </td>
-                        <td>
-                          <Tag type={statusTagColor(d.status)}>
-                            {formatStatusLabel(d.status)}
-                          </Tag>
-                        </td>
-                        <td className="cg-table__muted">
-                          {d.estimated_residual_value != null
-                            ? `LKR ${Number(d.estimated_residual_value).toLocaleString()}`
-                            : "—"}
-                        </td>
-                        <td className="cg-table__muted">
-                          {d.initiated_by_user_email || "—"}
-                        </td>
-                        <td className="cg-table__muted">
-                          {d.approved_by_user_email ? (
-                            <div>
-                              <div>{d.approved_by_user_email}</div>
-                              {d.approved_at && (
-                                <span style={{ fontSize: "0.75rem", color: "#8d8d8d" }}>
-                                  {new Date(d.approved_at).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="cg-table__muted">
-                          {new Date(d.requested_at).toLocaleDateString()}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <Button
-                            size="sm"
-                            kind="ghost"
-                            renderIcon={View}
-                            onClick={() => setSelectedDisposalId(d.id)}
-                          >
-                            Inspect compliance
-                          </Button>
-                        </td>
+              ) : disposals && disposals.items.length > 0 ? (
+                <>
+                  <table className="cg-table cg-table--no-hover">
+                    <thead>
+                      <tr>
+                        <th>Asset</th>
+                        <th>Proposed Method</th>
+                        <th>Status</th>
+                        <th>Valuation (LKR)</th>
+                        <th>Requested By</th>
+                        <th>Approved By</th>
+                        <th>Requested At</th>
+                        <th style={{ textAlign: "right" }}>Compliance Details</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {disposals.items.map((d) => (
+                        <tr key={d.id}>
+                          <td>
+                            <span className="cg-table__mono">{d.asset_code}</span>
+                            <br />
+                            <span className="cg-table__muted">{d.asset_name}</span>
+                          </td>
+                          <td className="cg-table__muted">
+                            {formatStatusLabel(d.disposal_method)}
+                          </td>
+                          <td>
+                            <Tag type={statusTagColor(d.status)}>
+                              {formatStatusLabel(d.status)}
+                            </Tag>
+                          </td>
+                          <td className="cg-table__muted">
+                            {d.estimated_residual_value != null
+                              ? `LKR ${Number(d.estimated_residual_value).toLocaleString()}`
+                              : "—"}
+                          </td>
+                          <td className="cg-table__muted">
+                            {d.initiated_by_user_email || "—"}
+                          </td>
+                          <td className="cg-table__muted">
+                            {d.approved_by_user_email ? (
+                              <div>
+                                <div>{d.approved_by_user_email}</div>
+                                {d.approved_at && (
+                                  <span style={{ fontSize: "0.75rem", color: "#8d8d8d" }}>
+                                    {new Date(d.approved_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="cg-table__muted">
+                            {new Date(d.requested_at).toLocaleDateString()}
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Button
+                              size="sm"
+                              kind="ghost"
+                              renderIcon={View}
+                              iconDescription="Inspect compliance preconditions"
+                              hasIconOnly
+                              onClick={() => setSelectedDisposalId(d.id)}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={disposals.page}
+                    pageSize={disposals.page_size}
+                    pageSizes={[10, 25, 50, 100]}
+                    totalItems={disposals.total_count}
+                    onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+                      setDisposalPage(nextPage);
+                      setDisposalPageSize(nextPageSize);
+                    }}
+                    style={{ marginTop: "1rem" }}
+                  />
+                </>
               ) : (
                 <div className="cg-placeholder">
                   <p>No disposal records found in organization audit trail.</p>

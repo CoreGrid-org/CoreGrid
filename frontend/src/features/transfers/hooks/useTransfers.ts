@@ -11,13 +11,14 @@ import {
 } from "../services/transfers";
 import type {
   InitiateTransferRequest,
+  PagedResult,
   TransferQueryParameters,
   TransferResponse,
 } from "../types";
 
 export function useTransfersList(params?: TransferQueryParameters) {
   const { getAccessToken } = useThunderID();
-  const [data, setData] = useState<TransferResponse[]>();
+  const [data, setData] = useState<PagedResult<TransferResponse>>();
   const [error, setError] = useState<unknown>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
@@ -45,7 +46,7 @@ export function useTransfersList(params?: TransferQueryParameters) {
     return () => {
       cancelled = true;
     };
-  }, [attempt, getAccessToken, params?.status, params?.departmentId]);
+  }, [attempt, getAccessToken, params?.status, params?.departmentId, params?.page, params?.pageSize]);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 

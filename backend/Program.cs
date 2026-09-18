@@ -87,12 +87,20 @@ builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPlannerAgentCl
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAssetActionRecommendationEngine, CoreGrid.Api.Features.Agents.Services.AssetActionRecommendationEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyComplianceAgentService, CoreGrid.Api.Features.Agents.Services.PolicyComplianceAgentService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IMaintenanceAnalysisAgentService, CoreGrid.Api.Features.Agents.Services.MaintenanceAnalysisAgentService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IBudgetAgentClient, CoreGrid.Api.Features.Agents.Services.BudgetAgentService>();
 
 // Planner Agent's only external dependency. The named client keeps OpenAI
 // transport settings out of workflow code and prevents an unavailable model
 // from blocking a request indefinitely; PlannerAgentService safely falls back
 // to the deterministic plan when this request fails.
 builder.Services.AddHttpClient("OpenAI", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+// Budget Analysis Agent's outbound HTTP client. Configurable endpoint supports either
+// OpenAI or Gemini's OpenAI-compatible endpoint with a 30-second timeout.
+builder.Services.AddHttpClient("Budget", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
 });
