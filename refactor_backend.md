@@ -1,6 +1,6 @@
 # Backend refactor plan
 
-Status: **PLAN ONLY — nothing has been changed yet.** Work starts only when you say "start".
+Status: **Phase 1 (§3) is complete and committed on `development`.** Phases 2–6 are still plan-only; each starts only when you say "start". §13 scores the codebase against the rubric below, before Phase 1 and after every phase — the "before" and "after Phase 1" rows are measured against the real repo; "after Phase 2" onward are targets that get corrected to actual once that phase runs.
 
 Target: `backend/` (.NET 10 / EF Core / PostgreSQL) plus the minimum `backend.Tests/` and `frontend/` edits needed so the app keeps working end to end. Baseline commit: `9747b4a` on `development`.
 
@@ -365,3 +365,58 @@ Commits: one per step above (or per feature inside step 4), on a feature branch 
 5. Business-rule failures move from 400 → 422 in the four features that currently return 400 (§5.4 of the SRS).
 6. `seed_moe.sql` is not touched.
 7. Items in §9 are **not** done.
+
+---
+
+## 13. System marks (0–100), before and after each phase
+
+A single "is this refactor working" number, scored against a fixed rubric so it's auditable rather than a vibe. **Baseline** and **After Phase 1** are measured against the real repo (build output, test run, and the B-item list in §0). **After Phase 2** through **After Phase 6** are targets computed by the same rubric against what that phase's own section (§4–§8) commits to fixing — each gets replaced with a measured number, and corrected if the real result differs, once that phase actually runs.
+
+### 13.1 Rubric
+
+Eight categories, weighted to 100. Each row gives what a 0 and a full-marks score mean, so a score is a claim that can be checked against §0's findings, not an opinion.
+
+| # | Category | Cap | 0 means | Full marks means |
+|---|---|---|---|---|
+| 1 | Input Validation & Correctness | 15 | A value-type field silently defaults to a wrong value on omission, and at least one endpoint 500s on a legal input. | Every mandatory field is server-validated; every documented business rule (BR1–BR3, P1–P6, PR-01–PR-09) holds; no known 500-class defect. |
+| 2 | Security & Authorization | 15 | An unauthenticated path exists where it shouldn't, org scope can be influenced by request content, and no role's data access actually matches SRS §4.6. | Every route declares a least-privilege named policy; org scope only ever comes from the local user mirror; the fail-closed default and the service principal's zero write permissions are both proven by test (SEC-ID-02, SEC-ID-10, AI-28). |
+| 3 | Code Quality & Architecture | 15 | The same logic is duplicated in double digits across the codebase; there is no feature-module boundary; the composition root is a monolithic block. | One implementation per cross-cutting concern, living in `Shared/`; one `Module.cs` per feature; `Program.cs` reads as a manifest, not a 100-line block. |
+| 4 | Test Coverage & CI Health | 15 | The test project does not compile. | It compiles, the full suite is green, and the SRS's Appendix B authorization matrix is proven end to end by an automated test. |
+| 5 | Performance & Scalability | 10 | List endpoints return an unbounded result set; a "return one row" path loads the whole table into memory first. | Every list is paginated at the database with a clamped page size; no single-row lookup scans more than it needs to (NFR-07). |
+| 6 | API Contract Consistency | 10 | The same class of failure returns different status codes in different features; every response is shaped ad hoc. | One status-code mapping used everywhere; one error envelope; a correlation id on every response (§5.4). |
+| 7 | Observability & Resilience | 10 | No health endpoint, no rate limiting, no handling for a transient dependency failure. | `/health` reports each dependency individually (NFR-20); rate limits protect the auth-adjacent and cost-bearing routes (NFR-16); transient DB failures retry before failing (NFR-24). |
+| 8 | Documentation & Traceability | 10 | The contributor-facing docs contradict the code. | `CLAUDE.md` / `CONTRIBUTING.md` / `doc/PROGRESS.md` accurately describe the current architecture, and every requirement id is traceable to real code. |
+
+### 13.2 Score history
+
+| Stage | 1. Correctness /15 | 2. Security /15 | 3. Code Quality /15 | 4. Tests /15 | 5. Performance /10 | 6. API Contract /10 | 7. Observability /10 | 8. Docs /10 | **Total /100** |
+|---|---|---|---|---|---|---|---|---|---|
+| **Baseline** (commit `9747b4a`, measured) | 6 | 5 | 5 | 2 | 4 | 4 | 2 | 6 | **34** |
+| **After Phase 1** (measured, current `development`) | 12 | 5 | 6 | 11 | 5 | 5 | 2 | 7 | **53** |
+| After Phase 2 (target) | 12 | 8 | 7 | 11 | 5 | 7 | 8 | 7 | **65** |
+| After Phase 3 (target) | 14 | 14 | 12 | 13 | 9 | 9 | 8 | 7 | **86** |
+| After Phase 4 (target) | 14 | 14 | 15 | 13 | 9 | 9 | 8 | 7 | **89** |
+| After Phase 5 (target) | 15 | 14 | 15 | 14 | 10 | 9 | 8 | 7 | **92** |
+| After Phase 6 (target) | 15 | 15 | 15 | 15 | 10 | 10 | 9 | 10 | **99** |
+
+The full-plan target is **99, not 100** — see §13.4 for why one point deliberately stays open.
+
+### 13.3 Why each score is what it is
+
+**Baseline — 34/100.** Every category starts low for a concrete, cited reason: 30-odd mandatory fields across 15 DTOs silently default instead of validating and the test project doesn't compile at all (Correctness 6, Tests 2 — B1, B7, plus the whole §3 table); the agent-tools auth path is dead code sitting behind an anonymous endpoint that trusts organisation id from the query string (Security 5 — B3–B5, B14); duplication is the norm, not the exception — 16 role-string constants, 71 near-identical `catch` blocks, 4 different "who is the caller" implementations, 3 depreciation calculators (Code Quality 5 — B15–B17, B21); 14 endpoints have no pagination and several "return one row" methods load the whole table first (Performance 4 — B18, B19); status codes disagree feature to feature and there's no error envelope or correlation id (API Contract 4 — B16); none of `/health`, HSTS, rate limiting or retry-on-failure exist (Observability 2 — B20); and `CLAUDE.md` asserts FR-006 is unimplemented when it's actually on 17 entities (Documentation 6 — B9).
+
+**After Phase 1 — 53/100 (+19).** The two categories Phase 1 actually targeted move the most: **Tests 2→11** (+9) — the compile break is fixed, the suite runs, 186/186 pass (161 pre-existing plus 25 a teammate's concurrent merge added) — held below full marks because there's no test yet asserting the new validation behaviour itself and the Appendix B matrix isn't built (that's §8). **Correctness 6→12** (+6) — every field in the §3 table is now `[Required]`/`[Range]` and verified against its real caller; held below full marks by B6 (the `MAINTENANCE_CANCELLED` 500), deliberately left for §5.4, and the NFR-11 string-validation sweep noted but not done in this pass. Everything Phase 1 didn't touch stays essentially flat: **Security** unchanged at 5 (B3–B5, B14, SEC-ID-09 all still open), **Code Quality** ticks 5→6 only for the extracted-local-variable pattern and its explanatory comments, not structural dedup. **Performance** ticks 4→5 and **API Contract** 4→5 for one external reason worth being honest about: a teammate's independent merge (`c92a52f`) paginated the Transfers and Disposals list endpoints while this refactor was in flight — real progress, but not this plan's work. **Observability** stays at 2 (no Phase 1 scope there) and **Documentation** ticks 6→7 for this plan document itself existing and tracking real findings, not for any correction to `CLAUDE.md` (that's still open, B9, §8).
+
+**After Phase 2 (target) — 65/100 (+12).** Phase 2 is explicitly infrastructure "added alongside old code, nothing wired yet" (§11 step 3), so most categories should *not* jump yet — a target that claimed otherwise would be lying about what §4 actually does. The exception is anything registered globally in `Program.cs`, which takes effect the instant it's merged regardless of per-feature migration: the fail-closed fallback policy and `AuthorizationOutcomeLoggingMiddleware` land immediately (**Security** 5→8, real but partial — the named per-route policies and B3–B5/B14 fixes still need Phase 3), and the whole platform middleware set — `/health`, HSTS, rate limiting, retry-on-failure, security headers, correlation id — lands immediately too (**Observability** 2→8, the biggest single jump in the whole plan; **API Contract** 4→7 for the correlation id and the exception filter catching anything that isn't already handled by an old per-controller `catch`). **Code Quality** 6→7 only because the kernel now exists, well-factored, even though the old duplicated code it will replace is still sitting right next to it until Phase 3 deletes it. **Correctness**, **Tests**, and **Performance** don't move — no bug fixes, no new tests, no endpoint is paginated yet in this phase.
+
+**After Phase 3 (target) — 86/100 (+21), the largest single-phase gain.** This is where the kernel actually gets wired into every feature, so nearly every open B-item closes at once: **Correctness** 12→14 (B6, B8, B12, B13 fixed — the real 500, the EF filter gap, the missing history rows, the dropped `EvidenceUrl`); **Security** 8→14 (B3 dead middleware deleted, B4 anonymous endpoint closed, B5 query-string org id removed, B14 Staff department scoping actually applied, every controller migrated off `Roles = "..."` strings onto the named policies §4.4 only defined until now); **Code Quality** 7→12 (B15–B17, B21 actually eliminated feature by feature, not just available); **Tests** 11→13 (new regression coverage for each of the above); **Performance** 5→9 (all remaining unpaginated endpoints paginated, the O(n) single-row lookups fixed — B18, B19); **API Contract** 7→9 (status codes now consistent everywhere the per-feature catches are deleted). One point is held back in Correctness and Security each for residual risk in a feature-by-feature migration this size, and the opt-in items in §9 stay undone by design.
+
+**After Phase 4 (target) — 89/100 (+3).** A focused sweep, so a focused gain: **Code Quality** 12→15 (full marks — this phase's entire job is finishing the duplication and dead-code removal §6 lists, and slimming `Program.cs` to the module manifest §2 describes). Nothing else is in scope, so nothing else moves.
+
+**After Phase 5 (target) — 92/100 (+3).** Closes the loop the backend-only Phase 3 opened: the paginated endpoints are only real if the one client that calls them (the React frontend) actually requests bounded pages instead of assuming an array — **Correctness** 14→15 and **Performance** 9→10 (both to full marks) for exactly that, plus **Tests** 13→14 for the updated Vitest suites.
+
+**After Phase 6 (target) — 99/100 (+7), the ceiling.** The remaining single points close: **Security** 14→15 (the full Appendix B matrix, incl. every mutating route denying the service principal, is now an automated test — SEC-ID-10 stops being "true by inspection" and starts being "true by CI"); **Tests** 14→15 (that same matrix plus the pinned depreciation/paging/scoping regressions); **API Contract** 9→10 (documented and tested, not just implemented); **Observability** 8→9 (docs now correctly describe the platform pieces so future work doesn't quietly regress them); **Documentation** 7→10 (full marks — `CLAUDE.md`, `CONTRIBUTING.md` and `doc/PROGRESS.md` all corrected, B9 closed).
+
+### 13.4 Why the ceiling is 99, not 100
+
+**Observability & Resilience never reaches its full 10**, capping at 9 even after every phase. Two of that category's SRS requirements are outside what a backend code refactor can close: SEC-ID-11 (multi-factor authentication for Administrator) is a ThunderID console configuration, not application code, and NFR-16/AI-27 (rate limiting) is an SRS "Should", not "Must" — this plan wires the mechanism (§4.7) but tuning its limits against real traffic is a production-operations exercise, not a one-time code change. Separately, the five items in §9 (`reject` endpoints, `POST /assets/{id}/verify`, maintenance amend, the workflow execution-summary endpoint, frontend pagination controls) are real gaps but deliberately opt-in — doing them without being asked would be scope creep, so they stay off this scorecard's target path entirely. A 99 that's honestly short of 100 is more useful than a 100 that quietly assumes work nobody asked for.
