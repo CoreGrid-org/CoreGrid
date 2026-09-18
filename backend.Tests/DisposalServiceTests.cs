@@ -755,4 +755,46 @@ public class DisposalServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() =>
             service.RequestDisposalRevisionAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "   "));
     }
+
+    [Fact]
+    public async Task GetDisposalRequests_WithPagination_ReturnsPagedResult()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var user = new User { Id = Guid.NewGuid(), OrganizationId = orgId, ExternalSubjectId = "sub-dsp-p", GivenName = "D", FamilyName = "P", Email = "dp@test.com", Role = CoreGridRole.InventoryOfficer };
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-DSP-P", Name = "Disposal Asset P", Status = AssetStatusConstants.Condemned, Condition = AssetStatusConstants.ConditionPoor, QrPayload = "qr" };
+
+        for (int i = 0; i < 15; i++)
+        {
+            dbContext.DisposalRequests.Add(new DisposalRequest
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = orgId,
+                AssetId = asset.Id,
+                InitiatedByUserId = user.Id,
+                DisposalMethod = DisposalMethod.DESTROY,
+                EstimatedResidualValue = 0m,
+                Status = DisposalStatus.PENDING,
+                RequestedAt = DateTimeOffset.UtcNow.AddMinutes(i)
+            });
+        }
+
+        dbContext.Users.Add(user);
+        dbContext.Assets.Add(asset);
+        await dbContext.SaveChangesAsync();
+
+        var service = new DisposalService(dbContext, new DisposalPreconditionService(dbContext));
+
+        // Act
+        var result = await service.GetDisposalRequestsAsync(orgId, new DisposalQueryParameters { Page = 2, PageSize = 5 });
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(15, result.TotalCount);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(5, result.PageSize);
+        Assert.Equal(3, result.TotalPages);
+        Assert.Equal(5, result.Items.Count);
+    }
 }
