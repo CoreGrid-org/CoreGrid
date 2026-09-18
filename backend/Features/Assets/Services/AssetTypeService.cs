@@ -157,7 +157,12 @@ public class AssetTypeService : IAssetTypeService
                 "Type name is required.");
         }
 
-        if (request.UsefulLifeYears <= 0)
+        // [Required][Range] on the DTO makes a missing/invalid value 400 for
+        // a model-bound HTTP caller before this method ever runs.
+        var assetCategoryId = request.AssetCategoryId!.Value;
+        var usefulLifeYears = request.UsefulLifeYears!.Value;
+
+        if (usefulLifeYears <= 0)
         {
             throw new InvalidOperationException(
                 "Useful life (years) must be greater than zero.");
@@ -181,7 +186,7 @@ public class AssetTypeService : IAssetTypeService
         var category = await _context.AssetCategories
             .AsNoTracking()
             .FirstOrDefaultAsync(c =>
-                c.Id == request.AssetCategoryId &&
+                c.Id == assetCategoryId &&
                 c.OrganizationId == organizationId);
 
         if (category is null)
@@ -208,10 +213,10 @@ public class AssetTypeService : IAssetTypeService
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
-            AssetCategoryId = request.AssetCategoryId,
+            AssetCategoryId = assetCategoryId,
             Code = code,
             Name = request.Name.Trim(),
-            UsefulLifeYears = request.UsefulLifeYears,
+            UsefulLifeYears = usefulLifeYears,
             DefaultMaintenanceIntervalDays = request.DefaultMaintenanceIntervalDays,
             IsActive = true,
             CreatedAt = now,
@@ -271,7 +276,12 @@ public class AssetTypeService : IAssetTypeService
                 "Type name is required.");
         }
 
-        if (request.UsefulLifeYears <= 0)
+        // [Required][Range] on the DTO makes a missing/invalid value 400 for
+        // a model-bound HTTP caller before this method ever runs.
+        var assetCategoryId = request.AssetCategoryId!.Value;
+        var usefulLifeYears = request.UsefulLifeYears!.Value;
+
+        if (usefulLifeYears <= 0)
         {
             throw new InvalidOperationException(
                 "Useful life (years) must be greater than zero.");
@@ -295,7 +305,7 @@ public class AssetTypeService : IAssetTypeService
         var category = await _context.AssetCategories
             .AsNoTracking()
             .FirstOrDefaultAsync(c =>
-                c.Id == request.AssetCategoryId &&
+                c.Id == assetCategoryId &&
                 c.OrganizationId == organizationId);
 
         if (category is null)
@@ -317,10 +327,10 @@ public class AssetTypeService : IAssetTypeService
                 $"An asset type with code '{code}' already exists.");
         }
 
-        assetType.AssetCategoryId = request.AssetCategoryId;
+        assetType.AssetCategoryId = assetCategoryId;
         assetType.Code = code;
         assetType.Name = request.Name.Trim();
-        assetType.UsefulLifeYears = request.UsefulLifeYears;
+        assetType.UsefulLifeYears = usefulLifeYears;
         assetType.DefaultMaintenanceIntervalDays = request.DefaultMaintenanceIntervalDays;
         assetType.UpdatedAt = DateTimeOffset.UtcNow;
         assetType.UpdatedBy = userId;
@@ -406,7 +416,7 @@ public class AssetTypeService : IAssetTypeService
             AssetTypeId = assetTypeId,
             Name = name,
             DataType = dataType,
-            IsRequired = request.IsRequired,
+            IsRequired = request.IsRequired!.Value,
             ValidationRule = request.ValidationRule,
             SelectOptions = dataType == "SELECT" ? request.SelectOptions : null,
             DisplayOrder = displayOrder.Value,

@@ -340,7 +340,16 @@ public class AssetService : IAssetService
                 "Asset name is required.");
         }
 
-        if (request.AcquisitionCost < 0)
+        // [Required] on the DTO makes these 400 for a model-bound HTTP
+        // caller before this method ever runs; the .Value access below is
+        // then always safe.
+        var assetTypeId = request.AssetTypeId!.Value;
+        var departmentId = request.DepartmentId!.Value;
+        var locationId = request.LocationId!.Value;
+        var acquisitionDate = request.AcquisitionDate!.Value;
+        var acquisitionCost = request.AcquisitionCost!.Value;
+
+        if (acquisitionCost < 0)
         {
             throw new InvalidOperationException(
                 "Acquisition cost cannot be negative.");
@@ -355,7 +364,7 @@ public class AssetService : IAssetService
             .AsNoTracking()
             .Include(at => at.AssetCategory)
             .FirstOrDefaultAsync(at =>
-                at.Id == request.AssetTypeId &&
+                at.Id == assetTypeId &&
                 at.OrganizationId == organizationId);
 
         if (assetType is null)
@@ -371,7 +380,7 @@ public class AssetService : IAssetService
         var departmentExists = await _context.Departments
             .AsNoTracking()
             .AnyAsync(d =>
-                d.Id == request.DepartmentId &&
+                d.Id == departmentId &&
                 d.OrganizationId == organizationId &&
                 d.IsActive);
 
@@ -388,7 +397,7 @@ public class AssetService : IAssetService
         var location = await _context.Locations
             .AsNoTracking()
             .FirstOrDefaultAsync(l =>
-                l.Id == request.LocationId &&
+                l.Id == locationId &&
                 l.OrganizationId == organizationId &&
                 l.IsActive);
 
@@ -398,7 +407,7 @@ public class AssetService : IAssetService
                 "Location was not found or is inactive.");
         }
 
-        if (location.DepartmentId != request.DepartmentId)
+        if (location.DepartmentId != departmentId)
         {
             throw new InvalidOperationException(
                 "Selected location does not belong to the selected department.");
@@ -418,7 +427,7 @@ public class AssetService : IAssetService
             await _context.AssetAttributeDefinitions
                 .AsNoTracking()
                 .Where(a =>
-                    a.AssetTypeId == request.AssetTypeId)
+                    a.AssetTypeId == assetTypeId)
                 .ToListAsync();
 
         ValidateAttributes(
@@ -439,7 +448,7 @@ public class AssetService : IAssetService
         var existingCount = await _context.Assets
             .CountAsync(a =>
                 a.OrganizationId == organizationId &&
-                a.AssetTypeId == request.AssetTypeId);
+                a.AssetTypeId == assetTypeId);
 
         var nextSequence = existingCount + 1;
 
@@ -477,9 +486,9 @@ public class AssetService : IAssetService
 
             OrganizationId = organizationId,
 
-            AssetTypeId = request.AssetTypeId,
-            DepartmentId = request.DepartmentId,
-            LocationId = request.LocationId,
+            AssetTypeId = assetTypeId,
+            DepartmentId = departmentId,
+            LocationId = locationId,
 
             AssetCode = assetCode,
             Name = request.Name.Trim(),
@@ -487,9 +496,9 @@ public class AssetService : IAssetService
             Status = "ACTIVE",
             Condition = condition,
 
-            AcquisitionDate = request.AcquisitionDate,
-            AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero),
-            ResidualValue = CalculateResidualValue(request.AcquisitionCost, request.AcquisitionDate, assetType.UsefulLifeYears),
+            AcquisitionDate = acquisitionDate,
+            AcquisitionCost = Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero),
+            ResidualValue = CalculateResidualValue(acquisitionCost, acquisitionDate, assetType.UsefulLifeYears),
 
             CumulativeMaintenanceCost = 0,
             RepairCount = 0,
@@ -568,7 +577,16 @@ public class AssetService : IAssetService
                 "Asset name is required.");
         }
 
-        if (request.AcquisitionCost < 0)
+        // [Required] on the DTO makes these 400 for a model-bound HTTP
+        // caller before this method ever runs; the .Value access below is
+        // then always safe.
+        var assetTypeId = request.AssetTypeId!.Value;
+        var departmentId = request.DepartmentId!.Value;
+        var locationId = request.LocationId!.Value;
+        var acquisitionDate = request.AcquisitionDate!.Value;
+        var acquisitionCost = request.AcquisitionCost!.Value;
+
+        if (acquisitionCost < 0)
         {
             throw new InvalidOperationException(
                 "Acquisition cost cannot be negative.");
@@ -582,7 +600,7 @@ public class AssetService : IAssetService
         var assetType = await _context.AssetTypes
             .AsNoTracking()
             .FirstOrDefaultAsync(at =>
-                at.Id == request.AssetTypeId &&
+                at.Id == assetTypeId &&
                 at.OrganizationId == organizationId);
 
         if (assetType is null)
@@ -598,7 +616,7 @@ public class AssetService : IAssetService
         var departmentExists = await _context.Departments
             .AsNoTracking()
             .AnyAsync(d =>
-                d.Id == request.DepartmentId &&
+                d.Id == departmentId &&
                 d.OrganizationId == organizationId &&
                 d.IsActive);
 
@@ -615,7 +633,7 @@ public class AssetService : IAssetService
         var location = await _context.Locations
             .AsNoTracking()
             .FirstOrDefaultAsync(l =>
-                l.Id == request.LocationId &&
+                l.Id == locationId &&
                 l.OrganizationId == organizationId &&
                 l.IsActive);
 
@@ -625,7 +643,7 @@ public class AssetService : IAssetService
                 "Location was not found or is inactive.");
         }
 
-        if (location.DepartmentId != request.DepartmentId)
+        if (location.DepartmentId != departmentId)
         {
             throw new InvalidOperationException(
                 "Selected location does not belong to the selected department.");
@@ -639,7 +657,7 @@ public class AssetService : IAssetService
             await _context.AssetAttributeDefinitions
                 .AsNoTracking()
                 .Where(a =>
-                    a.AssetTypeId == request.AssetTypeId)
+                    a.AssetTypeId == assetTypeId)
                 .ToListAsync();
 
         ValidateAttributes(
@@ -668,15 +686,15 @@ public class AssetService : IAssetService
         // Update basic information
         // -------------------------
 
-        asset.AssetTypeId = request.AssetTypeId;
-        asset.DepartmentId = request.DepartmentId;
-        asset.LocationId = request.LocationId;
+        asset.AssetTypeId = assetTypeId;
+        asset.DepartmentId = departmentId;
+        asset.LocationId = locationId;
 
         asset.Name = request.Name.Trim();
 
-        asset.AcquisitionDate = request.AcquisitionDate;
-        asset.AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero);
-        asset.ResidualValue = CalculateResidualValue(request.AcquisitionCost, request.AcquisitionDate, assetType.UsefulLifeYears);
+        asset.AcquisitionDate = acquisitionDate;
+        asset.AcquisitionCost = Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero);
+        asset.ResidualValue = CalculateResidualValue(acquisitionCost, acquisitionDate, assetType.UsefulLifeYears);
 
         asset.UpdatedAt = now;
         asset.UpdatedBy = userId;

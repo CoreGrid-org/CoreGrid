@@ -1,5 +1,6 @@
 namespace CoreGrid.Api.Features.Agents.DTOs;
 
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using CoreGrid.Api.Features.AgentTools.DTOs;
 
@@ -71,7 +72,9 @@ public class PlannerPlanStep
 // FR-067/FR-068.
 public class CreateAgentWorkflowRequest
 {
-    public Guid AssetId { get; set; }
+    [Required]
+    public Guid? AssetId { get; set; }
+
     public required string Objective { get; set; }
 }
 

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace CoreGrid.Api.Features.AgentTools.DTOs;
 
@@ -77,9 +78,17 @@ public class AssetComplianceStateDto
 
 public class ComputeDepreciationRequest
 {
-    public decimal AcquisitionCost { get; set; }
-    public DateOnly AcquisitionDate { get; set; }
-    public int UsefulLifeYears { get; set; }
+    [Required]
+    [Range(0, 1_000_000_000_000)]
+    public decimal? AcquisitionCost { get; set; }
+
+    [Required]
+    public DateOnly? AcquisitionDate { get; set; }
+
+    [Required]
+    [Range(1, 100)]
+    public int? UsefulLifeYears { get; set; }
+
     public DateOnly? AsOfDate { get; set; }
 }
 

@@ -72,8 +72,11 @@ public class AgentWorkflowService : IAgentWorkflowService
         CreateAgentWorkflowRequest request,
         CancellationToken cancellationToken)
     {
+        var assetId = request.AssetId
+            ?? throw new InvalidOperationException("An asset is required to initiate an evaluation.");
+
         var asset = await _db.Assets.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == request.AssetId && a.OrganizationId == organizationId, cancellationToken)
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken)
             ?? throw new InvalidOperationException("Asset not found.");
 
         // FR-068: refuse a terminal asset or an evaluation already running for it.
@@ -83,7 +86,7 @@ public class AgentWorkflowService : IAgentWorkflowService
         }
 
         var alreadyRunning = await _db.AgentWorkflows.AsNoTracking().AnyAsync(
-            w => w.AssetId == request.AssetId && w.OrganizationId == organizationId && InFlightStatuses.Contains(w.Status.ToString()),
+            w => w.AssetId == assetId && w.OrganizationId == organizationId && InFlightStatuses.Contains(w.Status.ToString()),
             cancellationToken);
         if (alreadyRunning)
         {
@@ -100,7 +103,7 @@ public class AgentWorkflowService : IAgentWorkflowService
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
-            AssetId = request.AssetId,
+            AssetId = assetId,
             Objective = request.Objective.Trim(),
             Status = WorkflowStatus.PLANNING,
             ApprovalStatus = ApprovalStatus.NOT_REQUIRED,
