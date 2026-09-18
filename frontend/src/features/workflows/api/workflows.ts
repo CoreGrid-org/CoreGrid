@@ -37,6 +37,31 @@ export interface PolicyValidation {
   is_high_impact: boolean;
 }
 
+export interface PlannerPlanStep {
+  seq: number;
+  agent: string;
+  purpose: string;
+  expected_output: string;
+}
+
+export interface PlannerExecutionPlan {
+  inScope: boolean;
+  rejectionReason: string | null;
+  steps: PlannerPlanStep[];
+}
+
+// SRS §7.3 node 2 (Maintenance Analysis Agent) output — repair count, MTBF,
+// cost trend, 12-month projection. Facts only, never a recommendation.
+export interface FailureStatistics {
+  asset_id: string;
+  asset_code: string;
+  repair_count: number;
+  mean_time_between_failures_days: number | null;
+  cost_trend: "INCREASING" | "DECREASING" | "STABLE" | "INSUFFICIENT_DATA";
+  projected_next_twelve_months_cost: number;
+  evaluated_as_of: string;
+}
+
 export interface AgentWorkflow {
   id: string;
   asset_id: string;
@@ -48,7 +73,9 @@ export interface AgentWorkflow {
   approval_status: "NOT_REQUIRED" | "PENDING" | "APPROVED" | "REJECTED";
   revision_count: number;
   failure_reason: string | null;
+  plan: PlannerExecutionPlan | null;
   validation_result: PolicyValidation | null;
+  maintenance_analysis: FailureStatistics | null;
   correlation_id: string;
   initiated_by_user_id: string;
   initiated_by_email: string | null;
@@ -114,6 +141,18 @@ export async function runPolicyAgent(id: string, accessToken: string): Promise<A
     headers: authHeaders(accessToken),
   });
   return handle(response, "Could not run the Policy Compliance Agent.");
+}
+
+// Node 2 (Maintenance Analysis Agent) now also runs automatically right
+// after Planner accepts a new workflow's objective — this manual endpoint
+// stays available to re-run it (e.g. after a revision cycle sends the
+// workflow back to ANALYZING), same as /run-policy-agent for node 4.
+export async function runMaintenanceAgent(id: string, accessToken: string): Promise<AgentWorkflow> {
+  const response = await fetch(`${API_URL}/agent-workflows/${id}/run-maintenance-agent`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not run the Maintenance Analysis Agent.");
 }
 
 export async function decideWorkflow(

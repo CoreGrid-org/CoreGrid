@@ -19,6 +19,7 @@ $cg-sidebar-w:      15rem;
 $cg-text-primary:   #161616;
 $cg-text-secondary: #525252;
 $cg-text-tertiary:  #8d8d8d;
+$cg-border:         #e0e0e0;
 
 // ─── Global font ────────────────────────────────────────────────────────────
 * { font-family: 'IBM Plex Sans', sans-serif; }
@@ -306,19 +307,18 @@ html, body, #root {
 }
 
 .cds--side-nav__item {
-  margin-bottom: 0.1875rem;
+  margin-bottom: 0.0625rem;
 }
 
-.cds--side-nav__link,
-.cds--side-nav__submenu {
-  border-radius: 8px;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
+// Flat, sharp-cornered links — no rounding, no shadow, no expand/collapse
+// affordance anywhere: every item in the side nav is always visible.
 .cds--side-nav__link {
-  color: #161616;
+  color: $cg-text-primary;
   font-size: 0.875rem;
-  min-height: 2.5rem;
+  min-height: 2rem;
+  border-radius: 0;
+  border-left: 3px solid transparent;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 
   &:hover {
     background-color: $cg-accent-light;
@@ -326,53 +326,22 @@ html, body, #root {
     .cds--side-nav__link-text { color: $cg-accent-dark; }
     svg { fill: $cg-accent; }
   }
-
-  &[aria-current='page'] {
-    background-color: $cg-accent;
-    box-shadow: 0 2px 6px rgba(64, 106, 175, 0.35);
-    .cds--side-nav__link-text { color: #ffffff; font-weight: 600; }
-    svg { fill: #ffffff; }
-
-    &:hover { background-color: $cg-accent; }
-  }
 }
 
-.cds--side-nav__icon { fill: #525252; }
+.cds--side-nav__icon { fill: $cg-text-secondary; }
 
-// The "Assets" expandable group — same rounded hover/active treatment as a
-// plain link.
-.cds--side-nav__submenu {
-  color: #161616;
-  font-size: 0.875rem;
-  min-height: 2.5rem;
+// Section captions — plain static text, not a button: labels a run of
+// always-visible links below it, nothing to expand or collapse.
+.cg-side-nav__section-label {
+  padding: 1rem 1rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: $cg-text-tertiary;
+  list-style: none;
 
-  &:hover {
-    background-color: $cg-accent-light;
-    color: $cg-accent-dark;
-    .cds--side-nav__submenu-title { color: $cg-accent-dark; }
-    svg:not(.cds--side-nav__submenu-chevron) { fill: $cg-accent; }
-  }
-
-  &[aria-expanded='true'] {
-    .cds--side-nav__submenu-title { color: $cg-accent-dark; font-weight: 600; }
-    svg:not(.cds--side-nav__submenu-chevron) { fill: $cg-accent; }
-  }
-}
-
-.cds--side-nav__menu {
-  .cds--side-nav__link {
-    min-height: 2.25rem;
-    font-size: 0.8125rem;
-    padding-inline-start: 1.5rem !important;
-  }
-}
-
-.cg-side-nav__submenu-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
-
-  svg { flex-shrink: 0; fill: #8d8d8d; }
+  &:first-of-type { padding-top: 0.625rem; }
 }
 
 // ─── Page chrome ────────────────────────────────────────────────────────────
@@ -491,6 +460,8 @@ html, body, #root {
   background: #ffffff;
   border: 1px solid #e0e0e0;
   margin-bottom: 1.5rem;
+
+  &--spaced { margin-top: 1rem; }
 
   &__header {
     padding: 0.875rem 1.5rem;
@@ -676,6 +647,54 @@ html, body, #root {
   flex-wrap: wrap;
 }
 
+// ─── Panel intro copy / inline notifications (tab panel top matter) ──────────
+.cg-panel-intro {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+}
+
+.cg-panel-notification {
+  margin-block: 1rem;
+  max-width: 100%;
+
+  // Sits inside a .cg-section, indented to match its padding.
+  &--inset { margin: 1rem 1.5rem; max-width: calc(100% - 3rem); }
+}
+
+// ─── Row action buttons (trailing table cell / section header) ───────────────
+.cg-row-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+
+  &--full { padding: 0 0 0.5rem; }
+}
+
+// ─── Policy parameter row (Settings > Policy Parameters) ─────────────────────
+.cg-policy-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid $cg-border;
+
+  &__label { margin: 0; font-size: 0.875rem; }
+  &__purpose { margin: 0.15rem 0 0; font-size: 0.75rem; }
+  &__edit { display: flex; align-items: center; gap: 0.5rem; }
+  &__value { cursor: pointer; }
+}
+
+// ─── Settings > About key/value list ──────────────────────────────────────────
+.cg-about-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  &__row { display: flex; justify-content: space-between; align-items: center; }
+  &__label { margin: 0; font-size: 0.875rem; }
+}
+
 // ─── Placeholder state ────────────────────────────────────────────────────────
 .cg-placeholder {
   display: flex;
@@ -746,14 +765,14 @@ html, body, #root {
   top: 3rem;
 
   .cds--side-nav__link {
-    &:hover { background-color: $cg-accent-light; }
-
-    &[aria-current="page"],
+    // Carbon's SideNavLink never sets aria-current — it only toggles this
+    // class when `isActive` is true (see @carbon/react's SideNavLink.js).
     &--current {
       background-color: $cg-accent-light;
-      border-left: 3px solid $cg-accent;
+      border-left-color: $cg-accent;
 
       .cds--side-nav__link-text { color: $cg-accent-dark; font-weight: 600; }
+      svg { fill: $cg-accent; }
     }
   }
 }

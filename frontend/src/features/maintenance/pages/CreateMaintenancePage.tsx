@@ -13,10 +13,12 @@ import {
 import { useCreateMaintenance } from "../hooks/useMaintenance";
 import { useAssetsList } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useRolePrefix } from "@/shared/hooks/useRolePrefix";
 import type { MaintenanceType, MaintenancePriority } from "../types/maintenance";
 
 export default function CreateMaintenancePage() {
   const navigate = useNavigate();
+  const rolePrefix = useRolePrefix();
   const createMaintenance = useCreateMaintenance();
   
   // Load assets to populate the ComboBox
@@ -46,7 +48,7 @@ export default function CreateMaintenancePage() {
         observed_condition: observedCondition,
       },
       {
-        onSuccess: () => navigate(".."),
+        onSuccess: () => navigate(`${rolePrefix}/maintenance`),
       }
     );
   };
@@ -138,7 +140,7 @@ export default function CreateMaintenancePage() {
           </FormGroup>
 
           <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>
-            <Button type="button" kind="secondary" onClick={() => navigate("..")} disabled={createMaintenance.isPending}>
+            <Button type="button" kind="secondary" onClick={() => navigate(`${rolePrefix}/maintenance`)} disabled={createMaintenance.isPending}>
               Cancel
             </Button>
             <Button type="submit" kind="primary" disabled={createMaintenance.isPending}>

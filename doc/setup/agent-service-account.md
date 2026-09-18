@@ -1,13 +1,13 @@
 # Agent Service Account & Machine-to-Machine (M2M) Authentication
 
-This document details the configuration required in **ThunderID** and **CoreGrid API** for the **Budget Analysis Agent** (and subsequent AI agents) to securely communicate with the backend's `/api/agent-tools/*` endpoints via OAuth2 `client_credentials`.
+This document details the configuration required in **ThunderID** and **CoreGrid API** for an agent node still running as a **standalone external process** to securely communicate with the backend's `/api/agent-tools/*` endpoints via OAuth2 `client_credentials`. Under the target architecture (SRS §7.2.1, ADR-010) every node eventually runs in-process and needs none of this — it applies only until a given node is migrated.
 
 ---
 
 ## 1. Overview & Architecture
 
 Per **SRS §4.6, §7.4, and SEC-ID-10**:
-- Agents are external autonomous processes (Python/LangGraph).
+- This M2M setup applies to agents that run as standalone external processes — today that's only the Planner Agent (Python/LangGraph, `planner-agent/`), pending its own migration in-process. The Budget Analysis Agent's prior standalone implementation was removed 2026-09-15 once the target design (SRS §7.2.1, ADR-010) made it redundant before it was ever wired in; its replacement will be built in-process from the start. Maintenance Analysis and Policy Compliance run in-process and need none of this setup at all — they call their tool services directly, no token request required.
 - Agents act as advisory and read-only services.
 - Agents authenticate as an **"Agent Service Principal"** using the standard OAuth2 `client_credentials` grant against ThunderID.
 - The issued JWT token is presented as a `Bearer` token to the CoreGrid backend.
@@ -27,7 +27,7 @@ These steps must be performed in the ThunderID Admin Console (`https://localhost
 4. **Token Endpoint Auth Method**: `client_secret_post` (save explicitly).
 5. **Note the credentials**:
    - **Client ID**: e.g., `coregrid-agent-service`
-   - **Client Secret**: (generate & store securely in Python agent `.env` / key vault)
+   - **Client Secret**: (generate & store securely in the agent's own `.env` / key vault — only relevant for a standalone external agent; a .NET-native in-process agent has no separate `.env` to manage)
 
 ### Step 2.2 — Assign Resource Server & Scopes
 1. **Resource Server**: Re-use the default `System` resource server (`https://localhost:8090/mcp`) or a custom CoreGrid API resource server identifier.
@@ -38,9 +38,9 @@ These steps must be performed in the ThunderID Admin Console (`https://localhost
 
 ---
 
-## 3. Python Agent Service Usage (Token Request)
+## 3. Token Request — Standalone External Agent Only
 
-The Python service requests an M2M access token before invoking tool endpoints:
+A standalone external agent process requests an M2M access token before invoking tool endpoints. The existing Budget Analysis Agent does this in Python:
 
 ```python
 import httpx
@@ -69,11 +69,28 @@ headers = {
 }
 ```
 
+A future standalone .NET agent would do the equivalent with `HttpClient`:
+
+```csharp
+var response = await httpClient.PostAsync($"{issuer}/oauth2/token", new FormUrlEncodedContent(new Dictionary<string, string>
+{
+    ["grant_type"] = "client_credentials",
+    ["client_id"] = clientId,
+    ["client_secret"] = clientSecret,
+    ["scope"] = "agent:tools",
+    ["resource"] = resource
+}));
+response.EnsureSuccessStatusCode();
+var token = (await response.Content.ReadFromJsonAsync<TokenResponse>())!.AccessToken;
+```
+
+**None of this section applies to a .NET-native in-process agent** (the direction for Planner and Maintenance Analysis) — it runs inside the same API process as `AgentToolsController` and calls its tool methods directly, with no token request, no separate deployment, and no `.env` of its own.
+
 ---
 
-## 4. Environment Variables Required for Python Agent
+## 4. Environment Variables Required for a Standalone External Agent
 
-Add to the Python Agent `.env` file:
+Only needed for an agent running as its own process (today: the Budget Analysis Agent). Add to that agent's `.env` file:
 ```dotenv
 COREGRID_API_URL=http://localhost:5000
 THUNDERID_ISSUER=https://localhost:8090

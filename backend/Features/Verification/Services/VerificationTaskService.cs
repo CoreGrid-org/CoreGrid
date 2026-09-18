@@ -27,6 +27,7 @@ public class VerificationTaskService : IVerificationTaskService
             .Include(t => t.Campaign)
             .Include(t => t.Asset)
             .Include(t => t.AssignedToUser)
+            .Include(t => t.AssertedLocation)
             .Where(t => t.OrganizationId == organizationId);
 
         if (campaignId.HasValue)
@@ -60,6 +61,7 @@ public class VerificationTaskService : IVerificationTaskService
                 Status = t.Status,
                 AssertedPresent = t.AssertedPresent,
                 AssertedLocationId = t.AssertedLocationId,
+                AssertedLocationName = t.AssertedLocation != null ? t.AssertedLocation.Name : null,
                 AssertedCondition = t.AssertedCondition,
                 CompletedAt = t.CompletedAt
             })

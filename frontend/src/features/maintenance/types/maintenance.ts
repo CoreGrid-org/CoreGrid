@@ -14,6 +14,7 @@ export interface MaintenanceRecord {
   asset_id: string;
   asset_code: string;
   asset_name: string;
+  asset_type_name: string;
   description: string;
   observed_condition: string;
   photo_url?: string;
@@ -67,8 +68,24 @@ export interface CancelMaintenanceRequest {
 }
 
 export interface MaintenanceQueryParameters {
-  asset_id?: string;
+  assetId?: string;
+  departmentId?: string;
+  assigneeId?: string;
   status?: MaintenanceStatus;
   type?: MaintenanceType;
   priority?: MaintenancePriority;
+  dateFrom?: string;
+  dateTo?: string;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PagedMaintenanceRecords {
+  items: MaintenanceRecord[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }

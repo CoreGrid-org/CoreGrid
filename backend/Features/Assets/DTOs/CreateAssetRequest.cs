@@ -14,8 +14,6 @@ public class CreateAssetRequest
 
     public decimal AcquisitionCost { get; set; }
 
-    public decimal ResidualValue { get; set; }
-
     public string Condition { get; set; } = "NEW";
 
     public List<AssetAttributeValueRequest> Attributes { get; set; } = [];

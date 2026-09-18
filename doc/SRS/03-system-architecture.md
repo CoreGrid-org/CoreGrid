@@ -15,34 +15,20 @@ Four architectural rules govern every design decision that follows. They are sta
 
 ## 3.2 Logical Layering
 
-```
-  ┌────────────────────────────────────────────────────────────────────────────┐
-  │  PRESENTATION            React SPA  ·  Flutter mobile application          │
-  │                          routing · state · forms · protected views         │
-  └────────────────────────────────────┬───────────────────────────────────────┘
-                                       │  HTTPS · REST · JSON · Bearer JWT
-  ┌────────────────────────────────────▼───────────────────────────────────────┐
-  │  API / INTERFACE         Controllers · DTOs · model binding · versioning    │
-  │                          JWT validation · policy authorisation · CORS       │
-  │                          FluentValidation · global exception handling       │
-  └────────────────────────────────────┬───────────────────────────────────────┘
-  ┌────────────────────────────────────▼───────────────────────────────────────┐
-  │  APPLICATION             Use-case services · orchestration · transactions   │
-  │                          state-machine guards · audit-event emission        │
-  │                          agent-gateway client · notification dispatch       │
-  └────────────────────────────────────┬───────────────────────────────────────┘
-  ┌────────────────────────────────────▼───────────────────────────────────────┐
-  │  DOMAIN                  Entities · value objects · enumerations            │
-  │                          invariants · lifecycle state machines · policies   │
-  └────────────────────────────────────┬───────────────────────────────────────┘
-  ┌────────────────────────────────────▼───────────────────────────────────────┐
-  │  INFRASTRUCTURE          EF Core DbContext · repositories · migrations      │
-  │                          ThunderID SCIM client · email client · QR service   │
-  │                          LangGraph HTTP client · structured logging         │
-  └────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    P["PRESENTATION\nReact SPA · Flutter mobile application\nrouting · state · forms · protected views"]
+    A["API / INTERFACE\nControllers · DTOs · model binding · versioning\nJWT validation · policy authorisation · CORS\nFluentValidation · global exception handling"]
+    U["APPLICATION\nUse-case services · orchestration · transactions\nstate-machine guards · audit-event emission\nAgent Orchestrator (§7.2.1) · notification dispatch"]
+    D["DOMAIN\nEntities · value objects · enumerations\ninvariants · lifecycle state machines · policies"]
+    I["INFRASTRUCTURE\nEF Core DbContext · repositories · migrations\nThunderID SCIM client · email client · QR service\nIModelClient (§7.2.1) · structured logging"]
+
+    P -->|"HTTPS · REST · JSON · Bearer JWT"| A --> U --> D
+    U --> I
+    D --> I
 ```
 
-Figure 2 — Logical layering of the ASP.NET Core backend. Dependencies point inward; the domain layer references nothing outside itself.
+Figure 2 — Logical layering of the ASP.NET Core backend. Dependencies point inward; the domain layer references nothing outside itself. The Agent Orchestrator and all four agent nodes (§7.2.1) live in the Application layer like any other use-case service; only the outbound model call crosses into Infrastructure, via `IModelClient`.
 
 Dependency inversion is applied between the application and infrastructure layers: the application layer declares interfaces (`INotificationService`, `IAgentGateway`, `IQrCodeService`, `IIdentityDirectory`) and the infrastructure layer supplies implementations that are registered in the dependency-injection container at startup. This is what makes the email provider replaceable, the agent service mockable in tests, and the identity directory substitutable if the contingency in Section 4.10 is ever invoked.
 
@@ -52,9 +38,9 @@ Dependency inversion is applied between the application and infrastructure layer
 |---|---|---|
 | React SPA | Administration and configuration; asset, maintenance, transfer and disposal management; audit dashboards and reporting; user and role administration; agentic workflow monitoring and the approve / reject / revise decision. | Does not perform QR scanning, does not capture field photographs, does not hold business rules beyond input validation for user feedback. |
 | Flutter application | Field identification by QR scan; physical verification; fault reporting with photograph; task list execution; transfer confirmation; submission of an agentic evaluation request and display of its status. | Does not administer users, does not approve anything, does not orchestrate the agent workflow, does not produce analytics or reports. |
-| ASP.NET Core API | Token validation; authorisation policy evaluation; request validation; execution of every business rule and state transition; persistence and transaction control; agent workflow initiation, approval signalling and resumption; audit logging; third-party mediation. | Does not perform LLM reasoning, does not render user interface, does not hold user credentials. |
+| ASP.NET Core API | Token validation; authorisation policy evaluation; request validation; execution of every business rule and state transition; persistence and transaction control; **hosts the Agent Orchestrator and all four agent nodes in-process** — sequences them in order, enforces per-node timeouts and retries (AI-06), runs the deterministic gate (§7.6), persists checkpoints and drives the human-approval interrupt (§7.7); calls out to the configured model provider through `IModelClient` only from the one node (Planner) whose criteria in §7.2.1 require it; agent workflow initiation, approval signalling and resumption; audit logging; third-party mediation. | Does not render user interface, does not hold user credentials. No agent node calls a business tool outside its own allow-list (§7.4), and the Orchestrator itself never calls a business tool or reasons about the asset — see §7.2.1. |
 | PostgreSQL | Durable storage of configuration, business data, custom attribute values, workflow state and audit records; enforcement of referential integrity, uniqueness and check constraints; concurrency arbitration. | Contains no business logic in stored procedures or triggers other than integrity constraints; holds no passwords or tokens. |
-| LangGraph agent service | Execution of the lifecycle decision graph; planning and delegation; invocation of allow-listed tools; deterministic validation; interruption at the human-approval checkpoint; production of a structured recommendation or a safe failure. | Does not write to the database, does not call third-party services, does not authenticate users, is never reachable from the public internet. |
+| Model provider (via `IModelClient`) | An external LLM API (Azure OpenAI, OpenAI, Anthropic, or an on-prem/local model), selected by configuration per deployment. Called only by the Planner node, only with the sanitised, delimited objective text (AI-22), never with credentials, chain-of-thought or raw prompts persisted (AI-10, AI-26). | Is not a CoreGrid-operated service, never reached by any client directly, never holds business data, never decides a verdict — see §7.2.1. |
 | ThunderID | Authentication of human users; organisation and user directory; role assignment; issuance and signing of OIDC tokens; session termination. | Does not authorise individual CoreGrid operations; holds no business data. |
 
 ## 3.4 The React / Flutter Responsibility Boundary
@@ -204,34 +190,38 @@ What is deliberately not configurable is as important as what is. An administrat
 | Web client | React 18 with Vite, React Router, TanStack Query for server state and Zustand for client state | Mandated framework. The state split is deliberate: most CoreGrid web state is cached server data with caching, invalidation and background refresh needs that a query library solves directly, leaving only session and UI preference state for a lightweight store. Recorded in ADR-003. |
 | Design system | IBM Carbon Design System (`@carbon/react`, `@carbon/icons-react`), IBM Plex Sans / IBM Plex Mono typography | Mandated. Carbon supplies a WCAG 2.1 AA–compliant, enterprise-grade component set — `Grid`/`Column`, `Header`, `Tile` / `ClickableTile`, `Tag`, `Button`, `StructuredList`, `InlineNotification`, `Theme` — so the React client is assembled from audited, accessible primitives rather than bespoke styling, which is what NFR-26 relies on. The White theme is used throughout, with the `g100` theme applied locally to the agentic-AI monitoring surface for visual separation of AI-generated content. Recorded in ADR-008. |
 | Mobile client | Flutter 3 with Riverpod, go_router, flutter_secure_storage, mobile_scanner, image_picker | Mandated framework. Riverpod gives compile-time-safe dependency injection and testable providers without the boilerplate of event-driven alternatives; recorded in ADR-004. |
-| Agentic AI | Python LangGraph | Selected because the assignment's acceptance criteria map directly onto its primitives: an explicit graph of distinct nodes, a typed shared state object, checkpointed persistence, conditional edges for validation-driven routing, and a first-class interrupt mechanism for human approval. Recorded in ADR-005. |
+| Agentic AI | .NET-native, in-process, single deployable — the Agent Orchestrator (`AgentWorkflowService`) and all four agent nodes run inside the ASP.NET Core API (§7.2.1). Only the Planner node calls a model, through a provider-agnostic `IModelClient` abstraction (Azure OpenAI / OpenAI / Anthropic / on-prem, chosen by configuration); the other three nodes are pure C#. | LangGraph (Python) was originally selected because the assignment's acceptance criteria map directly onto its primitives: an explicit graph of distinct nodes, a typed shared state object, checkpointed persistence, conditional edges for validation-driven routing, and a first-class interrupt mechanism for human approval — none of which, it turned out, require a separate Python runtime or the node itself to call a model. Recorded in ADR-005; the decision below supersedes ADR-005's original Python-LangGraph scope, not its underlying primitives — the graph shape it describes is still exactly what `AgentWorkflowService` implements, in C#. The Policy Compliance Agent, built .NET-native with a deterministic rule engine standing in for the model call, is what exposed this: a graph node is just a typed function, and CoreGrid's M0 deployment model (§4.1, §19.10 — one instance per customer, sold on operational simplicity as much as capability) makes "fewest possible independently-deployed runtimes" the right default, not merely an acceptable one. Team decision as of 2026-09-15 (§7.2.1) is therefore a single deployable for the whole subsystem, with model access behind `IModelClient` so a customer's procurement policy — not the codebase — decides which model vendor is used, including an on-prem option for data-residency-constrained buyers. Planner genuinely needs the model (classifying and planning over free-text objectives) and is the only node that keeps one. This is a target architecture: the currently-built Planner and Budget Analysis implementations predate it and still run as standalone Python/LangGraph services (`planner-agent/`, `agent-service/`); migrating them in-process is tracked per-agent in `doc/PROGRESS.md`, on each owner's own schedule, not a rewrite mandated by this document. |
 | Identity | ThunderID (OIDC / OAuth 2.0) | Removes credential storage from CoreGrid entirely and supplies standards-based tokens the API validates with published keys. Recorded in ADR-002. |
 | CI | GitHub Actions | Mandated. Restores, builds and runs the backend test suite on every push and pull request to main, with additional jobs for the React build and Flutter analyse. |
 
 ## 3.7 Deployment View
 
-```
-   INTERNET                                  │  PRIVATE / INTERNAL
-  ─────────────────────────────────────────  │  ────────────────────────────────
-                                             │
-   Browser ──▶ Static host (React build)     │
-                    │                        │
-   Android ──▶ ─────┼──────────────┐         │
-   device           │              │         │
-                    ▼              ▼         │
-            ┌────────────────────────────┐   │   ┌───────────────────────────┐
-            │  ASP.NET Core API          │───┼──▶│  LangGraph agent service  │
-            │  container / app service   │   │   │  container, no ingress    │
-            │  HTTPS · health · Swagger  │   │   └───────────────────────────┘
-            └────────────┬───────────────┘   │
-                         │                   │   ┌───────────────────────────┐
-                         └───────────────────┼──▶│  PostgreSQL (managed)     │
-                                             │   │  restricted network       │
-   ThunderID ◀── OIDC / JWKS / SCIM ──────────┤   └───────────────────────────┘
-   Email API ◀── backend-mediated only ──────┘
+```mermaid
+flowchart LR
+    subgraph INTERNET[" INTERNET "]
+        Browser["Browser"]
+        Android["Android device"]
+    end
+
+    subgraph INTERNAL[" PRIVATE / INTERNAL "]
+        Static["Static host\n(React build)"]
+        API["ASP.NET Core API\ncontainer / app service\nHTTPS · health · Swagger\nhosts Orchestrator +\nall four agent nodes"]
+        PG[("PostgreSQL (managed)\nrestricted network")]
+        Model["Model provider\nAzure OpenAI / OpenAI /\nAnthropic / on-prem\nvia IModelClient (§7.2.1)"]
+        ThunderID["ThunderID\nOIDC / JWKS / SCIM"]
+        Email["Email API\nbackend-mediated only"]
+    end
+
+    Browser --> Static
+    Android --> API
+    Static --> API
+    API --> PG
+    API -->|"outbound HTTPS,\nPlanner node only"| Model
+    API --> ThunderID
+    API --> Email
 ```
 
-Figure 4 — Deployment topology. Only the static host and the API are publicly addressable.
+Figure 4 — Deployment topology. Only the static host and the API are publicly addressable (solid internet-facing edges above); everything inside the private/internal boundary is reached only from the API. The API is the only backend deployable: it hosts the Agent Orchestrator and all four agent nodes in-process, and makes one outbound HTTPS call to the configured model provider only from the Planner node (§7.2.1) — there is no separate agent container to secure, patch or take an ingress rule for.
 
 | Deployment requirement | Evidence to be produced |
 |---|---|
@@ -239,5 +229,5 @@ Figure 4 — Deployment topology. Only the static host and the API are publicly 
 | PostgreSQL deployed with restricted credentials. | Migration output, connection restricted to the API, and documented initialisation and seeding instructions. |
 | React deployed and configured against the deployed API. | Live URL, verified in a private browser session with the evaluation accounts. |
 | Flutter release APK produced. | Installable APK plus installation instructions and the API base URL it targets. |
-| Agent service deployed or documented for local execution. | Container image or run instructions, environment variable list, model requirements and the required startup order. |
+| Model provider configured for the API's in-process agent nodes; any agent node not yet migrated in-process (currently: Planner) deployed or documented for local execution separately. | `IModelClient` provider/API-key configuration for the API; for Planner specifically, container image or run instructions, environment variable list, model requirements and the required startup order until its in-process migration (§7.2.1) lands. |
 | Evaluator access preserved. | All URLs, the repository and the demonstration video remain accessible for at least three weeks after submission. |

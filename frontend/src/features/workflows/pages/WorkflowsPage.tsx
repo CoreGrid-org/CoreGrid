@@ -4,7 +4,7 @@ import { Add, CheckmarkFilled, WarningAltFilled, CloseFilled } from "@carbon/ico
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useMe } from "@/features/auth/hooks/useMe";
-import { useRunPolicyAgent, useWorkflowsList } from "../hooks/useWorkflows";
+import { useRunMaintenanceAgent, useRunPolicyAgent, useWorkflowsList } from "../hooks/useWorkflows";
 import CreateWorkflowModal from "../components/CreateWorkflowModal";
 import EvaluatePolicyModal from "../components/EvaluatePolicyModal";
 import DecideWorkflowModal from "../components/DecideWorkflowModal";
@@ -25,15 +25,22 @@ export default function WorkflowsPage() {
 
   const workflows = useWorkflowsList();
   const runAgent = useRunPolicyAgent();
+  const runMaintenanceAgent = useRunMaintenanceAgent();
 
   const [showCreate, setShowCreate] = useState(false);
   const [evaluating, setEvaluating] = useState<AgentWorkflow | null>(null);
   const [deciding, setDeciding] = useState<{ workflow: AgentWorkflow; decision: "APPROVE" | "REJECT" | "REVISE" } | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
+  const [runningMaintenanceId, setRunningMaintenanceId] = useState<string | null>(null);
 
   const handleRunAgent = (id: string) => {
     setRunningId(id);
     runAgent.mutate({ id }, { onSuccess: () => workflows.refetch() });
+  };
+
+  const handleRunMaintenanceAgent = (id: string) => {
+    setRunningMaintenanceId(id);
+    runMaintenanceAgent.mutate({ id }, { onSuccess: () => workflows.refetch() });
   };
 
   const active = workflows.data?.filter((w) => IN_FLIGHT_STATUSES.includes(w.status)) ?? [];
@@ -46,7 +53,7 @@ export default function WorkflowsPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Agentic Workflows</h1>
           <p className="cg-page__subtitle">
-            Review and approve agent-recommended actions (FR-067 to FR-076; §7 of the SRS).
+            Review and approve agent-recommended actions.
           </p>
         </div>
         {canInitiate && (
@@ -60,8 +67,8 @@ export default function WorkflowsPage() {
         kind="info"
         lowContrast
         hideCloseButton
-        title="The Planner, Maintenance Analysis and Budget Analysis agents aren't built yet"
-        subtitle="Policy Compliance is real end to end: “Run Policy Compliance Agent” assembles the asset's policy/compliance facts and proposes a recommendation via a deterministic rule engine (no LLM), which then runs through the same approval gate. “Evaluate policy compliance” remains available to manually override the recommendation for testing."
+        title="Planner and Maintenance Analysis Agents are connected"
+        subtitle="New evaluations now call the Planner Agent, persist its typed execution plan, move to analysis, and automatically run the Maintenance Analysis Agent (repair count, MTBF, cost trend, 12-month projection) for the asset. The Budget agent still needs to be connected; Policy Compliance remains available through the existing action."
         style={{ marginBottom: "1rem", maxWidth: "100%" }}
       />
 
@@ -72,6 +79,17 @@ export default function WorkflowsPage() {
           subtitle={getErrorMessage(runAgent.error, "Something went wrong. Please try again.")}
           lowContrast
           onCloseButtonClick={() => setRunningId(null)}
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        />
+      )}
+
+      {runMaintenanceAgent.isError && (
+        <InlineNotification
+          kind="error"
+          title="Could not run the Maintenance Analysis Agent"
+          subtitle={getErrorMessage(runMaintenanceAgent.error, "Something went wrong. Please try again.")}
+          lowContrast
+          onCloseButtonClick={() => setRunningMaintenanceId(null)}
           style={{ marginBottom: "1rem", maxWidth: "100%" }}
         />
       )}
@@ -107,6 +125,8 @@ export default function WorkflowsPage() {
                     <tr>
                       <th>Asset</th>
                       <th>Objective</th>
+                      <th>Plan</th>
+                      <th>Maintenance analysis</th>
                       <th>Status</th>
                       <th>Started</th>
                       <th></th>
@@ -117,13 +137,28 @@ export default function WorkflowsPage() {
                       <tr key={w.id}>
                         <td className="cg-table__mono">{w.asset_code}</td>
                         <td className="cg-table__muted">{w.objective}</td>
+                        <td className="cg-table__muted">
+                          {w.plan?.inScope ? `${w.plan.steps.length} steps` : w.plan?.rejectionReason ?? "—"}
+                        </td>
+                        <td className="cg-table__muted">
+                          {w.maintenance_analysis ? (
+                            <>
+                              {w.maintenance_analysis.repair_count} repair
+                              {w.maintenance_analysis.repair_count === 1 ? "" : "s"}
+                              {" · "}
+                              {formatStatusLabel(w.maintenance_analysis.cost_trend)}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td>
                           <Tag type={statusTagColor(w.status)}>{formatStatusLabel(w.status)}</Tag>
                         </td>
                         <td className="cg-table__muted">{w.started_at ? new Date(w.started_at).toLocaleString() : "—"}</td>
                         <td>
                           {canInitiate && (
-                            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
                               <Button
                                 kind="tertiary"
                                 size="sm"
@@ -131,6 +166,16 @@ export default function WorkflowsPage() {
                                 onClick={() => handleRunAgent(w.id)}
                               >
                                 {runAgent.isPending && runningId === w.id ? "Running…" : "Run Policy Compliance Agent"}
+                              </Button>
+                              <Button
+                                kind="tertiary"
+                                size="sm"
+                                disabled={runMaintenanceAgent.isPending && runningMaintenanceId === w.id}
+                                onClick={() => handleRunMaintenanceAgent(w.id)}
+                              >
+                                {runMaintenanceAgent.isPending && runningMaintenanceId === w.id
+                                  ? "Running…"
+                                  : "Re-run Maintenance Analysis"}
                               </Button>
                               <Button kind="ghost" size="sm" onClick={() => setEvaluating(w)}>
                                 Evaluate manually
@@ -163,7 +208,7 @@ export default function WorkflowsPage() {
                 <div className="cg-section__header">
                   <div>
                     <p className="cg-section__title">
-                      {w.asset_code} — recommends {formatStatusLabel(w.recommendation ?? "")}
+                      {w.asset_code}: recommends {formatStatusLabel(w.recommendation ?? "")}
                     </p>
                     <p className="cg-table__muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
                       {w.objective}
@@ -172,8 +217,42 @@ export default function WorkflowsPage() {
                   {w.is_high_impact && <Tag type="magenta">High impact</Tag>}
                 </div>
                 <div className="cg-section__body">
+                  {w.maintenance_analysis && (
+                    <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+                      <div>
+                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
+                          Repair count
+                        </p>
+                        <p style={{ margin: 0, fontSize: "0.875rem" }}>{w.maintenance_analysis.repair_count}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
+                          Mean time between failures
+                        </p>
+                        <p style={{ margin: 0, fontSize: "0.875rem" }}>
+                          {w.maintenance_analysis.mean_time_between_failures_days !== null
+                            ? `${w.maintenance_analysis.mean_time_between_failures_days} days`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
+                          Cost trend
+                        </p>
+                        <p style={{ margin: 0, fontSize: "0.875rem" }}>{formatStatusLabel(w.maintenance_analysis.cost_trend)}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
+                          Projected next 12 months
+                        </p>
+                        <p style={{ margin: 0, fontSize: "0.875rem" }}>
+                          LKR {w.maintenance_analysis.projected_next_twelve_months_cost.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.5rem" }}>
-                    Policy validation — {w.validation_result?.verdict}
+                    Policy validation: {w.validation_result?.verdict}
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
                     {w.validation_result?.rule_results.map((r) => {
@@ -183,7 +262,7 @@ export default function WorkflowsPage() {
                           {Icon && <Icon size={16} style={{ fill: OUTCOME_COLOR[r.outcome], flexShrink: 0 }} />}
                           <span style={{ fontSize: "0.8125rem", color: "#525252", fontWeight: 600, minWidth: "3.5rem" }}>{r.rule_id}</span>
                           <span style={{ fontSize: "0.8125rem", color: "#525252" }}>
-                            {r.expected} — {r.actual}
+                            {r.expected} → {r.actual}
                           </span>
                           <Tag type={r.outcome === "PASS" ? "green" : r.outcome === "FAIL" ? "red" : "gray"} size="sm">
                             {r.outcome}

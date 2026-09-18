@@ -10,6 +10,16 @@ export interface AuditReportClassificationRow {
   resolved: number;
 }
 
+export interface AuditReportDiscrepancyRow {
+  asset_code: string;
+  asset_name: string;
+  department_name: string;
+  classification: string;
+  status: string;
+  raised_at: string;
+  resolved_at: string | null;
+}
+
 export interface AuditReport {
   from: string | null;
   to: string | null;
@@ -18,6 +28,13 @@ export interface AuditReport {
   assets_in_scope: number;
   open_discrepancies: number;
   by_classification: AuditReportClassificationRow[];
+  // Server-paginated when the query includes page/pageSize (the on-screen
+  // fetch); the export endpoint never sets those, so it gets every row.
+  discrepancies: AuditReportDiscrepancyRow[];
+  discrepancies_total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
   generated_at: string;
 }
 
@@ -27,6 +44,8 @@ export interface AuditReportQuery {
   departmentId?: string;
   categoryId?: string;
   status?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 function toSearchParams(query: AuditReportQuery): URLSearchParams {
@@ -36,6 +55,8 @@ function toSearchParams(query: AuditReportQuery): URLSearchParams {
   if (query.departmentId) search.set("departmentId", query.departmentId);
   if (query.categoryId) search.set("categoryId", query.categoryId);
   if (query.status) search.set("status", query.status);
+  if (query.page) search.set("page", String(query.page));
+  if (query.pageSize) search.set("pageSize", String(query.pageSize));
   return search;
 }
 

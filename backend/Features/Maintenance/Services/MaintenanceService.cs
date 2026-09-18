@@ -5,22 +5,50 @@ using System.Threading.Tasks;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Maintenance.DTOs;
+using CoreGrid.Api.Features.Notifications.Services;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Maintenance.Services;
 
 public class MaintenanceService : IMaintenanceService
 {
-    private readonly CoreGridDbContext _context;
+    // FR-034: a photo is only ever handed out as a signed, time-limited
+    // URL, minted fresh on every authorized read — never persisted.
+    private static readonly TimeSpan PhotoUrlExpiry = TimeSpan.FromMinutes(15);
 
-    public MaintenanceService(CoreGridDbContext context)
+    private readonly CoreGridDbContext _context;
+    private readonly INotificationService _notificationService;
+    private readonly IFileStorageService _fileStorageService;
+
+    public MaintenanceService(
+        CoreGridDbContext context,
+        INotificationService notificationService,
+        IFileStorageService fileStorageService)
     {
         _context = context;
+        _notificationService = notificationService;
+        _fileStorageService = fileStorageService;
+    }
+
+    // Resolves a stored R2 object key into a fresh presigned URL — a no-op
+    // when there's no photo. Called only after the record's own read
+    // authorization has already been checked (the controller's role gate),
+    // so this never hands out a link nobody was cleared to see.
+    private async Task ResolvePhotoUrlAsync(MaintenanceRecordDto dto)
+    {
+        if (string.IsNullOrEmpty(dto.PhotoUrl))
+        {
+            return;
+        }
+
+        dto.PhotoUrl = await _fileStorageService.GetPresignedUrlAsync(dto.PhotoUrl, PhotoUrlExpiry, default);
     }
 
     public async Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(Guid organizationId, Guid id)
     {
-        return await _context.MaintenanceRecords
+        var dto = await _context.MaintenanceRecords
             .AsNoTracking()
             .Include(m => m.Asset)
             .Include(m => m.Assignee)
@@ -33,7 +61,7 @@ public class MaintenanceService : IMaintenanceService
                 AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
                 Description = m.Description,
                 ObservedCondition = m.ObservedCondition,
-                PhotoUrl = m.PhotoUrl,
+                PhotoUrl = m.PhotoObjectKey, // resolved to a real presigned URL below
                 Type = m.Type,
                 Priority = m.Priority,
                 Status = m.Status,
@@ -48,6 +76,42 @@ public class MaintenanceService : IMaintenanceService
                 CreatedAt = m.CreatedAt
             })
             .FirstOrDefaultAsync();
+
+        if (dto is not null)
+        {
+            await ResolvePhotoUrlAsync(dto);
+            await ResolveAssetTypeNamesAsync([dto]);
+        }
+
+        return dto;
+    }
+
+    // FR-084: populates AssetTypeName via a dedicated single-hop query
+    // (Assets → AssetType) rather than a two-hop MaintenanceRecord → Asset
+    // → AssetType navigation inside the main Select — EF Core's InMemory
+    // provider (used by this project's unit tests) doesn't reliably
+    // translate a nested null-conditional two levels deep and silently
+    // excludes matching rows instead of just nulling the field. One extra
+    // query, but it works identically against InMemory and the real
+    // Postgres provider, and it's a single indexed lookup either way.
+    private async Task ResolveAssetTypeNamesAsync(IReadOnlyList<MaintenanceRecordDto> dtos)
+    {
+        var assetIds = dtos.Select(d => d.AssetId).Distinct().ToList();
+        if (assetIds.Count == 0)
+        {
+            return;
+        }
+
+        var typeNamesByAssetId = await _context.Assets
+            .AsNoTracking()
+            .Where(a => assetIds.Contains(a.Id))
+            .Select(a => new { a.Id, TypeName = a.AssetType != null ? a.AssetType.Name : string.Empty })
+            .ToDictionaryAsync(x => x.Id, x => x.TypeName);
+
+        foreach (var dto in dtos)
+        {
+            dto.AssetTypeName = typeNamesByAssetId.GetValueOrDefault(dto.AssetId, string.Empty);
+        }
     }
 
     public async Task<MaintenanceRecordDto?> ReportFaultAsync(Guid organizationId, Guid currentUserId, ReportFaultRequest request)
@@ -79,7 +143,7 @@ public class MaintenanceService : IMaintenanceService
             AssetId = request.AssetId,
             Description = request.Description.Trim(),
             ObservedCondition = conditionUpper,
-            PhotoUrl = request.PhotoUrl,
+            PhotoObjectKey = request.PhotoUrl,
             Type = MaintenanceType.CORRECTIVE,
             Priority = MaintenancePriority.MEDIUM, // Default priority for reported faults
             Status = MaintenanceStatus.REQUESTED,
@@ -147,7 +211,7 @@ public class MaintenanceService : IMaintenanceService
             AssetId = request.AssetId,
             Description = request.Description.Trim(),
             ObservedCondition = conditionUpper,
-            PhotoUrl = request.PhotoUrl,
+            PhotoObjectKey = request.PhotoUrl,
             Type = request.Type,
             Priority = request.Priority,
             Status = MaintenanceStatus.REQUESTED,
@@ -180,6 +244,7 @@ public class MaintenanceService : IMaintenanceService
         }
 
         var record = await _context.MaintenanceRecords
+            .Include(m => m.Asset)
             .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
 
         if (record is null)
@@ -210,6 +275,17 @@ public class MaintenanceService : IMaintenanceService
         record.UpdatedBy = currentUserId;
 
         await _context.SaveChangesAsync();
+
+        // FR-080: notify the newly assigned officer.
+        await _notificationService.NotifyAsync(
+            organizationId,
+            request.AssigneeId,
+            "MAINTENANCE_ASSIGNED",
+            "Maintenance assigned to you",
+            $"You've been assigned maintenance for {record.Asset?.AssetCode ?? "an asset"}: {record.Description}",
+            "MaintenanceRecord",
+            record.Id,
+            default);
 
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
@@ -442,6 +518,23 @@ public class MaintenanceService : IMaintenanceService
         // Single SaveChangesAsync - satisfies BR3 (atomic).
         await _context.SaveChangesAsync();
 
+        // FR-080: notify whoever originally reported/requested this work,
+        // if that's someone other than the person completing it. AC4:
+        // NotifyAsync never throws, so a notification failure here can
+        // never undo the completion that already committed above.
+        if (record.CreatedBy.HasValue && record.CreatedBy.Value != currentUserId)
+        {
+            await _notificationService.NotifyAsync(
+                organizationId,
+                record.CreatedBy.Value,
+                "MAINTENANCE_COMPLETED",
+                "Maintenance completed",
+                $"Maintenance for {asset.AssetCode} has been completed. Resulting condition: {conditionUpper}.",
+                "MaintenanceRecord",
+                record.Id,
+                default);
+        }
+
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
 
@@ -495,13 +588,38 @@ public class MaintenanceService : IMaintenanceService
 
         await _context.SaveChangesAsync();
 
+        // FR-080: notify the assignee and the original reporter (if either
+        // is someone other than whoever cancelled it), so nobody keeps
+        // working toward a record that no longer exists.
+        var recipientIds = new[] { record.AssigneeId, record.CreatedBy }
+            .Where(id => id.HasValue && id.Value != currentUserId)
+            .Select(id => id!.Value)
+            .Distinct();
+
+        foreach (var recipientId in recipientIds)
+        {
+            await _notificationService.NotifyAsync(
+                organizationId,
+                recipientId,
+                "MAINTENANCE_CANCELLED",
+                "Maintenance cancelled",
+                $"Maintenance for {asset?.AssetCode ?? "an asset"} was cancelled" +
+                    (string.IsNullOrWhiteSpace(request.Reason) ? "." : $": {request.Reason}"),
+                "MaintenanceRecord",
+                record.Id,
+                default);
+        }
+
         return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
     }
 
-    public async Task<IEnumerable<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(
+    public async Task<PagedResult<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(
         Guid organizationId,
         MaintenanceRecordFilter filter)
     {
+        var page = filter.Page < 1 ? 1 : filter.Page;
+        var pageSize = filter.PageSize < 1 ? 20 : Math.Min(filter.PageSize, 100);
+
         var query = _context.MaintenanceRecords
             .AsNoTracking()
             .Include(m => m.Asset)
@@ -512,6 +630,19 @@ public class MaintenanceService : IMaintenanceService
         if (filter.AssetId.HasValue)
         {
             query = query.Where(m => m.AssetId == filter.AssetId.Value);
+        }
+
+        // FR-042: department isn't a column on MaintenanceRecord itself —
+        // filter via the owning Asset, same join AssetService's own
+        // DepartmentId filter uses.
+        if (filter.DepartmentId.HasValue)
+        {
+            query = query.Where(m => m.Asset != null && m.Asset.DepartmentId == filter.DepartmentId.Value);
+        }
+
+        if (filter.AssigneeId.HasValue)
+        {
+            query = query.Where(m => m.AssigneeId == filter.AssigneeId.Value);
         }
 
         if (filter.Status.HasValue)
@@ -529,7 +660,37 @@ public class MaintenanceService : IMaintenanceService
             query = query.Where(m => m.Priority == filter.Priority.Value);
         }
 
-        return await query
+        if (filter.DateFrom.HasValue)
+        {
+            var from = new DateTimeOffset(filter.DateFrom.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+            query = query.Where(m => m.CreatedAt >= from);
+        }
+
+        if (filter.DateTo.HasValue)
+        {
+            // Inclusive of the whole "to" day.
+            var to = new DateTimeOffset(filter.DateTo.Value.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
+            query = query.Where(m => m.CreatedAt <= to);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var sortBy = filter.SortBy?.Trim().ToLowerInvariant() ?? "createdat";
+        var descending = !string.Equals(filter.SortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+
+        query = sortBy switch
+        {
+            "priority" => descending ? query.OrderByDescending(m => m.Priority) : query.OrderBy(m => m.Priority),
+            "status" => descending ? query.OrderByDescending(m => m.Status) : query.OrderBy(m => m.Status),
+            "estimatedcost" => descending ? query.OrderByDescending(m => m.EstimatedCost) : query.OrderBy(m => m.EstimatedCost),
+            "actualcost" => descending ? query.OrderByDescending(m => m.ActualCost) : query.OrderBy(m => m.ActualCost),
+            "completiondate" => descending ? query.OrderByDescending(m => m.CompletionDate) : query.OrderBy(m => m.CompletionDate),
+            _ => descending ? query.OrderByDescending(m => m.CreatedAt) : query.OrderBy(m => m.CreatedAt),
+        };
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(m => new MaintenanceRecordDto
             {
                 Id = m.Id,
@@ -538,7 +699,7 @@ public class MaintenanceService : IMaintenanceService
                 AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
                 Description = m.Description,
                 ObservedCondition = m.ObservedCondition,
-                PhotoUrl = m.PhotoUrl,
+                PhotoUrl = m.PhotoObjectKey, // resolved to a real presigned URL below
                 Type = m.Type,
                 Priority = m.Priority,
                 Status = m.Status,
@@ -553,5 +714,19 @@ public class MaintenanceService : IMaintenanceService
                 CreatedAt = m.CreatedAt
             })
             .ToListAsync();
+
+        await Task.WhenAll(items.Select(ResolvePhotoUrlAsync));
+        await ResolveAssetTypeNamesAsync(items);
+
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        return new PagedResult<MaintenanceRecordDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages
+        };
     }
 }

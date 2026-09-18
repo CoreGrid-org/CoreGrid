@@ -78,6 +78,36 @@ public class AuditReportService : IAuditReportService
             .Select(c => new AuditReportClassificationRow { Classification = c.Type.ToString(), Raised = c.Raised, Resolved = c.Resolved })
             .ToList();
 
+        var discrepanciesTotalCount = await discrepancies.CountAsync(cancellationToken);
+
+        var orderedDiscrepancies = discrepancies.OrderByDescending(d => d.CreatedAt);
+
+        // Page only when the caller asked for a page (the on-screen fetch);
+        // the export endpoint leaves Page null and gets every row, same as
+        // before this was added.
+        var page = filter.Page ?? 1;
+        var pageSize = filter.PageSize ?? discrepanciesTotalCount;
+        pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, 500);
+
+        var pagedDiscrepancies = filter.Page.HasValue
+            ? orderedDiscrepancies.Skip((page - 1) * pageSize).Take(pageSize)
+            : orderedDiscrepancies;
+
+        var discrepancyRows = await pagedDiscrepancies
+            .Select(d => new AuditReportDiscrepancyRow
+            {
+                AssetCode = d.Asset!.AssetCode,
+                AssetName = d.Asset!.Name,
+                DepartmentName = d.Asset!.Department!.Name,
+                Classification = d.Type.ToString(),
+                Status = d.Status.ToString(),
+                RaisedAt = d.CreatedAt,
+                ResolvedAt = d.ResolvedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        var totalPages = discrepanciesTotalCount == 0 ? 0 : (int)Math.Ceiling(discrepanciesTotalCount / (double)pageSize);
+
         return new AuditReportDto
         {
             From = filter.From,
@@ -87,6 +117,11 @@ public class AuditReportService : IAuditReportService
             AssetsInScope = assetsInScope,
             OpenDiscrepancies = openDiscrepancies,
             ByClassification = byClassification,
+            Discrepancies = discrepancyRows,
+            DiscrepanciesTotalCount = discrepanciesTotalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages,
             GeneratedAt = DateTimeOffset.UtcNow
         };
     }
@@ -111,6 +146,14 @@ public class AuditReportService : IAuditReportService
 
         WriteRow("Classification", "Raised", "Resolved");
         foreach (var row in report.ByClassification) WriteRow(row.Classification, row.Raised, row.Resolved);
+        sb.AppendLine();
+
+        WriteRow("Asset code", "Asset name", "Department", "Classification", "Status", "Raised", "Resolved");
+        foreach (var row in report.Discrepancies)
+        {
+            WriteRow(row.AssetCode, row.AssetName, row.DepartmentName, row.Classification, row.Status,
+                row.RaisedAt.ToString("u"), row.ResolvedAt?.ToString("u") ?? "");
+        }
 
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
@@ -183,6 +226,45 @@ public class AuditReportService : IAuditReportService
                             table.Cell().Text(row.Classification);
                             table.Cell().Text(row.Raised.ToString());
                             table.Cell().Text(row.Resolved.ToString());
+                        }
+                    });
+
+                    column.Item().PaddingTop(8).Text("Discrepancies").FontSize(11).Bold();
+                    column.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(c =>
+                        {
+                            c.RelativeColumn(2);
+                            c.RelativeColumn(2);
+                            c.RelativeColumn(2);
+                            c.RelativeColumn(2);
+                            c.RelativeColumn(1);
+                            c.RelativeColumn(2);
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Text("Asset").Bold();
+                            header.Cell().Text("Department").Bold();
+                            header.Cell().Text("Classification").Bold();
+                            header.Cell().Text("Raised").Bold();
+                            header.Cell().Text("Status").Bold();
+                            header.Cell().Text("Resolved").Bold();
+                        });
+
+                        if (report.Discrepancies.Count == 0)
+                        {
+                            table.Cell().ColumnSpan(6).Text("None").FontColor(Colors.Grey.Darken1);
+                        }
+
+                        foreach (var row in report.Discrepancies)
+                        {
+                            table.Cell().Text($"{row.AssetCode} — {row.AssetName}");
+                            table.Cell().Text(row.DepartmentName);
+                            table.Cell().Text(row.Classification);
+                            table.Cell().Text(row.RaisedAt.ToString("yyyy-MM-dd"));
+                            table.Cell().Text(row.Status);
+                            table.Cell().Text(row.ResolvedAt?.ToString("yyyy-MM-dd") ?? "—");
                         }
                     });
                 });

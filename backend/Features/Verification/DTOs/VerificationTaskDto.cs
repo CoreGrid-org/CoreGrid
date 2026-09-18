@@ -21,6 +21,7 @@ public class VerificationTaskDto
 
     public bool? AssertedPresent { get; set; }
     public Guid? AssertedLocationId { get; set; }
+    public string? AssertedLocationName { get; set; }
     public string? AssertedCondition { get; set; }
 
     public DateTimeOffset? CompletedAt { get; set; }

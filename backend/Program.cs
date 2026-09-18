@@ -71,16 +71,31 @@ builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
 builder.Services.AddScoped<ICampaignReportService, CampaignReportService>();
 builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddScoped<IPreventiveMaintenanceScheduler, PreventiveMaintenanceScheduler>();
 builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Notifications.Services.INotificationService, CoreGrid.Api.Features.Notifications.Services.NotificationService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Shared.Storage.IFileStorageService, CoreGrid.Api.Features.Shared.Storage.CloudflareR2StorageService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IMaintenanceAnalysisToolsService, CoreGrid.Api.Features.AgentTools.Services.MaintenanceAnalysisToolsService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IFailureStatisticsEngine, CoreGrid.Api.Features.AgentTools.Services.FailureStatisticsEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalPreconditionService, CoreGrid.Api.Features.Disposals.DisposalPreconditionService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalService, CoreGrid.Api.Features.Disposals.DisposalService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferService, CoreGrid.Api.Features.Transfers.Services.TransferService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IAgentToolsService, CoreGrid.Api.Features.AgentTools.Services.AgentToolsService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyRuleEngine, CoreGrid.Api.Features.Agents.Services.PolicyRuleEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAgentWorkflowService, CoreGrid.Api.Features.Agents.Services.AgentWorkflowService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPlannerAgentClient, CoreGrid.Api.Features.Agents.Services.PlannerAgentService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAssetActionRecommendationEngine, CoreGrid.Api.Features.Agents.Services.AssetActionRecommendationEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyComplianceAgentService, CoreGrid.Api.Features.Agents.Services.PolicyComplianceAgentService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IMaintenanceAnalysisAgentService, CoreGrid.Api.Features.Agents.Services.MaintenanceAnalysisAgentService>();
 
+// Planner Agent's only external dependency. The named client keeps OpenAI
+// transport settings out of workflow code and prevents an unavailable model
+// from blocking a request indefinitely; PlannerAgentService safely falls back
+// to the deterministic plan when this request fails.
+builder.Services.AddHttpClient("OpenAI", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>
 {
@@ -157,8 +172,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
+else
+{
+    // In dev the frontend talks to the plain-HTTP endpoint (VITE_API_URL,
+    // Cors:AllowedOrigins are both http://localhost:5173/:5083). Redirecting
+    // to https://localhost:7240 there just breaks fetch() on the untrusted
+    // dev cert — "Can't reach CoreGrid / Failed to fetch".
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("Frontend");
 

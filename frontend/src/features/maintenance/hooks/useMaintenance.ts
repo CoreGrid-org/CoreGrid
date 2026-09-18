@@ -10,10 +10,12 @@ import {
   startMaintenance,
   completeMaintenance,
   cancelMaintenance,
+  uploadMaintenancePhoto,
 } from "../api/maintenance";
 import type {
   MaintenanceRecord,
   MaintenanceQueryParameters,
+  PagedMaintenanceRecords,
   ReportFaultRequest,
   CreateMaintenanceRequest,
   ApproveMaintenanceRequest,
@@ -21,9 +23,11 @@ import type {
   CancelMaintenanceRequest,
 } from "../types/maintenance";
 
+const EMPTY_PAGE: PagedMaintenanceRecords = { items: [], total_count: 0, page: 1, page_size: 20, total_pages: 0 };
+
 export function useMaintenanceList(params: MaintenanceQueryParameters) {
   const { getAccessToken } = useThunderID();
-  const [data, setData] = useState<MaintenanceRecord[]>([]);
+  const [data, setData] = useState<PagedMaintenanceRecords>(EMPTY_PAGE);
   const [error, setError] = useState<unknown>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
@@ -97,6 +101,14 @@ export function useMaintenanceDetail(id: string | undefined) {
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 
   return { data, error, isError: error !== undefined, isLoading, refetch };
+}
+
+export function useUploadMaintenancePhoto() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<File, string>(async (file) => {
+    const accessToken = await getAccessToken();
+    return uploadMaintenancePhoto(file, accessToken);
+  });
 }
 
 export function useReportFault() {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Dropdown, DatePicker, DatePickerInput, InlineNotification } from "@carbon/react";
+import { Button, Dropdown, DatePicker, DatePickerInput, InlineNotification, Pagination, Tag } from "@carbon/react";
 import { DocumentPdf, DocumentExport } from "@carbon/icons-react";
 import { useAuditReport, useExportAuditReport } from "../hooks/useAuditReport";
 import { useDepartments, useAssetCategories } from "@/features/assets/hooks/useAssets";
@@ -25,6 +25,8 @@ export default function AuditReportPanel() {
   const [departmentId, setDepartmentId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState(STATUS_FILTERS[0]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const query = {
     from,
@@ -32,6 +34,8 @@ export default function AuditReportPanel() {
     departmentId: departmentId || undefined,
     categoryId: categoryId || undefined,
     status: status === "All statuses" ? undefined : status,
+    page,
+    pageSize,
   };
 
   const report = useAuditReport(query);
@@ -42,18 +46,17 @@ export default function AuditReportPanel() {
   return (
     <>
       <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
-        Every campaign and discrepancy in your organisation, aggregated across the filters below — how many assets
-        were in scope and verified, and discrepancies broken down by classification and resolution status (FR-065).
-        Export reflects exactly what's filtered on screen (FR-084, FR-085), restricted to your organisation
-        (FR-086).
+        Every campaign and discrepancy in your organisation, aggregated across the filters below: how many assets
+        were in scope and verified, and discrepancies broken down by classification and resolution status. Export
+        reflects exactly what's filtered on screen, restricted to your organisation.
       </p>
 
       <div className="cg-section" style={{ marginBottom: "1rem" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", padding: "1rem 1.5rem", alignItems: "flex-end" }}>
-          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setFrom(date ? toDateOnly(date) : undefined)}>
+          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => { setFrom(date ? toDateOnly(date) : undefined); setPage(1); }}>
             <DatePickerInput id="audit-report-from" labelText="From" placeholder="yyyy-mm-dd" />
           </DatePicker>
-          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setTo(date ? toDateOnly(date) : undefined)}>
+          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => { setTo(date ? toDateOnly(date) : undefined); setPage(1); }}>
             <DatePickerInput id="audit-report-to" labelText="To" placeholder="yyyy-mm-dd" />
           </DatePicker>
           <Dropdown
@@ -63,7 +66,7 @@ export default function AuditReportPanel() {
             items={["", ...(departments?.map((d) => d.id) ?? [])]}
             itemToString={(id) => (id ? departments?.find((d) => d.id === id)?.name ?? id : "All departments")}
             selectedItem={departmentId}
-            onChange={({ selectedItem }) => setDepartmentId(selectedItem || "")}
+            onChange={({ selectedItem }) => { setDepartmentId(selectedItem || ""); setPage(1); }}
             style={{ minWidth: "12rem" }}
           />
           <Dropdown
@@ -73,7 +76,7 @@ export default function AuditReportPanel() {
             items={["", ...(categories?.map((c) => c.id) ?? [])]}
             itemToString={(id) => (id ? categories?.find((c) => c.id === id)?.name ?? id : "All categories")}
             selectedItem={categoryId}
-            onChange={({ selectedItem }) => setCategoryId(selectedItem || "")}
+            onChange={({ selectedItem }) => { setCategoryId(selectedItem || ""); setPage(1); }}
             style={{ minWidth: "12rem" }}
           />
           <Dropdown
@@ -82,7 +85,7 @@ export default function AuditReportPanel() {
             label={status}
             items={STATUS_FILTERS}
             selectedItem={status}
-            onChange={({ selectedItem }) => setStatus(selectedItem ?? STATUS_FILTERS[0])}
+            onChange={({ selectedItem }) => { setStatus(selectedItem ?? STATUS_FILTERS[0]); setPage(1); }}
             style={{ minWidth: "10rem" }}
           />
         </div>
@@ -138,6 +141,11 @@ export default function AuditReportPanel() {
             <p>Loading…</p>
           </div>
         ) : report.data ? (
+          (() => {
+            const byClassification = report.data.by_classification ?? [];
+            const discrepancies = report.data.discrepancies ?? [];
+            const discrepanciesTotalCount = report.data.discrepancies_total_count ?? discrepancies.length;
+            return (
           <>
             <div className="cg-stat-grid" style={{ padding: "1.5rem", marginBottom: 0, gridTemplateColumns: "repeat(4, 1fr)" }}>
               <div className="cg-stat-card">
@@ -175,8 +183,8 @@ export default function AuditReportPanel() {
                 </tr>
               </thead>
               <tbody>
-                {report.data.by_classification.length > 0 ? (
-                  report.data.by_classification.map((row) => (
+                {byClassification.length > 0 ? (
+                  byClassification.map((row) => (
                     <tr key={row.classification}>
                       <td>{row.classification}</td>
                       <td className="cg-table__muted">{row.raised}</td>
@@ -192,7 +200,68 @@ export default function AuditReportPanel() {
                 )}
               </tbody>
             </table>
+
+            <div style={{ marginTop: "2rem" }}>
+              <div className="cg-section__header">
+                <div>
+                  <h2 className="cg-section__title">Discrepancies</h2>
+                  <p className="cg-section__subtitle">
+                    Showing {discrepancies.length.toLocaleString()} of {discrepanciesTotalCount.toLocaleString()} filtered discrepancies
+                  </p>
+                </div>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table className="cg-table cg-table--no-hover">
+                  <thead>
+                    <tr>
+                      <th>Asset</th>
+                      <th>Department</th>
+                      <th>Classification</th>
+                      <th>Status</th>
+                      <th>Raised</th>
+                      <th>Resolved</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {discrepancies.length > 0 ? (
+                      discrepancies.map((row, i) => (
+                        <tr key={`${row.asset_code}-${row.raised_at}-${i}`}>
+                          <td className="cg-table__mono">{row.asset_code}</td>
+                          <td className="cg-table__muted">{row.department_name}</td>
+                          <td>{row.classification}</td>
+                          <td>
+                            <Tag type={row.status === "Open" ? "red" : "green"}>{row.status}</Tag>
+                          </td>
+                          <td className="cg-table__muted">{new Date(row.raised_at).toLocaleDateString()}</td>
+                          <td className="cg-table__muted">{row.resolved_at ? new Date(row.resolved_at).toLocaleDateString() : "—"}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="cg-table__muted">
+                          No discrepancies match these filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {discrepanciesTotalCount > 0 && (
+                <Pagination
+                  page={page}
+                  pageSize={pageSize}
+                  pageSizes={[10, 25, 50, 100]}
+                  totalItems={discrepanciesTotalCount}
+                  onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+                    setPage(nextPage);
+                    setPageSize(nextPageSize);
+                  }}
+                />
+              )}
+            </div>
           </>
+            );
+          })()
         ) : null}
       </div>
     </>
