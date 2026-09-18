@@ -98,3 +98,25 @@ THUNDERID_RESOURCE=https://localhost:8090/mcp
 THUNDERID_AGENT_CLIENT_ID=coregrid-agent-service
 THUNDERID_AGENT_CLIENT_SECRET=<secret_from_thunderid_console>
 ```
+
+---
+
+## 5. In-Process Agent LLM Configuration (.NET Core)
+
+With the migration of agents into the ASP.NET Core process (PlannerAgentService and BudgetAgentService), external M2M tokens and standalone Python runtimes are no longer needed for these nodes. Their LLM outbound endpoints are configured via standard .NET `IConfiguration` (via `appsettings.json`, `appsettings.Development.json`, User Secrets, or environment variables).
+
+### Planner Agent (`PlannerAgentService`)
+- **`Planner:OpenAiApiKey`** (Env: `Planner__OpenAiApiKey`): OpenAI API key. If empty or unconfigured, gracefully falls back to deterministic `PlannerScopeGuard.FallbackPlan()`.
+- **`Planner:Model`** (Env: `Planner__Model`): OpenAI model identifier (default: `gpt-4o-mini`).
+
+### Budget Analysis Agent (`BudgetAgentService`)
+- **`Budget:ApiKey`** (Env: `Budget__ApiKey`): API key for LLM inference (supports either OpenAI API key or Google Gemini API key). If not set, falls back to checking `Planner:OpenAiApiKey`, or returns deterministic `BudgetScopeGuard.FallbackAssessment()`.
+- **`Budget:Endpoint`** (Env: `Budget__Endpoint`): OpenAI-compatible chat completions endpoint URL.
+  - **Recommended Cost-Conscious Default (Google Gemini)**:
+    `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`
+  - **Direct OpenAI Default**:
+    `https://api.openai.com/v1/chat/completions`
+- **`Budget:Model`** (Env: `Budget__Model`): Target model name.
+  - For Gemini: `gemini-2.0-flash` or `gemini-2.5-flash`
+  - For OpenAI: `gpt-4o-mini`
+

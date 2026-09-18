@@ -645,17 +645,6 @@ public class DisposalServiceTests
             FamilyName = "Uester"
         };
 
-        var requesterUser = new User
-        {
-            Id = requesterId,
-            OrganizationId = orgId,
-            ExternalSubjectId = "sub-req",
-            GivenName = "Req",
-            FamilyName = "User",
-            Email = "requester@test.com",
-            Role = CoreGridRole.InventoryOfficer
-        };
-
         var disposalRequest = new DisposalRequest
         {
             Id = Guid.NewGuid(),
@@ -670,7 +659,6 @@ public class DisposalServiceTests
             RequestedAt = DateTimeOffset.UtcNow
         };
 
-        dbContext.Users.Add(requesterUser);
         dbContext.AssetTypes.Add(assetType);
         dbContext.Assets.Add(asset);
         dbContext.Users.Add(requester);
@@ -705,17 +693,6 @@ public class DisposalServiceTests
         var orgId = Guid.NewGuid();
         var requesterId = Guid.NewGuid();
         var adminId = Guid.NewGuid();
-
-        var requesterUser = new User
-        {
-            Id = requesterId,
-            OrganizationId = orgId,
-            ExternalSubjectId = "sub-req",
-            GivenName = "Req",
-            FamilyName = "User",
-            Email = "requester@test.com",
-            Role = CoreGridRole.InventoryOfficer
-        };
 
         var assetType = new AssetType { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "VEH", Name = "Vehicle", UsefulLifeYears = 5 };
         var asset = new Asset
@@ -753,7 +730,6 @@ public class DisposalServiceTests
             RequestedAt = DateTimeOffset.UtcNow
         };
 
-        dbContext.Users.Add(requesterUser);
         dbContext.AssetTypes.Add(assetType);
         dbContext.Assets.Add(asset);
         dbContext.Users.Add(requester);
