@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Button, InlineNotification, Tag } from "@carbon/react";
-import { Add, Edit } from "@carbon/icons-react";
-import { useUsersList, useSetUserActive } from "../hooks/useUsers";
+import { useEffect, useState } from "react";
+import { Button, InlineNotification, Pagination, Tag } from "@carbon/react";
+import { Add, Edit, Search } from "@carbon/icons-react";
+import { useUsersPage, useSetUserActive } from "../hooks/useUsers";
 import { useDepartments } from "@/features/assets/hooks/useAssets";
 import CreateUserModal from "../components/CreateUserModal";
 import EditUserModal from "../components/EditUserModal";
@@ -13,7 +13,26 @@ import type { CoreGridUser } from "../services/users";
 // ThunderID; change an existing user's role/department or deactivate them
 // (never hard-deleted).
 export default function UsersPage() {
-  const { data: users, isLoading, isError, error, refetch } = useUsersList();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const { data: usersPage, isLoading, isError, error, refetch } = useUsersPage({
+    search: search || undefined,
+    page,
+    pageSize,
+  });
+  const users = usersPage.items;
   const departments = useDepartments();
   const setUserActive = useSetUserActive();
 
@@ -60,11 +79,23 @@ export default function UsersPage() {
       )}
 
       <div className="cg-section">
+        <div className="cg-toolbar" style={{ marginBottom: "1rem" }}>
+          <div className="cg-search" style={{ minWidth: "18rem" }}>
+            <Search size={16} className="cg-search__icon" />
+            <input
+              className="cg-search__input"
+              placeholder="Search by name or email…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Search users"
+            />
+          </div>
+        </div>
         {isLoading ? (
           <div className="cg-placeholder">
             <p>Loading users…</p>
           </div>
-        ) : users && users.length > 0 ? (
+        ) : users.length > 0 ? (
           <table className="cg-table cg-table--no-hover">
             <thead>
               <tr>
@@ -113,10 +144,23 @@ export default function UsersPage() {
           </table>
         ) : (
           <div className="cg-placeholder">
-            <p>No users yet. Add the first one to get started.</p>
+            <p>{search ? "No users match this search." : "No users yet. Add the first one to get started."}</p>
           </div>
         )}
       </div>
+
+      {usersPage.total_count > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          pageSizes={[10, 20, 50, 100]}
+          totalItems={usersPage.total_count}
+          onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+            setPage(nextPage);
+            setPageSize(nextPageSize);
+          }}
+        />
+      )}
 
       {isAddOpen && (
         <CreateUserModal

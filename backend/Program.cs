@@ -71,6 +71,7 @@ builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
 builder.Services.AddScoped<ICampaignReportService, CampaignReportService>();
 builder.Services.AddScoped<IAuditReportService, AuditReportService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddScoped<IPreventiveMaintenanceScheduler, PreventiveMaintenanceScheduler>();
 builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Notifications.Services.INotificationService, CoreGrid.Api.Features.Notifications.Services.NotificationService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Shared.Storage.IFileStorageService, CoreGrid.Api.Features.Shared.Storage.CloudflareR2StorageService>();
@@ -85,6 +86,7 @@ builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAgentWorkflowS
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPlannerAgentClient, CoreGrid.Api.Features.Agents.Services.PlannerAgentService>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAssetActionRecommendationEngine, CoreGrid.Api.Features.Agents.Services.AssetActionRecommendationEngine>();
 builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyComplianceAgentService, CoreGrid.Api.Features.Agents.Services.PolicyComplianceAgentService>();
+builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IMaintenanceAnalysisAgentService, CoreGrid.Api.Features.Agents.Services.MaintenanceAnalysisAgentService>();
 
 // Planner Agent's only external dependency. The named client keeps OpenAI
 // transport settings out of workflow code and prevents an unavailable model

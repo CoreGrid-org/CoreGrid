@@ -34,6 +34,8 @@ export default function AuditReportPanel() {
     departmentId: departmentId || undefined,
     categoryId: categoryId || undefined,
     status: status === "All statuses" ? undefined : status,
+    page,
+    pageSize,
   };
 
   const report = useAuditReport(query);
@@ -142,6 +144,7 @@ export default function AuditReportPanel() {
           (() => {
             const byClassification = report.data.by_classification ?? [];
             const discrepancies = report.data.discrepancies ?? [];
+            const discrepanciesTotalCount = report.data.discrepancies_total_count ?? discrepancies.length;
             return (
           <>
             <div className="cg-stat-grid" style={{ padding: "1.5rem", marginBottom: 0, gridTemplateColumns: "repeat(4, 1fr)" }}>
@@ -202,7 +205,9 @@ export default function AuditReportPanel() {
               <div className="cg-section__header">
                 <div>
                   <h2 className="cg-section__title">Discrepancies</h2>
-                  <p className="cg-section__subtitle">Showing {discrepancies.length.toLocaleString()} filtered discrepancies</p>
+                  <p className="cg-section__subtitle">
+                    Showing {discrepancies.length.toLocaleString()} of {discrepanciesTotalCount.toLocaleString()} filtered discrepancies
+                  </p>
                 </div>
               </div>
               <div style={{ overflowX: "auto" }}>
@@ -219,20 +224,18 @@ export default function AuditReportPanel() {
                   </thead>
                   <tbody>
                     {discrepancies.length > 0 ? (
-                      discrepancies
-                        .slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
-                        .map((row, i) => (
-                          <tr key={`${row.asset_code}-${row.raised_at}-${i}`}>
-                            <td className="cg-table__mono">{row.asset_code}</td>
-                            <td className="cg-table__muted">{row.department_name}</td>
-                            <td>{row.classification}</td>
-                            <td>
-                              <Tag type={row.status === "Open" ? "red" : "green"}>{row.status}</Tag>
-                            </td>
-                            <td className="cg-table__muted">{new Date(row.raised_at).toLocaleDateString()}</td>
-                            <td className="cg-table__muted">{row.resolved_at ? new Date(row.resolved_at).toLocaleDateString() : "—"}</td>
-                          </tr>
-                        ))
+                      discrepancies.map((row, i) => (
+                        <tr key={`${row.asset_code}-${row.raised_at}-${i}`}>
+                          <td className="cg-table__mono">{row.asset_code}</td>
+                          <td className="cg-table__muted">{row.department_name}</td>
+                          <td>{row.classification}</td>
+                          <td>
+                            <Tag type={row.status === "Open" ? "red" : "green"}>{row.status}</Tag>
+                          </td>
+                          <td className="cg-table__muted">{new Date(row.raised_at).toLocaleDateString()}</td>
+                          <td className="cg-table__muted">{row.resolved_at ? new Date(row.resolved_at).toLocaleDateString() : "—"}</td>
+                        </tr>
+                      ))
                     ) : (
                       <tr>
                         <td colSpan={6} className="cg-table__muted">
@@ -243,12 +246,12 @@ export default function AuditReportPanel() {
                   </tbody>
                 </table>
               </div>
-              {discrepancies.length > 0 && (
+              {discrepanciesTotalCount > 0 && (
                 <Pagination
                   page={page}
                   pageSize={pageSize}
                   pageSizes={[10, 25, 50, 100]}
-                  totalItems={discrepancies.length}
+                  totalItems={discrepanciesTotalCount}
                   onChange={({ page: nextPage, pageSize: nextPageSize }) => {
                     setPage(nextPage);
                     setPageSize(nextPageSize);

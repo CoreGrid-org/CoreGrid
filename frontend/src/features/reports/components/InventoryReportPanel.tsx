@@ -1,11 +1,12 @@
-import { Button, ComboBox, InlineNotification, Search, Select, SelectItem, SkeletonText, Tag } from "@carbon/react";
+import { Button, ComboBox, InlineNotification, Pagination, Search, Select, SelectItem, SkeletonText, Tag } from "@carbon/react";
 import { DocumentExport, DocumentPdf } from "@carbon/icons-react";
 import { jsPDF } from "jspdf";
 import { useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useAssetCategories, useAssetTypes, useDepartments, useLocations } from "@/features/assets/hooks/useAssets";
-import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetCategory, type AssetQueryParameters, type AssetType, type Department, type Location } from "@/features/assets/types/asset";
+import { listAssets } from "@/features/assets/api/assets";
+import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetCategory, type AssetQueryParameters, type AssetType, type Department, type Location, type PagedResult } from "@/features/assets/types/asset";
 import { formatStatusLabel, statusTagColor } from "@/shared/lib/statusTag";
 import { getInventoryAssets } from "../api/inventoryReport";
 import type { Asset } from "@/features/assets/types/asset";
@@ -138,6 +139,8 @@ export default function InventoryReportPanel() {
   const [locationId, setLocationId] = useState("");
   const [status, setStatus] = useState("");
   const [condition, setCondition] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [error, setError] = useState<unknown>();
   const [isLoading, setIsLoading] = useState(true);
   const { data: categories } = useAssetCategories();
@@ -153,6 +156,10 @@ export default function InventoryReportPanel() {
   useEffect(() => {
     setLocationId("");
   }, [departmentId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryId, assetTypeId, departmentId, locationId, status, condition]);
 
   const query: Omit<AssetQueryParameters, "page" | "pageSize"> = {
     search: search || undefined,
@@ -188,6 +195,35 @@ export default function InventoryReportPanel() {
       cancelled = true;
     };
   }, [getAccessToken, search, categoryId, assetTypeId, departmentId, locationId, status, condition]);
+
+  // Real server-side pagination for the detail table specifically — a
+  // separate request per page, not a client-side slice of the full
+  // (already-aggregated) `assets` array above, which stays as-is for the
+  // stats/by-department breakdown and for PDF/CSV export (those need every
+  // filtered asset, not just one page of them).
+  const [detailPage, setDetailPage] = useState<PagedResult<Asset>>({
+    items: [], total_count: 0, page: 1, page_size: pageSize, total_pages: 0,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAccessToken()
+      .then((token) => listAssets({ ...query, page, pageSize, sortBy: "name", sortDirection: "asc" }, token))
+      .then((result) => {
+        if (!cancelled) setDetailPage(result);
+      })
+      .catch(() => {
+        // Errors here surface through the aggregate fetch's own error
+        // state above (same filters, same failure mode) — no need for a
+        // second error banner for the same underlying request.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- query is rebuilt every render from the same state below
+  }, [getAccessToken, search, categoryId, assetTypeId, departmentId, locationId, status, condition, page, pageSize]);
 
   if (isLoading) {
     return <div className="cg-section"><SkeletonText paragraph lineCount={4} /></div>;
@@ -336,7 +372,9 @@ export default function InventoryReportPanel() {
         <div className="cg-section__header">
           <div>
             <h2 className="cg-section__title">Asset details</h2>
-            <p className="cg-section__subtitle">Showing {assets.length.toLocaleString()} filtered assets</p>
+            <p className="cg-section__subtitle">
+              Showing {detailPage.items.length.toLocaleString()} of {detailPage.total_count.toLocaleString()} filtered assets
+            </p>
           </div>
         </div>
         <div style={{ overflowX: "auto" }}>
@@ -355,7 +393,7 @@ export default function InventoryReportPanel() {
               </tr>
             </thead>
             <tbody>
-              {assets.map((asset) => (
+              {detailPage.items.map((asset) => (
                 <tr key={asset.id}>
                   <td>{asset.asset_code}</td>
                   <td>{asset.name}</td>
@@ -368,10 +406,22 @@ export default function InventoryReportPanel() {
                   <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
                 </tr>
               ))}
-              {assets.length === 0 && <tr><td colSpan={9} className="cg-table__muted">No assets found.</td></tr>}
+              {detailPage.items.length === 0 && <tr><td colSpan={9} className="cg-table__muted">No assets found.</td></tr>}
             </tbody>
           </table>
         </div>
+        {detailPage.total_count > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            pageSizes={[10, 20, 50, 100]}
+            totalItems={detailPage.total_count}
+            onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+              setPage(nextPage);
+              setPageSize(nextPageSize);
+            }}
+          />
+        )}
       </div>
     </div>
   );

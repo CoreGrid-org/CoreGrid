@@ -40,22 +40,18 @@ export const MOCK_REPORTS: MockReport[] = [
     ],
   },
   {
+    // Real (2026-09-17) — see MaintenanceReportPanel.tsx. Kept here only so
+    // ReportsPage.tsx's tab list (which iterates this array for every tab
+    // except Audit) still renders a "Maintenance" tab; the description/
+    // stats/columns/rows below aren't used once a real panel exists for a
+    // key (see ReportsPage.tsx's report.key === "maintenance" branch).
     key: "maintenance",
     title: "Maintenance Report",
     description: "Cost and repair-count trends across the fleet, filterable by date range and department.",
     requirement: "FR-084",
-    stats: [
-      { label: "Records this period", value: "58" },
-      { label: "Total cost", value: "LKR 64,250" },
-      { label: "Average cost per repair", value: "LKR 1,108" },
-    ],
-    columns: ["Asset type", "Repairs", "Total cost"],
-    rows: [
-      { "Asset type": "Delivery Van", Repairs: 21, "Total cost": "LKR 38,400" },
-      { "Asset type": "Patient Monitor", Repairs: 9, "Total cost": "LKR 11,850" },
-      { "Asset type": "Laptop", Repairs: 14, "Total cost": "LKR 4,200" },
-      { "Asset type": "Network Switch", Repairs: 3, "Total cost": "LKR 2,100" },
-    ],
+    stats: [],
+    columns: [],
+    rows: [],
   },
   {
     key: "disposal",
@@ -78,6 +74,7 @@ export const MOCK_REPORTS: MockReport[] = [
 
 // The Audit Campaign Report tab (FR-065, Component D) is real — see
 // features/reports/pages/ReportsPage.tsx and hooks/useAuditReport.ts. It
-// used to live here as a fifth mock entry; the other three above
-// (inventory/maintenance/disposal) belong to Components A/B/C and stay mock
-// until those components build their own report backends.
+// used to live here as a fifth mock entry. Inventory (Component A) and
+// Maintenance (Component B, 2026-09-17) are now real too — see
+// InventoryReportPanel.tsx/MaintenanceReportPanel.tsx. Disposal (Component
+// C) is the only one still mock, pending its own report backend.

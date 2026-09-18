@@ -14,7 +14,13 @@ public class MaintenanceRecord
 
     public string Description { get; set; } = string.Empty;
     public string ObservedCondition { get; set; } = string.Empty; // NEW, GOOD, FAIR, POOR, UNSERVICEABLE
-    public string? PhotoUrl { get; set; }
+
+    // FR-034: an R2 object key (IFileStorageService.UploadPrivateAsync), not
+    // a directly-usable URL — the record isn't meant to be viewable by
+    // anyone who guesses or intercepts a link. MaintenanceService mints a
+    // fresh, short-lived presigned URL from this key on every authorized
+    // read instead of persisting a permanent public one.
+    public string? PhotoObjectKey { get; set; }
 
     public MaintenanceType Type { get; set; }
     public MaintenancePriority Priority { get; set; }

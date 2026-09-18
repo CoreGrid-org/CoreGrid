@@ -3,6 +3,7 @@ using System;
 using CoreGrid.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CoreGrid.Api.Migrations
 {
     [DbContext(typeof(CoreGridDbContext))]
-    partial class CoreGridDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917083415_AddMaintenanceAnalysisToAgentWorkflow")]
+    partial class AddMaintenanceAnalysisToAgentWorkflow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -955,7 +958,7 @@ namespace CoreGrid.Api.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("PhotoObjectKey")
+                    b.Property<string>("PhotoUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 

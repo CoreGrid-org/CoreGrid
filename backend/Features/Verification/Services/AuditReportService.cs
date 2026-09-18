@@ -78,8 +78,22 @@ public class AuditReportService : IAuditReportService
             .Select(c => new AuditReportClassificationRow { Classification = c.Type.ToString(), Raised = c.Raised, Resolved = c.Resolved })
             .ToList();
 
-        var discrepancyRows = await discrepancies
-            .OrderByDescending(d => d.CreatedAt)
+        var discrepanciesTotalCount = await discrepancies.CountAsync(cancellationToken);
+
+        var orderedDiscrepancies = discrepancies.OrderByDescending(d => d.CreatedAt);
+
+        // Page only when the caller asked for a page (the on-screen fetch);
+        // the export endpoint leaves Page null and gets every row, same as
+        // before this was added.
+        var page = filter.Page ?? 1;
+        var pageSize = filter.PageSize ?? discrepanciesTotalCount;
+        pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, 500);
+
+        var pagedDiscrepancies = filter.Page.HasValue
+            ? orderedDiscrepancies.Skip((page - 1) * pageSize).Take(pageSize)
+            : orderedDiscrepancies;
+
+        var discrepancyRows = await pagedDiscrepancies
             .Select(d => new AuditReportDiscrepancyRow
             {
                 AssetCode = d.Asset!.AssetCode,
@@ -92,6 +106,8 @@ public class AuditReportService : IAuditReportService
             })
             .ToListAsync(cancellationToken);
 
+        var totalPages = discrepanciesTotalCount == 0 ? 0 : (int)Math.Ceiling(discrepanciesTotalCount / (double)pageSize);
+
         return new AuditReportDto
         {
             From = filter.From,
@@ -102,6 +118,10 @@ public class AuditReportService : IAuditReportService
             OpenDiscrepancies = openDiscrepancies,
             ByClassification = byClassification,
             Discrepancies = discrepancyRows,
+            DiscrepanciesTotalCount = discrepanciesTotalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages,
             GeneratedAt = DateTimeOffset.UtcNow
         };
     }
