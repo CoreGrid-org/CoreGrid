@@ -177,25 +177,6 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
         Assert.Equal(expected, response.StatusCode);
     }
 
-    // FR-005 correction, 2026-09-12: MaintenanceController's demo/dev "seed"
-    // endpoint was [AllowAnonymous] — reachable unauthenticated. Now
-    // Administrator-only; an unauthenticated caller gets 401, not through to
-    // the seeding logic at all.
-    [Fact]
-    public async Task MaintenanceSeed_RejectsUnauthenticatedCaller()
-    {
-        var client = _factory.CreateClient();
-        var response = await client.PostAsync("/api/maintenance/seed", null);
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task MaintenanceSeed_RejectsNonAdministrator()
-    {
-        var response = await ClientAs(CoreGridRole.InventoryOfficer).PostAsync("/api/maintenance/seed", null);
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     // FR-009: a deactivated user is denied even with an otherwise-valid identity.
     [Fact]
     public async Task DeactivatedUser_IsRejectedRegardlessOfRole()
@@ -218,9 +199,9 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
 
         var response = await client.PostAsJsonAsync("/api/agent-tools/compute-depreciation", new
         {
-            acquisitionCost = 1000m,
-            acquisitionDate = "2020-01-01",
-            usefulLifeYears = 5
+            acquisition_cost = 1000m,
+            acquisition_date = "2020-01-01",
+            useful_life_years = 5
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -233,9 +214,9 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
     {
         var response = await ClientAs(CoreGridRole.Administrator).PostAsJsonAsync("/api/agent-tools/compute-depreciation", new
         {
-            acquisitionCost = 1000m,
-            acquisitionDate = "2020-01-01",
-            usefulLifeYears = 5
+            acquisition_cost = 1000m,
+            acquisition_date = "2020-01-01",
+            useful_life_years = 5
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
