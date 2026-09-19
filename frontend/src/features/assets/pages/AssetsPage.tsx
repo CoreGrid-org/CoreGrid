@@ -4,6 +4,7 @@ import { Tag, Button, ComboBox, Select, SelectItem, Pagination, InlineNotificati
 import { Add, Edit, Search, Time } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useMe } from "@/features/auth/hooks/useMe";
 import { useAssetCategories, useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
 import AssetDetailModal from "../components/AssetDetailModal";
 import AssetHistoryModal from "../components/AssetHistoryModal";
@@ -25,6 +26,13 @@ import { formatCurrency } from "../utils/format";
 export default function AssetsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // asset:update / asset:create — Appendix B: Officer, Administrator only.
+  // This page is also mounted at /audit/assets (CanReadAssets covers
+  // Auditor too, per Appendix B's asset:read row); Auditor gets the same
+  // read-only register everyone else does, just without these two actions.
+  const { data: me } = useMe();
+  const canManageAssets = me?.role === "InventoryOfficer" || me?.role === "Administrator";
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -95,9 +103,11 @@ export default function AssetsPage() {
           <h1 className="cg-page__title">Asset Register</h1>
           <p className="cg-page__subtitle">Every asset in the organisation, searchable and filterable (FR-021 to FR-025).</p>
         </div>
-        <Button renderIcon={Add} onClick={() => navigate(`${assetsBasePath}/new`)}>
-          Register asset
-        </Button>
+        {canManageAssets && (
+          <Button renderIcon={Add} onClick={() => navigate(`${assetsBasePath}/new`)}>
+            Register asset
+          </Button>
+        )}
       </div>
 
       {isError && (
@@ -237,14 +247,16 @@ export default function AssetsPage() {
                           hasIconOnly
                           onClick={() => setHistoryAsset(asset)}
                         />
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={Edit}
-                          iconDescription="Update asset"
-                          hasIconOnly
-                          onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
-                        />
+                        {canManageAssets && (
+                          <Button
+                            kind="ghost"
+                            size="sm"
+                            renderIcon={Edit}
+                            iconDescription="Update asset"
+                            hasIconOnly
+                            onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using backend.Tests;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
+using CoreGrid.Api.Features.Shared.Scoping;
 using CoreGrid.Api.Features.Transfers.DTOs;
 using CoreGrid.Api.Features.Transfers.Services;
 
@@ -30,6 +34,11 @@ public class TransferServiceTests
         var orgId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
+        // Required FK for AssetTransfer.InitiatedByUser — every real caller
+        // has a Users row (RoleEnrichmentMiddleware guarantees it before
+        // any controller runs); this mirrors that invariant.
+        var user = new User { Id = userId, OrganizationId = orgId, ExternalSubjectId = "sub-init", GivenName = "I", FamilyName = "U", Email = "init@test.com", Role = CoreGridRole.InventoryOfficer };
+
         var deptFrom = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-FROM", Name = "From Dept" };
         var deptTo = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-TO", Name = "To Dept" };
         var locFrom = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptFrom.Id, Name = "Loc 1", Type = "ROOM" };
@@ -43,11 +52,12 @@ public class TransferServiceTests
             LocationId = locFrom.Id,
             AssetCode = "AST-001",
             Name = "Laptop",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
+        dbContext.Users.Add(user);
         dbContext.Departments.AddRange(deptFrom, deptTo);
         dbContext.Locations.AddRange(locFrom, locTo);
         dbContext.Assets.Add(asset);
@@ -62,7 +72,7 @@ public class TransferServiceTests
         };
 
         // Act
-        var result = await service.InitiateTransferAsync(orgId, request, userId);
+        var result = await service.InitiateTransferAsync(orgId, request, userId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -72,16 +82,16 @@ public class TransferServiceTests
 
         var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(updatedAsset);
-        Assert.Equal(AssetStatusConstants.TransferRequested, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.TransferRequested, updatedAsset.Status);
     }
 
     [Theory]
-    [InlineData(AssetStatusConstants.UnderMaintenance)]
-    [InlineData(AssetStatusConstants.TransferRequested)]
-    [InlineData(AssetStatusConstants.InTransit)]
-    [InlineData(AssetStatusConstants.Condemned)]
-    [InlineData(AssetStatusConstants.DisposalRequested)]
-    [InlineData(AssetStatusConstants.Disposed)]
+    [InlineData(AssetStatuses.UnderMaintenance)]
+    [InlineData(AssetStatuses.TransferRequested)]
+    [InlineData(AssetStatuses.InTransit)]
+    [InlineData(AssetStatuses.Condemned)]
+    [InlineData(AssetStatuses.DisposalRequested)]
+    [InlineData(AssetStatuses.Disposed)]
     public async Task InitiateTransfer_WhenAssetStatusIsNotActive_Fails(string invalidStatus)
     {
         // Arrange
@@ -103,7 +113,7 @@ public class TransferServiceTests
             AssetCode = "AST-002",
             Name = "Monitor",
             Status = invalidStatus,
-            Condition = AssetStatusConstants.ConditionGood,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -121,8 +131,8 @@ public class TransferServiceTests
         };
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.InitiateTransferAsync(orgId, request, userId));
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            service.InitiateTransferAsync(orgId, request, userId, CancellationToken.None));
 
         Assert.Contains(invalidStatus, ex.Message);
 
@@ -142,6 +152,12 @@ public class TransferServiceTests
         using var dbContext = CreateInMemoryDbContext();
         var orgId = Guid.NewGuid();
         var approverId = Guid.NewGuid();
+        var initiatorId = Guid.NewGuid();
+
+        // Required FKs for AssetTransfer.InitiatedByUser / the approver read
+        // back via GetTransferByIdAsync's Include chain.
+        var initiator = new User { Id = initiatorId, OrganizationId = orgId, ExternalSubjectId = "sub-initiator", GivenName = "I", FamilyName = "N", Email = "initiator@test.com", Role = CoreGridRole.Staff };
+        var approver = new User { Id = approverId, OrganizationId = orgId, ExternalSubjectId = "sub-approver", GivenName = "A", FamilyName = "P", Email = "approver@test.com", Role = CoreGridRole.Administrator };
 
         var deptFrom = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-FROM", Name = "From Dept" };
         var deptTo = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-TO", Name = "To Dept" };
@@ -156,8 +172,8 @@ public class TransferServiceTests
             LocationId = locFrom.Id,
             AssetCode = "AST-003",
             Name = "Printer",
-            Status = AssetStatusConstants.TransferRequested,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.TransferRequested,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -171,11 +187,12 @@ public class TransferServiceTests
             ToDepartmentId = deptTo.Id,
             FromLocationId = locFrom.Id,
             ToLocationId = locTo.Id,
-            InitiatedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = initiatorId,
             Status = TransferStatus.REQUESTED,
             RequestedAt = DateTimeOffset.UtcNow
         };
 
+        dbContext.Users.AddRange(initiator, approver);
         dbContext.Departments.AddRange(deptFrom, deptTo);
         dbContext.Locations.AddRange(locFrom, locTo);
         dbContext.Assets.Add(asset);
@@ -185,7 +202,7 @@ public class TransferServiceTests
         var service = new TransferService(dbContext);
 
         // Act
-        var result = await service.ApproveTransferAsync(orgId, transfer.Id, approverId);
+        var result = await service.ApproveTransferAsync(orgId, transfer.Id, approverId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -195,8 +212,108 @@ public class TransferServiceTests
 
         var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(updatedAsset);
-        Assert.Equal(AssetStatusConstants.InTransit, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.InTransit, updatedAsset.Status);
         Assert.Equal(approverId, updatedAsset.UpdatedBy);
+    }
+
+    // SRS §9.4: rejecting a transfer request releases the asset back to
+    // ACTIVE — it never left the requesting department.
+    [Fact]
+    public async Task RejectTransfer_WhenTransferIsRequested_SucceedsAndReturnsAssetToActive()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+        var initiatorId = Guid.NewGuid();
+
+        var initiator = new User { Id = initiatorId, OrganizationId = orgId, ExternalSubjectId = "sub-initiator", GivenName = "I", FamilyName = "N", Email = "initiator@test.com", Role = CoreGridRole.Staff };
+        var approver = new User { Id = approverId, OrganizationId = orgId, ExternalSubjectId = "sub-approver", GivenName = "A", FamilyName = "P", Email = "approver@test.com", Role = CoreGridRole.Administrator };
+
+        var deptFrom = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-FROM", Name = "From Dept" };
+        var deptTo = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-TO", Name = "To Dept" };
+        var locFrom = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptFrom.Id, Name = "Loc 1", Type = "ROOM" };
+        var locTo = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptTo.Id, Name = "Loc 2", Type = "ROOM" };
+
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            DepartmentId = deptFrom.Id,
+            LocationId = locFrom.Id,
+            AssetCode = "AST-004",
+            Name = "Printer",
+            Status = AssetStatuses.TransferRequested,
+            Condition = AssetConditions.Good,
+            QrPayload = "qr"
+        };
+
+        var transfer = new AssetTransfer
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = asset.Id,
+            Asset = asset,
+            FromDepartmentId = deptFrom.Id,
+            ToDepartmentId = deptTo.Id,
+            FromLocationId = locFrom.Id,
+            ToLocationId = locTo.Id,
+            InitiatedByUserId = initiatorId,
+            Status = TransferStatus.REQUESTED,
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Users.AddRange(initiator, approver);
+        dbContext.Departments.AddRange(deptFrom, deptTo);
+        dbContext.Locations.AddRange(locFrom, locTo);
+        dbContext.Assets.Add(asset);
+        dbContext.AssetTransfers.Add(transfer);
+        await dbContext.SaveChangesAsync();
+
+        var service = new TransferService(dbContext);
+
+        // Act
+        var result = await service.RejectTransferAsync(
+            orgId, transfer.Id, approverId, new RejectTransferRequest { Reason = "Destination department has no capacity." }, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(TransferStatus.REJECTED, result.Status);
+        Assert.Equal("Destination department has no capacity.", result.RejectionReason);
+
+        var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
+        Assert.NotNull(updatedAsset);
+        Assert.Equal(AssetStatuses.Active, updatedAsset.Status);
+    }
+
+    [Theory]
+    [InlineData(TransferStatus.APPROVED)]
+    [InlineData(TransferStatus.IN_TRANSIT)]
+    [InlineData(TransferStatus.COMPLETED)]
+    [InlineData(TransferStatus.REJECTED)]
+    [InlineData(TransferStatus.CANCELLED)]
+    public async Task RejectTransfer_WhenTransferIsNotRequested_Fails(TransferStatus invalidStatus)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-RJ", Name = "Asset", Status = AssetStatuses.Active, Condition = AssetConditions.Good, QrPayload = "qr" };
+        var transfer = new AssetTransfer
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetId = asset.Id, Asset = asset,
+            FromDepartmentId = Guid.NewGuid(), ToDepartmentId = Guid.NewGuid(), FromLocationId = Guid.NewGuid(), ToLocationId = Guid.NewGuid(),
+            InitiatedByUserId = Guid.NewGuid(), Status = invalidStatus, RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Assets.Add(asset);
+        dbContext.AssetTransfers.Add(transfer);
+        await dbContext.SaveChangesAsync();
+
+        var service = new TransferService(dbContext);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.RejectTransferAsync(orgId, transfer.Id, approverId, new RejectTransferRequest { Reason = "Too late." }, CancellationToken.None));
     }
 
     [Theory]
@@ -218,8 +335,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-004",
             Name = "Chair",
-            Status = AssetStatusConstants.InTransit,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.InTransit,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -245,8 +362,8 @@ public class TransferServiceTests
         var service = new TransferService(dbContext);
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ApproveTransferAsync(orgId, transfer.Id, approverId));
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.ApproveTransferAsync(orgId, transfer.Id, approverId, CancellationToken.None));
 
         Assert.Contains(invalidStatus.ToString(), ex.Message);
     }
@@ -258,6 +375,13 @@ public class TransferServiceTests
         using var dbContext = CreateInMemoryDbContext();
         var orgId = Guid.NewGuid();
         var receiverId = Guid.NewGuid();
+        var initiatorId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+
+        // Required FK for AssetTransfer.InitiatedByUser, read back via
+        // GetTransferByIdAsync's Include chain.
+        var initiator = new User { Id = initiatorId, OrganizationId = orgId, ExternalSubjectId = "sub-initiator2", GivenName = "I", FamilyName = "N", Email = "initiator2@test.com", Role = CoreGridRole.Staff };
+        var approver = new User { Id = approverId, OrganizationId = orgId, ExternalSubjectId = "sub-approver2", GivenName = "A", FamilyName = "P", Email = "approver2@test.com", Role = CoreGridRole.Administrator };
 
         var originalDeptId = Guid.NewGuid();
         var originalLocId = Guid.NewGuid();
@@ -277,8 +401,8 @@ public class TransferServiceTests
             LocationId = originalLocId,
             AssetCode = "AST-005",
             Name = "Projector",
-            Status = AssetStatusConstants.InTransit,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.InTransit,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -292,13 +416,14 @@ public class TransferServiceTests
             ToDepartmentId = targetDeptId,
             FromLocationId = originalLocId,
             ToLocationId = targetLocId,
-            InitiatedByUserId = Guid.NewGuid(),
-            ApprovedByUserId = Guid.NewGuid(),
+            InitiatedByUserId = initiatorId,
+            ApprovedByUserId = approverId,
             Status = TransferStatus.APPROVED,
             RequestedAt = DateTimeOffset.UtcNow.AddHours(-2),
             ApprovedAt = DateTimeOffset.UtcNow.AddHours(-1)
         };
 
+        dbContext.Users.AddRange(initiator, approver);
         dbContext.Departments.AddRange(deptFrom, deptTo);
         dbContext.Locations.AddRange(locFrom, locTo);
         dbContext.Assets.Add(asset);
@@ -308,7 +433,7 @@ public class TransferServiceTests
         var service = new TransferService(dbContext);
 
         // Act
-        var result = await service.ConfirmReceiptAsync(orgId, transfer.Id, receiverId);
+        var result = await service.ConfirmReceiptAsync(orgId, transfer.Id, receiverId, CoreGridRole.Administrator, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -320,7 +445,7 @@ public class TransferServiceTests
         Assert.NotNull(updatedAsset);
         Assert.Equal(targetDeptId, updatedAsset.DepartmentId);
         Assert.Equal(targetLocId, updatedAsset.LocationId);
-        Assert.Equal(AssetStatusConstants.Active, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.Active, updatedAsset.Status);
         Assert.Equal(receiverId, updatedAsset.UpdatedBy);
     }
 
@@ -343,8 +468,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-006",
             Name = "Desk",
-            Status = AssetStatusConstants.TransferRequested,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.TransferRequested,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -370,8 +495,8 @@ public class TransferServiceTests
         var service = new TransferService(dbContext);
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ConfirmReceiptAsync(orgId, transfer.Id, receiverId));
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.ConfirmReceiptAsync(orgId, transfer.Id, receiverId, CoreGridRole.Administrator, null, CancellationToken.None));
 
         Assert.Contains(invalidStatus.ToString(), ex.Message);
     }
@@ -390,8 +515,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-007",
             Name = "Router",
-            Status = AssetStatusConstants.Condemned, // Invalid for transfer
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned, // Invalid for transfer
+            Condition = AssetConditions.Poor,
             QrPayload = "qr"
         };
 
@@ -407,14 +532,14 @@ public class TransferServiceTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.InitiateTransferAsync(orgId, request, userId));
+        await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            service.InitiateTransferAsync(orgId, request, userId, CancellationToken.None));
 
         // Verify dbContext has no added transfer and asset is still CONDEMNED
         Assert.Empty(dbContext.AssetTransfers);
         var persistentAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(persistentAsset);
-        Assert.Equal(AssetStatusConstants.Condemned, persistentAsset.Status);
+        Assert.Equal(AssetStatuses.Condemned, persistentAsset.Status);
     }
 
     // =========================================================================
@@ -445,8 +570,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-001",
             Name = "Laptop",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
         var otherAsset = new Asset
@@ -455,8 +580,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-002",
             Name = "Monitor",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -517,14 +642,14 @@ public class TransferServiceTests
         var service = new TransferService(dbContext);
 
         // Act
-        var result = await service.GetTransferHistoryForAssetAsync(orgId, assetId);
+        var result = await service.GetTransferHistoryForAssetAsync(orgId, DepartmentScope.Unrestricted, assetId, new PagedQuery(), CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(2, result.Count);
-        Assert.Equal(t2.Id, result[0].Id); // Most recent first
-        Assert.Equal(t1.Id, result[1].Id);
-        Assert.All(result, r => Assert.Equal(assetId, r.AssetId));
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(t2.Id, result.Items[0].Id); // Most recent first
+        Assert.Equal(t1.Id, result.Items[1].Id);
+        Assert.All(result.Items, r => Assert.Equal(assetId, r.AssetId));
     }
 
     [Fact]
@@ -537,11 +662,11 @@ public class TransferServiceTests
         var assetId = Guid.NewGuid();
 
         // Act
-        var result = await service.GetTransferHistoryForAssetAsync(orgId, assetId);
+        var result = await service.GetTransferHistoryForAssetAsync(orgId, DepartmentScope.Unrestricted, assetId, new PagedQuery(), CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
-        Assert.Empty(result);
+        Assert.Empty(result.Items);
     }
 
     [Fact]
@@ -553,7 +678,7 @@ public class TransferServiceTests
         var user = new User { Id = Guid.NewGuid(), OrganizationId = orgId, ExternalSubjectId = "sub-page", GivenName = "P", FamilyName = "U", Email = "p@test.com", Role = CoreGridRole.InventoryOfficer };
         var dept = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-P", Name = "Dept P" };
         var loc = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = dept.Id, Name = "Loc P", Type = "Office" };
-        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-P", Name = "P-Asset", Status = AssetStatusConstants.Active, Condition = AssetStatusConstants.ConditionGood, QrPayload = "qr" };
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-P", Name = "P-Asset", Status = AssetStatuses.Active, Condition = AssetConditions.Good, QrPayload = "qr" };
 
         for (int i = 0; i < 25; i++)
         {
@@ -581,7 +706,7 @@ public class TransferServiceTests
         var service = new TransferService(dbContext);
 
         // Act
-        var result = await service.GetTransfersAsync(orgId, new TransferQueryParameters { Page = 2, PageSize = 10 });
+        var result = await service.GetTransfersAsync(orgId, DepartmentScope.Unrestricted, new TransferQueryParameters { Page = 2, PageSize = 10 }, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);

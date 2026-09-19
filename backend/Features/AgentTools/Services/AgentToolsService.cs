@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.DTOs;
+using CoreGrid.Api.Features.Shared.Finance;
 
 namespace CoreGrid.Api.Features.AgentTools.Services;
 
@@ -179,7 +180,7 @@ public class AgentToolsService : IAgentToolsService
             AssetCode = asset.AssetCode,
             CurrentStatus = asset.Status,
             CurrentCondition = asset.Condition,
-            IsCondemned = asset.Status == AssetStatusConstants.Condemned,
+            IsCondemned = asset.Status == AssetStatuses.Condemned,
             HasValuation = latestValuationDate.HasValue,
             ValuationDate = latestValuationDate,
             OpenMaintenanceCount = openMaintenanceCount,
@@ -190,47 +191,35 @@ public class AgentToolsService : IAgentToolsService
 
     public ComputeDepreciationResponse ComputeDepreciation(ComputeDepreciationRequest request)
     {
-        if (request.UsefulLifeYears <= 0 || request.AcquisitionCost <= 0)
-        {
-            return new ComputeDepreciationResponse
-            {
-                AcquisitionCost = request.AcquisitionCost,
-                AcquisitionDate = request.AcquisitionDate,
-                UsefulLifeYears = request.UsefulLifeYears,
-                AsOfDate = request.AsOfDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
-                AnnualDepreciation = 0,
-                AccumulatedDepreciation = 0,
-                CurrentValue = Math.Max(0, request.AcquisitionCost),
-                DepreciationMethod = "straight-line"
-            };
-        }
-
+        // Required/Range on the DTO makes these 400 for an HTTP caller before
+        // this method ever runs; the internal in-process caller below
+        // (GetAssetFinancialsAsync) always supplies concrete values too, so
+        // .Value is safe here — but the useful-life/cost sanity check stays
+        // as a defensive fallback for that same internal caller, which can
+        // legitimately pass UsefulLifeYears = 0 when an asset has no
+        // AssetType (bypasses ModelState entirely, since it's a direct C#
+        // call, not a model-bound request).
+        var acquisitionCost = request.AcquisitionCost!.Value;
+        var acquisitionDate = request.AcquisitionDate!.Value;
+        var usefulLifeYears = request.UsefulLifeYears!.Value;
         var asOf = request.AsOfDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Calculate full elapsed years
-        int yearsElapsed = asOf.Year - request.AcquisitionDate.Year;
-        if (asOf < request.AcquisitionDate.AddYears(yearsElapsed))
-        {
-            yearsElapsed--;
-        }
-        if (yearsElapsed < 0)
-        {
-            yearsElapsed = 0;
-        }
-
-        decimal annualDepreciation = request.AcquisitionCost / request.UsefulLifeYears;
-        decimal accumulated = Math.Min(annualDepreciation * yearsElapsed, request.AcquisitionCost);
-        decimal currentValue = Math.Max(0, request.AcquisitionCost - accumulated);
+        // §6.1/B22: one straight-line implementation (Shared/Finance) for
+        // what this method, AssetService.CalculateResidualValue and
+        // DisposalPreconditionService.CheckP3 each used to compute
+        // separately — ComputeSchedule matches this method's original
+        // whole-year, calendar-anniversary behaviour exactly.
+        var schedule = StraightLineDepreciation.ComputeSchedule(acquisitionCost, acquisitionDate, usefulLifeYears, asOf);
 
         return new ComputeDepreciationResponse
         {
-            AcquisitionCost = request.AcquisitionCost,
-            AcquisitionDate = request.AcquisitionDate,
-            UsefulLifeYears = request.UsefulLifeYears,
+            AcquisitionCost = acquisitionCost,
+            AcquisitionDate = acquisitionDate,
+            UsefulLifeYears = usefulLifeYears,
             AsOfDate = asOf,
-            AnnualDepreciation = Math.Round(annualDepreciation, 2),
-            AccumulatedDepreciation = Math.Round(accumulated, 2),
-            CurrentValue = Math.Round(currentValue, 2),
+            AnnualDepreciation = schedule.AnnualDepreciation,
+            AccumulatedDepreciation = schedule.AccumulatedDepreciation,
+            CurrentValue = schedule.CurrentValue,
             DepreciationMethod = "straight-line"
         };
     }

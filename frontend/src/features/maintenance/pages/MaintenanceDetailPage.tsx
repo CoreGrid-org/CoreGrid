@@ -6,6 +6,7 @@ import { useMaintenanceDetail, useStartMaintenance } from "../hooks/useMaintenan
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useRolePrefix } from "@/shared/hooks/useRolePrefix";
+import { useMe } from "@/features/auth/hooks/useMe";
 
 import ApproveMaintenanceModal from "../components/ApproveMaintenanceModal";
 import CompleteMaintenanceModal from "../components/CompleteMaintenanceModal";
@@ -19,6 +20,15 @@ export default function MaintenanceDetailPage() {
 
   const { data: record, isLoading, isError, error, refetch } = useMaintenanceDetail(id);
   const startMaintenance = useStartMaintenance();
+
+  // maintenance:manage — Appendix B: Officer, Administrator (Auditor reads
+  // this same page, /audit/maintenance/:id, but can't act on it). Complete
+  // is narrower still: InventoryOfficer only on the backend, deliberately
+  // stricter than maintenance:manage (plan §5.4) — Administrator gets
+  // Approve/Start/Cancel here but not Complete.
+  const { data: me } = useMe();
+  const canManage = me?.role === "InventoryOfficer" || me?.role === "Administrator";
+  const canComplete = me?.role === "InventoryOfficer";
 
   const [isApproveOpen, setApproveOpen] = useState(false);
   const [isCompleteOpen, setCompleteOpen] = useState(false);
@@ -74,22 +84,22 @@ export default function MaintenanceDetailPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          {record.status === "REQUESTED" && (
+          {canManage && record.status === "REQUESTED" && (
             <Button kind="primary" onClick={() => setApproveOpen(true)}>
               Approve
             </Button>
           )}
-          {record.status === "APPROVED" && (
+          {canManage && record.status === "APPROVED" && (
             <Button kind="primary" renderIcon={Play} disabled={startMaintenance.isPending} onClick={handleStart}>
               {startMaintenance.isPending ? "Starting..." : "Start Work"}
             </Button>
           )}
-          {record.status === "IN_PROGRESS" && (
+          {canComplete && record.status === "IN_PROGRESS" && (
             <Button kind="primary" renderIcon={Checkmark} onClick={() => setCompleteOpen(true)}>
               Complete Work
             </Button>
           )}
-          {["REQUESTED", "APPROVED", "IN_PROGRESS"].includes(record.status) && (
+          {canManage && ["REQUESTED", "APPROVED", "IN_PROGRESS"].includes(record.status) && (
             <Button kind="danger" renderIcon={TrashCan} onClick={() => setCancelOpen(true)}>
               Cancel
             </Button>

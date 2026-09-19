@@ -28,11 +28,26 @@ export interface UnreadCount {
   count: number;
 }
 
+// backend/Features/Shared/Paging/PagedResult.cs
+interface PagedResult<T> {
+  items: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 // backend/Features/Notifications/Controllers/NotificationsController.cs
+// GetNotifications is paginated (§7 of the backend refactor plan), replacing
+// its old hard Take(50) — the bell panel matches that same ceiling by
+// requesting page 1 at pageSize=50 rather than every page (unlike a full
+// list page, "every notification ever" isn't the right UX for a dropdown).
 export async function listNotifications(onlyUnread: boolean, accessToken: string): Promise<Notification[]> {
-  const qs = onlyUnread ? "?onlyUnread=true" : "";
-  const response = await fetch(`${API_URL}/notifications${qs}`, { headers: authHeaders(accessToken) });
-  return handle(response, "Could not load notifications.");
+  const search = new URLSearchParams({ page: "1", pageSize: "50" });
+  if (onlyUnread) search.set("onlyUnread", "true");
+  const response = await fetch(`${API_URL}/notifications?${search.toString()}`, { headers: authHeaders(accessToken) });
+  const result = await handle<PagedResult<Notification>>(response, "Could not load notifications.");
+  return result.items;
 }
 
 export async function getUnreadCount(accessToken: string): Promise<UnreadCount> {

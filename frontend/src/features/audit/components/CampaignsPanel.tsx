@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Tag, Button, InlineNotification, Modal } from "@carbon/react";
+import { Tag, Button, InlineNotification, Modal, Pagination } from "@carbon/react";
 import { Add, Edit, TrashCan } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import { useClientPagination } from "@/shared/hooks/useClientPagination";
 import { useCampaignsList, useDeleteCampaign } from "../hooks/useCampaigns";
 import CreateCampaignModal from "./CreateCampaignModal";
 import EditCampaignModal from "./EditCampaignModal";
@@ -14,6 +15,7 @@ import type { Campaign } from "../api/campaigns";
 export default function CampaignsPanel() {
   const campaigns = useCampaignsList();
   const deleteCampaign = useDeleteCampaign();
+  const { pageItems, page, pageSize, total, setPage, setPageSize } = useClientPagination(campaigns.data);
 
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
@@ -74,6 +76,7 @@ export default function CampaignsPanel() {
             <p>Loading campaigns…</p>
           </div>
         ) : campaigns.data && campaigns.data.length > 0 ? (
+          <>
           <table className="cg-table cg-table--no-hover">
             <thead>
               <tr>
@@ -87,7 +90,7 @@ export default function CampaignsPanel() {
               </tr>
             </thead>
             <tbody>
-              {campaigns.data.map((c) => (
+              {pageItems.map((c) => (
                 <tr key={c.id}>
                   <td>{c.name}</td>
                   <td className="cg-table__muted">
@@ -133,6 +136,17 @@ export default function CampaignsPanel() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            pageSizes={[10, 20, 50, 100]}
+            totalItems={total}
+            onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+              setPage(nextPage);
+              setPageSize(nextPageSize);
+            }}
+          />
+          </>
         ) : (
           <div className="cg-placeholder">
             <p>No verification campaigns yet.</p>

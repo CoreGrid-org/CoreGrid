@@ -1,14 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Auth;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
+using CoreGrid.Api.Features.Shared.Scoping;
 using CoreGrid.Api.Features.Transfers.DTOs;
 using CoreGrid.Api.Features.Transfers.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Transfers.Controllers;
 
@@ -26,7 +26,7 @@ public class TransfersController : CoreGridControllerBase
 
     // POST /api/transfers — FR-044 / CanRequestTransfer (Officer, Administrator)
     [HttpPost]
-    [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
+    [Authorize(Policy = Policies.CanRequestTransfer)]
     public async Task<ActionResult<TransferResponse>> InitiateTransfer(
         [FromBody] InitiateTransferRequest request,
         CancellationToken cancellationToken)
@@ -34,29 +34,15 @@ public class TransfersController : CoreGridControllerBase
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var result = await _transferService.InitiateTransferAsync(
-                currentUser.OrganizationId,
-                request,
-                currentUser.Id,
-                cancellationToken);
+        var result = await _transferService.InitiateTransferAsync(
+            currentUser.OrganizationId, request, currentUser.Id, cancellationToken);
 
-            return CreatedAtAction(nameof(GetTransferById), new { id = result.Id }, result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return UnprocessableEntity(new { message = ex.Message });
-        }
+        return CreatedAtAction(nameof(GetTransferById), new { id = result.Id }, result);
     }
 
     // POST /api/transfers/{id}/approve — FR-045 / CanApproveTransfer (Administrator)
     [HttpPost("{id:guid}/approve")]
-    [Authorize(Roles = nameof(CoreGridRole.Administrator))]
+    [Authorize(Policy = Policies.CanApproveTransfer)]
     public async Task<ActionResult<TransferResponse>> ApproveTransfer(
         Guid id,
         CancellationToken cancellationToken)
@@ -64,29 +50,32 @@ public class TransfersController : CoreGridControllerBase
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var result = await _transferService.ApproveTransferAsync(
-                currentUser.OrganizationId,
-                id,
-                currentUser.Id,
-                cancellationToken);
+        var result = await _transferService.ApproveTransferAsync(
+            currentUser.OrganizationId, id, currentUser.Id, cancellationToken);
 
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return UnprocessableEntity(new { message = ex.Message });
-        }
+        return Ok(result);
+    }
+
+    // POST /api/transfers/{id}/reject — SRS §9.4 / FR-045 / CanApproveTransfer (Administrator)
+    [HttpPost("{id:guid}/reject")]
+    [Authorize(Policy = Policies.CanApproveTransfer)]
+    public async Task<ActionResult<TransferResponse>> RejectTransfer(
+        Guid id,
+        [FromBody] RejectTransferRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var result = await _transferService.RejectTransferAsync(
+            currentUser.OrganizationId, id, currentUser.Id, request, cancellationToken);
+
+        return Ok(result);
     }
 
     // POST /api/transfers/{id}/confirm-receipt — FR-046 / CanConfirmReceipt (InventoryOfficer, Administrator)
     [HttpPost("{id:guid}/confirm-receipt")]
-    [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
+    [Authorize(Policy = Policies.CanConfirmReceipt)]
     public async Task<ActionResult<TransferResponse>> ConfirmReceipt(
         Guid id,
         CancellationToken cancellationToken)
@@ -94,24 +83,10 @@ public class TransfersController : CoreGridControllerBase
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var result = await _transferService.ConfirmReceiptAsync(
-                currentUser.OrganizationId,
-                id,
-                currentUser.Id,
-                cancellationToken);
+        var result = await _transferService.ConfirmReceiptAsync(
+            currentUser.OrganizationId, id, currentUser.Id, currentUser.Role, currentUser.DepartmentId, cancellationToken);
 
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return UnprocessableEntity(new { message = ex.Message });
-        }
+        return Ok(result);
     }
 
     // GET /api/transfers — authenticated + org-scoped list with status/department filters
@@ -124,9 +99,7 @@ public class TransfersController : CoreGridControllerBase
         if (currentUser is null) return Unauthorized();
 
         var result = await _transferService.GetTransfersAsync(
-            currentUser.OrganizationId,
-            parameters,
-            cancellationToken);
+            currentUser.OrganizationId, DepartmentScope.For(currentUser), parameters, cancellationToken);
 
         return Ok(result);
     }
@@ -141,31 +114,25 @@ public class TransfersController : CoreGridControllerBase
         if (currentUser is null) return Unauthorized();
 
         var result = await _transferService.GetTransferByIdAsync(
-            currentUser.OrganizationId,
-            id,
-            cancellationToken);
+            currentUser.OrganizationId, DepartmentScope.For(currentUser), id, cancellationToken);
 
-        if (result is null)
-        {
-            return NotFound(new { message = $"Transfer with ID {id} not found." });
-        }
-
-        return Ok(result);
+        return result is null
+            ? throw NotFoundException.For(nameof(AssetTransfer), id)
+            : Ok(result);
     }
 
     // GET /api/assets/{assetId}/transfers — FR-047: Complete transfer history for an asset
     [HttpGet("/api/assets/{assetId:guid}/transfers")]
-    public async Task<ActionResult<List<TransferResponse>>> GetTransferHistoryForAsset(
+    public async Task<ActionResult<PagedResult<TransferResponse>>> GetTransferHistoryForAsset(
         Guid assetId,
+        [FromQuery] PagedQuery query,
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
         var result = await _transferService.GetTransferHistoryForAssetAsync(
-            currentUser.OrganizationId,
-            assetId,
-            cancellationToken);
+            currentUser.OrganizationId, DepartmentScope.For(currentUser), assetId, query, cancellationToken);
 
         return Ok(result);
     }

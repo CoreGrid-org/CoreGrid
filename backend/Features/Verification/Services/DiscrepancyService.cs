@@ -1,6 +1,10 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
 using CoreGrid.Api.Features.Verification.DTOs;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +12,29 @@ namespace CoreGrid.Api.Features.Verification.Services;
 
 public class DiscrepancyService : IDiscrepancyService
 {
+    private static readonly Expression<Func<Discrepancy, DiscrepancyDto>> ToDtoExpression = d => new DiscrepancyDto
+    {
+        Id = d.Id,
+        CampaignId = d.CampaignId,
+        VerificationTaskId = d.VerificationTaskId,
+        AssetId = d.AssetId,
+        AssetCode = d.Asset != null ? d.Asset.AssetCode : string.Empty,
+        Type = d.Type,
+        IsAutomatic = d.IsAutomatic,
+        RaisedByUserId = d.RaisedByUserId,
+        RaisedByEmail = d.RaisedByUser != null ? d.RaisedByUser.Email : null,
+        Description = d.Description,
+        PhotoUrl = d.PhotoUrl,
+        Status = d.Status,
+        ResolutionType = d.ResolutionType,
+        ResolutionExplanation = d.ResolutionExplanation,
+        CorrectiveAction = d.CorrectiveAction,
+        RegisterCorrected = d.RegisterCorrected,
+        ResolvedByUserId = d.ResolvedByUserId,
+        ResolvedAt = d.ResolvedAt,
+        CreatedAt = d.CreatedAt
+    };
+
     private readonly CoreGridDbContext _context;
 
     public DiscrepancyService(CoreGridDbContext context)
@@ -15,52 +42,27 @@ public class DiscrepancyService : IDiscrepancyService
         _context = context;
     }
 
-    public async Task<List<DiscrepancyDto>> GetDiscrepanciesAsync(
+    public async Task<PagedResult<DiscrepancyDto>> GetDiscrepanciesAsync(
         Guid organizationId,
-        Guid? campaignId,
-        bool onlyOpen)
+        DiscrepancyQueryParameters query,
+        CancellationToken cancellationToken)
     {
-        var query = _context.Discrepancies
+        var discrepancies = _context.Discrepancies
             .AsNoTracking()
-            .Include(d => d.Asset)
-            .Include(d => d.RaisedByUser)
             .Where(d => d.OrganizationId == organizationId);
 
-        if (campaignId.HasValue)
+        if (query.CampaignId.HasValue)
         {
-            query = query.Where(d => d.CampaignId == campaignId.Value);
+            discrepancies = discrepancies.Where(d => d.CampaignId == query.CampaignId.Value);
         }
 
-        if (onlyOpen)
+        if (query.OnlyOpen)
         {
-            query = query.Where(d => d.Status == DiscrepancyStatus.Open);
+            discrepancies = discrepancies.Where(d => d.Status == DiscrepancyStatus.Open);
         }
 
-        return await query
-            .OrderByDescending(d => d.CreatedAt)
-            .Select(d => new DiscrepancyDto
-            {
-                Id = d.Id,
-                CampaignId = d.CampaignId,
-                VerificationTaskId = d.VerificationTaskId,
-                AssetId = d.AssetId,
-                AssetCode = d.Asset != null ? d.Asset.AssetCode : string.Empty,
-                Type = d.Type,
-                IsAutomatic = d.IsAutomatic,
-                RaisedByUserId = d.RaisedByUserId,
-                RaisedByEmail = d.RaisedByUser != null ? d.RaisedByUser.Email : null,
-                Description = d.Description,
-                PhotoUrl = d.PhotoUrl,
-                Status = d.Status,
-                ResolutionType = d.ResolutionType,
-                ResolutionExplanation = d.ResolutionExplanation,
-                CorrectiveAction = d.CorrectiveAction,
-                RegisterCorrected = d.RegisterCorrected,
-                ResolvedByUserId = d.ResolvedByUserId,
-                ResolvedAt = d.ResolvedAt,
-                CreatedAt = d.CreatedAt
-            })
-            .ToListAsync();
+        var ordered = discrepancies.OrderByDescending(d => d.CreatedAt);
+        return await ordered.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
     }
 
     // FR-061: manual discrepancy raising, for a condition the automatic
@@ -70,19 +72,15 @@ public class DiscrepancyService : IDiscrepancyService
         Guid organizationId,
         Guid taskId,
         Guid currentUserId,
-        RaiseDiscrepancyRequest request)
+        RaiseDiscrepancyRequest request,
+        CancellationToken cancellationToken)
     {
         var task = await _context.VerificationTasks
-            .FirstOrDefaultAsync(t => t.Id == taskId && t.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(t => t.Id == taskId && t.OrganizationId == organizationId, cancellationToken);
 
         if (task is null)
         {
             return null;
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Description))
-        {
-            throw new InvalidOperationException("A description is required to raise a discrepancy.");
         }
 
         var discrepancy = new Discrepancy
@@ -103,10 +101,10 @@ public class DiscrepancyService : IDiscrepancyService
         };
 
         _context.Discrepancies.Add(discrepancy);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return (await GetDiscrepanciesAsync(organizationId, null, false))
-            .FirstOrDefault(d => d.Id == discrepancy.Id);
+        // B18: a real single-row query, not GetDiscrepanciesAsync(...).FirstOrDefault(...).
+        return await GetByIdAsync(organizationId, discrepancy.Id, cancellationToken);
     }
 
     // FR-062: resolve a discrepancy, optionally applying the correction to
@@ -117,12 +115,13 @@ public class DiscrepancyService : IDiscrepancyService
         Guid organizationId,
         Guid discrepancyId,
         Guid currentUserId,
-        ResolveDiscrepancyRequest request)
+        ResolveDiscrepancyRequest request,
+        CancellationToken cancellationToken)
     {
         var discrepancy = await _context.Discrepancies
             .Include(d => d.VerificationTask)
             .Include(d => d.Asset)
-            .FirstOrDefaultAsync(d => d.Id == discrepancyId && d.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(d => d.Id == discrepancyId && d.OrganizationId == organizationId, cancellationToken);
 
         if (discrepancy is null)
         {
@@ -131,26 +130,21 @@ public class DiscrepancyService : IDiscrepancyService
 
         if (discrepancy.Status != DiscrepancyStatus.Open)
         {
-            throw new InvalidOperationException("This discrepancy has already been resolved.");
+            throw new ConflictException("This discrepancy has already been resolved.", "already_resolved");
         }
 
-        var resolutionType = request.ResolutionType?.Trim().ToUpperInvariant() ?? string.Empty;
+        var resolutionType = request.ResolutionType.Trim().ToUpperInvariant();
         if (!DiscrepancyResolutionTypes.All.Contains(resolutionType))
         {
-            throw new InvalidOperationException(
-                $"Resolution type must be one of: {string.Join(", ", DiscrepancyResolutionTypes.All)}.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.ResolutionExplanation))
-        {
-            throw new InvalidOperationException("A resolution explanation is required.");
+            throw new ValidationException(nameof(request.ResolutionType), $"Resolution type must be one of: {string.Join(", ", DiscrepancyResolutionTypes.All)}.");
         }
 
         // FR-062 AC3: NO_ACTION requires a justification of at least 20 characters.
         if (resolutionType == DiscrepancyResolutionTypes.NoAction
             && request.ResolutionExplanation.Trim().Length < DiscrepancyResolutionTypes.NoActionMinimumJustificationLength)
         {
-            throw new InvalidOperationException(
+            throw new ValidationException(
+                nameof(request.ResolutionExplanation),
                 $"NO_ACTION requires a justification of at least {DiscrepancyResolutionTypes.NoActionMinimumJustificationLength} characters.");
         }
 
@@ -161,12 +155,14 @@ public class DiscrepancyService : IDiscrepancyService
             var everVerifiedMissing = await _context.VerificationTasks.AsNoTracking().AnyAsync(
                 t => t.AssetId == discrepancy.AssetId
                     && t.Status == VerificationTaskStatus.Completed
-                    && t.AssertedPresent == false);
+                    && t.AssertedPresent == false,
+                cancellationToken);
 
             if (!everVerifiedMissing)
             {
-                throw new InvalidOperationException(
-                    "WRITTEN_OFF requires the asset to have been verified Missing in at least one completed verification.");
+                throw new BusinessRuleException(
+                    "WRITTEN_OFF requires the asset to have been verified Missing in at least one completed verification.",
+                    "written_off_precondition_failed");
             }
         }
 
@@ -183,10 +179,19 @@ public class DiscrepancyService : IDiscrepancyService
         discrepancy.ResolvedByUserId = currentUserId;
         discrepancy.ResolvedAt = DateTimeOffset.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return (await GetDiscrepanciesAsync(organizationId, null, false))
-            .FirstOrDefault(d => d.Id == discrepancy.Id);
+        // B18: a real single-row query, not GetDiscrepanciesAsync(...).FirstOrDefault(...).
+        return await GetByIdAsync(organizationId, discrepancy.Id, cancellationToken);
+    }
+
+    private async Task<DiscrepancyDto?> GetByIdAsync(Guid organizationId, Guid discrepancyId, CancellationToken cancellationToken)
+    {
+        return await _context.Discrepancies
+            .AsNoTracking()
+            .Where(d => d.Id == discrepancyId && d.OrganizationId == organizationId)
+            .Select(ToDtoExpression)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private void ApplyRegisterCorrection(Discrepancy discrepancy, Guid currentUserId)
@@ -204,8 +209,9 @@ public class DiscrepancyService : IDiscrepancyService
             {
                 if (string.IsNullOrEmpty(task.AssertedCondition))
                 {
-                    throw new InvalidOperationException(
-                        "No asserted condition was recorded on the originating task to correct the register to.");
+                    throw new BusinessRuleException(
+                        "No asserted condition was recorded on the originating task to correct the register to.",
+                        "no_asserted_condition");
                 }
 
                 var previousCondition = asset.Condition;
@@ -219,7 +225,7 @@ public class DiscrepancyService : IDiscrepancyService
                     OrganizationId = discrepancy.OrganizationId,
                     AssetId = asset.Id,
                     ActorUserId = currentUserId,
-                    EventType = "VERIFICATION",
+                    EventType = AssetHistoryEventTypes.Verification,
                     Description = $"Condition corrected from a resolved discrepancy ({discrepancy.Id}).",
                     PreviousValue = JsonSerializer.Serialize(new { condition = previousCondition }),
                     NewValue = JsonSerializer.Serialize(new { condition = asset.Condition }),
@@ -231,8 +237,9 @@ public class DiscrepancyService : IDiscrepancyService
             {
                 if (task.AssertedLocationId is null)
                 {
-                    throw new InvalidOperationException(
-                        "No asserted location was recorded on the originating task to correct the register to.");
+                    throw new BusinessRuleException(
+                        "No asserted location was recorded on the originating task to correct the register to.",
+                        "no_asserted_location");
                 }
 
                 var newLocationDepartmentId = _context.Locations
@@ -255,7 +262,7 @@ public class DiscrepancyService : IDiscrepancyService
                     OrganizationId = discrepancy.OrganizationId,
                     AssetId = asset.Id,
                     ActorUserId = currentUserId,
-                    EventType = "VERIFICATION",
+                    EventType = AssetHistoryEventTypes.Verification,
                     Description = $"Location corrected from a resolved discrepancy ({discrepancy.Id}).",
                     PreviousValue = JsonSerializer.Serialize(new { locationId = previousLocationId, departmentId = previousDepartmentId }),
                     NewValue = JsonSerializer.Serialize(new { locationId = asset.LocationId, departmentId = asset.DepartmentId }),
@@ -264,8 +271,9 @@ public class DiscrepancyService : IDiscrepancyService
                 break;
             }
             default:
-                throw new InvalidOperationException(
-                    "Register correction is only supported for condition and location mismatches.");
+                throw new BusinessRuleException(
+                    "Register correction is only supported for condition and location mismatches.",
+                    "correction_not_supported");
         }
     }
 }

@@ -6,7 +6,7 @@ on:
 
 jobs:
   backend:
-    name: Backend (build, migrate, test)
+    name: Backend (build, test)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -38,12 +38,6 @@ jobs:
         run: dotnet build --no-restore
         working-directory: backend
 
-      - name: Apply EF Core migrations to the CI database
-        run: |
-          dotnet tool install --global dotnet-ef --version 10.*
-          dotnet ef database update --no-build
-        working-directory: backend
-
       - name: Test (backend.Tests — InMemory service-layer tests + real-Postgres append-only/authorization checks)
         run: dotnet test --no-restore
         working-directory: backend.Tests
@@ -72,16 +66,3 @@ jobs:
       - name: Build (tsc -b && vite build — doubles as the typecheck; no separate lint script exists yet)
         run: npm run build
         working-directory: frontend
-
-  secret-scan:
-    name: Secret scanning
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using backend.Tests;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Features.Disposals;
 using CoreGrid.Api.Features.Disposals.DTOs;
+using CoreGrid.Api.Features.Disposals.Services;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Scoping;
 
 namespace backend.Tests.Features.Disposals;
 
@@ -23,8 +26,8 @@ public class DisposalServiceTests
     }
 
     [Theory]
-    [InlineData(AssetStatusConstants.ConditionPoor)]
-    [InlineData(AssetStatusConstants.ConditionUnserviceable)]
+    [InlineData(AssetConditions.Poor)]
+    [InlineData(AssetConditions.Unserviceable)]
     public async Task CondemnAsset_WhenConditionIsPoorOrUnserviceableAndPriorStatusIsActive_Succeeds(string condition)
     {
         // Arrange
@@ -38,7 +41,7 @@ public class DisposalServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-CND-1",
             Name = "Server",
-            Status = AssetStatusConstants.Active,
+            Status = AssetStatuses.Active,
             Condition = condition,
             QrPayload = "qr"
         };
@@ -50,15 +53,15 @@ public class DisposalServiceTests
         var service = new DisposalService(dbContext, preconditionService);
 
         // Act
-        var result = await service.CondemnAssetAsync(orgId, asset.Id, new CondemnAssetRequest { Reason = "Damaged hardware" }, userId);
+        var result = await service.CondemnAssetAsync(orgId, asset.Id, new CondemnAssetRequest { Reason = "Damaged hardware" }, userId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(AssetStatusConstants.Condemned, result.Status);
+        Assert.Equal(AssetStatuses.Condemned, result.Status);
 
         var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(updatedAsset);
-        Assert.Equal(AssetStatusConstants.Condemned, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.Condemned, updatedAsset.Status);
 
         var history = await dbContext.AssetHistoryEntries.FirstOrDefaultAsync(h => h.AssetId == asset.Id);
         Assert.NotNull(history);
@@ -66,9 +69,9 @@ public class DisposalServiceTests
     }
 
     [Theory]
-    [InlineData(AssetStatusConstants.ConditionNew)]
-    [InlineData(AssetStatusConstants.ConditionGood)]
-    [InlineData(AssetStatusConstants.ConditionFair)]
+    [InlineData(AssetConditions.New)]
+    [InlineData(AssetConditions.Good)]
+    [InlineData(AssetConditions.Fair)]
     public async Task CondemnAsset_WhenConditionIsNotPoorOrUnserviceable_Fails(string invalidCondition)
     {
         // Arrange
@@ -82,7 +85,7 @@ public class DisposalServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-CND-2",
             Name = "Laptop",
-            Status = AssetStatusConstants.Active,
+            Status = AssetStatuses.Active,
             Condition = invalidCondition,
             QrPayload = "qr"
         };
@@ -94,18 +97,18 @@ public class DisposalServiceTests
         var service = new DisposalService(dbContext, preconditionService);
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.CondemnAssetAsync(orgId, asset.Id, new CondemnAssetRequest(), userId));
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            service.CondemnAssetAsync(orgId, asset.Id, new CondemnAssetRequest(), userId, CancellationToken.None));
 
         Assert.Contains(invalidCondition, ex.Message);
     }
 
     [Theory]
-    [InlineData(AssetStatusConstants.Condemned)]
-    [InlineData(AssetStatusConstants.DisposalRequested)]
-    [InlineData(AssetStatusConstants.Disposed)]
-    [InlineData(AssetStatusConstants.TransferRequested)]
-    [InlineData(AssetStatusConstants.InTransit)]
+    [InlineData(AssetStatuses.Condemned)]
+    [InlineData(AssetStatuses.DisposalRequested)]
+    [InlineData(AssetStatuses.Disposed)]
+    [InlineData(AssetStatuses.TransferRequested)]
+    [InlineData(AssetStatuses.InTransit)]
     public async Task CondemnAsset_WhenPriorStatusIsInvalid_Fails(string invalidPriorStatus)
     {
         // Arrange
@@ -120,7 +123,7 @@ public class DisposalServiceTests
             AssetCode = "AST-CND-3",
             Name = "Printer",
             Status = invalidPriorStatus,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Condition = AssetConditions.Poor,
             QrPayload = "qr"
         };
 
@@ -131,8 +134,8 @@ public class DisposalServiceTests
         var service = new DisposalService(dbContext, preconditionService);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.CondemnAssetAsync(orgId, asset.Id, new CondemnAssetRequest(), userId));
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.CondemnAssetAsync(orgId, asset.Id, new CondemnAssetRequest(), userId, CancellationToken.None));
     }
 
     [Fact]
@@ -143,17 +146,22 @@ public class DisposalServiceTests
         var orgId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
+        // Required FK for DisposalRequest.InitiatedByUser, read back via
+        // the post-save reload (§5.6).
+        var user = new User { Id = userId, OrganizationId = orgId, ExternalSubjectId = "sub-dsp-1", GivenName = "D", FamilyName = "S", Email = "dsp1@test.com", Role = CoreGridRole.InventoryOfficer };
+
         var asset = new Asset
         {
             Id = Guid.NewGuid(),
             OrganizationId = orgId,
             AssetCode = "AST-DSP-1",
             Name = "Monitor",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             QrPayload = "qr"
         };
 
+        dbContext.Users.Add(user);
         dbContext.Assets.Add(asset);
         await dbContext.SaveChangesAsync();
 
@@ -170,7 +178,7 @@ public class DisposalServiceTests
         };
 
         // Act
-        var result = await service.SubmitDisposalRequestAsync(orgId, request, userId);
+        var result = await service.SubmitDisposalRequestAsync(orgId, request, userId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -181,16 +189,16 @@ public class DisposalServiceTests
 
         var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(updatedAsset);
-        Assert.Equal(AssetStatusConstants.DisposalRequested, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.DisposalRequested, updatedAsset.Status);
     }
 
     [Theory]
-    [InlineData(AssetStatusConstants.Active)]
-    [InlineData(AssetStatusConstants.UnderMaintenance)]
-    [InlineData(AssetStatusConstants.TransferRequested)]
-    [InlineData(AssetStatusConstants.InTransit)]
-    [InlineData(AssetStatusConstants.DisposalRequested)]
-    [InlineData(AssetStatusConstants.Disposed)]
+    [InlineData(AssetStatuses.Active)]
+    [InlineData(AssetStatuses.UnderMaintenance)]
+    [InlineData(AssetStatuses.TransferRequested)]
+    [InlineData(AssetStatuses.InTransit)]
+    [InlineData(AssetStatuses.DisposalRequested)]
+    [InlineData(AssetStatuses.Disposed)]
     public async Task SubmitDisposalRequest_WhenAssetIsNotCondemned_Fails(string invalidStatus)
     {
         // Arrange
@@ -205,7 +213,7 @@ public class DisposalServiceTests
             AssetCode = "AST-DSP-2",
             Name = "Desk",
             Status = invalidStatus,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Condition = AssetConditions.Poor,
             QrPayload = "qr"
         };
 
@@ -224,14 +232,14 @@ public class DisposalServiceTests
         };
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.SubmitDisposalRequestAsync(orgId, request, userId));
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            service.SubmitDisposalRequestAsync(orgId, request, userId, CancellationToken.None));
 
         Assert.Contains(invalidStatus, ex.Message);
     }
 
     [Fact]
-    public async Task ApproveDisposal_WhenSeparationOfDutiesFails_ReturnsForbiddenResult()
+    public async Task ApproveDisposal_WhenSeparationOfDutiesFails_ThrowsForbiddenException()
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
@@ -246,8 +254,8 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-DSP-3",
             Name = "Van",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionUnserviceable,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Unserviceable,
             AcquisitionDate = new DateOnly(2015, 1, 1),
             QrPayload = "qr"
         };
@@ -274,17 +282,16 @@ public class DisposalServiceTests
         var preconditionService = new DisposalPreconditionService(dbContext);
         var service = new DisposalService(dbContext, preconditionService);
 
-        // Act (Approver is same as Requester)
-        var result = await service.ApproveDisposalAsync(orgId, disposalRequest.Id, sameUserId);
+        // Act & Assert (Approver is same as Requester)
+        var ex = await Assert.ThrowsAsync<ForbiddenException>(() =>
+            service.ApproveDisposalAsync(orgId, disposalRequest.Id, sameUserId, CancellationToken.None));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.True(result.IsForbidden);
-        Assert.NotNull(result.ForbiddenReason);
+        Assert.NotNull(ex.Message);
+        Assert.IsType<DisposalPreconditionResult>(ex.Payload);
     }
 
     [Fact]
-    public async Task ApproveDisposal_WhenPreconditionsFail_ReturnsUnsuccessfulWithFullBreakdown()
+    public async Task ApproveDisposal_WhenPreconditionsFail_ThrowsBusinessRuleExceptionWithFullBreakdown()
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
@@ -300,8 +307,8 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-DSP-4",
             Name = "Workstation",
-            Status = AssetStatusConstants.Active, // Fails P1 (not CONDEMNED)
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active, // Fails P1 (not CONDEMNED)
+            Condition = AssetConditions.Good,
             AcquisitionDate = new DateOnly(2025, 1, 1), // Fails P3 (only 1 year elapsed)
             QrPayload = "qr"
         };
@@ -328,20 +335,18 @@ public class DisposalServiceTests
         var preconditionService = new DisposalPreconditionService(dbContext);
         var service = new DisposalService(dbContext, preconditionService);
 
-        // Act
-        var result = await service.ApproveDisposalAsync(orgId, disposalRequest.Id, approverId);
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            service.ApproveDisposalAsync(orgId, disposalRequest.Id, approverId, CancellationToken.None));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.False(result.IsForbidden);
-        Assert.NotNull(result.PreconditionResult);
-        Assert.False(result.PreconditionResult.AllPassed);
-        Assert.Contains(result.PreconditionResult.Checks, c => c.Code == "P1" && !c.Passed);
-        Assert.Contains(result.PreconditionResult.Checks, c => c.Code == "P2" && !c.Passed);
+        var preconditionResult = Assert.IsType<DisposalPreconditionResult>(ex.Payload);
+        Assert.False(preconditionResult.AllPassed);
+        Assert.Contains(preconditionResult.Checks, c => c.Code == "P1" && !c.Passed);
+        Assert.Contains(preconditionResult.Checks, c => c.Code == "P2" && !c.Passed);
     }
 
     [Fact]
-    public async Task ApproveDisposal_WhenStatusIsNotPending_ReturnsInvalidState()
+    public async Task ApproveDisposal_WhenStatusIsNotPending_ThrowsConflictException()
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
@@ -354,8 +359,8 @@ public class DisposalServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-DSP-5",
             Name = "Cabinet",
-            Status = AssetStatusConstants.Disposed,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Disposed,
+            Condition = AssetConditions.Poor,
             QrPayload = "qr"
         };
 
@@ -380,12 +385,9 @@ public class DisposalServiceTests
         var preconditionService = new DisposalPreconditionService(dbContext);
         var service = new DisposalService(dbContext, preconditionService);
 
-        // Act
-        var result = await service.ApproveDisposalAsync(orgId, disposalRequest.Id, approverId);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.True(result.IsInvalidState);
+        // Act & Assert
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.ApproveDisposalAsync(orgId, disposalRequest.Id, approverId, CancellationToken.None));
     }
 
     [Fact]
@@ -396,6 +398,11 @@ public class DisposalServiceTests
         var orgId = Guid.NewGuid();
         var requesterId = Guid.NewGuid();
         var approverId = Guid.NewGuid();
+
+        // Required FKs for DisposalRequest.InitiatedByUser / ApprovedByUser,
+        // read back via the post-save reload (§5.6).
+        var requester = new User { Id = requesterId, OrganizationId = orgId, ExternalSubjectId = "sub-happy-requester", GivenName = "R", FamilyName = "Q", Email = "requester-happy@test.com", Role = CoreGridRole.InventoryOfficer };
+        var approver = new User { Id = approverId, OrganizationId = orgId, ExternalSubjectId = "sub-happy-approver", GivenName = "A", FamilyName = "P", Email = "approver-happy@test.com", Role = CoreGridRole.Administrator };
 
         var assetType = new AssetType
         {
@@ -414,14 +421,15 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-DSP-HAPPY",
             Name = "Old Heavy Copier",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionUnserviceable,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Unserviceable,
             AcquisitionDate = new DateOnly(2020, 1, 1), // > 3 years
             AcquisitionCost = 4500m,
             ResidualValue = 100m,
             QrPayload = "qr"
         };
 
+        dbContext.Users.AddRange(requester, approver);
         dbContext.AssetTypes.Add(assetType);
         dbContext.Assets.Add(asset);
         await dbContext.SaveChangesAsync();
@@ -433,9 +441,9 @@ public class DisposalServiceTests
         var condemnResult = await service.CondemnAssetAsync(orgId, asset.Id, new CondemnAssetRequest
         {
             Reason = "Mechanically broken beyond repair"
-        }, requesterId);
+        }, requesterId, CancellationToken.None);
 
-        Assert.Equal(AssetStatusConstants.Condemned, condemnResult.Status);
+        Assert.Equal(AssetStatuses.Condemned, condemnResult.Status);
 
         // Step 2: Submit Disposal Request
         var submitResult = await service.SubmitDisposalRequestAsync(orgId, new SubmitDisposalRequest
@@ -445,28 +453,26 @@ public class DisposalServiceTests
             EstimatedResidualValue = 50m,
             ValuationDate = new DateOnly(2026, 8, 15),
             Notes = "Scrap metal contractor collection"
-        }, requesterId);
+        }, requesterId, CancellationToken.None);
 
         Assert.Equal(DisposalStatus.PENDING, submitResult.Status);
-        Assert.Equal(AssetStatusConstants.DisposalRequested, submitResult.AssetStatus);
+        Assert.Equal(AssetStatuses.DisposalRequested, submitResult.AssetStatus);
 
         // Step 3: Approve Disposal (by Administrator different from Requester)
         // Note: CheckP1 tests Asset.Status == CONDEMNED. We set Asset.Status = CONDEMNED so P1 passes when evaluated during approval.
-        asset.Status = AssetStatusConstants.Condemned;
+        asset.Status = AssetStatuses.Condemned;
         await dbContext.SaveChangesAsync();
 
-        var approveResult = await service.ApproveDisposalAsync(orgId, submitResult.Id, approverId);
+        var approveResult = await service.ApproveDisposalAsync(orgId, submitResult.Id, approverId, CancellationToken.None);
 
-        Assert.True(approveResult.Success);
-        Assert.NotNull(approveResult.DisposalResponse);
-        Assert.Equal(DisposalStatus.APPROVED, approveResult.DisposalResponse.Status);
-        Assert.Equal(AssetStatusConstants.Disposed, approveResult.DisposalResponse.AssetStatus);
-        Assert.NotNull(approveResult.DisposalResponse.DisposedAt);
+        Assert.Equal(DisposalStatus.APPROVED, approveResult.Status);
+        Assert.Equal(AssetStatuses.Disposed, approveResult.AssetStatus);
+        Assert.NotNull(approveResult.DisposedAt);
 
         // Verify DB state
         var dbAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(dbAsset);
-        Assert.Equal(AssetStatusConstants.Disposed, dbAsset.Status);
+        Assert.Equal(AssetStatuses.Disposed, dbAsset.Status);
         Assert.Equal(approverId, dbAsset.UpdatedBy);
 
         var historyEntries = await dbContext.AssetHistoryEntries.Where(h => h.AssetId == asset.Id).ToListAsync();
@@ -502,8 +508,8 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-VIEW-1",
             Name = "Machine",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             AcquisitionDate = new DateOnly(2018, 1, 1),
             QrPayload = "qr"
         };
@@ -532,7 +538,7 @@ public class DisposalServiceTests
         var service = new DisposalService(dbContext, preconditionService);
 
         // Act (Caller is the requester)
-        var result = await service.GetDisposalRequestByIdAsync(orgId, disposalRequest.Id, requesterId);
+        var result = await service.GetDisposalRequestByIdAsync(orgId, DepartmentScope.Unrestricted, disposalRequest.Id, requesterId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -570,8 +576,8 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-VIEW-2",
             Name = "Generator",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             AcquisitionDate = new DateOnly(2018, 1, 1),
             QrPayload = "qr"
         };
@@ -600,7 +606,7 @@ public class DisposalServiceTests
         var service = new DisposalService(dbContext, preconditionService);
 
         // Act (Caller is distinct viewer / Administrator)
-        var result = await service.GetDisposalRequestByIdAsync(orgId, disposalRequest.Id, distinctViewerId);
+        var result = await service.GetDisposalRequestByIdAsync(orgId, DepartmentScope.Unrestricted, disposalRequest.Id, distinctViewerId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -630,8 +636,8 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-REV-1",
             Name = "Van",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             AcquisitionDate = new DateOnly(2020, 1, 1),
             QrPayload = "qr"
         };
@@ -670,7 +676,7 @@ public class DisposalServiceTests
 
         // Act
         var comments = "Please obtain a secondary valuation quote before proceeding.";
-        var result = await service.RequestDisposalRevisionAsync(orgId, disposalRequest.Id, adminId, comments);
+        var result = await service.RequestDisposalRevisionAsync(orgId, disposalRequest.Id, adminId, comments, CancellationToken.None);
 
         // Assert
         Assert.Equal(DisposalStatus.REVISION_REQUESTED, result.Status);
@@ -682,11 +688,102 @@ public class DisposalServiceTests
         Assert.Equal(DisposalStatus.REVISION_REQUESTED, dbRequest.Status);
     }
 
+    // =========================================================================
+    // SRS §9.4: Reject (RejectDisposalAsync)
+    // =========================================================================
+
+    [Fact]
+    public async Task RejectDisposal_WhenStatusIsPending_SucceedsAndReturnsAssetToCondemned()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetCode = "AST-REJ-1",
+            Name = "Van",
+            Status = AssetStatuses.DisposalRequested,
+            Condition = AssetConditions.Poor,
+            QrPayload = "qr"
+        };
+
+        // DisposalRequest.InitiatedByUserId is non-nullable, so EF treats
+        // InitiatedByUser as a required navigation — LoadResponseAsync's
+        // reload after SaveChanges needs a real matching row, same reason
+        // RequestDisposalRevision's own test seeds a requester.
+        var requester = new User { Id = requesterId, OrganizationId = orgId, ExternalSubjectId = "sub-requester-rej", Email = "requester-rej@example.com", GivenName = "Req", FamilyName = "Uester" };
+
+        var disposalRequest = new DisposalRequest
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = asset.Id,
+            InitiatedByUserId = requesterId,
+            DisposalMethod = DisposalMethod.AUCTION,
+            EstimatedResidualValue = 1000m,
+            Status = DisposalStatus.PENDING,
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Assets.Add(asset);
+        dbContext.Users.Add(requester);
+        dbContext.DisposalRequests.Add(disposalRequest);
+        await dbContext.SaveChangesAsync();
+
+        var preconditionService = new DisposalPreconditionService(dbContext);
+        var service = new DisposalService(dbContext, preconditionService);
+
+        // Act
+        var reason = "Better disposed of via donation, not auction.";
+        var result = await service.RejectDisposalAsync(orgId, disposalRequest.Id, adminId, new RejectDisposalRequest { Reason = reason }, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(DisposalStatus.REJECTED, result.Status);
+        Assert.Contains(reason, result.Notes);
+
+        var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
+        Assert.NotNull(updatedAsset);
+        Assert.Equal(AssetStatuses.Condemned, updatedAsset.Status);
+    }
+
     [Theory]
     [InlineData(DisposalStatus.APPROVED)]
     [InlineData(DisposalStatus.REJECTED)]
     [InlineData(DisposalStatus.DISPOSED)]
-    public async Task RequestDisposalRevision_WhenStatusIsNotPending_ThrowsInvalidOperationException(DisposalStatus initialStatus)
+    public async Task RejectDisposal_WhenStatusIsNotPending_ThrowsConflictException(DisposalStatus initialStatus)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-REJ-2", Name = "Asset", Status = AssetStatuses.Condemned, Condition = AssetConditions.Poor, QrPayload = "qr" };
+        var disposalRequest = new DisposalRequest
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetId = asset.Id, InitiatedByUserId = Guid.NewGuid(),
+            DisposalMethod = DisposalMethod.AUCTION, EstimatedResidualValue = 1000m, Status = initialStatus, RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Assets.Add(asset);
+        dbContext.DisposalRequests.Add(disposalRequest);
+        await dbContext.SaveChangesAsync();
+
+        var preconditionService = new DisposalPreconditionService(dbContext);
+        var service = new DisposalService(dbContext, preconditionService);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.RejectDisposalAsync(orgId, disposalRequest.Id, adminId, new RejectDisposalRequest { Reason = "Too late." }, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData(DisposalStatus.APPROVED)]
+    [InlineData(DisposalStatus.REJECTED)]
+    [InlineData(DisposalStatus.DISPOSED)]
+    public async Task RequestDisposalRevision_WhenStatusIsNotPending_ThrowsConflictException(DisposalStatus initialStatus)
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
@@ -702,8 +799,8 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-REV-2",
             Name = "Truck",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             AcquisitionDate = new DateOnly(2020, 1, 1),
             QrPayload = "qr"
         };
@@ -740,8 +837,8 @@ public class DisposalServiceTests
         var service = new DisposalService(dbContext, preconditionService);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.RequestDisposalRevisionAsync(orgId, disposalRequest.Id, adminId, "Needs revision"));
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.RequestDisposalRevisionAsync(orgId, disposalRequest.Id, adminId, "Needs revision", CancellationToken.None));
     }
 
     [Fact]
@@ -753,7 +850,7 @@ public class DisposalServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.RequestDisposalRevisionAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "   "));
+            service.RequestDisposalRevisionAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "   ", CancellationToken.None));
     }
 
     [Fact]
@@ -763,7 +860,7 @@ public class DisposalServiceTests
         using var dbContext = CreateInMemoryDbContext();
         var orgId = Guid.NewGuid();
         var user = new User { Id = Guid.NewGuid(), OrganizationId = orgId, ExternalSubjectId = "sub-dsp-p", GivenName = "D", FamilyName = "P", Email = "dp@test.com", Role = CoreGridRole.InventoryOfficer };
-        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-DSP-P", Name = "Disposal Asset P", Status = AssetStatusConstants.Condemned, Condition = AssetStatusConstants.ConditionPoor, QrPayload = "qr" };
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-DSP-P", Name = "Disposal Asset P", Status = AssetStatuses.Condemned, Condition = AssetConditions.Poor, QrPayload = "qr" };
 
         for (int i = 0; i < 15; i++)
         {
@@ -787,7 +884,7 @@ public class DisposalServiceTests
         var service = new DisposalService(dbContext, new DisposalPreconditionService(dbContext));
 
         // Act
-        var result = await service.GetDisposalRequestsAsync(orgId, new DisposalQueryParameters { Page = 2, PageSize = 5 });
+        var result = await service.GetDisposalRequestsAsync(orgId, DepartmentScope.Unrestricted, new DisposalQueryParameters { Page = 2, PageSize = 5 }, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);

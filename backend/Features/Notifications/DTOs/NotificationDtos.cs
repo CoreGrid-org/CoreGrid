@@ -1,3 +1,5 @@
+using CoreGrid.Api.Features.Shared.Paging;
+
 namespace CoreGrid.Api.Features.Notifications.DTOs;
 
 public class NotificationDto
@@ -15,4 +17,16 @@ public class NotificationDto
 public class UnreadCountDto
 {
     public int Count { get; set; }
+}
+
+public class NotificationQueryParameters : PagedQuery
+{
+    // Newest-first by default (unlike PagedQuery's own "asc" default) —
+    // matches this list's previous, only ordering.
+    public NotificationQueryParameters()
+    {
+        SortDirection = "desc";
+    }
+
+    public bool OnlyUnread { get; set; }
 }

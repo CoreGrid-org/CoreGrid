@@ -1,5 +1,5 @@
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Identity;
+using CoreGrid.Api.Features.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Data;
@@ -163,6 +163,13 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AssetAttributeDefinition>(entity =>
         {
+            // B8/FR-006: this entity carries no OrganizationId column of its
+            // own — filtered through the required AssetType navigation
+            // instead of duplicating the column, so a query that starts
+            // directly from AssetAttributeDefinitions (bypassing AssetType)
+            // stays org-scoped too.
+            entity.HasQueryFilter(aad => currentOrganizationProvider.OrganizationId == null || aad.AssetType!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(aad => aad.AssetTypeId);
             entity.HasIndex(aad => new { aad.AssetTypeId, aad.Name }).IsUnique();
 
@@ -235,6 +242,10 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AssetAttributeValue>(entity =>
         {
+            // B8/FR-006: same reasoning as AssetAttributeDefinition above —
+            // filtered through the required Asset navigation.
+            entity.HasQueryFilter(aav => currentOrganizationProvider.OrganizationId == null || aav.Asset!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(aav => new { aav.AssetId, aav.AssetAttributeDefinitionId }).IsUnique();
             entity.HasIndex(aav => new { aav.AssetAttributeDefinitionId, aav.ValueText });
             entity.HasIndex(aav => new { aav.AssetAttributeDefinitionId, aav.ValueNumber });
@@ -631,6 +642,11 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AgentExecutionStep>(entity =>
         {
+            // B8/FR-006: no OrganizationId column of its own — filtered
+            // through the required Workflow navigation, same pattern as
+            // AssetAttributeDefinition/AssetAttributeValue above.
+            entity.HasQueryFilter(s => currentOrganizationProvider.OrganizationId == null || s.Workflow!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(s => s.WorkflowId);
 
             entity.Property(s => s.Agent).IsRequired();
@@ -644,6 +660,9 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AgentApproval>(entity =>
         {
+            // B8/FR-006: same reasoning as AgentExecutionStep above.
+            entity.HasQueryFilter(a => currentOrganizationProvider.OrganizationId == null || a.Workflow!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(a => a.WorkflowId);
 
             entity.Property(a => a.Decision).IsRequired();

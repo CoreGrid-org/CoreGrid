@@ -2,14 +2,27 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Data.Auditing;
-using CoreGrid.Api.Identity;
+using CoreGrid.Api.Features.Audit;
+using CoreGrid.Api.Features.Identity;
+using CoreGrid.Api.Features.Notifications;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using CoreGrid.Api.Features.Assets.Services;
-using CoreGrid.Api.Features.OrgConfig.Services;
-using CoreGrid.Api.Features.Verification.Services;
-using CoreGrid.Api.Features.Maintenance.Services;
+using CoreGrid.Api.Features.Assets;
+using CoreGrid.Api.Features.OrgConfig;
+using CoreGrid.Api.Features.Verification;
+using CoreGrid.Api.Features.Maintenance;
+using CoreGrid.Api.Features.Disposals;
+using CoreGrid.Api.Features.Transfers;
+using CoreGrid.Api.Features.AgentTools;
+using CoreGrid.Api.Features.Agents;
+using CoreGrid.Api.Features.Shared.Api;
+using CoreGrid.Api.Features.Shared.Auth;
+using CoreGrid.Api.Features.Shared.CurrentUser;
+using CoreGrid.Api.Features.Shared.Health;
+using CoreGrid.Api.Features.Shared.Http;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
 
 
@@ -23,7 +36,15 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // §5.4: catches anything a controller's own try/catch doesn't —
+        // today that's only what previously fell through to ASP.NET Core's
+        // default (an unhandled 500); as feature controllers are migrated
+        // off their per-action try/catch (Phase 3), more of them reach this
+        // one mapping instead.
+        options.Filters.Add<ApiExceptionFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
@@ -32,6 +53,14 @@ builder.Services.AddControllers()
         // own CoreGridRole string union (frontend/src/features/auth/lib/roles.ts).
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+// NFR-11: reshapes [ApiController]'s automatic ModelState-invalid 400 into
+// the same ErrorEnvelope every other 4xx/5xx uses — a wire addition, not a
+// wire break, since `message` stays present (§7).
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = InvalidModelStateResponseFactory.Create;
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -51,77 +80,37 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
-builder.Services.AddScoped<CoreGrid.Api.Identity.ICurrentOrganizationProvider, CoreGrid.Api.Identity.CurrentOrganizationProvider>();
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
 
+// §4.2/B15: the one current-user lookup per request. Populated by
+// RoleEnrichmentMiddleware; read by CoreGridControllerBase,
+// AuditSaveChangesInterceptor and CurrentOrganizationProvider instead of
+// each running its own separate `sub` lookup.
+builder.Services.AddScoped<CurrentUserContext>();
+builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<CurrentUserContext>());
+
 builder.Services.AddDbContext<CoreGridDbContext>((serviceProvider, options) =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("CoreGrid"))
+    options.UseNpgsql(
+            builder.Configuration.GetConnectionString("CoreGrid"),
+            // NFR-24: a transient Npgsql failure (dropped connection,
+            // brief unavailability) retries before failing the request,
+            // instead of surfacing as an immediate 500.
+            npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null))
         .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
 
-builder.Services.AddScoped<IAssetService, AssetService>();
-builder.Services.AddScoped<IAssetTypeService, AssetTypeService>();
-builder.Services.AddScoped<IAssetCategoryService, AssetCategoryService>();
-builder.Services.AddScoped<IDepartmentService, DepartmentService>();
-builder.Services.AddScoped<ILocationService, LocationService>();
-builder.Services.AddScoped<IOrganizationPolicyService, OrganizationPolicyService>();
-builder.Services.AddScoped<IVerificationCampaignService, VerificationCampaignService>();
-builder.Services.AddScoped<IVerificationTaskService, VerificationTaskService>();
-builder.Services.AddScoped<IDiscrepancyService, DiscrepancyService>();
-builder.Services.AddScoped<ICampaignReportService, CampaignReportService>();
-builder.Services.AddScoped<IAuditReportService, AuditReportService>();
-builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
-builder.Services.AddScoped<IPreventiveMaintenanceScheduler, PreventiveMaintenanceScheduler>();
-builder.Services.AddHostedService<PreventiveMaintenanceBackgroundService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Notifications.Services.INotificationService, CoreGrid.Api.Features.Notifications.Services.NotificationService>();
+builder.Services.AddAssetsFeature();
+builder.Services.AddOrgConfigFeature();
+builder.Services.AddVerificationFeature();
+builder.Services.AddMaintenanceFeature();
+builder.Services.AddAuditFeature();
+builder.Services.AddNotificationsFeature();
 builder.Services.AddScoped<CoreGrid.Api.Features.Shared.Storage.IFileStorageService, CoreGrid.Api.Features.Shared.Storage.CloudflareR2StorageService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IMaintenanceAnalysisToolsService, CoreGrid.Api.Features.AgentTools.Services.MaintenanceAnalysisToolsService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IFailureStatisticsEngine, CoreGrid.Api.Features.AgentTools.Services.FailureStatisticsEngine>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalPreconditionService, CoreGrid.Api.Features.Disposals.DisposalPreconditionService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Disposals.IDisposalService, CoreGrid.Api.Features.Disposals.DisposalService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Transfers.Services.ITransferService, CoreGrid.Api.Features.Transfers.Services.TransferService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.AgentTools.Services.IAgentToolsService, CoreGrid.Api.Features.AgentTools.Services.AgentToolsService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyRuleEngine, CoreGrid.Api.Features.Agents.Services.PolicyRuleEngine>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAgentWorkflowService, CoreGrid.Api.Features.Agents.Services.AgentWorkflowService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPlannerAgentClient, CoreGrid.Api.Features.Agents.Services.PlannerAgentService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IAssetActionRecommendationEngine, CoreGrid.Api.Features.Agents.Services.AssetActionRecommendationEngine>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IPolicyComplianceAgentService, CoreGrid.Api.Features.Agents.Services.PolicyComplianceAgentService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IMaintenanceAnalysisAgentService, CoreGrid.Api.Features.Agents.Services.MaintenanceAnalysisAgentService>();
-builder.Services.AddScoped<CoreGrid.Api.Features.Agents.Services.IBudgetAgentClient, CoreGrid.Api.Features.Agents.Services.BudgetAgentService>();
+builder.Services.AddDisposalsFeature();
+builder.Services.AddTransfersFeature();
+builder.Services.AddAgentToolsFeature();
+builder.Services.AddAgentsFeature();
 
-// Planner Agent's only external dependency. The named client keeps OpenAI
-// transport settings out of workflow code and prevents an unavailable model
-// from blocking a request indefinitely; PlannerAgentService safely falls back
-// to the deterministic plan when this request fails.
-builder.Services.AddHttpClient("OpenAI", client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
-
-// Budget Analysis Agent's outbound HTTP client. Configurable endpoint supports either
-// OpenAI or Gemini's OpenAI-compatible endpoint with a 30-second timeout.
-builder.Services.AddHttpClient("Budget", client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
-
-builder.Services.AddHttpClient<IIdentityDirectory, ThunderIdIdentityDirectory>((serviceProvider, client) =>
-{
-    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-    client.BaseAddress = new Uri(configuration["ThunderID:Issuer"]
-        ?? throw new InvalidOperationException("Missing required configuration 'ThunderID:Issuer'."));
-})
-.ConfigurePrimaryHttpMessageHandler(() =>
-{
-    var handler = new HttpClientHandler();
-    if (builder.Environment.IsDevelopment())
-    {
-        // Same self-signed-certificate relaxation as the JWT bearer
-        // backchannel below — ThunderID's local quick-start container.
-        handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-    }
-    return handler;
-});
+builder.Services.AddIdentityFeature(builder.Configuration, builder.Environment);
 
 // Validates access tokens issued by ThunderID (SRS §4.5). Only the issuer
 // and RS256 signature (via JWKS, auto-discovered from the issuer's
@@ -156,7 +145,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         }
     });
 
-builder.Services.AddAuthorization();
+// §4.4 / NFR-10: named policies (Appendix B) plus a fail-closed fallback —
+// an endpoint with no [Authorize]/[AllowAnonymous] at all now requires an
+// authenticated caller instead of defaulting to anonymous access.
+builder.Services.AddCoreGridAuthorization();
+
+builder.Services.AddCoreGridHealthChecks(builder.Environment);
+builder.Services.AddCoreGridRateLimiting();
 
 // SEC-ID-08: CORS shall permit only the configured origins of the deployed
 // React application.
@@ -175,6 +170,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// §5.4: every response gets a correlation id, first, so every other
+// middleware and filter below can attach it to whatever it produces.
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -187,19 +187,41 @@ else
     // to https://localhost:7240 there just breaks fetch() on the untrusted
     // dev cert — "Can't reach CoreGrid / Failed to fetch".
     app.UseHttpsRedirection();
+
+    // NFR-09: HSTS only outside Development — the untrusted local dev
+    // cert would otherwise get the browser to remember an HTTPS-only
+    // policy for localhost.
+    app.UseHsts();
 }
 
 app.UseCors("Frontend");
 
 app.UseAuthentication();
 
-// Branch pipeline: Only apply human user RoleEnrichmentMiddleware to non-agent routes,
-// keeping RoleEnrichmentMiddleware completely untouched and eliminating any cross-cutting side effects.
-app.UseWhen(
-    context => !context.Request.Path.StartsWithSegments("/api/agent-tools", StringComparison.OrdinalIgnoreCase),
-    appBuilder => appBuilder.UseMiddleware<RoleEnrichmentMiddleware>());
+// §5.10 fix: runs uniformly on every route now — RoleEnrichmentMiddleware
+// itself detects the agent service principal (ServicePrincipal.Is) and
+// skips only the Users-row lookup/401 for it, so a human caller hitting
+// /api/agent-tools/* still gets its `roles` claim rehydrated like anywhere
+// else. The old path-based UseWhen exclusion skipped rehydration outright
+// for *any* caller on those routes, which is what broke
+// HumanUser_CanAlsoReachAgentToolsAsThemselves (403 instead of 200) once
+// AgentToolsController moved onto the CanReadAssets policy.
+app.UseMiddleware<RoleEnrichmentMiddleware>();
+
+// SEC-ID-09: observes the 401/403 UseAuthorization below decides.
+app.UseMiddleware<AuthorizationOutcomeLoggingMiddleware>();
 
 app.UseAuthorization();
+
+// NFR-16/AI-27: policies are defined (Features/Shared/Http/RateLimiting.cs)
+// but not yet attached to any route via [EnableRateLimiting] — that lands
+// per-controller in Phase 3 alongside each one's other policy migration.
+app.UseRateLimiter();
+
+// NFR-20: anonymous by design — a caller checking liveness/readiness has
+// no token to present, and the check itself must never require the
+// dependency it's reporting on to already be healthy.
+app.MapHealthChecks("/health", new HealthCheckOptions { ResponseWriter = HealthCheckExtensions.WriteResponse }).AllowAnonymous();
 
 app.MapControllers();
 

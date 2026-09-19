@@ -1,3 +1,4 @@
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.Agents.DTOs;
 
@@ -15,7 +16,7 @@ public class AssetActionRecommendationEngine : IAssetActionRecommendationEngine
     {
         var pastMinimumServiceLife = complianceState.ElapsedServiceLifeYears >= policy.MinimumServiceLifeYears;
 
-        if (complianceState.IsCondemned || complianceState.CurrentCondition == "UNSERVICEABLE")
+        if (complianceState.IsCondemned || complianceState.CurrentCondition == AssetConditions.Unserviceable)
         {
             if (pastMinimumServiceLife)
             {

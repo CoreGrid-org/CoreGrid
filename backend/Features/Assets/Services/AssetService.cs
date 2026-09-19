@@ -1,10 +1,15 @@
 using System.Globalization;
+using System.Linq.Expressions;
 using System.Text.Json;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Helpers;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Finance;
+using CoreGrid.Api.Features.Shared.Paging;
+using CoreGrid.Api.Features.Shared.Scoping;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Assets.Services;
@@ -13,14 +18,78 @@ public class AssetService : IAssetService
 {
     private readonly CoreGridDbContext _context;
 
-    private static readonly string[] ValidConditions =
-    [
-        "NEW",
-        "GOOD",
-        "FAIR",
-        "POOR",
-        "UNSERVICEABLE"
-    ];
+    private static readonly string[] ValidConditions = AssetConditions.All;
+
+    // §5.3: one AssetDto projection, used by GetAssetsAsync.
+    private static readonly Expression<Func<Asset, AssetDto>> ToAssetDtoExpression = a => new AssetDto
+    {
+        Id = a.Id,
+        AssetCode = a.AssetCode,
+        Name = a.Name,
+        AssetTypeId = a.AssetTypeId,
+        AssetTypeName = a.AssetType != null ? a.AssetType.Name : string.Empty,
+        DepartmentId = a.DepartmentId,
+        DepartmentName = a.Department != null ? a.Department.Name : string.Empty,
+        LocationId = a.LocationId,
+        LocationName = a.Location != null ? a.Location.Name : string.Empty,
+        Status = a.Status,
+        Condition = a.Condition,
+        AcquisitionDate = a.AcquisitionDate,
+        AcquisitionCost = a.AcquisitionCost,
+        QrPayload = a.QrPayload
+    };
+
+    private static readonly IReadOnlyDictionary<string, Expression<Func<Asset, object?>>> AssetSortMap =
+        new Dictionary<string, Expression<Func<Asset, object?>>>
+        {
+            ["assetcode"] = a => a.AssetCode,
+            ["name"] = a => a.Name,
+            ["status"] = a => a.Status,
+            ["condition"] = a => a.Condition,
+            ["acquisitiondate"] = a => a.AcquisitionDate,
+            ["acquisitioncost"] = a => a.AcquisitionCost,
+        };
+
+    // §5.3: one AssetDetailDto projection (paired with the AssetType's
+    // UsefulLifeYears so the live residual-value recompute below needs no
+    // second round-trip the way this used to).
+    private record AssetDetailProjection(AssetDetailDto Dto, int UsefulLifeYears);
+
+    private static readonly Expression<Func<Asset, AssetDetailProjection>> ToAssetDetailProjectionExpression = a => new AssetDetailProjection(
+        new AssetDetailDto
+        {
+            Id = a.Id,
+            AssetCode = a.AssetCode,
+            Name = a.Name,
+            AssetTypeId = a.AssetTypeId,
+            AssetTypeName = a.AssetType != null ? a.AssetType.Name : string.Empty,
+            DepartmentId = a.DepartmentId,
+            DepartmentName = a.Department != null ? a.Department.Name : string.Empty,
+            LocationId = a.LocationId,
+            LocationName = a.Location != null ? a.Location.Name : string.Empty,
+            Status = a.Status,
+            Condition = a.Condition,
+            AcquisitionDate = a.AcquisitionDate,
+            AcquisitionCost = a.AcquisitionCost,
+            ResidualValue = a.ResidualValue,
+            QrPayload = a.QrPayload,
+            // §5.3: the stray `.ToList().ToList()` collapses to one call.
+            Attributes = a.AssetAttributeValues
+                .OrderBy(v => v.AssetAttributeDefinition != null ? v.AssetAttributeDefinition.DisplayOrder : 0)
+                .Select(v => new AssetAttributeValueDto
+                {
+                    AttributeDefinitionId = v.AssetAttributeDefinitionId,
+                    Name = v.AssetAttributeDefinition != null ? v.AssetAttributeDefinition.Name : string.Empty,
+                    DataType = v.AssetAttributeDefinition != null ? v.AssetAttributeDefinition.DataType : string.Empty,
+                    IsRequired = v.AssetAttributeDefinition != null && v.AssetAttributeDefinition.IsRequired,
+                    ValueText = v.ValueText,
+                    ValueNumber = v.ValueNumber,
+                    ValueDate = v.ValueDate,
+                    ValueBoolean = v.ValueBoolean
+                })
+                .ToList()
+        },
+        a.AssetType != null ? a.AssetType.UsefulLifeYears : 0);
 
     public AssetService(CoreGridDbContext context)
     {
@@ -28,43 +97,29 @@ public class AssetService : IAssetService
     }
 
     // =========================================================
-    // 1. GET ASSETS
-    // Search + Filter + Sort + Pagination
+    // 1. GET ASSETS — Search + Filter + Sort + Pagination
     // =========================================================
 
     public async Task<PagedResult<AssetDto>> GetAssetsAsync(
         Guid organizationId,
-        AssetQueryParameters parameters)
+        DepartmentScope scope,
+        AssetQueryParameters parameters,
+        CancellationToken cancellationToken)
     {
-        var page = parameters.Page < 1
-            ? 1
-            : parameters.Page;
-
-        var pageSize = parameters.PageSize < 1
-            ? 20
-            : Math.Min(parameters.PageSize, 100);
-
         var query = _context.Assets
             .AsNoTracking()
-            .Where(a => a.OrganizationId == organizationId);
+            .Where(a => a.OrganizationId == organizationId)
+            .ApplyScope(scope, a => (Guid?)a.DepartmentId);
 
-        // -------------------------
-        // Search (universal — asset code/name, category, type, and
-        // dynamic attribute values all match a single search term)
-        // -------------------------
-
+        // Universal search — asset code/name, category, type, and dynamic
+        // attribute values all match a single search term.
         if (!string.IsNullOrWhiteSpace(parameters.Search))
         {
             var search = parameters.Search.Trim();
             var pattern = $"%{search}%";
 
-            var searchAsNumber = decimal.TryParse(search, out var parsedNumber)
-                ? parsedNumber
-                : (decimal?)null;
-
-            var searchAsDate = DateOnly.TryParse(search, out var parsedDate)
-                ? parsedDate
-                : (DateOnly?)null;
+            var searchAsNumber = decimal.TryParse(search, out var parsedNumber) ? parsedNumber : (decimal?)null;
+            var searchAsDate = DateOnly.TryParse(search, out var parsedDate) ? parsedDate : (DateOnly?)null;
 
             query = query.Where(a =>
                 EF.Functions.ILike(a.AssetCode, pattern) ||
@@ -79,246 +134,71 @@ public class AssetService : IAssetService
                     (v.ValueText != null && EF.Functions.ILike(v.ValueText, pattern)) ||
                     (searchAsNumber.HasValue && v.ValueNumber == searchAsNumber.Value) ||
                     (searchAsDate.HasValue && v.ValueDate == searchAsDate.Value) ||
-                    (v.AssetAttributeDefinition != null &&
-                        EF.Functions.ILike(v.AssetAttributeDefinition.Name, pattern))));
+                    (v.AssetAttributeDefinition != null && EF.Functions.ILike(v.AssetAttributeDefinition.Name, pattern))));
         }
-
-        // -------------------------
-        // Filters
-        // -------------------------
 
         if (parameters.CategoryId.HasValue)
         {
-            query = query.Where(a =>
-                a.AssetType != null &&
-                a.AssetType.AssetCategoryId == parameters.CategoryId.Value);
+            query = query.Where(a => a.AssetType != null && a.AssetType.AssetCategoryId == parameters.CategoryId.Value);
         }
 
         if (parameters.AssetTypeId.HasValue)
         {
-            query = query.Where(a =>
-                a.AssetTypeId == parameters.AssetTypeId.Value);
+            query = query.Where(a => a.AssetTypeId == parameters.AssetTypeId.Value);
         }
 
         if (parameters.DepartmentId.HasValue)
         {
-            query = query.Where(a =>
-                a.DepartmentId == parameters.DepartmentId.Value);
+            query = query.Where(a => a.DepartmentId == parameters.DepartmentId.Value);
         }
 
         if (parameters.LocationId.HasValue)
         {
-            query = query.Where(a =>
-                a.LocationId == parameters.LocationId.Value);
+            query = query.Where(a => a.LocationId == parameters.LocationId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(parameters.Status))
         {
-            var status = parameters.Status
-                .Trim()
-                .ToUpperInvariant();
-
-            query = query.Where(a =>
-                a.Status == status);
+            var status = parameters.Status.Trim().ToUpperInvariant();
+            query = query.Where(a => a.Status == status);
         }
 
         if (!string.IsNullOrWhiteSpace(parameters.Condition))
         {
-            var condition = parameters.Condition
-                .Trim()
-                .ToUpperInvariant();
-
-            query = query.Where(a =>
-                a.Condition == condition);
+            var condition = parameters.Condition.Trim().ToUpperInvariant();
+            query = query.Where(a => a.Condition == condition);
         }
 
-        // Count before pagination
-        var totalCount = await query.CountAsync();
-
-        // -------------------------
-        // Sorting
-        // -------------------------
-
-        var sortBy = parameters.SortBy?
-            .Trim()
-            .ToLowerInvariant() ?? "name";
-
-        var descending = string.Equals(
-            parameters.SortDirection,
-            "desc",
-            StringComparison.OrdinalIgnoreCase);
-
-        query = sortBy switch
-        {
-            "assetcode" => descending
-                ? query.OrderByDescending(a => a.AssetCode)
-                : query.OrderBy(a => a.AssetCode),
-
-            "name" => descending
-                ? query.OrderByDescending(a => a.Name)
-                : query.OrderBy(a => a.Name),
-
-            "status" => descending
-                ? query.OrderByDescending(a => a.Status)
-                : query.OrderBy(a => a.Status),
-
-            "condition" => descending
-                ? query.OrderByDescending(a => a.Condition)
-                : query.OrderBy(a => a.Condition),
-
-            "acquisitiondate" => descending
-                ? query.OrderByDescending(a => a.AcquisitionDate)
-                : query.OrderBy(a => a.AcquisitionDate),
-
-            "acquisitioncost" => descending
-                ? query.OrderByDescending(a => a.AcquisitionCost)
-                : query.OrderBy(a => a.AcquisitionCost),
-
-            _ => query.OrderBy(a => a.Name)
-        };
-
-        // -------------------------
-        // Pagination + DTO
-        // -------------------------
-
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(a => new AssetDto
-            {
-                Id = a.Id,
-
-                AssetCode = a.AssetCode,
-                Name = a.Name,
-
-                AssetTypeId = a.AssetTypeId,
-                AssetTypeName = a.AssetType != null
-                    ? a.AssetType.Name
-                    : string.Empty,
-
-                DepartmentId = a.DepartmentId,
-                DepartmentName = a.Department != null
-                    ? a.Department.Name
-                    : string.Empty,
-
-                LocationId = a.LocationId,
-                LocationName = a.Location != null
-                    ? a.Location.Name
-                    : string.Empty,
-
-                Status = a.Status,
-                Condition = a.Condition,
-
-                AcquisitionDate = a.AcquisitionDate,
-                AcquisitionCost = a.AcquisitionCost,
-
-                QrPayload = a.QrPayload
-            })
-            .ToListAsync();
-
-        var totalPages = totalCount == 0
-            ? 0
-            : (int)Math.Ceiling(totalCount / (double)pageSize);
-
-        return new PagedResult<AssetDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = totalPages
-        };
+        var sorted = query.ApplySort(parameters, AssetSortMap, defaultSortKey: "name");
+        return await sorted.ToPagedResultAsync(parameters, ToAssetDtoExpression, cancellationToken);
     }
 
     // =========================================================
-    // 2. GET ASSET BY ID
-    // Asset Detail + Dynamic Attributes
+    // 2. GET ASSET BY ID — Asset Detail + Dynamic Attributes
     // =========================================================
 
     public async Task<AssetDetailDto?> GetAssetByIdAsync(
         Guid organizationId,
-        Guid assetId)
+        DepartmentScope scope,
+        Guid assetId,
+        CancellationToken cancellationToken)
     {
-        var result = await _context.Assets
+        var projection = await _context.Assets
             .AsNoTracking()
-            .Where(a =>
-                a.OrganizationId == organizationId &&
-                a.Id == assetId)
-            .Select(a => new AssetDetailDto
-            {
-                Id = a.Id,
+            .Where(a => a.OrganizationId == organizationId && a.Id == assetId)
+            .ApplyScope(scope, a => (Guid?)a.DepartmentId)
+            .Select(ToAssetDetailProjectionExpression)
+            .FirstOrDefaultAsync(cancellationToken);
 
-                AssetCode = a.AssetCode,
-                Name = a.Name,
-
-                AssetTypeId = a.AssetTypeId,
-                AssetTypeName = a.AssetType != null
-                    ? a.AssetType.Name
-                    : string.Empty,
-
-                DepartmentId = a.DepartmentId,
-                DepartmentName = a.Department != null
-                    ? a.Department.Name
-                    : string.Empty,
-
-                LocationId = a.LocationId,
-                LocationName = a.Location != null
-                    ? a.Location.Name
-                    : string.Empty,
-
-                Status = a.Status,
-                Condition = a.Condition,
-
-                AcquisitionDate = a.AcquisitionDate,
-                AcquisitionCost = a.AcquisitionCost,
-                ResidualValue = a.ResidualValue,
-
-                QrPayload = a.QrPayload,
-
-                Attributes = a.AssetAttributeValues
-                    .OrderBy(v =>
-                        v.AssetAttributeDefinition != null
-                            ? v.AssetAttributeDefinition.DisplayOrder
-                            : 0)
-                    .Select(v => new AssetAttributeValueDto
-                    {
-                        AttributeDefinitionId =
-                            v.AssetAttributeDefinitionId,
-
-                        Name = v.AssetAttributeDefinition != null
-                            ? v.AssetAttributeDefinition.Name
-                            : string.Empty,
-
-                        DataType = v.AssetAttributeDefinition != null
-                            ? v.AssetAttributeDefinition.DataType
-                            : string.Empty,
-
-                        IsRequired =
-                            v.AssetAttributeDefinition != null &&
-                            v.AssetAttributeDefinition.IsRequired,
-
-                        ValueText = v.ValueText,
-                        ValueNumber = v.ValueNumber,
-                        ValueDate = v.ValueDate,
-                        ValueBoolean = v.ValueBoolean
-                    })
-                    .ToList()
-                    .ToList()
-            })
-            .FirstOrDefaultAsync();
-
-        if (result != null)
+        if (projection is null)
         {
-            var usefulLifeYears = await _context.AssetTypes
-                .AsNoTracking()
-                .Where(at => at.Id == result.AssetTypeId)
-                .Select(at => at.UsefulLifeYears)
-                .FirstOrDefaultAsync();
-            
-            result.ResidualValue = CalculateResidualValue(result.AcquisitionCost, result.AcquisitionDate, usefulLifeYears);
+            return null;
         }
 
-        return result;
+        projection.Dto.ResidualValue = StraightLineDepreciation.CalculateResidualValue(
+            projection.Dto.AcquisitionCost, projection.Dto.AcquisitionDate, projection.UsefulLifeYears);
+
+        return projection.Dto;
     }
 
     // =========================================================
@@ -328,193 +208,108 @@ public class AssetService : IAssetService
     public async Task<AssetDetailDto> CreateAssetAsync(
         Guid organizationId,
         Guid? userId,
-        CreateAssetRequest request)
+        CreateAssetRequest request,
+        CancellationToken cancellationToken)
     {
-        // -------------------------
-        // Basic validation
-        // -------------------------
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Asset name is required.");
-        }
-
-        if (request.AcquisitionCost < 0)
-        {
-            throw new InvalidOperationException(
-                "Acquisition cost cannot be negative.");
-        }
-
-
-        // -------------------------
-        // Validate Asset Type
-        // -------------------------
+        // [Required] on the DTO makes these 400 for a model-bound HTTP
+        // caller before this method ever runs; the .Value access below is
+        // then always safe.
+        var assetTypeId = request.AssetTypeId!.Value;
+        var departmentId = request.DepartmentId!.Value;
+        var locationId = request.LocationId!.Value;
+        var acquisitionDate = request.AcquisitionDate!.Value;
+        var acquisitionCost = request.AcquisitionCost!.Value;
 
         var assetType = await _context.AssetTypes
             .AsNoTracking()
             .Include(at => at.AssetCategory)
-            .FirstOrDefaultAsync(at =>
-                at.Id == request.AssetTypeId &&
-                at.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(at => at.Id == assetTypeId && at.OrganizationId == organizationId, cancellationToken);
 
         if (assetType is null)
         {
-            throw new InvalidOperationException(
-                "Asset type was not found for this organization.");
+            throw new ValidationException(nameof(request.AssetTypeId), "Asset type was not found for this organization.");
         }
-
-        // -------------------------
-        // Validate Department
-        // -------------------------
 
         var departmentExists = await _context.Departments
             .AsNoTracking()
-            .AnyAsync(d =>
-                d.Id == request.DepartmentId &&
-                d.OrganizationId == organizationId &&
-                d.IsActive);
+            .AnyAsync(d => d.Id == departmentId && d.OrganizationId == organizationId && d.IsActive, cancellationToken);
 
         if (!departmentExists)
         {
-            throw new InvalidOperationException(
-                "Department was not found or is inactive.");
+            throw new ValidationException(nameof(request.DepartmentId), "Department was not found or is inactive.");
         }
-
-        // -------------------------
-        // Validate Location
-        // -------------------------
 
         var location = await _context.Locations
             .AsNoTracking()
-            .FirstOrDefaultAsync(l =>
-                l.Id == request.LocationId &&
-                l.OrganizationId == organizationId &&
-                l.IsActive);
+            .FirstOrDefaultAsync(l => l.Id == locationId && l.OrganizationId == organizationId && l.IsActive, cancellationToken);
 
         if (location is null)
         {
-            throw new InvalidOperationException(
-                "Location was not found or is inactive.");
+            throw new ValidationException(nameof(request.LocationId), "Location was not found or is inactive.");
         }
 
-        if (location.DepartmentId != request.DepartmentId)
+        if (location.DepartmentId != departmentId)
         {
-            throw new InvalidOperationException(
-                "Selected location does not belong to the selected department.");
+            throw new ValidationException(nameof(request.LocationId), "Selected location does not belong to the selected department.");
         }
-
-        // -------------------------
-        // Validate Condition
-        // -------------------------
 
         var condition = NormalizeCondition(request.Condition);
 
-        // -------------------------
-        // Load Attribute Definitions
-        // -------------------------
+        var attributeDefinitions = await _context.AssetAttributeDefinitions
+            .AsNoTracking()
+            .Where(a => a.AssetTypeId == assetTypeId)
+            .ToListAsync(cancellationToken);
 
-        var attributeDefinitions =
-            await _context.AssetAttributeDefinitions
-                .AsNoTracking()
-                .Where(a =>
-                    a.AssetTypeId == request.AssetTypeId)
-                .ToListAsync();
-
-        ValidateAttributes(
-            attributeDefinitions,
-            request.Attributes);
-
-        // -------------------------
-        // Generate Asset Code
-        // -------------------------
+        ValidateAttributes(attributeDefinitions, request.Attributes);
 
         var organization = await _context.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == organizationId);
+            .FirstOrDefaultAsync(o => o.Id == organizationId, cancellationToken);
 
-        var organizationCode = OrganizationCodeGenerator.Generate(
-            organization?.Name ?? "ORG");
+        var organizationCode = OrganizationCodeGenerator.Generate(organization?.Name ?? "ORG");
 
         var existingCount = await _context.Assets
-            .CountAsync(a =>
-                a.OrganizationId == organizationId &&
-                a.AssetTypeId == request.AssetTypeId);
+            .CountAsync(a => a.OrganizationId == organizationId && a.AssetTypeId == assetTypeId, cancellationToken);
 
         var nextSequence = existingCount + 1;
-
         var categoryCode = assetType.AssetCategory?.Code ?? "GEN";
-
-        var assetCode = AssetCodeGenerator.Generate(
-            organizationCode,
-            categoryCode,
-            assetType.Code,
-            nextSequence);
+        var assetCode = AssetCodeGenerator.Generate(organizationCode, categoryCode, assetType.Code, nextSequence);
 
         // Safety check
-        while (await _context.Assets.AnyAsync(a =>
-                   a.OrganizationId == organizationId &&
-                   a.AssetCode == assetCode))
+        while (await _context.Assets.AnyAsync(a => a.OrganizationId == organizationId && a.AssetCode == assetCode, cancellationToken))
         {
             nextSequence++;
-
-            assetCode = AssetCodeGenerator.Generate(
-                organizationCode,
-                categoryCode,
-                assetType.Code,
-                nextSequence);
+            assetCode = AssetCodeGenerator.Generate(organizationCode, categoryCode, assetType.Code, nextSequence);
         }
 
         var now = DateTimeOffset.UtcNow;
 
-        // -------------------------
-        // Create Asset
-        // -------------------------
-
         var asset = new Asset
         {
             Id = Guid.NewGuid(),
-
             OrganizationId = organizationId,
-
-            AssetTypeId = request.AssetTypeId,
-            DepartmentId = request.DepartmentId,
-            LocationId = request.LocationId,
-
+            AssetTypeId = assetTypeId,
+            DepartmentId = departmentId,
+            LocationId = locationId,
             AssetCode = assetCode,
             Name = request.Name.Trim(),
-
-            Status = "ACTIVE",
+            Status = AssetStatuses.Active,
             Condition = condition,
-
-            AcquisitionDate = request.AcquisitionDate,
-            AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero),
-            ResidualValue = CalculateResidualValue(request.AcquisitionCost, request.AcquisitionDate, assetType.UsefulLifeYears),
-
+            AcquisitionDate = acquisitionDate,
+            AcquisitionCost = Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero),
+            ResidualValue = StraightLineDepreciation.CalculateResidualValue(acquisitionCost, acquisitionDate, assetType.UsefulLifeYears),
             CumulativeMaintenanceCost = 0,
             RepairCount = 0,
-
             QrPayload = assetCode,
-
             CreatedAt = now,
             UpdatedAt = now,
-
             CreatedBy = userId,
             UpdatedBy = userId
         };
 
-        // -------------------------
-        // Dynamic Attribute Values
-        // -------------------------
-
         foreach (var requestValue in request.Attributes)
         {
-            asset.AssetAttributeValues.Add(
-                CreateAttributeValue(
-                    asset.Id,
-                    requestValue,
-                    now,
-                    userId));
+            asset.AssetAttributeValues.Add(CreateAttributeValue(asset.Id, requestValue, now, userId));
         }
 
         _context.Assets.Add(asset);
@@ -532,13 +327,10 @@ public class AssetService : IAssetService
             CreatedAt = now
         });
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetAssetByIdAsync(
-                   organizationId,
-                   asset.Id)
-               ?? throw new InvalidOperationException(
-                   "Asset was created but could not be retrieved.");
+        return await GetAssetByIdAsync(organizationId, DepartmentScope.Unrestricted, asset.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Asset was created but could not be retrieved.");
     }
 
     // =========================================================
@@ -549,180 +341,100 @@ public class AssetService : IAssetService
         Guid organizationId,
         Guid assetId,
         Guid? userId,
-        UpdateAssetRequest request)
+        UpdateAssetRequest request,
+        CancellationToken cancellationToken)
     {
         var asset = await _context.Assets
             .Include(a => a.AssetAttributeValues)
-            .FirstOrDefaultAsync(a =>
-                a.Id == assetId &&
-                a.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
 
         if (asset is null)
         {
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Asset name is required.");
-        }
-
-        if (request.AcquisitionCost < 0)
-        {
-            throw new InvalidOperationException(
-                "Acquisition cost cannot be negative.");
-        }
-
-
-        // -------------------------
-        // Validate Asset Type
-        // -------------------------
+        // [Required] on the DTO makes these 400 for a model-bound HTTP
+        // caller before this method ever runs; the .Value access below is
+        // then always safe.
+        var assetTypeId = request.AssetTypeId!.Value;
+        var departmentId = request.DepartmentId!.Value;
+        var locationId = request.LocationId!.Value;
+        var acquisitionDate = request.AcquisitionDate!.Value;
+        var acquisitionCost = request.AcquisitionCost!.Value;
 
         var assetType = await _context.AssetTypes
             .AsNoTracking()
-            .FirstOrDefaultAsync(at =>
-                at.Id == request.AssetTypeId &&
-                at.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(at => at.Id == assetTypeId && at.OrganizationId == organizationId, cancellationToken);
 
         if (assetType is null)
         {
-            throw new InvalidOperationException(
-                "Asset type was not found for this organization.");
+            throw new ValidationException(nameof(request.AssetTypeId), "Asset type was not found for this organization.");
         }
-
-        // -------------------------
-        // Validate Department
-        // -------------------------
 
         var departmentExists = await _context.Departments
             .AsNoTracking()
-            .AnyAsync(d =>
-                d.Id == request.DepartmentId &&
-                d.OrganizationId == organizationId &&
-                d.IsActive);
+            .AnyAsync(d => d.Id == departmentId && d.OrganizationId == organizationId && d.IsActive, cancellationToken);
 
         if (!departmentExists)
         {
-            throw new InvalidOperationException(
-                "Department was not found or is inactive.");
+            throw new ValidationException(nameof(request.DepartmentId), "Department was not found or is inactive.");
         }
-
-        // -------------------------
-        // Validate Location
-        // -------------------------
 
         var location = await _context.Locations
             .AsNoTracking()
-            .FirstOrDefaultAsync(l =>
-                l.Id == request.LocationId &&
-                l.OrganizationId == organizationId &&
-                l.IsActive);
+            .FirstOrDefaultAsync(l => l.Id == locationId && l.OrganizationId == organizationId && l.IsActive, cancellationToken);
 
         if (location is null)
         {
-            throw new InvalidOperationException(
-                "Location was not found or is inactive.");
+            throw new ValidationException(nameof(request.LocationId), "Location was not found or is inactive.");
         }
 
-        if (location.DepartmentId != request.DepartmentId)
+        if (location.DepartmentId != departmentId)
         {
-            throw new InvalidOperationException(
-                "Selected location does not belong to the selected department.");
+            throw new ValidationException(nameof(request.LocationId), "Selected location does not belong to the selected department.");
         }
 
-        // -------------------------
-        // Load new Asset Type attributes
-        // -------------------------
+        var attributeDefinitions = await _context.AssetAttributeDefinitions
+            .AsNoTracking()
+            .Where(a => a.AssetTypeId == assetTypeId)
+            .ToListAsync(cancellationToken);
 
-        var attributeDefinitions =
-            await _context.AssetAttributeDefinitions
-                .AsNoTracking()
-                .Where(a =>
-                    a.AssetTypeId == request.AssetTypeId)
-                .ToListAsync();
-
-        ValidateAttributes(
-            attributeDefinitions,
-            request.Attributes);
+        ValidateAttributes(attributeDefinitions, request.Attributes);
 
         var now = DateTimeOffset.UtcNow;
 
-        // -------------------------
         // Snapshot "before" state for AssetHistory (FR-026)
-        // -------------------------
-
         var previousFields = new AssetFieldSnapshot(
-            asset.AssetTypeId,
-            asset.DepartmentId,
-            asset.LocationId,
-            asset.Name,
-            asset.AcquisitionDate,
-            asset.AcquisitionCost,
-            asset.ResidualValue);
+            asset.AssetTypeId, asset.DepartmentId, asset.LocationId, asset.Name,
+            asset.AcquisitionDate, asset.AcquisitionCost, asset.ResidualValue);
+        var previousAttributes = BuildAttributeSnapshot(asset.AssetAttributeValues);
 
-        var previousAttributes = BuildAttributeSnapshot(
-            asset.AssetAttributeValues);
-
-        // -------------------------
-        // Update basic information
-        // -------------------------
-
-        asset.AssetTypeId = request.AssetTypeId;
-        asset.DepartmentId = request.DepartmentId;
-        asset.LocationId = request.LocationId;
-
+        asset.AssetTypeId = assetTypeId;
+        asset.DepartmentId = departmentId;
+        asset.LocationId = locationId;
         asset.Name = request.Name.Trim();
-
-        asset.AcquisitionDate = request.AcquisitionDate;
-        asset.AcquisitionCost = Math.Round(request.AcquisitionCost, 2, MidpointRounding.AwayFromZero);
-        asset.ResidualValue = CalculateResidualValue(request.AcquisitionCost, request.AcquisitionDate, assetType.UsefulLifeYears);
-
+        asset.AcquisitionDate = acquisitionDate;
+        asset.AcquisitionCost = Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero);
+        asset.ResidualValue = StraightLineDepreciation.CalculateResidualValue(acquisitionCost, acquisitionDate, assetType.UsefulLifeYears);
         asset.UpdatedAt = now;
         asset.UpdatedBy = userId;
 
-        // -------------------------
-        // Replace dynamic values
-        // -------------------------
-
-        _context.AssetAttributeValues.RemoveRange(
-            asset.AssetAttributeValues);
+        _context.AssetAttributeValues.RemoveRange(asset.AssetAttributeValues);
 
         var newAttributeValues = new List<AssetAttributeValue>();
-
         foreach (var requestValue in request.Attributes)
         {
-            var attributeValue = CreateAttributeValue(
-                asset.Id,
-                requestValue,
-                now,
-                userId);
-
+            var attributeValue = CreateAttributeValue(asset.Id, requestValue, now, userId);
             newAttributeValues.Add(attributeValue);
-
             _context.AssetAttributeValues.Add(attributeValue);
         }
 
-        // -------------------------
-        // Record what changed in AssetHistory (FR-026)
-        // -------------------------
-
         var newFields = new AssetFieldSnapshot(
-            asset.AssetTypeId,
-            asset.DepartmentId,
-            asset.LocationId,
-            asset.Name,
-            asset.AcquisitionDate,
-            asset.AcquisitionCost,
-            asset.ResidualValue);
-
+            asset.AssetTypeId, asset.DepartmentId, asset.LocationId, asset.Name,
+            asset.AcquisitionDate, asset.AcquisitionCost, asset.ResidualValue);
         var newAttributes = BuildAttributeSnapshot(newAttributeValues);
 
-        var amendment = DiffAssetFields(
-            previousFields,
-            newFields,
-            previousAttributes,
-            newAttributes);
+        var amendment = DiffAssetFields(previousFields, newFields, previousAttributes, newAttributes);
 
         if (amendment is not null)
         {
@@ -740,11 +452,139 @@ public class AssetService : IAssetService
             });
         }
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetAssetByIdAsync(
-            organizationId,
-            asset.Id);
+        return await GetAssetByIdAsync(organizationId, DepartmentScope.Unrestricted, asset.Id, cancellationToken);
+    }
+
+    // =========================================================
+    // 4b. VERIFY — SRS §9.2 / FR-031, standalone physical verification
+    // =========================================================
+
+    public async Task<AssetVerificationResultDto?> VerifyAssetAsync(
+        Guid organizationId,
+        Guid assetId,
+        Guid verifiedByUserId,
+        VerifyAssetRequest request,
+        CancellationToken cancellationToken)
+    {
+        var asset = await _context.Assets
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
+
+        if (asset is null)
+        {
+            return null;
+        }
+
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assertedPresent = request.AssertedPresent!.Value;
+        string? normalizedCondition = null;
+
+        if (assertedPresent)
+        {
+            if (request.AssertedLocationId is null || string.IsNullOrWhiteSpace(request.AssertedCondition))
+            {
+                throw new ValidationException("Attributes", "Location and condition must be asserted when the asset is present.");
+            }
+
+            normalizedCondition = request.AssertedCondition.Trim().ToUpperInvariant();
+            if (!ValidConditions.Contains(normalizedCondition))
+            {
+                throw new ValidationException(nameof(request.AssertedCondition), $"Condition must be one of: {string.Join(", ", ValidConditions)}.");
+            }
+
+            var locationExists = await _context.Locations.AsNoTracking()
+                .AnyAsync(l => l.Id == request.AssertedLocationId.Value && l.OrganizationId == organizationId, cancellationToken);
+            if (!locationExists)
+            {
+                throw new ValidationException(nameof(request.AssertedLocationId), "Asserted location was not found.");
+            }
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var raisedTypes = new List<DiscrepancyType>();
+
+        // FR-031/FR-060: same reconciliation VerificationTaskService.CompleteTaskAsync
+        // runs for a campaign task, against the asset directly instead —
+        // never corrects the register itself, only raises an open
+        // discrepancy for later resolution (same as a campaign-raised one).
+        if (!assertedPresent)
+        {
+            raisedTypes.Add(RaiseAdHocDiscrepancy(asset, verifiedByUserId, DiscrepancyType.Missing,
+                $"Automatic: asset '{asset.AssetCode}' was not found during a standalone verification.", now));
+        }
+        else
+        {
+            if (request.AssertedLocationId!.Value != asset.LocationId)
+            {
+                raisedTypes.Add(RaiseAdHocDiscrepancy(asset, verifiedByUserId, DiscrepancyType.LocationMismatch,
+                    "Automatic: register location does not match the asserted location.", now));
+            }
+
+            if (normalizedCondition != asset.Condition)
+            {
+                raisedTypes.Add(RaiseAdHocDiscrepancy(asset, verifiedByUserId, DiscrepancyType.ConditionMismatch,
+                    $"Automatic: register condition '{asset.Condition}' does not match the asserted condition '{normalizedCondition}'.", now));
+            }
+        }
+
+        // FR-027: lifecycle history for the verification itself,
+        // independent of any discrepancy it raised.
+        _context.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = asset.Id,
+            ActorUserId = verifiedByUserId,
+            EventType = AssetHistoryEventTypes.Verification,
+            Description = assertedPresent
+                ? "Verified present (standalone verification)."
+                : "Verified NOT present (standalone verification).",
+            PreviousValue = null,
+            NewValue = JsonSerializer.Serialize(new
+            {
+                assertedPresent,
+                assertedLocationId = request.AssertedLocationId,
+                assertedCondition = normalizedCondition
+            }),
+            CreatedAt = now
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new AssetVerificationResultDto
+        {
+            AssetId = asset.Id,
+            AssertedPresent = assertedPresent,
+            AssertedLocationId = request.AssertedLocationId,
+            AssertedCondition = normalizedCondition,
+            RaisedDiscrepancyTypes = raisedTypes,
+            VerifiedAt = now
+        };
+    }
+
+    private DiscrepancyType RaiseAdHocDiscrepancy(Asset asset, Guid verifiedByUserId, DiscrepancyType type, string description, DateTimeOffset now)
+    {
+        _context.Discrepancies.Add(new Discrepancy
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = asset.OrganizationId,
+            // No campaign or task — this discrepancy came from the
+            // standalone POST /api/assets/{id}/verify action (FR-031).
+            CampaignId = null,
+            VerificationTaskId = null,
+            AssetId = asset.Id,
+            Type = type,
+            IsAutomatic = true,
+            RaisedByUserId = verifiedByUserId,
+            Description = description,
+            Status = DiscrepancyStatus.Open,
+            RegisterCorrected = false,
+            CreatedAt = now
+        });
+
+        return type;
     }
 
     // =========================================================
@@ -755,21 +595,18 @@ public class AssetService : IAssetService
         Guid organizationId,
         Guid assetId,
         Guid? userId,
-        UpdateAssetConditionRequest request)
+        UpdateAssetConditionRequest request,
+        CancellationToken cancellationToken)
     {
         var asset = await _context.Assets
-            .FirstOrDefaultAsync(a =>
-                a.Id == assetId &&
-                a.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
 
         if (asset is null)
         {
             return false;
         }
 
-        var condition = NormalizeCondition(
-            request.Condition);
-
+        var condition = NormalizeCondition(request.Condition);
         var previousCondition = asset.Condition;
         var now = DateTimeOffset.UtcNow;
 
@@ -793,7 +630,7 @@ public class AssetService : IAssetService
             });
         }
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -804,7 +641,9 @@ public class AssetService : IAssetService
 
     public async Task<AssetDetailDto?> GetAssetByQrCodeAsync(
         Guid organizationId,
-        string code)
+        DepartmentScope scope,
+        string code,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(code))
         {
@@ -815,32 +654,28 @@ public class AssetService : IAssetService
 
         var assetId = await _context.Assets
             .AsNoTracking()
-            .Where(a =>
-                a.OrganizationId == organizationId &&
-                (a.AssetCode == normalizedCode ||
-                 a.QrPayload == normalizedCode))
+            .Where(a => a.OrganizationId == organizationId && (a.AssetCode == normalizedCode || a.QrPayload == normalizedCode))
+            .ApplyScope(scope, a => (Guid?)a.DepartmentId)
             .Select(a => (Guid?)a.Id)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (!assetId.HasValue)
         {
             return null;
         }
 
-        return await GetAssetByIdAsync(
-            organizationId,
-            assetId.Value);
+        return await GetAssetByIdAsync(organizationId, scope, assetId.Value, cancellationToken);
     }
 
     // =========================================================
     // ORGANIZATION CODE
     // =========================================================
 
-    public async Task<string> GetOrganizationCodeAsync(Guid organizationId)
+    public async Task<string> GetOrganizationCodeAsync(Guid organizationId, CancellationToken cancellationToken)
     {
         var organization = await _context.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == organizationId);
+            .FirstOrDefaultAsync(o => o.Id == organizationId, cancellationToken);
 
         return OrganizationCodeGenerator.Generate(organization?.Name ?? "ORG");
     }
@@ -851,72 +686,39 @@ public class AssetService : IAssetService
 
     public async Task<PagedResult<AssetHistoryDto>?> GetAssetHistoryAsync(
         Guid organizationId,
+        DepartmentScope scope,
         Guid assetId,
-        AssetHistoryQueryParameters parameters)
+        AssetHistoryQueryParameters parameters,
+        CancellationToken cancellationToken)
     {
         var assetExists = await _context.Assets
             .AsNoTracking()
-            .AnyAsync(a =>
-                a.Id == assetId &&
-                a.OrganizationId == organizationId);
+            .Where(a => a.Id == assetId && a.OrganizationId == organizationId)
+            .ApplyScope(scope, a => (Guid?)a.DepartmentId)
+            .AnyAsync(cancellationToken);
 
         if (!assetExists)
         {
             return null;
         }
 
-        var page = parameters.Page < 1
-            ? 1
-            : parameters.Page;
-
-        var pageSize = parameters.PageSize is < 1 or > 100
-            ? 20
-            : parameters.PageSize;
-
         var query = _context.AssetHistoryEntries
             .AsNoTracking()
-            .Where(h =>
-                h.AssetId == assetId &&
-                h.OrganizationId == organizationId);
+            .Where(h => h.AssetId == assetId && h.OrganizationId == organizationId)
+            .OrderByDescending(h => h.CreatedAt);
 
-        var totalCount = await query.CountAsync();
-
-        var items = await query
-            .OrderByDescending(h => h.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(h => new AssetHistoryDto
-            {
-                Id = h.Id,
-                AssetId = h.AssetId,
-
-                ActorUserId = h.ActorUserId,
-                ActorEmail = h.ActorUser != null
-                    ? h.ActorUser.Email
-                    : null,
-
-                EventType = h.EventType,
-                Description = h.Description,
-
-                PreviousValue = h.PreviousValue,
-                NewValue = h.NewValue,
-
-                CreatedAt = h.CreatedAt
-            })
-            .ToListAsync();
-
-        var totalPages = totalCount == 0
-            ? 0
-            : (int)Math.Ceiling(totalCount / (double)pageSize);
-
-        return new PagedResult<AssetHistoryDto>
+        return await query.ToPagedResultAsync(parameters, h => new AssetHistoryDto
         {
-            Items = items,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = totalPages
-        };
+            Id = h.Id,
+            AssetId = h.AssetId,
+            ActorUserId = h.ActorUserId,
+            ActorEmail = h.ActorUser != null ? h.ActorUser.Email : null,
+            EventType = h.EventType,
+            Description = h.Description,
+            PreviousValue = h.PreviousValue,
+            NewValue = h.NewValue,
+            CreatedAt = h.CreatedAt
+        }, cancellationToken);
     }
 
     // =========================================================
@@ -939,36 +741,15 @@ public class AssetService : IAssetService
         Dictionary<string, object?> Previous,
         Dictionary<string, object?> New);
 
-    private static Dictionary<Guid, string?> BuildAttributeSnapshot(
-        IEnumerable<AssetAttributeValue> values)
-    {
-        return values.ToDictionary(
-            v => v.AssetAttributeDefinitionId,
-            AttributeValueToString);
-    }
+    private static Dictionary<Guid, string?> BuildAttributeSnapshot(IEnumerable<AssetAttributeValue> values) =>
+        values.ToDictionary(v => v.AssetAttributeDefinitionId, AttributeValueToString);
 
     private static string? AttributeValueToString(AssetAttributeValue value)
     {
-        if (value.ValueText is not null)
-        {
-            return value.ValueText;
-        }
-
-        if (value.ValueNumber.HasValue)
-        {
-            return value.ValueNumber.Value.ToString(CultureInfo.InvariantCulture);
-        }
-
-        if (value.ValueDate.HasValue)
-        {
-            return value.ValueDate.Value.ToString("O", CultureInfo.InvariantCulture);
-        }
-
-        if (value.ValueBoolean.HasValue)
-        {
-            return value.ValueBoolean.Value.ToString();
-        }
-
+        if (value.ValueText is not null) return value.ValueText;
+        if (value.ValueNumber.HasValue) return value.ValueNumber.Value.ToString(CultureInfo.InvariantCulture);
+        if (value.ValueDate.HasValue) return value.ValueDate.Value.ToString("O", CultureInfo.InvariantCulture);
+        if (value.ValueBoolean.HasValue) return value.ValueBoolean.Value.ToString();
         return null;
     }
 
@@ -1021,10 +802,7 @@ public class AssetService : IAssetService
 
         if (changedAttributeCount > 0)
         {
-            changedLabels.Add(
-                changedAttributeCount == 1
-                    ? "1 attribute"
-                    : $"{changedAttributeCount} attributes");
+            changedLabels.Add(changedAttributeCount == 1 ? "1 attribute" : $"{changedAttributeCount} attributes");
         }
 
         if (changedLabels.Count == 0)
@@ -1032,59 +810,19 @@ public class AssetService : IAssetService
             return null;
         }
 
-        return new AssetAmendment(
-            $"Updated: {string.Join(", ", changedLabels)}.",
-            previousChanges,
-            newChanges);
+        return new AssetAmendment($"Updated: {string.Join(", ", changedLabels)}.", previousChanges, newChanges);
     }
 
-    private static string NormalizeCondition(
-        string condition)
+    private static string NormalizeCondition(string condition)
     {
-        if (string.IsNullOrWhiteSpace(condition))
-        {
-            throw new InvalidOperationException(
-                "Asset condition is required.");
-        }
-
-        var normalized = condition
-            .Trim()
-            .ToUpperInvariant();
+        var normalized = condition.Trim().ToUpperInvariant();
 
         if (!ValidConditions.Contains(normalized))
         {
-            throw new InvalidOperationException(
-                $"Invalid asset condition '{condition}'.");
+            throw new ValidationException(nameof(UpdateAssetConditionRequest.Condition), $"Invalid asset condition '{condition}'.");
         }
 
         return normalized;
-    }
-
-    private decimal CalculateResidualValue(
-        decimal acquisitionCost,
-        DateOnly acquisitionDate,
-        int usefulLifeYears)
-    {
-        if (usefulLifeYears <= 0)
-        {
-            return Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero);
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var acquisitionDateTime = acquisitionDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        
-        var elapsedDays = (now - acquisitionDateTime).TotalDays;
-        var elapsedYears = elapsedDays / 365.25;
-
-        if (elapsedYears <= 0)
-        {
-            return Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero);
-        }
-
-        var depreciation = (acquisitionCost / usefulLifeYears) * (decimal)elapsedYears;
-        var residualValue = acquisitionCost - depreciation;
-
-        return Math.Max(0m, Math.Round(residualValue, 2, MidpointRounding.AwayFromZero));
     }
 
     private static void ValidateAttributes(
@@ -1093,155 +831,94 @@ public class AssetService : IAssetService
     {
         // Prevent the same attribute being submitted twice.
         var duplicateAttribute = requestValues
-            .GroupBy(v =>
-                v.AssetAttributeDefinitionId)
-            .FirstOrDefault(g =>
-                g.Count() > 1);
+            .GroupBy(v => v.AssetAttributeDefinitionId)
+            .FirstOrDefault(g => g.Count() > 1);
 
         if (duplicateAttribute is not null)
         {
-            throw new InvalidOperationException(
-                "The same asset attribute cannot be submitted more than once.");
+            throw new ValidationException("Attributes", "The same asset attribute cannot be submitted more than once.");
         }
 
-        // -------------------------
-        // Required attributes
-        // -------------------------
-
-        foreach (var definition in definitions
-                     .Where(d => d.IsRequired))
+        foreach (var definition in definitions.Where(d => d.IsRequired))
         {
-            var suppliedValue = requestValues
-                .FirstOrDefault(v =>
-                    v.AssetAttributeDefinitionId ==
-                    definition.Id);
+            var suppliedValue = requestValues.FirstOrDefault(v => v.AssetAttributeDefinitionId == definition.Id);
 
             if (suppliedValue is null)
             {
-                throw new InvalidOperationException(
-                    $"Required attribute '{definition.Name}' is missing.");
+                throw new ValidationException("Attributes", $"Required attribute '{definition.Name}' is missing.");
             }
         }
-
-        // -------------------------
-        // Validate submitted values
-        // -------------------------
 
         foreach (var requestValue in requestValues)
         {
-            var definition = definitions
-                .FirstOrDefault(d =>
-                    d.Id ==
-                    requestValue.AssetAttributeDefinitionId);
+            var definition = definitions.FirstOrDefault(d => d.Id == requestValue.AssetAttributeDefinitionId);
 
             if (definition is null)
             {
-                throw new InvalidOperationException(
-                    "One or more attributes do not belong to the selected asset type.");
+                throw new ValidationException("Attributes", "One or more attributes do not belong to the selected asset type.");
             }
 
-            ValidateAttributeValue(
-                definition,
-                requestValue);
+            ValidateAttributeValue(definition, requestValue);
         }
     }
 
-    private static void ValidateAttributeValue(
-        AssetAttributeDefinition definition,
-        AssetAttributeValueRequest value)
+    private static void ValidateAttributeValue(AssetAttributeDefinition definition, AssetAttributeValueRequest value)
     {
         var populatedValues = 0;
 
-        if (value.ValueText is not null)
-        {
-            populatedValues++;
-        }
-
-        if (value.ValueNumber.HasValue)
-        {
-            populatedValues++;
-        }
-
-        if (value.ValueDate.HasValue)
-        {
-            populatedValues++;
-        }
-
-        if (value.ValueBoolean.HasValue)
-        {
-            populatedValues++;
-        }
+        if (value.ValueText is not null) populatedValues++;
+        if (value.ValueNumber.HasValue) populatedValues++;
+        if (value.ValueDate.HasValue) populatedValues++;
+        if (value.ValueBoolean.HasValue) populatedValues++;
 
         if (populatedValues != 1)
         {
-            throw new InvalidOperationException(
-                $"Attribute '{definition.Name}' must contain exactly one value.");
+            throw new ValidationException("Attributes", $"Attribute '{definition.Name}' must contain exactly one value.");
         }
 
         switch (definition.DataType)
         {
             case "TEXT":
-
                 if (value.ValueText is null)
                 {
-                    throw new InvalidOperationException(
-                        $"Attribute '{definition.Name}' requires a text value.");
+                    throw new ValidationException("Attributes", $"Attribute '{definition.Name}' requires a text value.");
                 }
-
                 break;
 
             case "SELECT":
-
                 if (value.ValueText is null)
                 {
-                    throw new InvalidOperationException(
-                        $"Attribute '{definition.Name}' requires a selected value.");
+                    throw new ValidationException("Attributes", $"Attribute '{definition.Name}' requires a selected value.");
                 }
-
-                if (definition.SelectOptions is not null &&
-                    !definition.SelectOptions.Contains(
-                        value.ValueText))
+                if (definition.SelectOptions is not null && !definition.SelectOptions.Contains(value.ValueText))
                 {
-                    throw new InvalidOperationException(
-                        $"Invalid option for attribute '{definition.Name}'.");
+                    throw new ValidationException("Attributes", $"Invalid option for attribute '{definition.Name}'.");
                 }
-
                 break;
 
             case "NUMBER":
-
                 if (!value.ValueNumber.HasValue)
                 {
-                    throw new InvalidOperationException(
-                        $"Attribute '{definition.Name}' requires a number.");
+                    throw new ValidationException("Attributes", $"Attribute '{definition.Name}' requires a number.");
                 }
-
                 break;
 
             case "DATE":
-
                 if (!value.ValueDate.HasValue)
                 {
-                    throw new InvalidOperationException(
-                        $"Attribute '{definition.Name}' requires a date.");
+                    throw new ValidationException("Attributes", $"Attribute '{definition.Name}' requires a date.");
                 }
-
                 break;
 
             case "BOOLEAN":
-
                 if (!value.ValueBoolean.HasValue)
                 {
-                    throw new InvalidOperationException(
-                        $"Attribute '{definition.Name}' requires a boolean value.");
+                    throw new ValidationException("Attributes", $"Attribute '{definition.Name}' requires a boolean value.");
                 }
-
                 break;
 
             default:
-
-                throw new InvalidOperationException(
-                    $"Unsupported attribute type '{definition.DataType}'.");
+                throw new ValidationException("Attributes", $"Unsupported attribute type '{definition.DataType}'.");
         }
 
         // Enforce any additional rule stored on the definition (min/max,
@@ -1258,20 +935,14 @@ public class AssetService : IAssetService
         return new AssetAttributeValue
         {
             Id = Guid.NewGuid(),
-
             AssetId = assetId,
-
-            AssetAttributeDefinitionId =
-                request.AssetAttributeDefinitionId,
-
+            AssetAttributeDefinitionId = request.AssetAttributeDefinitionId,
             ValueText = request.ValueText,
             ValueNumber = request.ValueNumber,
             ValueDate = request.ValueDate,
             ValueBoolean = request.ValueBoolean,
-
             CreatedAt = now,
             UpdatedAt = now,
-
             CreatedBy = userId,
             UpdatedBy = userId
         };

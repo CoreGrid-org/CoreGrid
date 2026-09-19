@@ -1,12 +1,35 @@
+using System.Linq.Expressions;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.OrgConfig.DTOs;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.OrgConfig.Services;
 
 public class LocationService : ILocationService
 {
+    private static readonly Expression<Func<Location, LocationDto>> ToDtoExpression = l => new LocationDto
+    {
+        Id = l.Id,
+        Name = l.Name,
+        Type = l.Type,
+        DepartmentId = l.DepartmentId,
+        DepartmentName = l.Department != null ? l.Department.Name : string.Empty,
+        IsActive = l.IsActive
+    };
+
+    private static readonly Func<Location, LocationDto> ToDto = ToDtoExpression.Compile();
+
+    private static readonly IReadOnlyDictionary<string, Expression<Func<Location, object?>>> SortMap =
+        new Dictionary<string, Expression<Func<Location, object?>>>
+        {
+            ["name"] = l => l.Name,
+            ["type"] = l => l.Type,
+        };
+
     private readonly CoreGridDbContext _context;
 
     public LocationService(CoreGridDbContext context)
@@ -14,66 +37,52 @@ public class LocationService : ILocationService
         _context = context;
     }
 
-    public async Task<List<LocationDto>> GetLocationsAsync(
+    public async Task<PagedResult<LocationDto>> GetLocationsAsync(
         Guid organizationId,
-        Guid? departmentId)
+        Guid? departmentId,
+        PagedQuery query,
+        bool includeInactive,
+        CancellationToken cancellationToken)
     {
-        var query = _context.Locations
+        var locations = _context.Locations
             .AsNoTracking()
-            .Where(l =>
-                l.OrganizationId == organizationId &&
-                l.IsActive);
+            .Where(l => l.OrganizationId == organizationId);
+
+        if (!includeInactive)
+        {
+            locations = locations.Where(l => l.IsActive);
+        }
 
         if (departmentId.HasValue)
         {
-            query = query.Where(l =>
-                l.DepartmentId == departmentId.Value);
+            locations = locations.Where(l => l.DepartmentId == departmentId.Value);
         }
 
-        return await query
-            .OrderBy(l => l.Name)
-            .Select(l => new LocationDto
-            {
-                Id = l.Id,
-                Name = l.Name,
-                Type = l.Type,
-                DepartmentId = l.DepartmentId,
-                DepartmentName = l.Department != null
-                    ? l.Department.Name
-                    : string.Empty,
-                IsActive = l.IsActive
-            })
-            .ToListAsync();
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var pattern = $"%{query.Search.Trim()}%";
+            locations = locations.Where(l => EF.Functions.ILike(l.Name, pattern) || EF.Functions.ILike(l.Type, pattern));
+        }
+
+        var sorted = locations.ApplySort(query, SortMap, defaultSortKey: "name");
+        return await sorted.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
     }
 
     public async Task<LocationDto> CreateLocationAsync(
         Guid organizationId,
         Guid? userId,
-        CreateLocationRequest request)
+        CreateLocationRequest request,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Location name is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Type))
-        {
-            throw new InvalidOperationException(
-                "Location type is required.");
-        }
+        var departmentId = request.DepartmentId!.Value;
 
         var department = await _context.Departments
             .AsNoTracking()
-            .FirstOrDefaultAsync(d =>
-                d.Id == request.DepartmentId &&
-                d.OrganizationId == organizationId &&
-                d.IsActive);
+            .FirstOrDefaultAsync(d => d.Id == departmentId && d.OrganizationId == organizationId && d.IsActive, cancellationToken);
 
         if (department is null)
         {
-            throw new InvalidOperationException(
-                "Department was not found or is inactive.");
+            throw new ValidationException(nameof(request.DepartmentId), "Department was not found or is inactive.");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -82,7 +91,7 @@ public class LocationService : ILocationService
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
-            DepartmentId = request.DepartmentId,
+            DepartmentId = departmentId,
             Name = request.Name.Trim(),
             Type = request.Type.Trim(),
             IsActive = true,
@@ -93,8 +102,7 @@ public class LocationService : ILocationService
         };
 
         _context.Locations.Add(location);
-
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return new LocationDto
         {
@@ -111,50 +119,35 @@ public class LocationService : ILocationService
         Guid organizationId,
         Guid id,
         Guid? userId,
-        UpdateLocationRequest request)
+        UpdateLocationRequest request,
+        CancellationToken cancellationToken)
     {
         var location = await _context.Locations
-            .FirstOrDefaultAsync(l =>
-                l.Id == id &&
-                l.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(l => l.Id == id && l.OrganizationId == organizationId, cancellationToken);
 
         if (location is null)
         {
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Location name is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Type))
-        {
-            throw new InvalidOperationException(
-                "Location type is required.");
-        }
+        var departmentId = request.DepartmentId!.Value;
 
         var department = await _context.Departments
             .AsNoTracking()
-            .FirstOrDefaultAsync(d =>
-                d.Id == request.DepartmentId &&
-                d.OrganizationId == organizationId &&
-                d.IsActive);
+            .FirstOrDefaultAsync(d => d.Id == departmentId && d.OrganizationId == organizationId && d.IsActive, cancellationToken);
 
         if (department is null)
         {
-            throw new InvalidOperationException(
-                "Department was not found or is inactive.");
+            throw new ValidationException(nameof(request.DepartmentId), "Department was not found or is inactive.");
         }
 
         location.Name = request.Name.Trim();
         location.Type = request.Type.Trim();
-        location.DepartmentId = request.DepartmentId;
+        location.DepartmentId = departmentId;
         location.UpdatedAt = DateTimeOffset.UtcNow;
         location.UpdatedBy = userId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return new LocationDto
         {
@@ -171,12 +164,15 @@ public class LocationService : ILocationService
         Guid organizationId,
         Guid id,
         Guid? userId,
-        bool isActive)
+        bool isActive,
+        CancellationToken cancellationToken)
     {
+        // §5.2: loads Department alongside the location so the response
+        // below reuses it instead of re-querying the department name
+        // afterwards.
         var location = await _context.Locations
-            .FirstOrDefaultAsync(l =>
-                l.Id == id &&
-                l.OrganizationId == organizationId);
+            .Include(l => l.Department)
+            .FirstOrDefaultAsync(l => l.Id == id && l.OrganizationId == organizationId, cancellationToken);
 
         if (location is null)
         {
@@ -188,14 +184,13 @@ public class LocationService : ILocationService
             // FR-012: same "active" definition as the department guard.
             var hasActiveAssets = await _context.Assets
                 .AsNoTracking()
-                .AnyAsync(a =>
-                    a.LocationId == id &&
-                    a.Status != "DISPOSED");
+                .AnyAsync(a => a.LocationId == id && a.Status != AssetStatuses.Disposed, cancellationToken);
 
             if (hasActiveAssets)
             {
-                throw new InvalidOperationException(
-                    "This location cannot be deactivated while active assets are assigned to it.");
+                throw new BusinessRuleException(
+                    "This location cannot be deactivated while active assets are assigned to it.",
+                    "location_has_active_assets");
             }
         }
 
@@ -203,22 +198,8 @@ public class LocationService : ILocationService
         location.UpdatedAt = DateTimeOffset.UtcNow;
         location.UpdatedBy = userId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        var departmentName = await _context.Departments
-            .AsNoTracking()
-            .Where(d => d.Id == location.DepartmentId)
-            .Select(d => d.Name)
-            .FirstOrDefaultAsync() ?? string.Empty;
-
-        return new LocationDto
-        {
-            Id = location.Id,
-            Name = location.Name,
-            Type = location.Type,
-            DepartmentId = location.DepartmentId,
-            DepartmentName = departmentName,
-            IsActive = location.IsActive
-        };
+        return ToDto(location);
     }
 }

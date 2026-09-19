@@ -1,3 +1,4 @@
+import { fetchAllPages } from "@/shared/lib/apiClient";
 import type {
   InitiateTransferRequest,
   PagedResult,
@@ -51,17 +52,22 @@ export async function getTransferById(
   return handle<TransferResponse>(response, `Could not load transfer ${id}.`);
 }
 
-// GET /api/assets/{assetId}/transfers — FR-047: full transfer history for an asset
+// GET /api/assets/{assetId}/transfers — FR-047: full transfer history for an
+// asset. Paginated (§7 of the backend refactor plan); this view wants the
+// complete history, so this walks every page and flattens the result.
 export async function getTransferHistoryForAsset(
   assetId: string,
   accessToken: string
 ): Promise<TransferResponse[]> {
-  const response = await fetch(`${API_URL}/assets/${assetId}/transfers`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return handle<TransferResponse[]>(
-    response,
-    `Could not load transfer history for asset ${assetId}.`
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/assets/${assetId}/transfers?page=${page}&pageSize=100`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).then((response) =>
+      handle<PagedResult<TransferResponse>>(
+        response,
+        `Could not load transfer history for asset ${assetId}.`
+      )
+    ),
   );
 }
 

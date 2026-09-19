@@ -1,3 +1,5 @@
+import { fetchAllPages } from "@/shared/lib/apiClient";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 function authHeaders(accessToken: string) {
@@ -10,6 +12,15 @@ async function handle<T>(response: Response, fallback: string): Promise<T> {
     throw new Error(detail || fallback);
   }
   return response.json();
+}
+
+// backend/Features/Shared/Paging/PagedResult.cs
+interface PagedResult<T> {
+  items: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export type DiscrepancyType = "Missing" | "Surplus" | "LocationMismatch" | "ConditionMismatch" | "DataMismatch" | "Other";
@@ -49,6 +60,9 @@ export interface ResolveDiscrepancyRequest {
 }
 
 // backend/Features/Verification/Controllers/DiscrepanciesController.cs
+// GetDiscrepancies is paginated (§7 of the backend refactor plan); the
+// Audit page renders every discrepancy at once, so this walks every page
+// and flattens the result.
 export async function listDiscrepancies(
   params: { campaignId?: string; onlyOpen?: boolean },
   accessToken: string,
@@ -56,12 +70,14 @@ export async function listDiscrepancies(
   const search = new URLSearchParams();
   if (params.campaignId) search.set("campaignId", params.campaignId);
   if (params.onlyOpen) search.set("onlyOpen", "true");
-  const qs = search.toString();
+  search.set("pageSize", "100");
+  const baseQuery = search.toString();
 
-  const response = await fetch(`${API_URL}/discrepancies${qs ? `?${qs}` : ""}`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load discrepancies.");
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/discrepancies?${baseQuery}&page=${page}`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<Discrepancy>>(response, "Could not load discrepancies.")),
+  );
 }
 
 // FR-062 — Auditor/Administrator only.

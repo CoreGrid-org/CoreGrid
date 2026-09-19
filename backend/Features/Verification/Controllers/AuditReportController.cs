@@ -1,6 +1,7 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using CoreGrid.Api.Features.Verification.DTOs;
 using CoreGrid.Api.Features.Verification.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -68,7 +69,7 @@ public class AuditReportController : CoreGridControllerBase
         {
             "csv" => File(_reportService.BuildCsv(report), "text/csv", "audit-report.csv"),
             "pdf" => File(_reportService.BuildPdf(report), "application/pdf", "audit-report.pdf"),
-            _ => BadRequest(new { message = "Unsupported export format. Use 'pdf' or 'csv'." })
+            _ => throw new ValidationException(nameof(format), "Unsupported export format. Use 'pdf' or 'csv'.")
         };
     }
 }

@@ -1,6 +1,8 @@
+using System.Threading;
 using backend.Tests;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using CoreGrid.Api.Features.Verification.DTOs;
 using CoreGrid.Api.Features.Verification.Services;
 using Microsoft.EntityFrameworkCore;
@@ -63,9 +65,10 @@ public class DiscrepancyResolutionServiceTests
 
         var service = new DiscrepancyService(db);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResolveAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => service.ResolveAsync(
             orgId, discrepancy.Id, Guid.NewGuid(),
-            new ResolveDiscrepancyRequest { ResolutionType = "NOT_A_REAL_TYPE", ResolutionExplanation = "Some explanation here" }));
+            new ResolveDiscrepancyRequest { ResolutionType = "NOT_A_REAL_TYPE", ResolutionExplanation = "Some explanation here" },
+            CancellationToken.None));
     }
 
     // FR-062 AC3: NO_ACTION without a justification of the required length.
@@ -80,9 +83,10 @@ public class DiscrepancyResolutionServiceTests
 
         var service = new DiscrepancyService(db);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResolveAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => service.ResolveAsync(
             orgId, discrepancy.Id, Guid.NewGuid(),
-            new ResolveDiscrepancyRequest { ResolutionType = "NO_ACTION", ResolutionExplanation = "Too short" }));
+            new ResolveDiscrepancyRequest { ResolutionType = "NO_ACTION", ResolutionExplanation = "Too short" },
+            CancellationToken.None));
     }
 
     [Fact]
@@ -102,7 +106,8 @@ public class DiscrepancyResolutionServiceTests
             {
                 ResolutionType = "NO_ACTION",
                 ResolutionExplanation = "This is a sufficiently long justification for accepting the difference."
-            });
+            },
+            CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(DiscrepancyStatus.Resolved, result!.Status);
@@ -121,9 +126,10 @@ public class DiscrepancyResolutionServiceTests
 
         var service = new DiscrepancyService(db);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResolveAsync(
+        await Assert.ThrowsAsync<BusinessRuleException>(() => service.ResolveAsync(
             orgId, discrepancy.Id, Guid.NewGuid(),
-            new ResolveDiscrepancyRequest { ResolutionType = "WRITTEN_OFF", ResolutionExplanation = "Asset cannot be located." }));
+            new ResolveDiscrepancyRequest { ResolutionType = "WRITTEN_OFF", ResolutionExplanation = "Asset cannot be located." },
+            CancellationToken.None));
     }
 
     [Fact]
@@ -139,7 +145,8 @@ public class DiscrepancyResolutionServiceTests
 
         var result = await service.ResolveAsync(
             orgId, discrepancy.Id, Guid.NewGuid(),
-            new ResolveDiscrepancyRequest { ResolutionType = "WRITTEN_OFF", ResolutionExplanation = "Asset cannot be located." });
+            new ResolveDiscrepancyRequest { ResolutionType = "WRITTEN_OFF", ResolutionExplanation = "Asset cannot be located." },
+            CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(DiscrepancyStatus.Resolved, result!.Status);
@@ -166,7 +173,8 @@ public class DiscrepancyResolutionServiceTests
                 ResolutionType = "CONDITION_UPDATED",
                 ResolutionExplanation = "Register corrected to the verified condition.",
                 ApplyCorrection = true
-            });
+            },
+            CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.True(result!.RegisterCorrected);
@@ -189,9 +197,10 @@ public class DiscrepancyResolutionServiceTests
 
         var service = new DiscrepancyService(db);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResolveAsync(
+        await Assert.ThrowsAsync<BusinessRuleException>(() => service.ResolveAsync(
             orgId, discrepancy.Id, Guid.NewGuid(),
-            new ResolveDiscrepancyRequest { ResolutionType = "WRITTEN_OFF", ResolutionExplanation = "N/A here.", ApplyCorrection = true }));
+            new ResolveDiscrepancyRequest { ResolutionType = "WRITTEN_OFF", ResolutionExplanation = "N/A here.", ApplyCorrection = true },
+            CancellationToken.None));
     }
 
     // BR3: a resolved discrepancy cannot be reopened; a new discrepancy must be raised.
@@ -209,10 +218,12 @@ public class DiscrepancyResolutionServiceTests
 
         await service.ResolveAsync(
             orgId, discrepancy.Id, userId,
-            new ResolveDiscrepancyRequest { ResolutionType = "NO_ACTION", ResolutionExplanation = "First resolution, accepted as-is for testing." });
+            new ResolveDiscrepancyRequest { ResolutionType = "NO_ACTION", ResolutionExplanation = "First resolution, accepted as-is for testing." },
+            CancellationToken.None);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResolveAsync(
+        await Assert.ThrowsAsync<ConflictException>(() => service.ResolveAsync(
             orgId, discrepancy.Id, userId,
-            new ResolveDiscrepancyRequest { ResolutionType = "NO_ACTION", ResolutionExplanation = "Second attempt should be rejected outright." }));
+            new ResolveDiscrepancyRequest { ResolutionType = "NO_ACTION", ResolutionExplanation = "Second attempt should be rejected outright." },
+            CancellationToken.None));
     }
 }

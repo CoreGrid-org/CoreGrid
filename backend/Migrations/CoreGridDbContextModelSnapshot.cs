@@ -733,7 +733,7 @@ namespace CoreGrid.Api.Migrations
                     b.Property<Guid>("AssetId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("CampaignId")
+                    b.Property<Guid?>("CampaignId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("CorrectiveAction")
@@ -779,7 +779,7 @@ namespace CoreGrid.Api.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("VerificationTaskId")
+                    b.Property<Guid?>("VerificationTaskId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -1619,8 +1619,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasOne("CoreGrid.Api.Domain.VerificationCampaign", "Campaign")
                         .WithMany()
                         .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
                         .WithMany()
@@ -1641,8 +1640,7 @@ namespace CoreGrid.Api.Migrations
                     b.HasOne("CoreGrid.Api.Domain.VerificationTask", "VerificationTask")
                         .WithMany("Discrepancies")
                         .HasForeignKey("VerificationTaskId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Asset");
 
