@@ -31,6 +31,17 @@ public interface IAssetService
         UpdateAssetRequest request,
         CancellationToken cancellationToken);
 
+    // SRS §9.2 / FR-031: standalone physical verification, outside any
+    // campaign — raises a Discrepancy (open, for later resolution the same
+    // way a campaign-raised one is) per mismatch, never corrects the
+    // register directly.
+    Task<AssetVerificationResultDto?> VerifyAssetAsync(
+        Guid organizationId,
+        Guid assetId,
+        Guid verifiedByUserId,
+        VerifyAssetRequest request,
+        CancellationToken cancellationToken);
+
     Task<bool> UpdateConditionAsync(
         Guid organizationId,
         Guid assetId,

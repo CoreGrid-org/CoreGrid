@@ -65,6 +65,22 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(workflow);
     }
 
+    // GET /api/agent-workflows/{id}/execution-summary — SRS §9.6: the full
+    // auditable trace (plan, agent outputs, tool calls, validation,
+    // decision), same read access as GetWorkflowById.
+    [HttpGet("{id:guid}/execution-summary")]
+    [Authorize(Roles = ReadRoles)]
+    public async Task<ActionResult<WorkflowExecutionSummaryDto>> GetExecutionSummary(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var summary = await _workflowService.GetExecutionSummaryAsync(currentUser.OrganizationId, id, cancellationToken);
+        return summary is null
+            ? throw NotFoundException.For(nameof(AgentWorkflow), id)
+            : Ok(summary);
+    }
+
     // FR-067/FR-068: Officer or Administrator initiates an evaluation.
     // AI-27: rate-limited per user+org — initiation drives real agent work.
     [HttpPost]

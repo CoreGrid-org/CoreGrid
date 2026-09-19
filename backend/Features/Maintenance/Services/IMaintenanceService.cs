@@ -13,6 +13,10 @@ public interface IMaintenanceService
     /// FR-035 - Officer creates a maintenance record directly, specifying type and priority.
     Task<MaintenanceRecordDto?> CreateMaintenanceAsync(Guid organizationId, Guid currentUserId, CreateMaintenanceRequest request, CancellationToken cancellationToken);
 
+    /// SRS §9.3 — amend classification, priority and description on a
+    /// record that hasn't reached a terminal status yet.
+    Task<MaintenanceRecordDto?> AmendMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, AmendMaintenanceRequest request, CancellationToken cancellationToken);
+
     /// FR-036 - Officer/Administrator approves a REQUESTED record, assigns it and records an estimated cost.
     /// Transitions status: REQUESTED → APPROVED.
     Task<MaintenanceRecordDto?> ApproveMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, ApproveMaintenanceRequest request, CancellationToken cancellationToken);

@@ -88,6 +88,23 @@ public class DisposalsController : CoreGridControllerBase
         return Ok(result);
     }
 
+    // POST /api/disposals/{id}/reject — SRS §9.4 / CanApproveDisposal (Administrator only)
+    [HttpPost("api/disposals/{id:guid}/reject")]
+    [Authorize(Policy = Policies.CanApproveDisposal)]
+    public async Task<ActionResult<DisposalResponse>> RejectDisposal(
+        Guid id,
+        [FromBody] RejectDisposalRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var result = await _disposalService.RejectDisposalAsync(
+            currentUser.OrganizationId, id, currentUser.Id, request, cancellationToken);
+
+        return Ok(result);
+    }
+
     // GET /api/disposals — list with filters, Staff scoped to own department (B14)
     [HttpGet("api/disposals")]
     public async Task<ActionResult<PagedResult<DisposalResponse>>> GetDisposals(

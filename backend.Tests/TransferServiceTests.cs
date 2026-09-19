@@ -216,6 +216,106 @@ public class TransferServiceTests
         Assert.Equal(approverId, updatedAsset.UpdatedBy);
     }
 
+    // SRS §9.4: rejecting a transfer request releases the asset back to
+    // ACTIVE — it never left the requesting department.
+    [Fact]
+    public async Task RejectTransfer_WhenTransferIsRequested_SucceedsAndReturnsAssetToActive()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+        var initiatorId = Guid.NewGuid();
+
+        var initiator = new User { Id = initiatorId, OrganizationId = orgId, ExternalSubjectId = "sub-initiator", GivenName = "I", FamilyName = "N", Email = "initiator@test.com", Role = CoreGridRole.Staff };
+        var approver = new User { Id = approverId, OrganizationId = orgId, ExternalSubjectId = "sub-approver", GivenName = "A", FamilyName = "P", Email = "approver@test.com", Role = CoreGridRole.Administrator };
+
+        var deptFrom = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-FROM", Name = "From Dept" };
+        var deptTo = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-TO", Name = "To Dept" };
+        var locFrom = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptFrom.Id, Name = "Loc 1", Type = "ROOM" };
+        var locTo = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = deptTo.Id, Name = "Loc 2", Type = "ROOM" };
+
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            DepartmentId = deptFrom.Id,
+            LocationId = locFrom.Id,
+            AssetCode = "AST-004",
+            Name = "Printer",
+            Status = AssetStatuses.TransferRequested,
+            Condition = AssetConditions.Good,
+            QrPayload = "qr"
+        };
+
+        var transfer = new AssetTransfer
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = asset.Id,
+            Asset = asset,
+            FromDepartmentId = deptFrom.Id,
+            ToDepartmentId = deptTo.Id,
+            FromLocationId = locFrom.Id,
+            ToLocationId = locTo.Id,
+            InitiatedByUserId = initiatorId,
+            Status = TransferStatus.REQUESTED,
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Users.AddRange(initiator, approver);
+        dbContext.Departments.AddRange(deptFrom, deptTo);
+        dbContext.Locations.AddRange(locFrom, locTo);
+        dbContext.Assets.Add(asset);
+        dbContext.AssetTransfers.Add(transfer);
+        await dbContext.SaveChangesAsync();
+
+        var service = new TransferService(dbContext);
+
+        // Act
+        var result = await service.RejectTransferAsync(
+            orgId, transfer.Id, approverId, new RejectTransferRequest { Reason = "Destination department has no capacity." }, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(TransferStatus.REJECTED, result.Status);
+        Assert.Equal("Destination department has no capacity.", result.RejectionReason);
+
+        var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
+        Assert.NotNull(updatedAsset);
+        Assert.Equal(AssetStatuses.Active, updatedAsset.Status);
+    }
+
+    [Theory]
+    [InlineData(TransferStatus.APPROVED)]
+    [InlineData(TransferStatus.IN_TRANSIT)]
+    [InlineData(TransferStatus.COMPLETED)]
+    [InlineData(TransferStatus.REJECTED)]
+    [InlineData(TransferStatus.CANCELLED)]
+    public async Task RejectTransfer_WhenTransferIsNotRequested_Fails(TransferStatus invalidStatus)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-RJ", Name = "Asset", Status = AssetStatuses.Active, Condition = AssetConditions.Good, QrPayload = "qr" };
+        var transfer = new AssetTransfer
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetId = asset.Id, Asset = asset,
+            FromDepartmentId = Guid.NewGuid(), ToDepartmentId = Guid.NewGuid(), FromLocationId = Guid.NewGuid(), ToLocationId = Guid.NewGuid(),
+            InitiatedByUserId = Guid.NewGuid(), Status = invalidStatus, RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Assets.Add(asset);
+        dbContext.AssetTransfers.Add(transfer);
+        await dbContext.SaveChangesAsync();
+
+        var service = new TransferService(dbContext);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.RejectTransferAsync(orgId, transfer.Id, approverId, new RejectTransferRequest { Reason = "Too late." }, CancellationToken.None));
+    }
+
     [Theory]
     [InlineData(TransferStatus.APPROVED)]
     [InlineData(TransferStatus.IN_TRANSIT)]

@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button, InlineNotification } from "@carbon/react";
+import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button, InlineNotification, Pagination } from "@carbon/react";
 import { Add, CheckmarkFilled, WarningAltFilled, CloseFilled } from "@carbon/icons-react";
-import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import { formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useClientPagination } from "@/shared/hooks/useClientPagination";
 import { useMe } from "@/features/auth/hooks/useMe";
 import { useRunMaintenanceAgent, useRunPolicyAgent, useWorkflowsList } from "../hooks/useWorkflows";
 import CreateWorkflowModal from "../components/CreateWorkflowModal";
 import EvaluatePolicyModal from "../components/EvaluatePolicyModal";
 import DecideWorkflowModal from "../components/DecideWorkflowModal";
+import AgentsOverview from "../components/AgentsOverview";
+import WorkflowCard, { KeyFact } from "../components/WorkflowCard";
 import type { AgentWorkflow } from "../api/workflows";
 
 const IN_FLIGHT_STATUSES = ["PLANNING", "ANALYZING", "VALIDATING"];
@@ -17,6 +20,22 @@ const OUTCOME_ICON: Record<string, typeof CheckmarkFilled> = {
   NEEDS_REVISION: WarningAltFilled,
 };
 const OUTCOME_COLOR: Record<string, string> = { PASS: "#24a148", FAIL: "#da1e28", NEEDS_REVISION: "#f1c21b" };
+
+function WorkflowCardPagination({ pagination }: { pagination: ReturnType<typeof useClientPagination<AgentWorkflow>> }) {
+  if (pagination.total === 0) return null;
+  return (
+    <Pagination
+      page={pagination.page}
+      pageSize={pagination.pageSize}
+      pageSizes={[5, 10, 20, 50]}
+      totalItems={pagination.total}
+      onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+        pagination.setPage(nextPage);
+        pagination.setPageSize(nextPageSize);
+      }}
+    />
+  );
+}
 
 export default function WorkflowsPage() {
   const { data: me } = useMe();
@@ -46,6 +65,13 @@ export default function WorkflowsPage() {
   const active = workflows.data?.filter((w) => IN_FLIGHT_STATUSES.includes(w.status)) ?? [];
   const awaitingApproval = workflows.data?.filter((w) => w.status === "AWAITING_APPROVAL") ?? [];
   const completed = workflows.data?.filter((w) => !IN_FLIGHT_STATUSES.includes(w.status) && w.status !== "AWAITING_APPROVAL") ?? [];
+
+  // Every card carries its own (lazily-fetched) execution trace accordion,
+  // so a page of cards is naturally taller than a page of table rows — a
+  // smaller default page size keeps each tab to a reasonable scroll.
+  const activePage = useClientPagination(active, 5);
+  const awaitingApprovalPage = useClientPagination(awaitingApproval, 5);
+  const completedPage = useClientPagination(completed, 5);
 
   return (
     <div className="cg-page">
@@ -110,226 +136,186 @@ export default function WorkflowsPage() {
           <Tab>Active</Tab>
           <Tab>Awaiting Approval</Tab>
           <Tab>Completed</Tab>
+          <Tab>Agents</Tab>
         </TabList>
         <TabPanels>
           {/* ── Active ──────────────────────────────────────────────────── */}
           <TabPanel>
-            <div className="cg-section">
-              {workflows.isLoading ? (
-                <div className="cg-placeholder">
-                  <p>Loading…</p>
+            {workflows.isLoading ? (
+              <div className="cg-placeholder">
+                <p>Loading…</p>
+              </div>
+            ) : active.length > 0 ? (
+              <>
+                <div className="cg-workflow-list">
+                  {activePage.pageItems.map((w) => (
+                    <WorkflowCard key={w.id} workflow={w}>
+                      <div className="cg-workflow-card__facts">
+                        <KeyFact
+                          label="Plan"
+                          value={w.plan?.inScope ? `${w.plan.steps.length} steps` : w.plan?.rejectionReason ?? "—"}
+                        />
+                        <KeyFact
+                          label="Maintenance analysis"
+                          value={
+                            w.maintenance_analysis
+                              ? `${w.maintenance_analysis.repair_count} repair${w.maintenance_analysis.repair_count === 1 ? "" : "s"} · ${formatStatusLabel(w.maintenance_analysis.cost_trend)}`
+                              : "—"
+                          }
+                        />
+                        <KeyFact label="Started" value={w.started_at ? new Date(w.started_at).toLocaleString() : "—"} />
+                      </div>
+
+                      {canInitiate && (
+                        <div className="cg-workflow-card__actions">
+                          <Button
+                            kind="tertiary"
+                            size="sm"
+                            disabled={runAgent.isPending && runningId === w.id}
+                            onClick={() => handleRunAgent(w.id)}
+                          >
+                            {runAgent.isPending && runningId === w.id ? "Running…" : "Run Policy Compliance Agent"}
+                          </Button>
+                          <Button
+                            kind="tertiary"
+                            size="sm"
+                            disabled={runMaintenanceAgent.isPending && runningMaintenanceId === w.id}
+                            onClick={() => handleRunMaintenanceAgent(w.id)}
+                          >
+                            {runMaintenanceAgent.isPending && runningMaintenanceId === w.id
+                              ? "Running…"
+                              : "Re-run Maintenance Analysis"}
+                          </Button>
+                          <Button kind="ghost" size="sm" onClick={() => setEvaluating(w)}>
+                            Evaluate manually
+                          </Button>
+                        </div>
+                      )}
+                    </WorkflowCard>
+                  ))}
                 </div>
-              ) : active.length > 0 ? (
-                <table className="cg-table cg-table--no-hover">
-                  <thead>
-                    <tr>
-                      <th>Asset</th>
-                      <th>Objective</th>
-                      <th>Plan</th>
-                      <th>Maintenance analysis</th>
-                      <th>Status</th>
-                      <th>Started</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {active.map((w) => (
-                      <tr key={w.id}>
-                        <td className="cg-table__mono">{w.asset_code}</td>
-                        <td className="cg-table__muted">{w.objective}</td>
-                        <td className="cg-table__muted">
-                          {w.plan?.inScope ? `${w.plan.steps.length} steps` : w.plan?.rejectionReason ?? "—"}
-                        </td>
-                        <td className="cg-table__muted">
-                          {w.maintenance_analysis ? (
-                            <>
-                              {w.maintenance_analysis.repair_count} repair
-                              {w.maintenance_analysis.repair_count === 1 ? "" : "s"}
-                              {" · "}
-                              {formatStatusLabel(w.maintenance_analysis.cost_trend)}
-                            </>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td>
-                          <Tag type={statusTagColor(w.status)}>{formatStatusLabel(w.status)}</Tag>
-                        </td>
-                        <td className="cg-table__muted">{w.started_at ? new Date(w.started_at).toLocaleString() : "—"}</td>
-                        <td>
-                          {canInitiate && (
-                            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
-                              <Button
-                                kind="tertiary"
-                                size="sm"
-                                disabled={runAgent.isPending && runningId === w.id}
-                                onClick={() => handleRunAgent(w.id)}
-                              >
-                                {runAgent.isPending && runningId === w.id ? "Running…" : "Run Policy Compliance Agent"}
-                              </Button>
-                              <Button
-                                kind="tertiary"
-                                size="sm"
-                                disabled={runMaintenanceAgent.isPending && runningMaintenanceId === w.id}
-                                onClick={() => handleRunMaintenanceAgent(w.id)}
-                              >
-                                {runMaintenanceAgent.isPending && runningMaintenanceId === w.id
-                                  ? "Running…"
-                                  : "Re-run Maintenance Analysis"}
-                              </Button>
-                              <Button kind="ghost" size="sm" onClick={() => setEvaluating(w)}>
-                                Evaluate manually
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="cg-placeholder">
-                  <p>No evaluations in progress.</p>
-                </div>
-              )}
-            </div>
+                <WorkflowCardPagination pagination={activePage} />
+              </>
+            ) : (
+              <div className="cg-placeholder">
+                <p>No evaluations in progress.</p>
+              </div>
+            )}
           </TabPanel>
 
           {/* ── Awaiting approval ───────────────────────────────────────── */}
           <TabPanel>
-            {!workflows.isLoading && awaitingApproval.length === 0 && (
+            {workflows.isLoading ? (
+              <div className="cg-placeholder">
+                <p>Loading…</p>
+              </div>
+            ) : awaitingApproval.length > 0 ? (
+              <>
+                <div className="cg-workflow-list">
+                  {awaitingApprovalPage.pageItems.map((w) => (
+                    <WorkflowCard key={w.id} workflow={w}>
+                      <KeyFact label="Recommendation" value={formatStatusLabel(w.recommendation ?? "—")} />
+
+                      {w.maintenance_analysis && (
+                        <div className="cg-workflow-card__facts">
+                          <KeyFact label="Repair count" value={w.maintenance_analysis.repair_count} />
+                          <KeyFact
+                            label="Mean time between failures"
+                            value={
+                              w.maintenance_analysis.mean_time_between_failures_days !== null
+                                ? `${w.maintenance_analysis.mean_time_between_failures_days} days`
+                                : "—"
+                            }
+                          />
+                          <KeyFact label="Cost trend" value={formatStatusLabel(w.maintenance_analysis.cost_trend)} />
+                          <KeyFact
+                            label="Projected next 12 months"
+                            value={`LKR ${w.maintenance_analysis.projected_next_twelve_months_cost.toLocaleString()}`}
+                          />
+                        </div>
+                      )}
+
+                      <p className="cg-workflow-card__section-label">
+                        Policy validation: {w.validation_result?.verdict}
+                      </p>
+                      <div className="cg-workflow-card__rules">
+                        {w.validation_result?.rule_results.map((r) => {
+                          const Icon = OUTCOME_ICON[r.outcome];
+                          return (
+                            <div key={r.rule_id} className="cg-workflow-card__rule">
+                              {Icon && <Icon size={16} style={{ fill: OUTCOME_COLOR[r.outcome], flexShrink: 0 }} />}
+                              <span className="cg-workflow-card__rule-id">{r.rule_id}</span>
+                              <span className="cg-workflow-card__rule-values">
+                                {r.expected} → {r.actual}
+                              </span>
+                              <Tag type={r.outcome === "PASS" ? "green" : r.outcome === "FAIL" ? "red" : "gray"} size="sm">
+                                {r.outcome}
+                              </Tag>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {canDecide ? (
+                        <div className="cg-workflow-card__actions">
+                          <Button kind="primary" size="sm" onClick={() => setDeciding({ workflow: w, decision: "APPROVE" })}>
+                            Approve
+                          </Button>
+                          <Button kind="danger--tertiary" size="sm" onClick={() => setDeciding({ workflow: w, decision: "REJECT" })}>
+                            Reject
+                          </Button>
+                          <Button kind="tertiary" size="sm" onClick={() => setDeciding({ workflow: w, decision: "REVISE" })}>
+                            Request revision
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="cg-table__muted" style={{ fontSize: "0.8125rem" }}>
+                          Awaiting an Administrator's decision.
+                        </p>
+                      )}
+                    </WorkflowCard>
+                  ))}
+                </div>
+                <WorkflowCardPagination pagination={awaitingApprovalPage} />
+              </>
+            ) : (
               <div className="cg-placeholder">
                 <p>Nothing is awaiting approval.</p>
               </div>
             )}
-
-            {awaitingApproval.map((w) => (
-              <div className="cg-section" key={w.id}>
-                <div className="cg-section__header">
-                  <div>
-                    <p className="cg-section__title">
-                      {w.asset_code}: recommends {formatStatusLabel(w.recommendation ?? "")}
-                    </p>
-                    <p className="cg-table__muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
-                      {w.objective}
-                    </p>
-                  </div>
-                  {w.is_high_impact && <Tag type="magenta">High impact</Tag>}
-                </div>
-                <div className="cg-section__body">
-                  {w.maintenance_analysis && (
-                    <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-                      <div>
-                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
-                          Repair count
-                        </p>
-                        <p style={{ margin: 0, fontSize: "0.875rem" }}>{w.maintenance_analysis.repair_count}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
-                          Mean time between failures
-                        </p>
-                        <p style={{ margin: 0, fontSize: "0.875rem" }}>
-                          {w.maintenance_analysis.mean_time_between_failures_days !== null
-                            ? `${w.maintenance_analysis.mean_time_between_failures_days} days`
-                            : "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
-                          Cost trend
-                        </p>
-                        <p style={{ margin: 0, fontSize: "0.875rem" }}>{formatStatusLabel(w.maintenance_analysis.cost_trend)}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.25rem" }}>
-                          Projected next 12 months
-                        </p>
-                        <p style={{ margin: 0, fontSize: "0.875rem" }}>
-                          LKR {w.maintenance_analysis.projected_next_twelve_months_cost.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d", margin: "0 0 0.5rem" }}>
-                    Policy validation: {w.validation_result?.verdict}
-                  </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
-                    {w.validation_result?.rule_results.map((r) => {
-                      const Icon = OUTCOME_ICON[r.outcome];
-                      return (
-                        <div key={r.rule_id} style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                          {Icon && <Icon size={16} style={{ fill: OUTCOME_COLOR[r.outcome], flexShrink: 0 }} />}
-                          <span style={{ fontSize: "0.8125rem", color: "#525252", fontWeight: 600, minWidth: "3.5rem" }}>{r.rule_id}</span>
-                          <span style={{ fontSize: "0.8125rem", color: "#525252" }}>
-                            {r.expected} → {r.actual}
-                          </span>
-                          <Tag type={r.outcome === "PASS" ? "green" : r.outcome === "FAIL" ? "red" : "gray"} size="sm">
-                            {r.outcome}
-                          </Tag>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {canDecide ? (
-                    <div className="cg-form__actions">
-                      <Button kind="primary" onClick={() => setDeciding({ workflow: w, decision: "APPROVE" })}>
-                        Approve
-                      </Button>
-                      <Button kind="danger--tertiary" onClick={() => setDeciding({ workflow: w, decision: "REJECT" })}>
-                        Reject
-                      </Button>
-                      <Button kind="tertiary" onClick={() => setDeciding({ workflow: w, decision: "REVISE" })}>
-                        Request revision
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="cg-table__muted" style={{ fontSize: "0.8125rem" }}>
-                      Awaiting an Administrator's decision.
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
           </TabPanel>
 
           {/* ── Completed ───────────────────────────────────────────────── */}
           <TabPanel>
-            <div className="cg-section">
-              {workflows.isLoading ? (
-                <div className="cg-placeholder">
-                  <p>Loading…</p>
+            {workflows.isLoading ? (
+              <div className="cg-placeholder">
+                <p>Loading…</p>
+              </div>
+            ) : completed.length > 0 ? (
+              <>
+                <div className="cg-workflow-list">
+                  {completedPage.pageItems.map((w) => (
+                    <WorkflowCard key={w.id} workflow={w}>
+                      <div className="cg-workflow-card__facts">
+                        <KeyFact label="Recommendation" value={w.recommendation ? formatStatusLabel(w.recommendation) : "—"} />
+                        <KeyFact label="Completed" value={w.completed_at ? new Date(w.completed_at).toLocaleString() : "—"} />
+                        {w.failure_reason && <KeyFact label="Failure reason" value={w.failure_reason} />}
+                      </div>
+                    </WorkflowCard>
+                  ))}
                 </div>
-              ) : completed.length > 0 ? (
-                <table className="cg-table cg-table--no-hover">
-                  <thead>
-                    <tr>
-                      <th>Asset</th>
-                      <th>Recommendation</th>
-                      <th>Outcome</th>
-                      <th>Completed</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {completed.map((w) => (
-                      <tr key={w.id}>
-                        <td className="cg-table__mono">{w.asset_code}</td>
-                        <td>{w.recommendation ? formatStatusLabel(w.recommendation) : "—"}</td>
-                        <td>
-                          <Tag type={statusTagColor(w.status)}>{formatStatusLabel(w.status)}</Tag>
-                        </td>
-                        <td className="cg-table__muted">{w.completed_at ? new Date(w.completed_at).toLocaleString() : "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="cg-placeholder">
-                  <p>No completed evaluations yet.</p>
-                </div>
-              )}
-            </div>
+                <WorkflowCardPagination pagination={completedPage} />
+              </>
+            ) : (
+              <div className="cg-placeholder">
+                <p>No completed evaluations yet.</p>
+              </div>
+            )}
+          </TabPanel>
+
+          {/* ── Agents ──────────────────────────────────────────────────── */}
+          <TabPanel>
+            <AgentsOverview />
           </TabPanel>
         </TabPanels>
       </Tabs>

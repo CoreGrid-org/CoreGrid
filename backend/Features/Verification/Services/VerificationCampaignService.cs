@@ -114,8 +114,11 @@ public class VerificationCampaignService : IVerificationCampaignService
 
         var openDiscrepancyCounts = await _context.Discrepancies
             .AsNoTracking()
-            .Where(d => campaignIds.Contains(d.CampaignId) && d.Status == DiscrepancyStatus.Open)
-            .GroupBy(d => d.CampaignId)
+            // A discrepancy raised through the standalone asset-verify
+            // action (FR-031) has no CampaignId — excluded here, same as
+            // it was implicitly excluded before that action existed.
+            .Where(d => d.CampaignId.HasValue && campaignIds.Contains(d.CampaignId.Value) && d.Status == DiscrepancyStatus.Open)
+            .GroupBy(d => d.CampaignId!.Value)
             .Select(g => new { CampaignId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CampaignId, x => x.Count, cancellationToken);
 
@@ -236,7 +239,7 @@ public class VerificationCampaignService : IVerificationCampaignService
             .ToListAsync(cancellationToken);
 
         var discrepancies = await _context.Discrepancies
-            .Where(d => d.CampaignId == id || taskIds.Contains(d.VerificationTaskId))
+            .Where(d => d.CampaignId == id || (d.VerificationTaskId.HasValue && taskIds.Contains(d.VerificationTaskId.Value)))
             .ToListAsync(cancellationToken);
 
         var tasks = await _context.VerificationTasks

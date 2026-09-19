@@ -8,10 +8,13 @@ public class Discrepancy
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 
-    public Guid CampaignId { get; set; }
+    // Null for a discrepancy raised through SRS §9.2's standalone
+    // POST /api/assets/{id}/verify (FR-031) — there is no campaign or
+    // task outside a campaign for that action to belong to.
+    public Guid? CampaignId { get; set; }
     public VerificationCampaign? Campaign { get; set; }
 
-    public Guid VerificationTaskId { get; set; }
+    public Guid? VerificationTaskId { get; set; }
     public VerificationTask? VerificationTask { get; set; }
 
     public Guid AssetId { get; set; }

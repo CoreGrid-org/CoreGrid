@@ -50,6 +50,13 @@ public class RequestDisposalRevisionRequest
     public required string Comments { get; set; }
 }
 
+// SRS §9.4: "Reject with a reason."
+public class RejectDisposalRequest
+{
+    [Required, MinLength(1), MaxLength(2000)]
+    public required string Reason { get; set; }
+}
+
 public class DisposalResponse
 {
     public Guid Id { get; set; }

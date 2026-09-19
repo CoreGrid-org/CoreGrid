@@ -84,6 +84,53 @@ public class AgentWorkflowService : IAgentWorkflowService
         return workflow is null ? null : MapToDto(workflow);
     }
 
+    public async Task<WorkflowExecutionSummaryDto?> GetExecutionSummaryAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
+    {
+        var workflow = await _db.AgentWorkflows.AsNoTracking()
+            .Include(w => w.Asset)
+            .Include(w => w.InitiatedByUser)
+            .Include(w => w.Steps)
+            .Include(w => w.Approvals).ThenInclude(a => a.DecidedByUser)
+            .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
+
+        if (workflow is null)
+        {
+            return null;
+        }
+
+        return new WorkflowExecutionSummaryDto
+        {
+            Workflow = MapToDto(workflow),
+            Steps = workflow.Steps
+                .OrderBy(s => s.Sequence)
+                .Select(s => new AgentExecutionStepDto
+                {
+                    Id = s.Id,
+                    Agent = s.Agent,
+                    Sequence = s.Sequence,
+                    InputHash = s.InputHash,
+                    OutputSummary = s.OutputSummary,
+                    DurationMs = s.DurationMs,
+                    Status = s.Status,
+                    Error = s.Error,
+                    CreatedAt = s.CreatedAt
+                })
+                .ToList(),
+            Approvals = workflow.Approvals
+                .OrderBy(a => a.DecidedAt)
+                .Select(a => new AgentApprovalDto
+                {
+                    Id = a.Id,
+                    Decision = a.Decision,
+                    DecidedByUserId = a.DecidedByUserId,
+                    DecidedByEmail = a.DecidedByUser?.Email,
+                    Reason = a.Reason,
+                    DecidedAt = a.DecidedAt
+                })
+                .ToList()
+        };
+    }
+
     public async Task<AgentWorkflowDto> CreateWorkflowAsync(
         Guid organizationId,
         Guid userId,

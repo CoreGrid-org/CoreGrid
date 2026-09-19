@@ -458,6 +458,136 @@ public class AssetService : IAssetService
     }
 
     // =========================================================
+    // 4b. VERIFY — SRS §9.2 / FR-031, standalone physical verification
+    // =========================================================
+
+    public async Task<AssetVerificationResultDto?> VerifyAssetAsync(
+        Guid organizationId,
+        Guid assetId,
+        Guid verifiedByUserId,
+        VerifyAssetRequest request,
+        CancellationToken cancellationToken)
+    {
+        var asset = await _context.Assets
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
+
+        if (asset is null)
+        {
+            return null;
+        }
+
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assertedPresent = request.AssertedPresent!.Value;
+        string? normalizedCondition = null;
+
+        if (assertedPresent)
+        {
+            if (request.AssertedLocationId is null || string.IsNullOrWhiteSpace(request.AssertedCondition))
+            {
+                throw new ValidationException("Attributes", "Location and condition must be asserted when the asset is present.");
+            }
+
+            normalizedCondition = request.AssertedCondition.Trim().ToUpperInvariant();
+            if (!ValidConditions.Contains(normalizedCondition))
+            {
+                throw new ValidationException(nameof(request.AssertedCondition), $"Condition must be one of: {string.Join(", ", ValidConditions)}.");
+            }
+
+            var locationExists = await _context.Locations.AsNoTracking()
+                .AnyAsync(l => l.Id == request.AssertedLocationId.Value && l.OrganizationId == organizationId, cancellationToken);
+            if (!locationExists)
+            {
+                throw new ValidationException(nameof(request.AssertedLocationId), "Asserted location was not found.");
+            }
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var raisedTypes = new List<DiscrepancyType>();
+
+        // FR-031/FR-060: same reconciliation VerificationTaskService.CompleteTaskAsync
+        // runs for a campaign task, against the asset directly instead —
+        // never corrects the register itself, only raises an open
+        // discrepancy for later resolution (same as a campaign-raised one).
+        if (!assertedPresent)
+        {
+            raisedTypes.Add(RaiseAdHocDiscrepancy(asset, verifiedByUserId, DiscrepancyType.Missing,
+                $"Automatic: asset '{asset.AssetCode}' was not found during a standalone verification.", now));
+        }
+        else
+        {
+            if (request.AssertedLocationId!.Value != asset.LocationId)
+            {
+                raisedTypes.Add(RaiseAdHocDiscrepancy(asset, verifiedByUserId, DiscrepancyType.LocationMismatch,
+                    "Automatic: register location does not match the asserted location.", now));
+            }
+
+            if (normalizedCondition != asset.Condition)
+            {
+                raisedTypes.Add(RaiseAdHocDiscrepancy(asset, verifiedByUserId, DiscrepancyType.ConditionMismatch,
+                    $"Automatic: register condition '{asset.Condition}' does not match the asserted condition '{normalizedCondition}'.", now));
+            }
+        }
+
+        // FR-027: lifecycle history for the verification itself,
+        // independent of any discrepancy it raised.
+        _context.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = asset.Id,
+            ActorUserId = verifiedByUserId,
+            EventType = AssetHistoryEventTypes.Verification,
+            Description = assertedPresent
+                ? "Verified present (standalone verification)."
+                : "Verified NOT present (standalone verification).",
+            PreviousValue = null,
+            NewValue = JsonSerializer.Serialize(new
+            {
+                assertedPresent,
+                assertedLocationId = request.AssertedLocationId,
+                assertedCondition = normalizedCondition
+            }),
+            CreatedAt = now
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new AssetVerificationResultDto
+        {
+            AssetId = asset.Id,
+            AssertedPresent = assertedPresent,
+            AssertedLocationId = request.AssertedLocationId,
+            AssertedCondition = normalizedCondition,
+            RaisedDiscrepancyTypes = raisedTypes,
+            VerifiedAt = now
+        };
+    }
+
+    private DiscrepancyType RaiseAdHocDiscrepancy(Asset asset, Guid verifiedByUserId, DiscrepancyType type, string description, DateTimeOffset now)
+    {
+        _context.Discrepancies.Add(new Discrepancy
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = asset.OrganizationId,
+            // No campaign or task — this discrepancy came from the
+            // standalone POST /api/assets/{id}/verify action (FR-031).
+            CampaignId = null,
+            VerificationTaskId = null,
+            AssetId = asset.Id,
+            Type = type,
+            IsAutomatic = true,
+            RaisedByUserId = verifiedByUserId,
+            Description = description,
+            Status = DiscrepancyStatus.Open,
+            RegisterCorrected = false,
+            CreatedAt = now
+        });
+
+        return type;
+    }
+
+    // =========================================================
     // 5. UPDATE CONDITION
     // =========================================================
 

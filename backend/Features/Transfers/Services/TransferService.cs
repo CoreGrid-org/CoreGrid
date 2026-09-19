@@ -185,6 +185,59 @@ public class TransferService : ITransferService
             ?? throw new InvalidOperationException("Transfer was approved but could not be retrieved.");
     }
 
+    public async Task<TransferResponse> RejectTransferAsync(
+        Guid organizationId,
+        Guid transferId,
+        Guid rejectedByUserId,
+        RejectTransferRequest request,
+        CancellationToken cancellationToken)
+    {
+        var transfer = await _dbContext.AssetTransfers
+            .Include(t => t.Asset)
+            .FirstOrDefaultAsync(t => t.Id == transferId && t.OrganizationId == organizationId, cancellationToken)
+            ?? throw NotFoundException.For(nameof(AssetTransfer), transferId);
+
+        if (transfer.Status != TransferStatus.REQUESTED)
+        {
+            throw new ConflictException(
+                $"Cannot reject transfer in status '{transfer.Status}'. Transfer must be in '{TransferStatus.REQUESTED}' status.",
+                "invalid_status_transition");
+        }
+
+        var asset = transfer.Asset ?? throw new InvalidOperationException($"Associated Asset {transfer.AssetId} not found.");
+
+        var now = DateTimeOffset.UtcNow;
+        var previousAssetStatus = asset.Status;
+        var reason = request.Reason.Trim();
+
+        transfer.Status = TransferStatus.REJECTED;
+        transfer.RejectionReason = reason;
+
+        // The asset never left the requesting department — release the
+        // TRANSFER_REQUESTED hold back to ACTIVE (SRS §9.4).
+        asset.Status = AssetStatuses.Active;
+        asset.UpdatedAt = now;
+        asset.UpdatedBy = rejectedByUserId;
+
+        _dbContext.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = asset.Id,
+            ActorUserId = rejectedByUserId,
+            EventType = AssetHistoryEventTypes.Transfer,
+            Description = $"Transfer rejected: {reason}",
+            PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus }),
+            NewValue = JsonSerializer.Serialize(new { status = asset.Status }),
+            CreatedAt = now
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return await GetTransferByIdAsync(organizationId, DepartmentScope.Unrestricted, transfer.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Transfer was rejected but could not be retrieved.");
+    }
+
     public async Task<TransferResponse> ConfirmReceiptAsync(
         Guid organizationId,
         Guid transferId,

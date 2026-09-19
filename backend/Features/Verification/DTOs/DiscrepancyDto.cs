@@ -7,8 +7,12 @@ namespace CoreGrid.Api.Features.Verification.DTOs;
 public class DiscrepancyDto
 {
     public Guid Id { get; set; }
-    public Guid CampaignId { get; set; }
-    public Guid VerificationTaskId { get; set; }
+
+    // Null for a discrepancy raised through the standalone
+    // POST /api/assets/{id}/verify action (FR-031) — it belongs to no
+    // campaign or task.
+    public Guid? CampaignId { get; set; }
+    public Guid? VerificationTaskId { get; set; }
     public Guid AssetId { get; set; }
     public required string AssetCode { get; set; }
 

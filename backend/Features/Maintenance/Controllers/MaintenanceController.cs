@@ -98,6 +98,23 @@ public class MaintenanceController : CoreGridControllerBase
             : Ok(record);
     }
 
+    // PUT /api/maintenance/{id} — SRS §9.3: amend classification, priority, description.
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.CanManageMaintenance)]
+    public async Task<ActionResult<MaintenanceRecordDto>> Amend(
+        Guid id, [FromBody] AmendMaintenanceRequest request, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var record = await _maintenanceService.AmendMaintenanceAsync(
+            currentUser.OrganizationId, currentUser.Id, id, request, cancellationToken);
+
+        return record is null
+            ? throw NotFoundException.For(nameof(MaintenanceRecord), id)
+            : Ok(record);
+    }
+
     // FR-035 — creates a maintenance record directly (not via a fault
     // report); the caller specifies type (CORRECTIVE / PREVENTIVE) and
     // priority.

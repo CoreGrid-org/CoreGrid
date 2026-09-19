@@ -12,6 +12,11 @@ public interface ITransferService
 
     Task<TransferResponse> ApproveTransferAsync(Guid organizationId, Guid transferId, Guid approvedByUserId, CancellationToken cancellationToken);
 
+    // SRS §9.4 / FR-045: reverts the asset to ACTIVE — a rejected transfer
+    // never left the requesting department, so there is nothing to undo
+    // beyond releasing the TRANSFER_REQUESTED hold.
+    Task<TransferResponse> RejectTransferAsync(Guid organizationId, Guid transferId, Guid rejectedByUserId, RejectTransferRequest request, CancellationToken cancellationToken);
+
     // Appendix B: an InventoryOfficer confirming receipt must belong to
     // the transfer's destination department; Administrator is exempt
     // (plan §4.4's documented deviation).

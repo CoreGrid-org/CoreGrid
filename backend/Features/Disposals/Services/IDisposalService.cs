@@ -18,6 +18,11 @@ public interface IDisposalService
 
     Task<DisposalResponse> RequestDisposalRevisionAsync(Guid organizationId, Guid disposalRequestId, Guid requestedByUserId, string comments, CancellationToken cancellationToken);
 
+    // SRS §9.4: terminal — reverts the asset to CONDEMNED (the condemnation
+    // itself isn't in question, only this particular disposal request), so
+    // a new disposal request can be raised against it later.
+    Task<DisposalResponse> RejectDisposalAsync(Guid organizationId, Guid disposalRequestId, Guid rejectedByUserId, RejectDisposalRequest request, CancellationToken cancellationToken);
+
     Task<PagedResult<DisposalResponse>> GetDisposalRequestsAsync(Guid organizationId, DepartmentScope scope, DisposalQueryParameters parameters, CancellationToken cancellationToken);
 
     Task<DisposalResponse?> GetDisposalRequestByIdAsync(Guid organizationId, DepartmentScope scope, Guid disposalRequestId, Guid viewingUserId, CancellationToken cancellationToken);

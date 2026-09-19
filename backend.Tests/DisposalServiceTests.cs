@@ -688,6 +688,97 @@ public class DisposalServiceTests
         Assert.Equal(DisposalStatus.REVISION_REQUESTED, dbRequest.Status);
     }
 
+    // =========================================================================
+    // SRS §9.4: Reject (RejectDisposalAsync)
+    // =========================================================================
+
+    [Fact]
+    public async Task RejectDisposal_WhenStatusIsPending_SucceedsAndReturnsAssetToCondemned()
+    {
+        // Arrange
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetCode = "AST-REJ-1",
+            Name = "Van",
+            Status = AssetStatuses.DisposalRequested,
+            Condition = AssetConditions.Poor,
+            QrPayload = "qr"
+        };
+
+        // DisposalRequest.InitiatedByUserId is non-nullable, so EF treats
+        // InitiatedByUser as a required navigation — LoadResponseAsync's
+        // reload after SaveChanges needs a real matching row, same reason
+        // RequestDisposalRevision's own test seeds a requester.
+        var requester = new User { Id = requesterId, OrganizationId = orgId, ExternalSubjectId = "sub-requester-rej", Email = "requester-rej@example.com", GivenName = "Req", FamilyName = "Uester" };
+
+        var disposalRequest = new DisposalRequest
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            AssetId = asset.Id,
+            InitiatedByUserId = requesterId,
+            DisposalMethod = DisposalMethod.AUCTION,
+            EstimatedResidualValue = 1000m,
+            Status = DisposalStatus.PENDING,
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Assets.Add(asset);
+        dbContext.Users.Add(requester);
+        dbContext.DisposalRequests.Add(disposalRequest);
+        await dbContext.SaveChangesAsync();
+
+        var preconditionService = new DisposalPreconditionService(dbContext);
+        var service = new DisposalService(dbContext, preconditionService);
+
+        // Act
+        var reason = "Better disposed of via donation, not auction.";
+        var result = await service.RejectDisposalAsync(orgId, disposalRequest.Id, adminId, new RejectDisposalRequest { Reason = reason }, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(DisposalStatus.REJECTED, result.Status);
+        Assert.Contains(reason, result.Notes);
+
+        var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
+        Assert.NotNull(updatedAsset);
+        Assert.Equal(AssetStatuses.Condemned, updatedAsset.Status);
+    }
+
+    [Theory]
+    [InlineData(DisposalStatus.APPROVED)]
+    [InlineData(DisposalStatus.REJECTED)]
+    [InlineData(DisposalStatus.DISPOSED)]
+    public async Task RejectDisposal_WhenStatusIsNotPending_ThrowsConflictException(DisposalStatus initialStatus)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-REJ-2", Name = "Asset", Status = AssetStatuses.Condemned, Condition = AssetConditions.Poor, QrPayload = "qr" };
+        var disposalRequest = new DisposalRequest
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetId = asset.Id, InitiatedByUserId = Guid.NewGuid(),
+            DisposalMethod = DisposalMethod.AUCTION, EstimatedResidualValue = 1000m, Status = initialStatus, RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Assets.Add(asset);
+        dbContext.DisposalRequests.Add(disposalRequest);
+        await dbContext.SaveChangesAsync();
+
+        var preconditionService = new DisposalPreconditionService(dbContext);
+        var service = new DisposalService(dbContext, preconditionService);
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.RejectDisposalAsync(orgId, disposalRequest.Id, adminId, new RejectDisposalRequest { Reason = "Too late." }, CancellationToken.None));
+    }
+
     [Theory]
     [InlineData(DisposalStatus.APPROVED)]
     [InlineData(DisposalStatus.REJECTED)]

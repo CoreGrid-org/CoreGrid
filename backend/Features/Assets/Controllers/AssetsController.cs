@@ -115,6 +115,28 @@ public class AssetsController : CoreGridControllerBase
         return NoContent();
     }
 
+    // POST /api/assets/{id}/verify — SRS §9.2 / FR-031: standalone physical
+    // verification, outside any campaign. CanVerifyAssets (Officer, Auditor —
+    // Appendix B; Administrator via the same documented deviation
+    // VerificationTasksController's own CompleteTask action already uses).
+    [HttpPost("{id:guid}/verify")]
+    [Authorize(Policy = Policies.CanVerifyAssets)]
+    public async Task<ActionResult<AssetVerificationResultDto>> VerifyAsset(
+        Guid id,
+        [FromBody] VerifyAssetRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var result = await _assetService.VerifyAssetAsync(
+            currentUser.OrganizationId, id, currentUser.Id, request, cancellationToken);
+
+        return result is null
+            ? throw NotFoundException.For(nameof(Asset), id)
+            : Ok(result);
+    }
+
     [HttpGet("{id:guid}/history")]
     [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<PagedResult<AssetHistoryDto>>> GetAssetHistory(

@@ -98,3 +98,41 @@ public class AgentWorkflowQueryParameters : PagedQuery
 
     public string? Status { get; set; }
 }
+
+// SRS §9.6 / §7.8: one row per node execution — the "agent outputs, tool
+// calls" half of the execution summary's auditable trace.
+public class AgentExecutionStepDto
+{
+    public Guid Id { get; set; }
+    public required string Agent { get; set; }
+    public int Sequence { get; set; }
+    public string? InputHash { get; set; }
+    public string? OutputSummary { get; set; }
+    public int? DurationMs { get; set; }
+    public required string Status { get; set; } // SUCCESS | FAILED
+    public string? Error { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+// The "decision" half of the execution summary — AI-16's recorded reason,
+// decider and timestamp.
+public class AgentApprovalDto
+{
+    public Guid Id { get; set; }
+    public required string Decision { get; set; } // APPROVE | REJECT | REVISE
+    public Guid DecidedByUserId { get; set; }
+    public string? DecidedByEmail { get; set; }
+    public required string Reason { get; set; }
+    public DateTimeOffset DecidedAt { get; set; }
+}
+
+// GET /api/workflows/{id}/execution-summary (SRS §9.6): "Full auditable
+// trace: plan, agent outputs, tool calls, validation, decision." The first
+// four are already on AgentWorkflowDto (Plan/ValidationResult/Recommendation);
+// Steps and Approvals are the two collections that dto alone never exposed.
+public class WorkflowExecutionSummaryDto
+{
+    public required AgentWorkflowDto Workflow { get; set; }
+    public List<AgentExecutionStepDto> Steps { get; set; } = [];
+    public List<AgentApprovalDto> Approvals { get; set; } = [];
+}

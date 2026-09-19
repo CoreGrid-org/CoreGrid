@@ -1,11 +1,10 @@
 import { Asset, ToolBox, ArrowsHorizontal, Bot, Report } from "@carbon/icons-react";
 import RoleLayout from "./RoleLayout";
 
-// Component D (Reports, FR-084/085) is the only nav destination Officer has
-// wired to a real page today — Assets/Maintenance/Transfers/Workflows are
-// Components A/B/C, which this pass deliberately leaves mocked (see
-// App.tsx) rather than exposing untested cross-component pages to a role
-// that hasn't been through department-scoping/permission review on them yet.
+// Every destination below is wired to its real page (App.tsx) — Assets,
+// Maintenance and Transfers & Disposals are Staff-department-scoped
+// server-side (B14/DepartmentScope) the same way Officer's own list
+// queries already are.
 const NAV_ITEMS = [
   { to: "/inventory/assets", label: "Asset Registry", icon: Asset },
   { to: "/inventory/maintenance", label: "Maintenance", icon: ToolBox },

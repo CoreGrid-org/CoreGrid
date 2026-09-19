@@ -172,6 +172,36 @@ public class MaintenanceService : IMaintenanceService
         return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
+    // SRS §9.3: amend classification, priority and description. Blocked
+    // once the record is terminal (COMPLETED/CANCELLED) — same guard
+    // CancelMaintenanceAsync uses — since there's nothing left to amend.
+    public async Task<MaintenanceRecordDto?> AmendMaintenanceAsync(
+        Guid organizationId, Guid currentUserId, Guid maintenanceId, AmendMaintenanceRequest request, CancellationToken cancellationToken)
+    {
+        var record = await _context.MaintenanceRecords
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId, cancellationToken);
+
+        if (record is null)
+        {
+            return null;
+        }
+
+        if (record.Status is MaintenanceStatus.COMPLETED or MaintenanceStatus.CANCELLED)
+        {
+            throw new ConflictException($"Cannot amend a record with status {record.Status}.", "invalid_status_transition");
+        }
+
+        record.Type = request.Type!.Value;
+        record.Priority = request.Priority!.Value;
+        record.Description = request.Description.Trim();
+        record.UpdatedAt = DateTimeOffset.UtcNow;
+        record.UpdatedBy = currentUserId;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
+    }
+
     // FR-035 - Create maintenance record directly (Officer)
     public async Task<MaintenanceRecordDto?> CreateMaintenanceAsync(
         Guid organizationId, Guid currentUserId, CreateMaintenanceRequest request, CancellationToken cancellationToken)

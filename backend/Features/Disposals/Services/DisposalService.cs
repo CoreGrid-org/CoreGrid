@@ -225,6 +225,69 @@ public class DisposalService : IDisposalService
         return await LoadResponseAsync(organizationId, disposalRequest.Id, evalResult, cancellationToken);
     }
 
+    // SRS §9.4: reject the disposal request outright. Unlike RequestRevision
+    // (which keeps the request PENDING for resubmission), this is terminal
+    // for the request itself — the asset reverts to CONDEMNED so a fresh
+    // disposal request can be raised against it later, same as after any
+    // other condemnation.
+    public async Task<DisposalResponse> RejectDisposalAsync(
+        Guid organizationId,
+        Guid disposalRequestId,
+        Guid rejectedByUserId,
+        RejectDisposalRequest request,
+        CancellationToken cancellationToken)
+    {
+        var disposalRequest = await _dbContext.DisposalRequests
+            .Include(d => d.Asset)
+            .FirstOrDefaultAsync(d => d.Id == disposalRequestId && d.OrganizationId == organizationId, cancellationToken)
+            ?? throw NotFoundException.For(nameof(DisposalRequest), disposalRequestId);
+
+        if (disposalRequest.Status != DisposalStatus.PENDING)
+        {
+            throw new ConflictException(
+                $"Cannot reject disposal request in status '{disposalRequest.Status}'. Status must be '{DisposalStatus.PENDING}'.",
+                "invalid_status_transition");
+        }
+
+        if (disposalRequest.Asset == null)
+        {
+            throw new InvalidOperationException($"Associated Asset with ID {disposalRequest.AssetId} not found.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var reason = request.Reason.Trim();
+        var previousStatus = disposalRequest.Asset.Status;
+
+        disposalRequest.Status = DisposalStatus.REJECTED;
+
+        var timestamp = now.ToString("yyyy-MM-dd HH:mm:ss 'UTC'");
+        var rejectionEntry = $"[Rejected - {timestamp}]: {reason}";
+        disposalRequest.Notes = string.IsNullOrWhiteSpace(disposalRequest.Notes)
+            ? rejectionEntry
+            : $"{disposalRequest.Notes}\n{rejectionEntry}";
+
+        disposalRequest.Asset.Status = AssetStatuses.Condemned;
+        disposalRequest.Asset.UpdatedAt = now;
+        disposalRequest.Asset.UpdatedBy = rejectedByUserId;
+
+        _dbContext.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = disposalRequest.Asset.Id,
+            ActorUserId = rejectedByUserId,
+            EventType = AssetHistoryEventTypes.Disposal,
+            Description = $"Disposal request rejected: {reason}",
+            PreviousValue = JsonSerializer.Serialize(new { status = previousStatus }),
+            NewValue = JsonSerializer.Serialize(new { status = disposalRequest.Asset.Status }),
+            CreatedAt = now
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return await LoadResponseAsync(organizationId, disposalRequest.Id, evalResult: null, cancellationToken);
+    }
+
     // FR-053: Return a disposal request for revision with recorded comments without rejecting outright
     public async Task<DisposalResponse> RequestDisposalRevisionAsync(
         Guid organizationId,

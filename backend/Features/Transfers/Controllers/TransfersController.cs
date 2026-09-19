@@ -56,6 +56,23 @@ public class TransfersController : CoreGridControllerBase
         return Ok(result);
     }
 
+    // POST /api/transfers/{id}/reject — SRS §9.4 / FR-045 / CanApproveTransfer (Administrator)
+    [HttpPost("{id:guid}/reject")]
+    [Authorize(Policy = Policies.CanApproveTransfer)]
+    public async Task<ActionResult<TransferResponse>> RejectTransfer(
+        Guid id,
+        [FromBody] RejectTransferRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var result = await _transferService.RejectTransferAsync(
+            currentUser.OrganizationId, id, currentUser.Id, request, cancellationToken);
+
+        return Ok(result);
+    }
+
     // POST /api/transfers/{id}/confirm-receipt — FR-046 / CanConfirmReceipt (InventoryOfficer, Administrator)
     [HttpPost("{id:guid}/confirm-receipt")]
     [Authorize(Policy = Policies.CanConfirmReceipt)]
