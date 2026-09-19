@@ -12,7 +12,7 @@ namespace CoreGrid.Api.Features.Verification.Services;
 
 public class VerificationTaskService : IVerificationTaskService
 {
-    private static readonly string[] ValidConditions = ["NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE"];
+    private static readonly string[] ValidConditions = AssetConditions.All;
 
     private static readonly Expression<Func<VerificationTask, VerificationTaskDto>> ToDtoExpression = t => new VerificationTaskDto
     {
@@ -155,7 +155,7 @@ public class VerificationTaskService : IVerificationTaskService
             OrganizationId = organizationId,
             AssetId = task.AssetId,
             ActorUserId = currentUserId,
-            EventType = "VERIFICATION",
+            EventType = AssetHistoryEventTypes.Verification,
             Description = assertedPresent
                 ? $"Verified present at completion of task {task.Id}."
                 : $"Verified NOT present at completion of task {task.Id}.",

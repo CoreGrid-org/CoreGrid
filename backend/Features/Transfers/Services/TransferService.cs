@@ -74,10 +74,10 @@ public class TransferService : ITransferService
             ?? throw new ValidationException(nameof(request.AssetId), $"Asset with ID {assetId} not found in this organization.");
 
         // Guard: Asset.Status must be ACTIVE (FR-044).
-        if (!string.Equals(asset.Status, AssetStatusConstants.Active, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(asset.Status, AssetStatuses.Active, StringComparison.OrdinalIgnoreCase))
         {
             throw new BusinessRuleException(
-                $"Asset cannot be transferred because its status is '{asset.Status}'. Asset must be '{AssetStatusConstants.Active}'.",
+                $"Asset cannot be transferred because its status is '{asset.Status}'. Asset must be '{AssetStatuses.Active}'.",
                 "asset_not_active");
         }
 
@@ -107,7 +107,7 @@ public class TransferService : ITransferService
         };
 
         // Atomically set Asset.Status = TRANSFER_REQUESTED
-        asset.Status = AssetStatusConstants.TransferRequested;
+        asset.Status = AssetStatuses.TransferRequested;
         asset.UpdatedAt = now;
         asset.UpdatedBy = initiatedByUserId;
 
@@ -120,7 +120,7 @@ public class TransferService : ITransferService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             ActorUserId = initiatedByUserId,
-            EventType = "TRANSFER",
+            EventType = AssetHistoryEventTypes.Transfer,
             Description = $"Transfer requested to {toDepartment.Name} / {toLocation.Name}.",
             PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus }),
             NewValue = JsonSerializer.Serialize(new { status = asset.Status, toDepartmentId, toLocationId }),
@@ -161,7 +161,7 @@ public class TransferService : ITransferService
         transfer.ApprovedAt = now;
 
         // Transition asset to IN_TRANSIT (FR-045)
-        asset.Status = AssetStatusConstants.InTransit;
+        asset.Status = AssetStatuses.InTransit;
         asset.UpdatedAt = now;
         asset.UpdatedBy = approvedByUserId;
 
@@ -172,7 +172,7 @@ public class TransferService : ITransferService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             ActorUserId = approvedByUserId,
-            EventType = "TRANSFER",
+            EventType = AssetHistoryEventTypes.Transfer,
             Description = "Transfer approved; asset in transit.",
             PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus }),
             NewValue = JsonSerializer.Serialize(new { status = asset.Status }),
@@ -226,7 +226,7 @@ public class TransferService : ITransferService
         // Update asset location/department and transition status back to ACTIVE (FR-046)
         asset.DepartmentId = transfer.ToDepartmentId;
         asset.LocationId = transfer.ToLocationId;
-        asset.Status = AssetStatusConstants.Active;
+        asset.Status = AssetStatuses.Active;
         asset.UpdatedAt = now;
         asset.UpdatedBy = confirmedByUserId;
 
@@ -237,7 +237,7 @@ public class TransferService : ITransferService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             ActorUserId = confirmedByUserId,
-            EventType = "TRANSFER",
+            EventType = AssetHistoryEventTypes.Transfer,
             Description = "Transfer completed; asset received.",
             PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus, departmentId = previousDepartmentId, locationId = previousLocationId }),
             NewValue = JsonSerializer.Serialize(new { status = asset.Status, departmentId = asset.DepartmentId, locationId = asset.LocationId }),

@@ -184,7 +184,7 @@ public class LocationService : ILocationService
             // FR-012: same "active" definition as the department guard.
             var hasActiveAssets = await _context.Assets
                 .AsNoTracking()
-                .AnyAsync(a => a.LocationId == id && a.Status != "DISPOSED", cancellationToken);
+                .AnyAsync(a => a.LocationId == id && a.Status != AssetStatuses.Disposed, cancellationToken);
 
             if (hasActiveAssets)
             {

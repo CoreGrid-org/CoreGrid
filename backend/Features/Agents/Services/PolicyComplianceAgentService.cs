@@ -45,7 +45,7 @@ public class PolicyComplianceAgentService(
         {
             Id = Guid.NewGuid(),
             WorkflowId = workflow.Id,
-            Agent = "PolicyComplianceRecommendation",
+            Agent = AgentNames.PolicyComplianceRecommendation,
             Sequence = 3,
             OutputSummary = $"Proposed {proposal.Recommendation}: {proposal.Rationale}",
             Status = "SUCCESS",

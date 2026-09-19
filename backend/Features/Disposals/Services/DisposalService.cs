@@ -33,34 +33,34 @@ public class DisposalService : IDisposalService
             ?? throw NotFoundException.For(nameof(Asset), assetId);
 
         // FR-049: Condemnation requires a recorded condition of POOR or UNSERVICEABLE.
-        var isEligibleCondition = string.Equals(asset.Condition, AssetStatusConstants.ConditionPoor, StringComparison.OrdinalIgnoreCase) ||
-                                  string.Equals(asset.Condition, AssetStatusConstants.ConditionUnserviceable, StringComparison.OrdinalIgnoreCase);
+        var isEligibleCondition = string.Equals(asset.Condition, AssetConditions.Poor, StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(asset.Condition, AssetConditions.Unserviceable, StringComparison.OrdinalIgnoreCase);
 
         if (!isEligibleCondition)
         {
             throw new BusinessRuleException(
-                $"Asset cannot be condemned because its condition is '{asset.Condition}'. Condemnation requires condition '{AssetStatusConstants.ConditionPoor}' or '{AssetStatusConstants.ConditionUnserviceable}'.",
+                $"Asset cannot be condemned because its condition is '{asset.Condition}'. Condemnation requires condition '{AssetConditions.Poor}' or '{AssetConditions.Unserviceable}'.",
                 "condition_not_eligible");
         }
 
         // Prior status guard: Reject if already CONDEMNED, DISPOSAL_REQUESTED, or terminal DISPOSED, or undergoing active transfer
-        if (string.Equals(asset.Status, AssetStatusConstants.Condemned, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(asset.Status, AssetStatuses.Condemned, StringComparison.OrdinalIgnoreCase))
         {
             throw new ConflictException("Asset is already condemned.", "already_condemned");
         }
 
-        if (string.Equals(asset.Status, AssetStatusConstants.DisposalRequested, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(asset.Status, AssetStatuses.DisposalRequested, StringComparison.OrdinalIgnoreCase))
         {
             throw new ConflictException("Asset already has a pending disposal request.", "disposal_already_requested");
         }
 
-        if (string.Equals(asset.Status, AssetStatusConstants.Disposed, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(asset.Status, AssetStatuses.Disposed, StringComparison.OrdinalIgnoreCase))
         {
             throw new ConflictException("Asset is already disposed and cannot be modified.", "already_disposed");
         }
 
-        if (string.Equals(asset.Status, AssetStatusConstants.TransferRequested, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(asset.Status, AssetStatusConstants.InTransit, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(asset.Status, AssetStatuses.TransferRequested, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(asset.Status, AssetStatuses.InTransit, StringComparison.OrdinalIgnoreCase))
         {
             throw new ConflictException($"Asset cannot be condemned while in status '{asset.Status}'.", "invalid_status_transition");
         }
@@ -68,7 +68,7 @@ public class DisposalService : IDisposalService
         var previousStatus = asset.Status;
         var now = DateTimeOffset.UtcNow;
 
-        asset.Status = AssetStatusConstants.Condemned;
+        asset.Status = AssetStatuses.Condemned;
         asset.UpdatedAt = now;
         asset.UpdatedBy = condemnedByUserId;
 
@@ -80,7 +80,7 @@ public class DisposalService : IDisposalService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             ActorUserId = condemnedByUserId,
-            EventType = "STATUS_CHANGE",
+            EventType = AssetHistoryEventTypes.StatusChange,
             Description = !string.IsNullOrWhiteSpace(request.Reason) ? $"Asset condemned: {request.Reason.Trim()}" : "Asset condemned.",
             PreviousValue = JsonSerializer.Serialize(new { status = previousStatus }),
             NewValue = JsonSerializer.Serialize(new { status = asset.Status, evidenceUrl = request.EvidenceUrl }),
@@ -118,7 +118,7 @@ public class DisposalService : IDisposalService
             ?? throw new ValidationException(nameof(request.AssetId), $"Asset with ID {requestedAssetId} not found.");
 
         // FR-050: Guard: Asset.Status must be CONDEMNED
-        if (!string.Equals(asset.Status, AssetStatusConstants.Condemned, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(asset.Status, AssetStatuses.Condemned, StringComparison.OrdinalIgnoreCase))
         {
             throw new BusinessRuleException(
                 $"Disposal request can only be raised against a condemned asset. Asset status is '{asset.Status}'.",
@@ -142,7 +142,7 @@ public class DisposalService : IDisposalService
         };
 
         // FR-050: Transition asset to DISPOSAL_REQUESTED
-        asset.Status = AssetStatusConstants.DisposalRequested;
+        asset.Status = AssetStatuses.DisposalRequested;
         asset.UpdatedAt = now;
         asset.UpdatedBy = initiatedByUserId;
 
@@ -201,7 +201,7 @@ public class DisposalService : IDisposalService
         disposalRequest.DisposedAt = now;
 
         var previousStatus = disposalRequest.Asset.Status;
-        disposalRequest.Asset.Status = AssetStatusConstants.Disposed;
+        disposalRequest.Asset.Status = AssetStatuses.Disposed;
         disposalRequest.Asset.UpdatedAt = now;
         disposalRequest.Asset.UpdatedBy = approvingUserId;
 
@@ -212,7 +212,7 @@ public class DisposalService : IDisposalService
             OrganizationId = organizationId,
             AssetId = disposalRequest.Asset.Id,
             ActorUserId = approvingUserId,
-            EventType = "DISPOSAL",
+            EventType = AssetHistoryEventTypes.Disposal,
             Description = $"Asset disposed via {disposalRequest.DisposalMethod}.",
             PreviousValue = JsonSerializer.Serialize(new { status = previousStatus }),
             NewValue = JsonSerializer.Serialize(new { status = disposalRequest.Asset.Status }),

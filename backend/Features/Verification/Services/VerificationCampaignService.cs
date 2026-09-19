@@ -294,7 +294,7 @@ public class VerificationCampaignService : IVerificationCampaignService
     {
         var assetsQuery = _context.Assets
             .AsNoTracking()
-            .Where(a => a.OrganizationId == campaign.OrganizationId && a.Status != "DISPOSED");
+            .Where(a => a.OrganizationId == campaign.OrganizationId && a.Status != AssetStatuses.Disposed);
 
         if (campaign.ScopeDepartmentId.HasValue)
         {

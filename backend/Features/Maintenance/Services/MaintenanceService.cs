@@ -19,7 +19,7 @@ public class MaintenanceService : IMaintenanceService
     // URL, minted fresh on every authorized read — never persisted.
     private static readonly TimeSpan PhotoUrlExpiry = TimeSpan.FromMinutes(15);
 
-    private static readonly string[] ValidConditions = ["NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE"];
+    private static readonly string[] ValidConditions = AssetConditions.All;
 
     // §5.4: the one MaintenanceRecordDto projection, previously duplicated
     // between GetById and List.
@@ -270,7 +270,7 @@ public class MaintenanceService : IMaintenanceService
         await _notificationService.NotifyAsync(
             organizationId,
             assigneeId,
-            "MAINTENANCE_ASSIGNED",
+            NotificationTypes.MaintenanceAssigned,
             "Maintenance assigned to you",
             $"You've been assigned maintenance for {record.Asset?.AssetCode ?? "an asset"}: {record.Description}",
             "MaintenanceRecord",
@@ -311,7 +311,7 @@ public class MaintenanceService : IMaintenanceService
         record.UpdatedBy = currentUserId;
 
         // FR-039 - place the asset into UNDER_MAINTENANCE.
-        asset.Status = "UNDER_MAINTENANCE";
+        asset.Status = AssetStatuses.UnderMaintenance;
         asset.UpdatedAt = now;
         asset.UpdatedBy = currentUserId;
 
@@ -321,7 +321,7 @@ public class MaintenanceService : IMaintenanceService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             ActorUserId = currentUserId,
-            EventType = "MAINTENANCE",
+            EventType = AssetHistoryEventTypes.Maintenance,
             Description = $"Maintenance record {record.Id} started — asset placed UNDER_MAINTENANCE.",
             PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus }),
             NewValue = JsonSerializer.Serialize(new { status = asset.Status }),
@@ -414,7 +414,7 @@ public class MaintenanceService : IMaintenanceService
         asset.LastRepairDate = completionDate;
 
         // BR2 - UNSERVICEABLE resulting condition → CONDEMNED, not ACTIVE.
-        asset.Status = conditionUpper == "UNSERVICEABLE" ? "CONDEMNED" : "ACTIVE";
+        asset.Status = conditionUpper == AssetConditions.Unserviceable ? AssetStatuses.Condemned : AssetStatuses.Active;
         asset.UpdatedAt = now;
         asset.UpdatedBy = currentUserId;
 
@@ -424,7 +424,7 @@ public class MaintenanceService : IMaintenanceService
             OrganizationId = organizationId,
             AssetId = asset.Id,
             ActorUserId = currentUserId,
-            EventType = "MAINTENANCE",
+            EventType = AssetHistoryEventTypes.Maintenance,
             Description = $"Maintenance record {record.Id} completed. "
                         + $"Asset condition updated from {previousAssetCondition} to {conditionUpper}. "
                         + $"Asset status set to {asset.Status}.",
@@ -458,7 +458,7 @@ public class MaintenanceService : IMaintenanceService
             await _notificationService.NotifyAsync(
                 organizationId,
                 record.CreatedBy.Value,
-                "MAINTENANCE_COMPLETED",
+                NotificationTypes.MaintenanceCompleted,
                 "Maintenance completed",
                 $"Maintenance for {asset.AssetCode} has been completed. Resulting condition: {conditionUpper}.",
                 "MaintenanceRecord",
@@ -490,9 +490,9 @@ public class MaintenanceService : IMaintenanceService
         record.UpdatedAt = DateTimeOffset.UtcNow;
         record.UpdatedBy = currentUserId;
 
-        if (asset != null && asset.Status == "UNDER_MAINTENANCE")
+        if (asset != null && asset.Status == AssetStatuses.UnderMaintenance)
         {
-            asset.Status = "ACTIVE";
+            asset.Status = AssetStatuses.Active;
             asset.UpdatedAt = DateTimeOffset.UtcNow;
             asset.UpdatedBy = currentUserId;
 
@@ -506,7 +506,7 @@ public class MaintenanceService : IMaintenanceService
                 // which is not one of CK_AssetHistory_EventType's allowed
                 // values — cancelling an IN_PROGRESS record threw a DB
                 // check-constraint violation (500) instead of succeeding.
-                EventType = "MAINTENANCE",
+                EventType = AssetHistoryEventTypes.Maintenance,
                 Description = $"Maintenance record {record.Id} cancelled. Asset status reverted to ACTIVE.",
                 PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus }),
                 NewValue = JsonSerializer.Serialize(new { status = asset.Status }),
@@ -529,7 +529,7 @@ public class MaintenanceService : IMaintenanceService
             await _notificationService.NotifyAsync(
                 organizationId,
                 recipientId,
-                "MAINTENANCE_CANCELLED",
+                NotificationTypes.MaintenanceCancelled,
                 "Maintenance cancelled",
                 $"Maintenance for {asset?.AssetCode ?? "an asset"} was cancelled" +
                     (string.IsNullOrWhiteSpace(request.Reason) ? "." : $": {request.Reason}"),

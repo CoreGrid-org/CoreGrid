@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Finance;
 
 namespace CoreGrid.Api.Features.Disposals.Services;
 
@@ -73,14 +74,14 @@ public class DisposalPreconditionService : IDisposalPreconditionService
     /// </summary>
     public PreconditionCheck CheckP1AssetCondemned(Asset asset)
     {
-        bool passed = asset.Status == AssetStatusConstants.Condemned;
+        bool passed = asset.Status == AssetStatuses.Condemned;
 
         return new PreconditionCheck
         {
             Code = "P1",
             Description = "Asset status must be CONDEMNED",
             Passed = passed,
-            FailureReason = passed ? null : $"Asset status is '{asset.Status}', but must be '{AssetStatusConstants.Condemned}'."
+            FailureReason = passed ? null : $"Asset status is '{asset.Status}', but must be '{AssetStatuses.Condemned}'."
         };
     }
 
@@ -124,13 +125,10 @@ public class DisposalPreconditionService : IDisposalPreconditionService
     public PreconditionCheck CheckP3ServiceLifeElapsed(Asset asset, OrganizationPolicy? policy, AssetType? assetType, DateOnly? evaluationDate = null)
     {
         var today = evaluationDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        
-        // Calculate elapsed years
-        int elapsedYears = today.Year - asset.AcquisitionDate.Year;
-        if (today < asset.AcquisitionDate.AddYears(elapsedYears))
-        {
-            elapsedYears--;
-        }
+
+        // §6.1/B22: shared with AgentToolsService.ComputeDepreciation —
+        // same whole-year, calendar-anniversary elapsed-time convention.
+        int elapsedYears = StraightLineDepreciation.ElapsedWholeYears(asset.AcquisitionDate, today);
 
         // Required years from Policy or AssetType
         decimal requiredMinYears = policy != null && policy.MinimumServiceLifeYears > 0

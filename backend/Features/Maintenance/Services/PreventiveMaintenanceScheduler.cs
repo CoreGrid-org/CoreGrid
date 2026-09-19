@@ -14,7 +14,7 @@ public class PreventiveMaintenanceScheduler(CoreGridDbContext db) : IPreventiveM
         // onto the record it creates.
         var candidateAssets = await db.Assets
             .Include(a => a.AssetType)
-            .Where(a => a.Status == "ACTIVE" && a.AssetType != null && a.AssetType.DefaultMaintenanceIntervalDays.HasValue)
+            .Where(a => a.Status == AssetStatuses.Active && a.AssetType != null && a.AssetType.DefaultMaintenanceIntervalDays.HasValue)
             .ToListAsync(cancellationToken);
 
         var created = 0;

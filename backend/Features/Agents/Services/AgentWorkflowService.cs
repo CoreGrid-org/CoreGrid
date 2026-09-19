@@ -99,7 +99,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             ?? throw new ValidationException(nameof(request.AssetId), "Asset not found.");
 
         // FR-068: refuse a terminal asset or an evaluation already running for it.
-        if (asset.Status == "DISPOSED")
+        if (asset.Status == AssetStatuses.Disposed)
         {
             throw new BusinessRuleException("This asset is disposed — no further evaluation is possible.", "asset_disposed");
         }
@@ -152,7 +152,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             {
                 Id = Guid.NewGuid(),
                 WorkflowId = workflow.Id,
-                Agent = "Planner",
+                Agent = AgentNames.Planner,
                 Sequence = 1,
                 OutputSummary = plan.InScope
                     ? $"Plan created with {plan.Steps.Count} steps."
@@ -284,7 +284,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             OrganizationId = organizationId,
             AssetId = workflow.AssetId,
             ActorUserId = null,
-            EventType = "AGENT_RECOMMENDATION",
+            EventType = AssetHistoryEventTypes.AgentRecommendation,
             Description = $"Workflow {workflow.Id} recorded recommendation '{request.ProposedRecommendation}' (verdict {validation.Verdict}).",
             PreviousValue = null,
             NewValue = JsonSerializer.Serialize(new { recommendation = request.ProposedRecommendation, verdict = validation.Verdict, isHighImpact = validation.IsHighImpact }),
@@ -295,7 +295,7 @@ public class AgentWorkflowService : IAgentWorkflowService
         {
             Id = Guid.NewGuid(),
             WorkflowId = workflow.Id,
-            Agent = "PolicyCompliance",
+            Agent = AgentNames.PolicyCompliance,
             Sequence = 4,
             OutputSummary = $"Verdict={validation.Verdict}, IsHighImpact={validation.IsHighImpact}",
             Status = "SUCCESS",
@@ -373,7 +373,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             throw new ValidationException(nameof(request.Reason), "A decision reason of at least 10 characters is required.");
         }
 
-        if (request.Decision is not ("APPROVE" or "REJECT" or "REVISE"))
+        if (request.Decision is not (WorkflowDecisions.Approve or WorkflowDecisions.Reject or WorkflowDecisions.Revise))
         {
             throw new ValidationException(nameof(request.Decision), "Decision must be APPROVE, REJECT or REVISE.");
         }
@@ -393,7 +393,7 @@ public class AgentWorkflowService : IAgentWorkflowService
 
         switch (request.Decision)
         {
-            case "APPROVE":
+            case WorkflowDecisions.Approve:
                 // AI-17: on approval, the API — not the agent service — would
                 // execute the authorised action through the ordinary business
                 // service (Component A/B/C's own guarded endpoints). That
@@ -407,7 +407,7 @@ public class AgentWorkflowService : IAgentWorkflowService
                 workflow.CompletedAt = now;
                 break;
 
-            case "REJECT":
+            case WorkflowDecisions.Reject:
                 workflow.Status = WorkflowStatus.REJECTED;
                 workflow.ApprovalStatus = ApprovalStatus.REJECTED;
                 workflow.CompletedAt = now;

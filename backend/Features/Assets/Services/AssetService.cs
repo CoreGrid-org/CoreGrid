@@ -18,7 +18,7 @@ public class AssetService : IAssetService
 {
     private readonly CoreGridDbContext _context;
 
-    private static readonly string[] ValidConditions = ["NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE"];
+    private static readonly string[] ValidConditions = AssetConditions.All;
 
     // §5.3: one AssetDto projection, used by GetAssetsAsync.
     private static readonly Expression<Func<Asset, AssetDto>> ToAssetDtoExpression = a => new AssetDto
@@ -293,7 +293,7 @@ public class AssetService : IAssetService
             LocationId = locationId,
             AssetCode = assetCode,
             Name = request.Name.Trim(),
-            Status = "ACTIVE",
+            Status = AssetStatuses.Active,
             Condition = condition,
             AcquisitionDate = acquisitionDate,
             AcquisitionCost = Math.Round(acquisitionCost, 2, MidpointRounding.AwayFromZero),

@@ -1,3 +1,4 @@
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Agents.DTOs;
 
 namespace CoreGrid.Api.Features.Agents.Services;
@@ -13,7 +14,7 @@ public class PolicyRuleEngine : IPolicyRuleEngine
     private const string Dispose = "DISPOSE";
     private const string Replace = "REPLACE";
     private const string Repair = "REPAIR";
-    private const string TerminalAssetStatus = "DISPOSED";
+    private const string TerminalAssetStatus = AssetStatuses.Disposed;
 
     public PolicyValidation Evaluate(PolicyEvaluationFacts facts)
     {
@@ -24,7 +25,7 @@ public class PolicyRuleEngine : IPolicyRuleEngine
         // PR-01: DISPOSE requires condition Poor or Unserviceable.
         if (facts.ProposedRecommendation == Dispose)
         {
-            var conditionOk = facts.AssetCondition is "POOR" or "UNSERVICEABLE";
+            var conditionOk = facts.AssetCondition is AssetConditions.Poor or AssetConditions.Unserviceable;
             results.Add(Rule("PR-01", "Condition is Poor or Unserviceable", facts.AssetCondition, conditionOk ? "PASS" : "FAIL"));
             if (!conditionOk) blockingReasons.Add("PR-01: asset condition does not justify disposal.");
         }

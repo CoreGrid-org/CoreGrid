@@ -13,7 +13,7 @@ internal static class AgentExecutionSteps
     {
         Id = Guid.NewGuid(),
         WorkflowId = workflowId,
-        Agent = "MaintenanceAnalysis",
+        Agent = AgentNames.MaintenanceAnalysis,
         Sequence = 2,
         OutputSummary = $"RepairCount={stats.RepairCount}, CostTrend={stats.CostTrend}, "
             + $"Projected12moCost={stats.ProjectedNextTwelveMonthsCost}",
@@ -26,7 +26,7 @@ internal static class AgentExecutionSteps
     {
         Id = Guid.NewGuid(),
         WorkflowId = workflowId,
-        Agent = "MaintenanceAnalysis",
+        Agent = AgentNames.MaintenanceAnalysis,
         Sequence = 2,
         OutputSummary = "Maintenance analysis failed.",
         DurationMs = durationMs,

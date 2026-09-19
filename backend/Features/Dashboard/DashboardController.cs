@@ -16,7 +16,7 @@ namespace CoreGrid.Api.Features.Dashboard;
 [Authorize]
 public class DashboardController : CoreGridControllerBase
 {
-    private static readonly string[] ConditionOrder = ["NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE"];
+    private static readonly string[] ConditionOrder = AssetConditions.All;
 
     public DashboardController(CoreGridDbContext db) : base(db)
     {
@@ -35,8 +35,8 @@ public class DashboardController : CoreGridControllerBase
         if (scope.IsRestricted) assets = assets.Where(a => a.DepartmentId == scope.DepartmentId);
 
         var totalAssets = await assets.CountAsync(cancellationToken);
-        var activeAssets = await assets.CountAsync(a => a.Status == "ACTIVE", cancellationToken);
-        var underMaintenance = await assets.CountAsync(a => a.Status == "UNDER_MAINTENANCE", cancellationToken);
+        var activeAssets = await assets.CountAsync(a => a.Status == AssetStatuses.Active, cancellationToken);
+        var underMaintenance = await assets.CountAsync(a => a.Status == AssetStatuses.UnderMaintenance, cancellationToken);
 
         var transfers = Db.AssetTransfers.AsNoTracking().Where(t => t.OrganizationId == organizationId);
         if (scope.IsRestricted) transfers = transfers.Where(t => t.Asset!.DepartmentId == scope.DepartmentId);

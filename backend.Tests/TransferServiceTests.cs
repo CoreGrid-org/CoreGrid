@@ -52,8 +52,8 @@ public class TransferServiceTests
             LocationId = locFrom.Id,
             AssetCode = "AST-001",
             Name = "Laptop",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -82,16 +82,16 @@ public class TransferServiceTests
 
         var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(updatedAsset);
-        Assert.Equal(AssetStatusConstants.TransferRequested, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.TransferRequested, updatedAsset.Status);
     }
 
     [Theory]
-    [InlineData(AssetStatusConstants.UnderMaintenance)]
-    [InlineData(AssetStatusConstants.TransferRequested)]
-    [InlineData(AssetStatusConstants.InTransit)]
-    [InlineData(AssetStatusConstants.Condemned)]
-    [InlineData(AssetStatusConstants.DisposalRequested)]
-    [InlineData(AssetStatusConstants.Disposed)]
+    [InlineData(AssetStatuses.UnderMaintenance)]
+    [InlineData(AssetStatuses.TransferRequested)]
+    [InlineData(AssetStatuses.InTransit)]
+    [InlineData(AssetStatuses.Condemned)]
+    [InlineData(AssetStatuses.DisposalRequested)]
+    [InlineData(AssetStatuses.Disposed)]
     public async Task InitiateTransfer_WhenAssetStatusIsNotActive_Fails(string invalidStatus)
     {
         // Arrange
@@ -113,7 +113,7 @@ public class TransferServiceTests
             AssetCode = "AST-002",
             Name = "Monitor",
             Status = invalidStatus,
-            Condition = AssetStatusConstants.ConditionGood,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -172,8 +172,8 @@ public class TransferServiceTests
             LocationId = locFrom.Id,
             AssetCode = "AST-003",
             Name = "Printer",
-            Status = AssetStatusConstants.TransferRequested,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.TransferRequested,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -212,7 +212,7 @@ public class TransferServiceTests
 
         var updatedAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(updatedAsset);
-        Assert.Equal(AssetStatusConstants.InTransit, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.InTransit, updatedAsset.Status);
         Assert.Equal(approverId, updatedAsset.UpdatedBy);
     }
 
@@ -235,8 +235,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-004",
             Name = "Chair",
-            Status = AssetStatusConstants.InTransit,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.InTransit,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -301,8 +301,8 @@ public class TransferServiceTests
             LocationId = originalLocId,
             AssetCode = "AST-005",
             Name = "Projector",
-            Status = AssetStatusConstants.InTransit,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.InTransit,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -345,7 +345,7 @@ public class TransferServiceTests
         Assert.NotNull(updatedAsset);
         Assert.Equal(targetDeptId, updatedAsset.DepartmentId);
         Assert.Equal(targetLocId, updatedAsset.LocationId);
-        Assert.Equal(AssetStatusConstants.Active, updatedAsset.Status);
+        Assert.Equal(AssetStatuses.Active, updatedAsset.Status);
         Assert.Equal(receiverId, updatedAsset.UpdatedBy);
     }
 
@@ -368,8 +368,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-006",
             Name = "Desk",
-            Status = AssetStatusConstants.TransferRequested,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.TransferRequested,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -415,8 +415,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-007",
             Name = "Router",
-            Status = AssetStatusConstants.Condemned, // Invalid for transfer
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned, // Invalid for transfer
+            Condition = AssetConditions.Poor,
             QrPayload = "qr"
         };
 
@@ -439,7 +439,7 @@ public class TransferServiceTests
         Assert.Empty(dbContext.AssetTransfers);
         var persistentAsset = await dbContext.Assets.FindAsync(asset.Id);
         Assert.NotNull(persistentAsset);
-        Assert.Equal(AssetStatusConstants.Condemned, persistentAsset.Status);
+        Assert.Equal(AssetStatuses.Condemned, persistentAsset.Status);
     }
 
     // =========================================================================
@@ -470,8 +470,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-001",
             Name = "Laptop",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
         var otherAsset = new Asset
@@ -480,8 +480,8 @@ public class TransferServiceTests
             OrganizationId = orgId,
             AssetCode = "AST-002",
             Name = "Monitor",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Good,
             QrPayload = "qr"
         };
 
@@ -578,7 +578,7 @@ public class TransferServiceTests
         var user = new User { Id = Guid.NewGuid(), OrganizationId = orgId, ExternalSubjectId = "sub-page", GivenName = "P", FamilyName = "U", Email = "p@test.com", Role = CoreGridRole.InventoryOfficer };
         var dept = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "D-P", Name = "Dept P" };
         var loc = new Location { Id = Guid.NewGuid(), OrganizationId = orgId, DepartmentId = dept.Id, Name = "Loc P", Type = "Office" };
-        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-P", Name = "P-Asset", Status = AssetStatusConstants.Active, Condition = AssetStatusConstants.ConditionGood, QrPayload = "qr" };
+        var asset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetCode = "AST-P", Name = "P-Asset", Status = AssetStatuses.Active, Condition = AssetConditions.Good, QrPayload = "qr" };
 
         for (int i = 0; i < 25; i++)
         {

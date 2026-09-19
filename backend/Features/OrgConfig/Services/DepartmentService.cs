@@ -152,7 +152,7 @@ public class DepartmentService : IDepartmentService
             // asset that legitimately belongs to this department.
             var hasActiveAssets = await _context.Assets
                 .AsNoTracking()
-                .AnyAsync(a => a.DepartmentId == id && a.Status != "DISPOSED", cancellationToken);
+                .AnyAsync(a => a.DepartmentId == id && a.Status != AssetStatuses.Disposed, cancellationToken);
 
             if (hasActiveAssets)
             {
