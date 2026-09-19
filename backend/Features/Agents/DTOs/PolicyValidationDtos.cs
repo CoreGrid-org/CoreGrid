@@ -1,16 +1,5 @@
 namespace CoreGrid.Api.Features.Agents.DTOs;
 
-// SRS §7.3: the Policy Compliance Agent's contract. FinancialAssessment
-// normally arrives from the Budget Analysis Agent (node 3) — until that
-// agent exists, a caller supplies these facts directly; the shape and the
-// rule evaluation behind it are unchanged either way.
-public class PolicyValidationRequest
-{
-    public Guid AssetId { get; set; }
-    public required string ProposedRecommendation { get; set; } // REPAIR | REPLACE | TRANSFER | DISPOSE | RETAIN
-    public FinancialAssessmentFacts? FinancialAssessment { get; set; }
-}
-
 public class FinancialAssessmentFacts
 {
     public decimal? RepairToReplaceRatio { get; set; }

@@ -1,10 +1,11 @@
 using CoreGrid.Api.Features.Agents.DTOs;
+using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Agents.Services;
 
 public interface IAgentWorkflowService
 {
-    Task<List<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, string? status, CancellationToken cancellationToken);
+    Task<PagedResult<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, AgentWorkflowQueryParameters query, CancellationToken cancellationToken);
 
     Task<AgentWorkflowDto?> GetWorkflowByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
 

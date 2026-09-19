@@ -13,6 +13,7 @@ public class UpdateAssetRequest
     [Required]
     public Guid? LocationId { get; set; }
 
+    [Required, MaxLength(200)]
     public required string Name { get; set; }
 
     [Required]

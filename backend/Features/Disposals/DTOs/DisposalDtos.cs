@@ -1,12 +1,16 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.Disposals.DTOs;
 
 public class CondemnAssetRequest
 {
+    [MaxLength(1000)]
     public string? Reason { get; set; }
+
+    [MaxLength(2000)]
     public string? EvidenceUrl { get; set; }
 }
 
@@ -42,6 +46,7 @@ public class SubmitDisposalRequest
 
 public class RequestDisposalRevisionRequest
 {
+    [Required, MinLength(1), MaxLength(2000)]
     public required string Comments { get; set; }
 }
 
@@ -77,10 +82,15 @@ public class DisposalResponse
     public DisposalPreconditionResult? PreconditionEvaluation { get; set; }
 }
 
-public class DisposalQueryParameters
+public class DisposalQueryParameters : PagedQuery
 {
+    // Newest-first by default (unlike PagedQuery's own "asc" default) —
+    // matches this list's previous, only ordering.
+    public DisposalQueryParameters()
+    {
+        SortDirection = "desc";
+    }
+
     public DisposalStatus? Status { get; set; }
     public DisposalMethod? Method { get; set; }
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 20;
 }

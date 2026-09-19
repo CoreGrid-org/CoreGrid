@@ -2,6 +2,7 @@ using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.Services;
 using CoreGrid.Api.Features.Agents.DTOs;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Agents.Services;
@@ -20,8 +21,9 @@ public class PolicyComplianceAgentService(
 
         if (workflow.Status is not (WorkflowStatus.PLANNING or WorkflowStatus.ANALYZING))
         {
-            throw new InvalidOperationException(
-                $"Workflow is {workflow.Status} — the Policy Compliance Agent only runs from PLANNING or ANALYZING.");
+            throw new ConflictException(
+                $"Workflow is {workflow.Status} — the Policy Compliance Agent only runs from PLANNING or ANALYZING.",
+                "invalid_status_transition");
         }
 
         // Assemble facts via exactly the agent's own tool allow-list (§7.3/§7.4)
@@ -35,7 +37,7 @@ public class PolicyComplianceAgentService(
             ?? throw new InvalidOperationException("Asset not found.");
 
         var policy = await agentTools.GetOrganizationPoliciesAsync(organizationId, asset.AssetTypeId, cancellationToken)
-            ?? throw new InvalidOperationException("No organisation policy is configured — cannot run the agent.");
+            ?? throw new BusinessRuleException("No organisation policy is configured — cannot run the agent.", "no_policy_configured");
 
         var proposal = recommendationEngine.Propose(complianceState, policy);
 

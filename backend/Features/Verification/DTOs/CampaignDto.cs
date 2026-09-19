@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.Verification.DTOs;
 
@@ -30,6 +31,7 @@ public class CampaignDto
 
 public class CreateCampaignRequest
 {
+    [Required, MaxLength(200)]
     public required string Name { get; set; }
 
     [Required]
@@ -46,6 +48,7 @@ public class CreateCampaignRequest
 
 public class UpdateCampaignRequest
 {
+    [Required, MaxLength(200)]
     public required string Name { get; set; }
 
     [Required]
@@ -56,4 +59,14 @@ public class UpdateCampaignRequest
 
     [Required]
     public CampaignStatus? Status { get; set; }
+}
+
+public class CampaignQueryParameters : PagedQuery
+{
+    // Newest-first by default (unlike PagedQuery's own "asc" default) —
+    // matches this list's previous, only ordering.
+    public CampaignQueryParameters()
+    {
+        SortDirection = "desc";
+    }
 }

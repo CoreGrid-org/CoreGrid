@@ -1,6 +1,6 @@
-using System.Text;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Reporting;
 using CoreGrid.Api.Features.Verification.DTOs;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -128,42 +128,31 @@ public class AuditReportService : IAuditReportService
 
     public byte[] BuildCsv(AuditReportDto report)
     {
-        var sb = new StringBuilder();
+        var csv = new CsvWriter();
 
-        void WriteRow(params object?[] fields) =>
-            sb.AppendLine(string.Join(",", fields.Select(CsvEscape)));
-
-        WriteRow("Audit Campaign Report");
-        WriteRow("Period", report.From is null && report.To is null
+        csv.WriteRow("Audit Campaign Report");
+        csv.WriteRow("Period", report.From is null && report.To is null
             ? "All time"
             : $"{report.From?.ToString("yyyy-MM-dd") ?? "…"} to {report.To?.ToString("yyyy-MM-dd") ?? "…"}");
-        WriteRow("Generated", report.GeneratedAt.ToString("u"));
-        sb.AppendLine();
+        csv.WriteRow("Generated", report.GeneratedAt.ToString("u"));
+        csv.WriteBlankRow();
 
-        WriteRow("Campaigns in period", "Assets in scope", "Assets verified", "Open discrepancies");
-        WriteRow(report.CampaignsInPeriod, report.AssetsInScope, report.AssetsVerified, report.OpenDiscrepancies);
-        sb.AppendLine();
+        csv.WriteRow("Campaigns in period", "Assets in scope", "Assets verified", "Open discrepancies");
+        csv.WriteRow(report.CampaignsInPeriod, report.AssetsInScope, report.AssetsVerified, report.OpenDiscrepancies);
+        csv.WriteBlankRow();
 
-        WriteRow("Classification", "Raised", "Resolved");
-        foreach (var row in report.ByClassification) WriteRow(row.Classification, row.Raised, row.Resolved);
-        sb.AppendLine();
+        csv.WriteRow("Classification", "Raised", "Resolved");
+        foreach (var row in report.ByClassification) csv.WriteRow(row.Classification, row.Raised, row.Resolved);
+        csv.WriteBlankRow();
 
-        WriteRow("Asset code", "Asset name", "Department", "Classification", "Status", "Raised", "Resolved");
+        csv.WriteRow("Asset code", "Asset name", "Department", "Classification", "Status", "Raised", "Resolved");
         foreach (var row in report.Discrepancies)
         {
-            WriteRow(row.AssetCode, row.AssetName, row.DepartmentName, row.Classification, row.Status,
+            csv.WriteRow(row.AssetCode, row.AssetName, row.DepartmentName, row.Classification, row.Status,
                 row.RaisedAt.ToString("u"), row.ResolvedAt?.ToString("u") ?? "");
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
-    }
-
-    private static string CsvEscape(object? value)
-    {
-        var text = value?.ToString() ?? "";
-        return text.Contains(',') || text.Contains('"') || text.Contains('\n')
-            ? $"\"{text.Replace("\"", "\"\"")}\""
-            : text;
+        return csv.GetBytes();
     }
 
     public byte[] BuildPdf(AuditReportDto report)
@@ -193,10 +182,10 @@ public class AuditReportService : IAuditReportService
 
                     column.Item().Row(row =>
                     {
-                        row.RelativeItem().Element(e => StatBox(e, "Campaigns", report.CampaignsInPeriod.ToString()));
-                        row.RelativeItem().Element(e => StatBox(e, "Assets in scope", report.AssetsInScope.ToString()));
-                        row.RelativeItem().Element(e => StatBox(e, "Verified", report.AssetsVerified.ToString()));
-                        row.RelativeItem().Element(e => StatBox(e, "Open discrepancies", report.OpenDiscrepancies.ToString()));
+                        row.RelativeItem().Element(e => PdfComponents.StatBox(e, "Campaigns", report.CampaignsInPeriod.ToString()));
+                        row.RelativeItem().Element(e => PdfComponents.StatBox(e, "Assets in scope", report.AssetsInScope.ToString()));
+                        row.RelativeItem().Element(e => PdfComponents.StatBox(e, "Verified", report.AssetsVerified.ToString()));
+                        row.RelativeItem().Element(e => PdfComponents.StatBox(e, "Open discrepancies", report.OpenDiscrepancies.ToString()));
                     });
 
                     column.Item().Text("Discrepancies by classification").FontSize(11).Bold();
@@ -279,14 +268,5 @@ public class AuditReportService : IAuditReportService
         });
 
         return document.GeneratePdf();
-    }
-
-    private static void StatBox(IContainer container, string label, string value)
-    {
-        container.Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(c =>
-        {
-            c.Item().Text(label).FontColor(Colors.Grey.Darken1);
-            c.Item().Text(value).FontSize(16).Bold();
-        });
     }
 }

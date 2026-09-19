@@ -1,5 +1,5 @@
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Identity;
+using CoreGrid.Api.Features.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Data;

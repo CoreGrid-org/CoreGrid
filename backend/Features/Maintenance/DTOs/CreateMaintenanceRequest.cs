@@ -8,7 +8,10 @@ public class CreateMaintenanceRequest
     [Required]
     public Guid? AssetId { get; set; }
 
+    [Required, MaxLength(2000)]
     public string Description { get; set; } = string.Empty;
+
+    [Required, MaxLength(20)]
     public string ObservedCondition { get; set; } = string.Empty;
 
     // Whatever POST /api/maintenance/photos' UploadPhotoResponse.Url handed

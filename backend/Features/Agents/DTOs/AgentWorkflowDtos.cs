@@ -3,6 +3,7 @@ namespace CoreGrid.Api.Features.Agents.DTOs;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using CoreGrid.Api.Features.AgentTools.DTOs;
+using CoreGrid.Api.Features.Shared.Paging;
 
 public class AgentWorkflowDto
 {
@@ -25,21 +26,6 @@ public class AgentWorkflowDto
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-}
-
-public class PlannerObjectiveRequest
-{
-    [JsonPropertyName("asset_id")]
-    public Guid AssetId { get; set; }
-
-    [JsonPropertyName("objective_text")]
-    public required string ObjectiveText { get; set; }
-
-    [JsonPropertyName("initiated_by")]
-    public Guid InitiatedBy { get; set; }
-
-    [JsonPropertyName("organization_id")]
-    public Guid OrganizationId { get; set; }
 }
 
 public class PlannerExecutionPlan
@@ -75,6 +61,7 @@ public class CreateAgentWorkflowRequest
     [Required]
     public Guid? AssetId { get; set; }
 
+    [Required, MaxLength(2000)]
     public required string Objective { get; set; }
 }
 
@@ -84,13 +71,30 @@ public class CreateAgentWorkflowRequest
 // directly, in exactly the shape those agents will eventually feed in.
 public class EvaluatePolicyRequest
 {
+    [Required, MaxLength(50)]
     public required string ProposedRecommendation { get; set; }
+
     public FinancialAssessmentFacts? FinancialAssessment { get; set; }
 }
 
 // AI-13 to AI-20.
 public class DecideWorkflowRequest
 {
+    [Required, MaxLength(20)]
     public required string Decision { get; set; } // APPROVE | REJECT | REVISE
+
+    [Required, MaxLength(2000)]
     public required string Reason { get; set; }
+}
+
+public class AgentWorkflowQueryParameters : PagedQuery
+{
+    // Newest-first by default (unlike PagedQuery's own "asc" default) —
+    // matches this list's previous, only ordering.
+    public AgentWorkflowQueryParameters()
+    {
+        SortDirection = "desc";
+    }
+
+    public string? Status { get; set; }
 }

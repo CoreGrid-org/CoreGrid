@@ -4,8 +4,10 @@ namespace CoreGrid.Api.Features.Assets.DTOs;
 
 public class CreateAssetAttributeDefinitionRequest
 {
+    [Required, MaxLength(100)]
     public required string Name { get; set; }
 
+    [Required, MaxLength(20)]
     public required string DataType { get; set; } // TEXT | NUMBER | DATE | BOOLEAN | SELECT
 
     [Required]

@@ -7,10 +7,10 @@ namespace CoreGrid.Api.Features.Users;
 // bind to CoreGridRole.Staff (enum member 0) instead of failing
 // validation — for Update, that would demote an Administrator by accident.
 public record CreateUserRequest(
-    string Email,
-    string GivenName,
-    string FamilyName,
-    string Password,
+    [property: Required, EmailAddress, MaxLength(256)] string Email,
+    [property: Required, MaxLength(100)] string GivenName,
+    [property: Required, MaxLength(100)] string FamilyName,
+    [property: Required, MinLength(8), MaxLength(200)] string Password,
     [property: Required] CoreGridRole? Role);
 
 public record UpdateUserRequest([property: Required] CoreGridRole? Role, Guid? DepartmentId);

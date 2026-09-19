@@ -6,7 +6,7 @@ using Xunit;
 using backend.Tests;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Features.Disposals;
+using CoreGrid.Api.Features.Disposals.Services;
 
 namespace backend.Tests.Features.Disposals;
 

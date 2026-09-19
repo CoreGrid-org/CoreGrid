@@ -1,5 +1,9 @@
+using System.Linq.Expressions;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
 using CoreGrid.Api.Features.Verification.DTOs;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +11,36 @@ namespace CoreGrid.Api.Features.Verification.Services;
 
 public class VerificationCampaignService : IVerificationCampaignService
 {
+    private static readonly Expression<Func<VerificationCampaign, CampaignDto>> ToDtoExpression = c => new CampaignDto
+    {
+        Id = c.Id,
+        Name = c.Name,
+        PeriodStart = c.PeriodStart,
+        PeriodEnd = c.PeriodEnd,
+        ScopeDepartmentId = c.ScopeDepartmentId,
+        ScopeDepartmentName = c.ScopeDepartment != null ? c.ScopeDepartment.Name : null,
+        ScopeLocationId = c.ScopeLocationId,
+        ScopeLocationName = c.ScopeLocation != null ? c.ScopeLocation.Name : null,
+        ScopeAssetCategoryId = c.ScopeAssetCategoryId,
+        ScopeAssetCategoryName = c.ScopeAssetCategory != null ? c.ScopeAssetCategory.Name : null,
+        ScopeAssetTypeId = c.ScopeAssetTypeId,
+        ScopeAssetTypeName = c.ScopeAssetType != null ? c.ScopeAssetType.Name : null,
+        Status = c.Status,
+        TaskCount = 0,
+        CompletedTaskCount = 0,
+        OpenDiscrepancyCount = 0,
+        CreatedAt = c.CreatedAt
+    };
+
+    private static readonly IReadOnlyDictionary<string, Expression<Func<VerificationCampaign, object?>>> SortMap =
+        new Dictionary<string, Expression<Func<VerificationCampaign, object?>>>
+        {
+            ["name"] = c => c.Name,
+            ["createdat"] = c => c.CreatedAt,
+            ["periodstart"] = c => c.PeriodStart,
+            ["periodend"] = c => c.PeriodEnd,
+        };
+
     private readonly CoreGridDbContext _context;
 
     public VerificationCampaignService(CoreGridDbContext context)
@@ -14,17 +48,55 @@ public class VerificationCampaignService : IVerificationCampaignService
         _context = context;
     }
 
-    public async Task<List<CampaignDto>> GetCampaignsAsync(Guid organizationId)
+    public async Task<PagedResult<CampaignDto>> GetCampaignsAsync(Guid organizationId, CampaignQueryParameters query, CancellationToken cancellationToken)
     {
-        var campaigns = await _context.VerificationCampaigns
+        var campaignsQuery = _context.VerificationCampaigns
             .AsNoTracking()
             .Include(c => c.ScopeDepartment)
             .Include(c => c.ScopeLocation)
             .Include(c => c.ScopeAssetCategory)
             .Include(c => c.ScopeAssetType)
-            .Where(c => c.OrganizationId == organizationId)
-            .OrderByDescending(c => c.CreatedAt)
-            .ToListAsync();
+            .Where(c => c.OrganizationId == organizationId);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var pattern = $"%{query.Search.Trim()}%";
+            campaignsQuery = campaignsQuery.Where(c => EF.Functions.ILike(c.Name, pattern));
+        }
+
+        var sorted = campaignsQuery.ApplySort(query, SortMap, defaultSortKey: "createdat");
+        var result = await sorted.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
+
+        await AttachCountsAsync(result.Items, cancellationToken);
+        return result;
+    }
+
+    // B18: a real single-row query, not GetCampaignsAsync(...).FirstOrDefault(...).
+    public async Task<CampaignDto?> GetCampaignByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
+    {
+        var dto = await _context.VerificationCampaigns
+            .AsNoTracking()
+            .Where(c => c.Id == id && c.OrganizationId == organizationId)
+            .Select(ToDtoExpression)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (dto is null)
+        {
+            return null;
+        }
+
+        await AttachCountsAsync([dto], cancellationToken);
+        return dto;
+    }
+
+    // Batch-loads task/discrepancy counts for exactly the campaigns handed
+    // in — one page's worth (or a single campaign), never the whole org.
+    private async Task AttachCountsAsync(IReadOnlyList<CampaignDto> campaigns, CancellationToken cancellationToken)
+    {
+        if (campaigns.Count == 0)
+        {
+            return;
+        }
 
         var campaignIds = campaigns.Select(c => c.Id).ToList();
 
@@ -38,53 +110,33 @@ public class VerificationCampaignService : IVerificationCampaignService
                 Total = g.Count(),
                 Completed = g.Count(t => t.Status == VerificationTaskStatus.Completed)
             })
-            .ToDictionaryAsync(x => x.CampaignId);
+            .ToDictionaryAsync(x => x.CampaignId, cancellationToken);
 
         var openDiscrepancyCounts = await _context.Discrepancies
             .AsNoTracking()
             .Where(d => campaignIds.Contains(d.CampaignId) && d.Status == DiscrepancyStatus.Open)
             .GroupBy(d => d.CampaignId)
             .Select(g => new { CampaignId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.CampaignId, x => x.Count);
+            .ToDictionaryAsync(x => x.CampaignId, x => x.Count, cancellationToken);
 
-        return campaigns.Select(c => new CampaignDto
+        foreach (var campaign in campaigns)
         {
-            Id = c.Id,
-            Name = c.Name,
-            PeriodStart = c.PeriodStart,
-            PeriodEnd = c.PeriodEnd,
-            ScopeDepartmentId = c.ScopeDepartmentId,
-            ScopeDepartmentName = c.ScopeDepartment?.Name,
-            ScopeLocationId = c.ScopeLocationId,
-            ScopeLocationName = c.ScopeLocation?.Name,
-            ScopeAssetCategoryId = c.ScopeAssetCategoryId,
-            ScopeAssetCategoryName = c.ScopeAssetCategory?.Name,
-            ScopeAssetTypeId = c.ScopeAssetTypeId,
-            ScopeAssetTypeName = c.ScopeAssetType?.Name,
-            Status = c.Status,
-            TaskCount = taskCounts.TryGetValue(c.Id, out var tc) ? tc.Total : 0,
-            CompletedTaskCount = taskCounts.TryGetValue(c.Id, out var tc2) ? tc2.Completed : 0,
-            OpenDiscrepancyCount = openDiscrepancyCounts.GetValueOrDefault(c.Id),
-            CreatedAt = c.CreatedAt
-        }).ToList();
-    }
+            if (taskCounts.TryGetValue(campaign.Id, out var counts))
+            {
+                campaign.TaskCount = counts.Total;
+                campaign.CompletedTaskCount = counts.Completed;
+            }
 
-    public async Task<CampaignDto?> GetCampaignByIdAsync(Guid organizationId, Guid id)
-    {
-        var campaigns = await GetCampaignsAsync(organizationId);
-        return campaigns.FirstOrDefault(c => c.Id == id);
+            campaign.OpenDiscrepancyCount = openDiscrepancyCounts.GetValueOrDefault(campaign.Id);
+        }
     }
 
     public async Task<CampaignDto> CreateCampaignAsync(
         Guid organizationId,
         Guid userId,
-        CreateCampaignRequest request)
+        CreateCampaignRequest request,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException("Campaign name is required.");
-        }
-
         // [Required] on the DTO makes a missing value 400 for a
         // model-bound HTTP caller before this method ever runs.
         var periodStart = request.PeriodStart!.Value;
@@ -92,10 +144,10 @@ public class VerificationCampaignService : IVerificationCampaignService
 
         if (periodEnd < periodStart)
         {
-            throw new InvalidOperationException("Campaign period end cannot be before its start.");
+            throw new ValidationException(nameof(request.PeriodEnd), "Campaign period end cannot be before its start.");
         }
 
-        await ValidateScopeAsync(organizationId, request);
+        await ValidateScopeAsync(organizationId, request, cancellationToken);
 
         var campaign = new VerificationCampaign
         {
@@ -115,24 +167,20 @@ public class VerificationCampaignService : IVerificationCampaignService
 
         _context.VerificationCampaigns.Add(campaign);
 
-        await GenerateTasksAsync(campaign);
+        await GenerateTasksAsync(campaign, cancellationToken);
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetCampaignByIdAsync(organizationId, campaign.Id)
+        return await GetCampaignByIdAsync(organizationId, campaign.Id, cancellationToken)
             ?? throw new InvalidOperationException("Campaign could not be reloaded after creation.");
     }
 
     public async Task<CampaignDto?> UpdateCampaignAsync(
         Guid organizationId,
         Guid id,
-        UpdateCampaignRequest request)
+        UpdateCampaignRequest request,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException("Campaign name is required.");
-        }
-
         // [Required] on the DTO makes a missing value 400 for a
         // model-bound HTTP caller before this method ever runs.
         var periodStart = request.PeriodStart!.Value;
@@ -141,11 +189,11 @@ public class VerificationCampaignService : IVerificationCampaignService
 
         if (periodEnd < periodStart)
         {
-            throw new InvalidOperationException("Campaign period end cannot be before its start.");
+            throw new ValidationException(nameof(request.PeriodEnd), "Campaign period end cannot be before its start.");
         }
 
         var campaign = await _context.VerificationCampaigns
-            .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == organizationId, cancellationToken);
 
         if (campaign is null)
         {
@@ -159,22 +207,23 @@ public class VerificationCampaignService : IVerificationCampaignService
 
         var pendingTasks = await _context.VerificationTasks
             .Where(t => t.CampaignId == id && t.OrganizationId == organizationId && t.Status == VerificationTaskStatus.Pending)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var task in pendingTasks)
         {
             task.DueDate = periodEnd;
         }
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetCampaignByIdAsync(organizationId, campaign.Id);
+        return await GetCampaignByIdAsync(organizationId, campaign.Id, cancellationToken);
     }
 
-    public async Task<bool> DeleteCampaignAsync(Guid organizationId, Guid id)
+    // §5.7: one transaction (was three separate SaveChanges calls).
+    public async Task<bool> DeleteCampaignAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
     {
         var campaign = await _context.VerificationCampaigns
-            .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == organizationId, cancellationToken);
 
         if (campaign is null)
         {
@@ -184,62 +233,53 @@ public class VerificationCampaignService : IVerificationCampaignService
         var taskIds = await _context.VerificationTasks
             .Where(t => t.CampaignId == id && t.OrganizationId == organizationId)
             .Select(t => t.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var discrepancies = await _context.Discrepancies
             .Where(d => d.CampaignId == id || taskIds.Contains(d.VerificationTaskId))
-            .ToListAsync();
-
-        if (discrepancies.Any())
-        {
-            _context.Discrepancies.RemoveRange(discrepancies);
-            await _context.SaveChangesAsync();
-        }
+            .ToListAsync(cancellationToken);
 
         var tasks = await _context.VerificationTasks
             .Where(t => t.CampaignId == id && t.OrganizationId == organizationId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        if (tasks.Any())
-        {
-            _context.VerificationTasks.RemoveRange(tasks);
-            await _context.SaveChangesAsync();
-        }
-
+        _context.Discrepancies.RemoveRange(discrepancies);
+        _context.VerificationTasks.RemoveRange(tasks);
         _context.VerificationCampaigns.Remove(campaign);
-        await _context.SaveChangesAsync();
+
+        await _context.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    private async Task ValidateScopeAsync(Guid organizationId, CreateCampaignRequest request)
+    private async Task ValidateScopeAsync(Guid organizationId, CreateCampaignRequest request, CancellationToken cancellationToken)
     {
         if (request.ScopeDepartmentId.HasValue)
         {
             var exists = await _context.Departments.AsNoTracking()
-                .AnyAsync(d => d.Id == request.ScopeDepartmentId.Value && d.OrganizationId == organizationId);
-            if (!exists) throw new InvalidOperationException("Scope department was not found.");
+                .AnyAsync(d => d.Id == request.ScopeDepartmentId.Value && d.OrganizationId == organizationId, cancellationToken);
+            if (!exists) throw new ValidationException(nameof(request.ScopeDepartmentId), "Scope department was not found.");
         }
 
         if (request.ScopeLocationId.HasValue)
         {
             var exists = await _context.Locations.AsNoTracking()
-                .AnyAsync(l => l.Id == request.ScopeLocationId.Value && l.OrganizationId == organizationId);
-            if (!exists) throw new InvalidOperationException("Scope location was not found.");
+                .AnyAsync(l => l.Id == request.ScopeLocationId.Value && l.OrganizationId == organizationId, cancellationToken);
+            if (!exists) throw new ValidationException(nameof(request.ScopeLocationId), "Scope location was not found.");
         }
 
         if (request.ScopeAssetCategoryId.HasValue)
         {
             var exists = await _context.AssetCategories.AsNoTracking()
-                .AnyAsync(c => c.Id == request.ScopeAssetCategoryId.Value && c.OrganizationId == organizationId);
-            if (!exists) throw new InvalidOperationException("Scope asset category was not found.");
+                .AnyAsync(c => c.Id == request.ScopeAssetCategoryId.Value && c.OrganizationId == organizationId, cancellationToken);
+            if (!exists) throw new ValidationException(nameof(request.ScopeAssetCategoryId), "Scope asset category was not found.");
         }
 
         if (request.ScopeAssetTypeId.HasValue)
         {
             var exists = await _context.AssetTypes.AsNoTracking()
-                .AnyAsync(t => t.Id == request.ScopeAssetTypeId.Value && t.OrganizationId == organizationId);
-            if (!exists) throw new InvalidOperationException("Scope asset type was not found.");
+                .AnyAsync(t => t.Id == request.ScopeAssetTypeId.Value && t.OrganizationId == organizationId, cancellationToken);
+            if (!exists) throw new ValidationException(nameof(request.ScopeAssetTypeId), "Scope asset type was not found.");
         }
     }
 
@@ -250,7 +290,7 @@ public class VerificationCampaignService : IVerificationCampaignService
     // department with no InventoryOfficer are created unassigned rather
     // than silently dropped, so an Administrator can still see and
     // reassign them.
-    private async Task GenerateTasksAsync(VerificationCampaign campaign)
+    private async Task GenerateTasksAsync(VerificationCampaign campaign, CancellationToken cancellationToken)
     {
         var assetsQuery = _context.Assets
             .AsNoTracking()
@@ -278,7 +318,7 @@ public class VerificationCampaignService : IVerificationCampaignService
 
         var assets = await assetsQuery
             .Select(a => new { a.Id, a.DepartmentId })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var officersByDepartment = await _context.Users
             .AsNoTracking()
@@ -288,7 +328,7 @@ public class VerificationCampaignService : IVerificationCampaignService
                 && u.DepartmentId != null)
             .OrderBy(u => u.CreatedAt)
             .GroupBy(u => u.DepartmentId!.Value)
-            .ToDictionaryAsync(g => g.Key, g => g.First().Id);
+            .ToDictionaryAsync(g => g.Key, g => g.First().Id, cancellationToken);
 
         var defaultOfficerId = await _context.Users
             .AsNoTracking()
@@ -297,7 +337,7 @@ public class VerificationCampaignService : IVerificationCampaignService
                 && u.IsActive)
             .OrderBy(u => u.CreatedAt)
             .Select(u => (Guid?)u.Id)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
 

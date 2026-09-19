@@ -3,6 +3,7 @@ using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.Services;
 using CoreGrid.Api.Features.Agents.DTOs;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Agents.Services;
@@ -20,10 +21,12 @@ public class MaintenanceAnalysisAgentService(
 
         if (workflow.Status is not (WorkflowStatus.PLANNING or WorkflowStatus.ANALYZING))
         {
-            throw new InvalidOperationException(
-                $"Workflow is {workflow.Status} — the Maintenance Analysis Agent only runs from PLANNING or ANALYZING.");
+            throw new ConflictException(
+                $"Workflow is {workflow.Status} — the Maintenance Analysis Agent only runs from PLANNING or ANALYZING.",
+                "invalid_status_transition");
         }
 
+        var started = DateTimeOffset.UtcNow;
         var stats = await maintenanceAnalysisTools.ComputeFailureStatisticsAsync(organizationId, workflow.AssetId, cancellationToken)
             ?? throw new InvalidOperationException("Asset not found.");
 
@@ -31,17 +34,8 @@ public class MaintenanceAnalysisAgentService(
         workflow.MaintenanceAnalysis = JsonSerializer.Serialize(stats);
         workflow.UpdatedAt = now;
 
-        db.AgentExecutionSteps.Add(new AgentExecutionStep
-        {
-            Id = Guid.NewGuid(),
-            WorkflowId = workflow.Id,
-            Agent = "MaintenanceAnalysis",
-            Sequence = 2,
-            OutputSummary = $"RepairCount={stats.RepairCount}, CostTrend={stats.CostTrend}, "
-                + $"Projected12moCost={stats.ProjectedNextTwelveMonthsCost}",
-            Status = "SUCCESS",
-            CreatedAt = now
-        });
+        db.AgentExecutionSteps.Add(AgentExecutionSteps.MaintenanceAnalysisSucceeded(
+            workflow.Id, stats, (int)Math.Max(0, (now - started).TotalMilliseconds), now));
 
         await db.SaveChangesAsync(cancellationToken);
 

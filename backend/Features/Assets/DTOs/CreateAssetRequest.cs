@@ -13,6 +13,7 @@ public class CreateAssetRequest
     [Required]
     public Guid? LocationId { get; set; }
 
+    [Required, MaxLength(200)]
     public required string Name { get; set; }
 
     [Required]
@@ -22,6 +23,7 @@ public class CreateAssetRequest
     [Range(0, 1_000_000_000_000)]
     public decimal? AcquisitionCost { get; set; }
 
+    [MaxLength(20)]
     public string Condition { get; set; } = "NEW";
 
     public List<AssetAttributeValueRequest> Attributes { get; set; } = [];

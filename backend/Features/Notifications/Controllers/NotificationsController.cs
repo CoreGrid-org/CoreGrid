@@ -2,6 +2,7 @@ using CoreGrid.Api.Data;
 using CoreGrid.Api.Features.Notifications.DTOs;
 using CoreGrid.Api.Features.Notifications.Services;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,13 +17,13 @@ namespace CoreGrid.Api.Features.Notifications.Controllers;
 public class NotificationsController(INotificationService notificationService, CoreGridDbContext db) : CoreGridControllerBase(db)
 {
     [HttpGet]
-    public async Task<ActionResult<List<NotificationDto>>> GetNotifications(
-        [FromQuery] bool onlyUnread, CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResult<NotificationDto>>> GetNotifications(
+        [FromQuery] NotificationQueryParameters query, CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        return Ok(await notificationService.GetForUserAsync(currentUser.OrganizationId, currentUser.Id, onlyUnread, cancellationToken));
+        return Ok(await notificationService.GetForUserAsync(currentUser.OrganizationId, currentUser.Id, query, cancellationToken));
     }
 
     [HttpGet("unread-count")]
@@ -42,7 +43,10 @@ public class NotificationsController(INotificationService notificationService, C
         if (currentUser is null) return Unauthorized();
 
         var found = await notificationService.MarkAsReadAsync(currentUser.OrganizationId, currentUser.Id, id, cancellationToken);
-        if (!found) return NotFound(new { message = "Notification not found." });
+        if (!found)
+        {
+            throw NotFoundException.For(nameof(CoreGrid.Api.Domain.Notification), id);
+        }
 
         return NoContent();
     }

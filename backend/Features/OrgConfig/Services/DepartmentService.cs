@@ -1,12 +1,28 @@
+using System.Linq.Expressions;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.OrgConfig.DTOs;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.OrgConfig.Services;
 
 public class DepartmentService : IDepartmentService
 {
+    private static readonly Expression<Func<Department, DepartmentDto>> ToDtoExpression =
+        d => new DepartmentDto { Id = d.Id, Code = d.Code, Name = d.Name, IsActive = d.IsActive };
+
+    private static readonly Func<Department, DepartmentDto> ToDto = ToDtoExpression.Compile();
+
+    private static readonly IReadOnlyDictionary<string, Expression<Func<Department, object?>>> SortMap =
+        new Dictionary<string, Expression<Func<Department, object?>>>
+        {
+            ["code"] = d => d.Code,
+            ["name"] = d => d.Name,
+        };
+
     private readonly CoreGridDbContext _context;
 
     public DepartmentService(CoreGridDbContext context)
@@ -14,60 +30,46 @@ public class DepartmentService : IDepartmentService
         _context = context;
     }
 
-    public async Task<List<DepartmentDto>> GetDepartmentsAsync(
-        Guid organizationId)
+    public async Task<PagedResult<DepartmentDto>> GetDepartmentsAsync(
+        Guid organizationId,
+        PagedQuery query,
+        bool includeInactive,
+        CancellationToken cancellationToken)
     {
-        return await _context.Departments
+        var departments = _context.Departments
             .AsNoTracking()
-            .Where(d =>
-                d.OrganizationId == organizationId &&
-                d.IsActive)
-            .OrderBy(d => d.Name)
-            .Select(d => new DepartmentDto
-            {
-                Id = d.Id,
-                Code = d.Code,
-                Name = d.Name,
-                IsActive = d.IsActive
-            })
-            .ToListAsync();
+            .Where(d => d.OrganizationId == organizationId);
+
+        if (!includeInactive)
+        {
+            departments = departments.Where(d => d.IsActive);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var pattern = $"%{query.Search.Trim()}%";
+            departments = departments.Where(d => EF.Functions.ILike(d.Code, pattern) || EF.Functions.ILike(d.Name, pattern));
+        }
+
+        var sorted = departments.ApplySort(query, SortMap, defaultSortKey: "name");
+        return await sorted.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
     }
 
     public async Task<DepartmentDto> CreateDepartmentAsync(
         Guid organizationId,
         Guid? userId,
-        CreateDepartmentRequest request)
+        CreateDepartmentRequest request,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Code))
-        {
-            throw new InvalidOperationException(
-                "Department code is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Department name is required.");
-        }
-
         var code = request.Code.Trim().ToUpperInvariant();
-
-        if (code.Length > 20)
-        {
-            throw new InvalidOperationException(
-                "Department code cannot be longer than 20 characters.");
-        }
 
         var codeInUse = await _context.Departments
             .AsNoTracking()
-            .AnyAsync(d =>
-                d.OrganizationId == organizationId &&
-                d.Code == code);
+            .AnyAsync(d => d.OrganizationId == organizationId && d.Code == code, cancellationToken);
 
         if (codeInUse)
         {
-            throw new InvalidOperationException(
-                $"A department with code '{code}' already exists.");
+            throw new ConflictException($"A department with code '{code}' already exists.", "duplicate_code");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -86,65 +88,35 @@ public class DepartmentService : IDepartmentService
         };
 
         _context.Departments.Add(department);
+        await _context.SaveChangesAsync(cancellationToken);
 
-        await _context.SaveChangesAsync();
-
-        return new DepartmentDto
-        {
-            Id = department.Id,
-            Code = department.Code,
-            Name = department.Name,
-            IsActive = department.IsActive
-        };
+        return ToDto(department);
     }
 
     public async Task<DepartmentDto?> UpdateDepartmentAsync(
         Guid organizationId,
         Guid id,
         Guid? userId,
-        UpdateDepartmentRequest request)
+        UpdateDepartmentRequest request,
+        CancellationToken cancellationToken)
     {
         var department = await _context.Departments
-            .FirstOrDefaultAsync(d =>
-                d.Id == id &&
-                d.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == organizationId, cancellationToken);
 
         if (department is null)
         {
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Code))
-        {
-            throw new InvalidOperationException(
-                "Department code is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Department name is required.");
-        }
-
         var code = request.Code.Trim().ToUpperInvariant();
-
-        if (code.Length > 20)
-        {
-            throw new InvalidOperationException(
-                "Department code cannot be longer than 20 characters.");
-        }
 
         var codeInUse = await _context.Departments
             .AsNoTracking()
-            .AnyAsync(d =>
-                d.OrganizationId == organizationId &&
-                d.Code == code &&
-                d.Id != id);
+            .AnyAsync(d => d.OrganizationId == organizationId && d.Code == code && d.Id != id, cancellationToken);
 
         if (codeInUse)
         {
-            throw new InvalidOperationException(
-                $"A department with code '{code}' already exists.");
+            throw new ConflictException($"A department with code '{code}' already exists.", "duplicate_code");
         }
 
         department.Code = code;
@@ -152,27 +124,20 @@ public class DepartmentService : IDepartmentService
         department.UpdatedAt = DateTimeOffset.UtcNow;
         department.UpdatedBy = userId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return new DepartmentDto
-        {
-            Id = department.Id,
-            Code = department.Code,
-            Name = department.Name,
-            IsActive = department.IsActive
-        };
+        return ToDto(department);
     }
 
     public async Task<DepartmentDto?> SetDepartmentActiveAsync(
         Guid organizationId,
         Guid id,
         Guid? userId,
-        bool isActive)
+        bool isActive,
+        CancellationToken cancellationToken)
     {
         var department = await _context.Departments
-            .FirstOrDefaultAsync(d =>
-                d.Id == id &&
-                d.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == organizationId, cancellationToken);
 
         if (department is null)
         {
@@ -187,14 +152,13 @@ public class DepartmentService : IDepartmentService
             // asset that legitimately belongs to this department.
             var hasActiveAssets = await _context.Assets
                 .AsNoTracking()
-                .AnyAsync(a =>
-                    a.DepartmentId == id &&
-                    a.Status != "DISPOSED");
+                .AnyAsync(a => a.DepartmentId == id && a.Status != "DISPOSED", cancellationToken);
 
             if (hasActiveAssets)
             {
-                throw new InvalidOperationException(
-                    "This department cannot be deactivated while active assets are assigned to it.");
+                throw new BusinessRuleException(
+                    "This department cannot be deactivated while active assets are assigned to it.",
+                    "department_has_active_assets");
             }
         }
 
@@ -202,14 +166,8 @@ public class DepartmentService : IDepartmentService
         department.UpdatedAt = DateTimeOffset.UtcNow;
         department.UpdatedBy = userId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return new DepartmentDto
-        {
-            Id = department.Id,
-            Code = department.Code,
-            Name = department.Name,
-            IsActive = department.IsActive
-        };
+        return ToDto(department);
     }
 }

@@ -1,12 +1,13 @@
-using System;
-using System.Linq;
+using System.Linq.Expressions;
 using System.Text.Json;
-using System.Threading.Tasks;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Maintenance.DTOs;
 using CoreGrid.Api.Features.Notifications.Services;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
+using CoreGrid.Api.Features.Shared.Scoping;
 using CoreGrid.Api.Features.Shared.Storage;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,44 @@ public class MaintenanceService : IMaintenanceService
     // FR-034: a photo is only ever handed out as a signed, time-limited
     // URL, minted fresh on every authorized read — never persisted.
     private static readonly TimeSpan PhotoUrlExpiry = TimeSpan.FromMinutes(15);
+
+    private static readonly string[] ValidConditions = ["NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE"];
+
+    // §5.4: the one MaintenanceRecordDto projection, previously duplicated
+    // between GetById and List.
+    private static readonly Expression<Func<MaintenanceRecord, MaintenanceRecordDto>> ToDtoExpression = m => new MaintenanceRecordDto
+    {
+        Id = m.Id,
+        AssetId = m.AssetId,
+        AssetCode = m.Asset != null ? m.Asset.AssetCode : string.Empty,
+        AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
+        Description = m.Description,
+        ObservedCondition = m.ObservedCondition,
+        PhotoUrl = m.PhotoObjectKey, // resolved to a real presigned URL below
+        Type = m.Type,
+        Priority = m.Priority,
+        Status = m.Status,
+        EstimatedCost = m.EstimatedCost,
+        ActualCost = m.ActualCost,
+        WorkPerformed = m.WorkPerformed,
+        CompletionDate = m.CompletionDate,
+        ResultingCondition = m.ResultingCondition,
+        AssigneeId = m.AssigneeId,
+        AssigneeEmail = m.Assignee != null ? m.Assignee.Email : null,
+        CancellationReason = m.CancellationReason,
+        CreatedAt = m.CreatedAt
+    };
+
+    private static readonly IReadOnlyDictionary<string, Expression<Func<MaintenanceRecord, object?>>> SortMap =
+        new Dictionary<string, Expression<Func<MaintenanceRecord, object?>>>
+        {
+            ["priority"] = m => m.Priority,
+            ["status"] = m => m.Status,
+            ["estimatedcost"] = m => m.EstimatedCost,
+            ["actualcost"] = m => m.ActualCost,
+            ["completiondate"] = m => m.CompletionDate,
+            ["createdat"] = m => m.CreatedAt,
+        };
 
     private readonly CoreGridDbContext _context;
     private readonly INotificationService _notificationService;
@@ -36,51 +75,30 @@ public class MaintenanceService : IMaintenanceService
     // when there's no photo. Called only after the record's own read
     // authorization has already been checked (the controller's role gate),
     // so this never hands out a link nobody was cleared to see.
-    private async Task ResolvePhotoUrlAsync(MaintenanceRecordDto dto)
+    private async Task ResolvePhotoUrlAsync(MaintenanceRecordDto dto, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(dto.PhotoUrl))
         {
             return;
         }
 
-        dto.PhotoUrl = await _fileStorageService.GetPresignedUrlAsync(dto.PhotoUrl, PhotoUrlExpiry, default);
+        dto.PhotoUrl = await _fileStorageService.GetPresignedUrlAsync(dto.PhotoUrl, PhotoUrlExpiry, cancellationToken);
     }
 
-    public async Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(Guid organizationId, Guid id)
+    public async Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(
+        Guid organizationId, DepartmentScope scope, Guid id, CancellationToken cancellationToken)
     {
         var dto = await _context.MaintenanceRecords
             .AsNoTracking()
-            .Include(m => m.Asset)
-            .Include(m => m.Assignee)
             .Where(m => m.Id == id && m.OrganizationId == organizationId)
-            .Select(m => new MaintenanceRecordDto
-            {
-                Id = m.Id,
-                AssetId = m.AssetId,
-                AssetCode = m.Asset != null ? m.Asset.AssetCode : string.Empty,
-                AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
-                Description = m.Description,
-                ObservedCondition = m.ObservedCondition,
-                PhotoUrl = m.PhotoObjectKey, // resolved to a real presigned URL below
-                Type = m.Type,
-                Priority = m.Priority,
-                Status = m.Status,
-                EstimatedCost = m.EstimatedCost,
-                ActualCost = m.ActualCost,
-                WorkPerformed = m.WorkPerformed,
-                CompletionDate = m.CompletionDate,
-                ResultingCondition = m.ResultingCondition,
-                AssigneeId = m.AssigneeId,
-                AssigneeEmail = m.Assignee != null ? m.Assignee.Email : null,
-                CancellationReason = m.CancellationReason,
-                CreatedAt = m.CreatedAt
-            })
-            .FirstOrDefaultAsync();
+            .ApplyScope(scope, m => m.Asset != null ? (Guid?)m.Asset.DepartmentId : null)
+            .Select(ToDtoExpression)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (dto is not null)
         {
-            await ResolvePhotoUrlAsync(dto);
-            await ResolveAssetTypeNamesAsync([dto]);
+            await ResolvePhotoUrlAsync(dto, cancellationToken);
+            await ResolveAssetTypeNamesAsync([dto], cancellationToken);
         }
 
         return dto;
@@ -94,7 +112,7 @@ public class MaintenanceService : IMaintenanceService
     // excludes matching rows instead of just nulling the field. One extra
     // query, but it works identically against InMemory and the real
     // Postgres provider, and it's a single indexed lookup either way.
-    private async Task ResolveAssetTypeNamesAsync(IReadOnlyList<MaintenanceRecordDto> dtos)
+    private async Task ResolveAssetTypeNamesAsync(IReadOnlyList<MaintenanceRecordDto> dtos, CancellationToken cancellationToken)
     {
         var assetIds = dtos.Select(d => d.AssetId).Distinct().ToList();
         if (assetIds.Count == 0)
@@ -106,7 +124,7 @@ public class MaintenanceService : IMaintenanceService
             .AsNoTracking()
             .Where(a => assetIds.Contains(a.Id))
             .Select(a => new { a.Id, TypeName = a.AssetType != null ? a.AssetType.Name : string.Empty })
-            .ToDictionaryAsync(x => x.Id, x => x.TypeName);
+            .ToDictionaryAsync(x => x.Id, x => x.TypeName, cancellationToken);
 
         foreach (var dto in dtos)
         {
@@ -114,31 +132,22 @@ public class MaintenanceService : IMaintenanceService
         }
     }
 
-    public async Task<MaintenanceRecordDto?> ReportFaultAsync(Guid organizationId, Guid currentUserId, ReportFaultRequest request)
+    public async Task<MaintenanceRecordDto?> ReportFaultAsync(
+        Guid organizationId, Guid currentUserId, ReportFaultRequest request, CancellationToken cancellationToken)
     {
         // [Required] on the DTO makes a missing value 400 for a
         // model-bound HTTP caller before this method ever runs.
         var assetId = request.AssetId!.Value;
 
         var asset = await _context.Assets
-            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
 
         if (asset is null)
         {
-            throw new InvalidOperationException("Asset not found within the organization.");
+            throw new ValidationException(nameof(request.AssetId), "Asset not found within the organization.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.Description))
-        {
-            throw new InvalidOperationException("Description is required when reporting a fault.");
-        }
-
-        var validConditions = new[] { "NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE" };
-        var conditionUpper = request.ObservedCondition.Trim().ToUpper();
-        if (!validConditions.Contains(conditionUpper))
-        {
-            throw new InvalidOperationException("Invalid observed condition specified.");
-        }
+        var conditionUpper = ValidateCondition(request.ObservedCondition, nameof(request.ObservedCondition));
 
         var record = new MaintenanceRecord
         {
@@ -158,18 +167,14 @@ public class MaintenanceService : IMaintenanceService
         };
 
         _context.MaintenanceRecords.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+        return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
-
-    // FR-035 - Create maintenance record directly (Officer)              
-
+    // FR-035 - Create maintenance record directly (Officer)
     public async Task<MaintenanceRecordDto?> CreateMaintenanceAsync(
-        Guid organizationId,
-        Guid currentUserId,
-        CreateMaintenanceRequest request)
+        Guid organizationId, Guid currentUserId, CreateMaintenanceRequest request, CancellationToken cancellationToken)
     {
         // [Required] on the DTO makes a missing value 400 for a
         // model-bound HTTP caller before this method ever runs.
@@ -178,40 +183,25 @@ public class MaintenanceService : IMaintenanceService
         var priority = request.Priority!.Value;
 
         var asset = await _context.Assets
-            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
 
         if (asset is null)
         {
-            throw new InvalidOperationException("Asset not found within the organisation.");
+            throw new ValidationException(nameof(request.AssetId), "Asset not found within the organisation.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.Description))
-        {
-            throw new InvalidOperationException("Description is required.");
-        }
-
-        var validConditions = new[] { "NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE" };
-        var conditionUpper = request.ObservedCondition.Trim().ToUpper();
-        if (!validConditions.Contains(conditionUpper))
-        {
-            throw new InvalidOperationException("Invalid observed condition. Use: NEW, GOOD, FAIR, POOR or UNSERVICEABLE.");
-        }
+        var conditionUpper = ValidateCondition(request.ObservedCondition, nameof(request.ObservedCondition));
 
         // If an assignee was specified, verify they belong to the same org.
         if (request.AssigneeId.HasValue)
         {
             var assigneeExists = await _context.Users
-                .AnyAsync(u => u.Id == request.AssigneeId.Value && u.OrganizationId == organizationId);
+                .AnyAsync(u => u.Id == request.AssigneeId.Value && u.OrganizationId == organizationId, cancellationToken);
 
             if (!assigneeExists)
             {
-                throw new InvalidOperationException("Assignee not found within the organisation.");
+                throw new ValidationException(nameof(request.AssigneeId), "Assignee not found within the organisation.");
             }
-        }
-
-        if (request.EstimatedCost.HasValue && request.EstimatedCost.Value < 0)
-        {
-            throw new InvalidOperationException("Estimated cost must be a non-negative value.");
         }
 
         var record = new MaintenanceRecord
@@ -234,53 +224,38 @@ public class MaintenanceService : IMaintenanceService
         };
 
         _context.MaintenanceRecords.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+        return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
-
-    // FR-036 - Approve maintenance record (Officer / Administrator)       
-
+    // FR-036 - Approve maintenance record (Officer / Administrator)
     public async Task<MaintenanceRecordDto?> ApproveMaintenanceAsync(
-        Guid organizationId,
-        Guid currentUserId,
-        Guid maintenanceId,
-        ApproveMaintenanceRequest request)
+        Guid organizationId, Guid currentUserId, Guid maintenanceId, ApproveMaintenanceRequest request, CancellationToken cancellationToken)
     {
         // [Required][Range] on the DTO makes a missing/invalid value 400
         // for a model-bound HTTP caller before this method ever runs.
         var assigneeId = request.AssigneeId!.Value;
         var estimatedCost = request.EstimatedCost!.Value;
 
-        if (estimatedCost < 0)
-        {
-            throw new InvalidOperationException("Estimated cost must be a non-negative value.");
-        }
-
         var record = await _context.MaintenanceRecords
             .Include(m => m.Asset)
-            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
-
-        if (record is null)
-        {
-            throw new KeyNotFoundException("Maintenance record not found.");
-        }
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId, cancellationToken)
+            ?? throw NotFoundException.For(nameof(MaintenanceRecord), maintenanceId);
 
         // State-machine guard: only REQUESTED records can be approved.
         if (record.Status != MaintenanceStatus.REQUESTED)
         {
-            throw new InvalidOperationException(
-                $"Only a REQUESTED maintenance record can be approved. Current status: {record.Status}.");
+            throw new ConflictException($"Only a REQUESTED maintenance record can be approved. Current status: {record.Status}.", "invalid_status_transition");
         }
 
         // Verify the specified assignee belongs to this organisation.
         var assigneeExists = await _context.Users
-            .AnyAsync(u => u.Id == assigneeId && u.OrganizationId == organizationId);
+            .AnyAsync(u => u.Id == assigneeId && u.OrganizationId == organizationId, cancellationToken);
 
         if (!assigneeExists)
         {
-            throw new InvalidOperationException("Assignee not found within the organisation.");
+            throw new ValidationException(nameof(request.AssigneeId), "Assignee not found within the organisation.");
         }
 
         record.Status = MaintenanceStatus.APPROVED;
@@ -289,7 +264,7 @@ public class MaintenanceService : IMaintenanceService
         record.UpdatedAt = DateTimeOffset.UtcNow;
         record.UpdatedBy = currentUserId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         // FR-080: notify the newly assigned officer.
         await _notificationService.NotifyAsync(
@@ -300,52 +275,37 @@ public class MaintenanceService : IMaintenanceService
             $"You've been assigned maintenance for {record.Asset?.AssetCode ?? "an asset"}: {record.Description}",
             "MaintenanceRecord",
             record.Id,
-            default);
+            cancellationToken);
 
-        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+        return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
-    // FR-037 / FR-039 - Start maintenance (APPROVED → IN_PROGRESS)        //
-  
-
+    // FR-037 / FR-039 - Start maintenance (APPROVED → IN_PROGRESS)
     public async Task<MaintenanceRecordDto?> StartMaintenanceAsync(
-        Guid organizationId,
-        Guid currentUserId,
-        Guid maintenanceId)
+        Guid organizationId, Guid currentUserId, Guid maintenanceId, CancellationToken cancellationToken)
     {
         var record = await _context.MaintenanceRecords
             .Include(m => m.Asset)
-            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
-
-        if (record is null)
-        {
-            throw new KeyNotFoundException("Maintenance record not found.");
-        }
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId, cancellationToken)
+            ?? throw NotFoundException.For(nameof(MaintenanceRecord), maintenanceId);
 
         // State-machine guard: only APPROVED records can be started.
         if (record.Status != MaintenanceStatus.APPROVED)
         {
-            throw new InvalidOperationException(
-                $"Only an APPROVED maintenance record can be started. Current status: {record.Status}.");
+            throw new ConflictException($"Only an APPROVED maintenance record can be started. Current status: {record.Status}.", "invalid_status_transition");
         }
 
         // Guard: an assignee must be set before work can begin (Fig. 7).
         if (!record.AssigneeId.HasValue)
         {
-            throw new InvalidOperationException(
-                "The maintenance record must have an assignee before it can be started.");
+            throw new ConflictException("The maintenance record must have an assignee before it can be started.", "missing_assignee");
         }
 
-        var asset = record.Asset;
-        if (asset is null)
-        {
-            throw new InvalidOperationException("Associated asset could not be loaded.");
-        }
+        var asset = record.Asset ?? throw new InvalidOperationException("Associated asset could not be loaded.");
 
         var previousAssetStatus = asset.Status;
         var now = DateTimeOffset.UtcNow;
 
-        // Transition maintenance record.
         record.Status = MaintenanceStatus.IN_PROGRESS;
         record.UpdatedAt = now;
         record.UpdatedBy = currentUserId;
@@ -355,7 +315,6 @@ public class MaintenanceService : IMaintenanceService
         asset.UpdatedAt = now;
         asset.UpdatedBy = currentUserId;
 
-        // Write an AssetHistory entry for the status change.
         _context.AssetHistoryEntries.Add(new AssetHistory
         {
             Id = Guid.NewGuid(),
@@ -369,88 +328,47 @@ public class MaintenanceService : IMaintenanceService
             CreatedAt = now
         });
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+        return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
-
-    // FR-038 / FR-040 - Complete maintenance (IN_PROGRESS → COMPLETED)   //
-
-
+    // FR-038 / FR-040 - Complete maintenance (IN_PROGRESS → COMPLETED)
     public async Task<MaintenanceRecordDto?> CompleteMaintenanceAsync(
-        Guid organizationId,
-        Guid currentUserId,
-        Guid maintenanceId,
-        CompleteMaintenanceRequest request)
+        Guid organizationId, Guid currentUserId, Guid maintenanceId, CompleteMaintenanceRequest request, CancellationToken cancellationToken)
     {
-
-
         // [Required][Range] on the DTO makes a missing/invalid value 400
         // for a model-bound HTTP caller before this method ever runs.
         var actualCost = request.ActualCost!.Value;
         var completionDate = request.CompletionDate!.Value;
 
-        if (actualCost < 0)
-        {
-            throw new InvalidOperationException("Actual cost must be a non-negative value.");
-        }
-
-        var workLength = request.WorkPerformed?.Trim().Length ?? 0;
-        if (workLength < 10 || workLength > 2000)
-        {
-            throw new InvalidOperationException(
-                "Work performed description must be between 10 and 2,000 characters.");
-        }
-
-        var validConditions = new[] { "NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE" };
-        var conditionUpper = request.ResultingCondition.Trim().ToUpper();
-        if (!validConditions.Contains(conditionUpper))
-        {
-            throw new InvalidOperationException(
-                "Invalid resulting condition. Use: NEW, GOOD, FAIR, POOR or UNSERVICEABLE.");
-        }
+        var conditionUpper = ValidateCondition(request.ResultingCondition, nameof(request.ResultingCondition));
 
         if (completionDate > DateOnly.FromDateTime(DateTime.UtcNow))
         {
-            throw new InvalidOperationException(
-                "Completion date cannot be in the future.");
+            throw new ValidationException(nameof(request.CompletionDate), "Completion date cannot be in the future.");
         }
-
-        //  Load record + asset -
 
         var record = await _context.MaintenanceRecords
             .Include(m => m.Asset)
-            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
-
-        if (record is null)
-        {
-            throw new KeyNotFoundException("Maintenance record not found.");
-        }
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId, cancellationToken)
+            ?? throw NotFoundException.For(nameof(MaintenanceRecord), maintenanceId);
 
         // AC1 - a COMPLETED record cannot be completed again.
         if (record.Status == MaintenanceStatus.COMPLETED)
         {
-            throw new InvalidOperationException(
-                "This maintenance record has already been completed.");
+            throw new ConflictException("This maintenance record has already been completed.", "already_completed");
         }
 
         // State-machine guard: only IN_PROGRESS records can be completed.
         if (record.Status != MaintenanceStatus.IN_PROGRESS)
         {
-            throw new InvalidOperationException(
-                $"Only an IN_PROGRESS maintenance record can be completed. Current status: {record.Status}.");
+            throw new ConflictException($"Only an IN_PROGRESS maintenance record can be completed. Current status: {record.Status}.", "invalid_status_transition");
         }
 
-        var asset = record.Asset;
-        if (asset is null)
-        {
-            throw new InvalidOperationException("Associated asset could not be loaded.");
-        }
+        var asset = record.Asset ?? throw new InvalidOperationException("Associated asset could not be loaded.");
 
         // BR1 - Cost variance tolerance check
-
-
         if (record.EstimatedCost.HasValue && record.EstimatedCost.Value > 0)
         {
             var policy = await _context.OrganizationPolicies
@@ -458,42 +376,36 @@ public class MaintenanceService : IMaintenanceService
                 .Where(p => p.OrganizationId == organizationId
                             && (p.AssetTypeId == asset.AssetTypeId || p.AssetTypeId == null))
                 .OrderBy(p => p.AssetTypeId == null ? 1 : 0) // asset-type-specific first
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (policy is not null && policy.CostVarianceTolerancePercent > 0)
             {
-                var overrunPercent =
-                    ((actualCost - record.EstimatedCost.Value) / record.EstimatedCost.Value) * 100m;
+                var overrunPercent = ((actualCost - record.EstimatedCost.Value) / record.EstimatedCost.Value) * 100m;
 
-                if (overrunPercent > policy.CostVarianceTolerancePercent)
+                if (overrunPercent > policy.CostVarianceTolerancePercent && string.IsNullOrWhiteSpace(request.OverspendJustification))
                 {
-                    if (string.IsNullOrWhiteSpace(request.OverspendJustification))
-                    {
-                        throw new InvalidOperationException(
-                            $"Actual cost exceeds the estimate by {overrunPercent:F1}%, which is above the "
-                            + $"organisation's {policy.CostVarianceTolerancePercent}% variance tolerance. "
-                            + "Provide an OverspendJustification to proceed (BR1).");
-                    }
+                    throw new BusinessRuleException(
+                        $"Actual cost exceeds the estimate by {overrunPercent:F1}%, which is above the "
+                        + $"organisation's {policy.CostVarianceTolerancePercent}% variance tolerance. "
+                        + "Provide an OverspendJustification to proceed (BR1).",
+                        "cost_variance_exceeded");
                 }
             }
         }
 
-        //  BR3 - Atomic transaction: all writes together 
-
+        // BR3 - Atomic transaction: all writes together
         var now = DateTimeOffset.UtcNow;
         var previousAssetStatus = asset.Status;
         var previousAssetCondition = asset.Condition;
 
-        // Transition maintenance record.
         record.Status = MaintenanceStatus.COMPLETED;
         record.ActualCost = actualCost;
-        record.WorkPerformed = request.WorkPerformed?.Trim() ?? string.Empty;
+        record.WorkPerformed = request.WorkPerformed.Trim();
         record.CompletionDate = completionDate;
         record.ResultingCondition = conditionUpper;
         record.UpdatedAt = now;
         record.UpdatedBy = currentUserId;
 
-        // Update asset condition.
         asset.Condition = conditionUpper;
 
         // FR-040 - Recalculate cumulative cost, repair count, last repair date.
@@ -506,7 +418,6 @@ public class MaintenanceService : IMaintenanceService
         asset.UpdatedAt = now;
         asset.UpdatedBy = currentUserId;
 
-        // Write AssetHistory - MAINTENANCE event capturing the full transition.
         _context.AssetHistoryEntries.Add(new AssetHistory
         {
             Id = Guid.NewGuid(),
@@ -536,7 +447,7 @@ public class MaintenanceService : IMaintenanceService
         });
 
         // Single SaveChangesAsync - satisfies BR3 (atomic).
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         // FR-080: notify whoever originally reported/requested this work,
         // if that's someone other than the person completing it. AC4:
@@ -552,30 +463,23 @@ public class MaintenanceService : IMaintenanceService
                 $"Maintenance for {asset.AssetCode} has been completed. Resulting condition: {conditionUpper}.",
                 "MaintenanceRecord",
                 record.Id,
-                default);
+                cancellationToken);
         }
 
-        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+        return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
     public async Task<MaintenanceRecordDto?> CancelMaintenanceAsync(
-        Guid organizationId,
-        Guid currentUserId,
-        Guid maintenanceId,
-        CancelMaintenanceRequest request)
+        Guid organizationId, Guid currentUserId, Guid maintenanceId, CancelMaintenanceRequest request, CancellationToken cancellationToken)
     {
         var record = await _context.MaintenanceRecords
             .Include(m => m.Asset)
-            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId, cancellationToken)
+            ?? throw NotFoundException.For(nameof(MaintenanceRecord), maintenanceId);
 
-        if (record is null)
+        if (record.Status is MaintenanceStatus.COMPLETED or MaintenanceStatus.CANCELLED)
         {
-            throw new KeyNotFoundException("Maintenance record not found.");
-        }
-
-        if (record.Status == MaintenanceStatus.COMPLETED || record.Status == MaintenanceStatus.CANCELLED)
-        {
-            throw new InvalidOperationException($"Cannot cancel a record with status {record.Status}.");
+            throw new ConflictException($"Cannot cancel a record with status {record.Status}.", "invalid_status_transition");
         }
 
         var asset = record.Asset;
@@ -598,7 +502,11 @@ public class MaintenanceService : IMaintenanceService
                 OrganizationId = organizationId,
                 AssetId = asset.Id,
                 ActorUserId = currentUserId,
-                EventType = "MAINTENANCE_CANCELLED",
+                // B6: this used to be the literal string "MAINTENANCE_CANCELLED",
+                // which is not one of CK_AssetHistory_EventType's allowed
+                // values — cancelling an IN_PROGRESS record threw a DB
+                // check-constraint violation (500) instead of succeeding.
+                EventType = "MAINTENANCE",
                 Description = $"Maintenance record {record.Id} cancelled. Asset status reverted to ACTIVE.",
                 PreviousValue = JsonSerializer.Serialize(new { status = previousAssetStatus }),
                 NewValue = JsonSerializer.Serialize(new { status = asset.Status }),
@@ -606,7 +514,7 @@ public class MaintenanceService : IMaintenanceService
             });
         }
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         // FR-080: notify the assignee and the original reporter (if either
         // is someone other than whoever cancelled it), so nobody keeps
@@ -627,25 +535,19 @@ public class MaintenanceService : IMaintenanceService
                     (string.IsNullOrWhiteSpace(request.Reason) ? "." : $": {request.Reason}"),
                 "MaintenanceRecord",
                 record.Id,
-                default);
+                cancellationToken);
         }
 
-        return await GetMaintenanceRecordByIdAsync(organizationId, record.Id);
+        return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
     public async Task<PagedResult<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(
-        Guid organizationId,
-        MaintenanceRecordFilter filter)
+        Guid organizationId, DepartmentScope scope, MaintenanceRecordFilter filter, CancellationToken cancellationToken)
     {
-        var page = filter.Page < 1 ? 1 : filter.Page;
-        var pageSize = filter.PageSize < 1 ? 20 : Math.Min(filter.PageSize, 100);
-
         var query = _context.MaintenanceRecords
             .AsNoTracking()
-            .Include(m => m.Asset)
-            .Include(m => m.Assignee)
             .Where(m => m.OrganizationId == organizationId)
-            .AsQueryable();
+            .ApplyScope(scope, m => m.Asset != null ? (Guid?)m.Asset.DepartmentId : null);
 
         if (filter.AssetId.HasValue)
         {
@@ -693,60 +595,24 @@ public class MaintenanceService : IMaintenanceService
             query = query.Where(m => m.CreatedAt <= to);
         }
 
-        var totalCount = await query.CountAsync();
+        var sorted = query.ApplySort(filter, SortMap, defaultSortKey: "createdat");
+        var result = await sorted.ToPagedResultAsync(filter, ToDtoExpression, cancellationToken);
 
-        var sortBy = filter.SortBy?.Trim().ToLowerInvariant() ?? "createdat";
-        var descending = !string.Equals(filter.SortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+        await Task.WhenAll(result.Items.Select(dto => ResolvePhotoUrlAsync(dto, cancellationToken)));
+        await ResolveAssetTypeNamesAsync(result.Items, cancellationToken);
 
-        query = sortBy switch
+        return result;
+    }
+
+    private static string ValidateCondition(string condition, string fieldName)
+    {
+        var normalized = condition.Trim().ToUpperInvariant();
+
+        if (!ValidConditions.Contains(normalized))
         {
-            "priority" => descending ? query.OrderByDescending(m => m.Priority) : query.OrderBy(m => m.Priority),
-            "status" => descending ? query.OrderByDescending(m => m.Status) : query.OrderBy(m => m.Status),
-            "estimatedcost" => descending ? query.OrderByDescending(m => m.EstimatedCost) : query.OrderBy(m => m.EstimatedCost),
-            "actualcost" => descending ? query.OrderByDescending(m => m.ActualCost) : query.OrderBy(m => m.ActualCost),
-            "completiondate" => descending ? query.OrderByDescending(m => m.CompletionDate) : query.OrderBy(m => m.CompletionDate),
-            _ => descending ? query.OrderByDescending(m => m.CreatedAt) : query.OrderBy(m => m.CreatedAt),
-        };
+            throw new ValidationException(fieldName, $"Invalid condition '{condition}'. Use: NEW, GOOD, FAIR, POOR or UNSERVICEABLE.");
+        }
 
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(m => new MaintenanceRecordDto
-            {
-                Id = m.Id,
-                AssetId = m.AssetId,
-                AssetCode = m.Asset != null ? m.Asset.AssetCode : string.Empty,
-                AssetName = m.Asset != null ? m.Asset.Name : string.Empty,
-                Description = m.Description,
-                ObservedCondition = m.ObservedCondition,
-                PhotoUrl = m.PhotoObjectKey, // resolved to a real presigned URL below
-                Type = m.Type,
-                Priority = m.Priority,
-                Status = m.Status,
-                EstimatedCost = m.EstimatedCost,
-                ActualCost = m.ActualCost,
-                WorkPerformed = m.WorkPerformed,
-                CompletionDate = m.CompletionDate,
-                ResultingCondition = m.ResultingCondition,
-                AssigneeId = m.AssigneeId,
-                AssigneeEmail = m.Assignee != null ? m.Assignee.Email : null,
-                CancellationReason = m.CancellationReason,
-                CreatedAt = m.CreatedAt
-            })
-            .ToListAsync();
-
-        await Task.WhenAll(items.Select(ResolvePhotoUrlAsync));
-        await ResolveAssetTypeNamesAsync(items);
-
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
-
-        return new PagedResult<MaintenanceRecordDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = totalPages
-        };
+        return normalized;
     }
 }

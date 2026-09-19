@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.Verification.DTOs;
 
@@ -38,5 +39,17 @@ public class CompleteVerificationTaskRequest
     public bool? AssertedPresent { get; set; }
 
     public Guid? AssertedLocationId { get; set; }
+
+    [MaxLength(20)]
     public string? AssertedCondition { get; set; }
+}
+
+// Due-soonest-first by default — matches PagedQuery's own "asc" default,
+// so no direction override is needed here (unlike the other Verification
+// query-parameter types).
+public class VerificationTaskQueryParameters : PagedQuery
+{
+    public Guid? CampaignId { get; set; }
+    public bool Mine { get; set; }
+    public bool OnlyPending { get; set; }
 }

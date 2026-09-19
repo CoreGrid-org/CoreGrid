@@ -1,4 +1,4 @@
-using CoreGrid.Api.Identity;
+using CoreGrid.Api.Features.Identity;
 
 namespace backend.Tests;
 

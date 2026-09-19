@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.Transfers.DTOs;
 
@@ -53,10 +54,15 @@ public class TransferResponse
     public string? RejectionReason { get; set; }
 }
 
-public class TransferQueryParameters
+public class TransferQueryParameters : PagedQuery
 {
+    // Newest-first by default (unlike PagedQuery's own "asc" default) —
+    // matches this list's previous, only ordering.
+    public TransferQueryParameters()
+    {
+        SortDirection = "desc";
+    }
+
     public TransferStatus? Status { get; set; }
     public Guid? DepartmentId { get; set; }
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 20;
 }

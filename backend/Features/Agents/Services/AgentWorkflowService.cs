@@ -4,6 +4,8 @@ using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.Services;
 using AgentToolsDtos = CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.Agents.DTOs;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Agents.Services;
@@ -40,20 +42,36 @@ public class AgentWorkflowService : IAgentWorkflowService
         _maintenanceAnalysisTools = maintenanceAnalysisTools;
     }
 
-    public async Task<List<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, string? status, CancellationToken cancellationToken)
+    public async Task<PagedResult<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, AgentWorkflowQueryParameters query, CancellationToken cancellationToken)
     {
-        var query = _db.AgentWorkflows.AsNoTracking()
+        var workflows = _db.AgentWorkflows.AsNoTracking()
             .Include(w => w.Asset)
             .Include(w => w.InitiatedByUser)
             .Where(w => w.OrganizationId == organizationId);
 
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<WorkflowStatus>(status, true, out var statusFilter))
+        if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<WorkflowStatus>(query.Status, true, out var statusFilter))
         {
-            query = query.Where(w => w.Status == statusFilter);
+            workflows = workflows.Where(w => w.Status == statusFilter);
         }
 
-        var workflows = await query.OrderByDescending(w => w.CreatedAt).ToListAsync(cancellationToken);
-        return workflows.Select(MapToDto).ToList();
+        var totalCount = await workflows.CountAsync(cancellationToken);
+        var page = query.ClampedPage;
+        var pageSize = query.ClampedPageSize();
+
+        var pageItems = await workflows
+            .OrderByDescending(w => w.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<AgentWorkflowDto>
+        {
+            Items = pageItems.Select(MapToDto).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = pageSize == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize)
+        };
     }
 
     public async Task<AgentWorkflowDto?> GetWorkflowByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
@@ -72,17 +90,18 @@ public class AgentWorkflowService : IAgentWorkflowService
         CreateAgentWorkflowRequest request,
         CancellationToken cancellationToken)
     {
-        var assetId = request.AssetId
-            ?? throw new InvalidOperationException("An asset is required to initiate an evaluation.");
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assetId = request.AssetId!.Value;
 
         var asset = await _db.Assets.AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken)
-            ?? throw new InvalidOperationException("Asset not found.");
+            ?? throw new ValidationException(nameof(request.AssetId), "Asset not found.");
 
         // FR-068: refuse a terminal asset or an evaluation already running for it.
         if (asset.Status == "DISPOSED")
         {
-            throw new InvalidOperationException("This asset is disposed — no further evaluation is possible.");
+            throw new BusinessRuleException("This asset is disposed — no further evaluation is possible.", "asset_disposed");
         }
 
         var alreadyRunning = await _db.AgentWorkflows.AsNoTracking().AnyAsync(
@@ -90,12 +109,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             cancellationToken);
         if (alreadyRunning)
         {
-            throw new InvalidOperationException("An evaluation is already running for this asset.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Objective))
-        {
-            throw new InvalidOperationException("An objective is required to initiate an evaluation.");
+            throw new ConflictException("An evaluation is already running for this asset.", "workflow_already_running");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -191,36 +205,16 @@ public class AgentWorkflowService : IAgentWorkflowService
             workflow.MaintenanceAnalysis = JsonSerializer.Serialize(stats);
             workflow.UpdatedAt = DateTimeOffset.UtcNow;
 
-            _db.AgentExecutionSteps.Add(new AgentExecutionStep
-            {
-                Id = Guid.NewGuid(),
-                WorkflowId = workflow.Id,
-                Agent = "MaintenanceAnalysis",
-                Sequence = 2,
-                OutputSummary = $"RepairCount={stats.RepairCount}, CostTrend={stats.CostTrend}, "
-                    + $"Projected12moCost={stats.ProjectedNextTwelveMonthsCost}",
-                DurationMs = (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds),
-                Status = "SUCCESS",
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.MaintenanceAnalysisSucceeded(
+                workflow.Id, stats, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
 
             await _db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
             // Advisory-only node — record the failure, never fail the workflow over it.
-            _db.AgentExecutionSteps.Add(new AgentExecutionStep
-            {
-                Id = Guid.NewGuid(),
-                WorkflowId = workflow.Id,
-                Agent = "MaintenanceAnalysis",
-                Sequence = 2,
-                OutputSummary = "Maintenance analysis failed.",
-                DurationMs = (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds),
-                Status = "FAILED",
-                Error = ex.Message,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.MaintenanceAnalysisFailed(
+                workflow.Id, ex.Message, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
 
             await _db.SaveChangesAsync(cancellationToken);
         }
@@ -238,7 +232,7 @@ public class AgentWorkflowService : IAgentWorkflowService
 
         if (workflow.Status is not (WorkflowStatus.PLANNING or WorkflowStatus.ANALYZING))
         {
-            throw new InvalidOperationException($"Workflow is {workflow.Status} — policy evaluation only runs from PLANNING or ANALYZING.");
+            throw new ConflictException($"Workflow is {workflow.Status} — policy evaluation only runs from PLANNING or ANALYZING.", "invalid_status_transition");
         }
 
         var complianceState = await _agentTools.GetAssetComplianceStateAsync(organizationId, workflow.AssetId, cancellationToken)
@@ -249,7 +243,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             ?? throw new InvalidOperationException("Asset not found.");
 
         var policy = await _agentTools.GetOrganizationPoliciesAsync(organizationId, asset.AssetTypeId, cancellationToken)
-            ?? throw new InvalidOperationException("No organisation policy is configured — cannot evaluate compliance.");
+            ?? throw new BusinessRuleException("No organisation policy is configured — cannot evaluate compliance.", "no_policy_configured");
 
         var facts = new DTOs.PolicyEvaluationFacts
         {
@@ -279,6 +273,23 @@ public class AgentWorkflowService : IAgentWorkflowService
         workflow.Recommendation = request.ProposedRecommendation;
         workflow.IsHighImpact = validation.IsHighImpact;
         workflow.UpdatedAt = now;
+
+        // FR-027 (B12): lifecycle history when a workflow records a
+        // recommendation — covers both this manual /evaluate submission and
+        // PolicyComplianceAgentService's agent-driven call, since both funnel
+        // through this one method.
+        _db.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = workflow.AssetId,
+            ActorUserId = null,
+            EventType = "AGENT_RECOMMENDATION",
+            Description = $"Workflow {workflow.Id} recorded recommendation '{request.ProposedRecommendation}' (verdict {validation.Verdict}).",
+            PreviousValue = null,
+            NewValue = JsonSerializer.Serialize(new { recommendation = request.ProposedRecommendation, verdict = validation.Verdict, isHighImpact = validation.IsHighImpact }),
+            CreatedAt = now
+        });
 
         _db.AgentExecutionSteps.Add(new AgentExecutionStep
         {
@@ -353,18 +364,18 @@ public class AgentWorkflowService : IAgentWorkflowService
         // can ever change while a workflow is merely paused.
         if (workflow.Status != WorkflowStatus.AWAITING_APPROVAL)
         {
-            throw new InvalidOperationException("This workflow is not awaiting approval.");
+            throw new ConflictException("This workflow is not awaiting approval.", "invalid_status_transition");
         }
 
         // AI-16: a decision reason of at least 10 characters.
         if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length < 10)
         {
-            throw new InvalidOperationException("A decision reason of at least 10 characters is required.");
+            throw new ValidationException(nameof(request.Reason), "A decision reason of at least 10 characters is required.");
         }
 
         if (request.Decision is not ("APPROVE" or "REJECT" or "REVISE"))
         {
-            throw new InvalidOperationException("Decision must be APPROVE, REJECT or REVISE.");
+            throw new ValidationException(nameof(request.Decision), "Decision must be APPROVE, REJECT or REVISE.");
         }
 
         var now = DateTimeOffset.UtcNow;
