@@ -1,8 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// AgentApproval.Decision values (AI-13 to AI-20). Consolidated (Phase 4,
-// §6.1) out of the raw literals AgentWorkflowService used for both the
-// request-shape check and the switch that applies the decision.
+// Defines the supported workflow approval decisions.
 public static class WorkflowDecisions
 {
     public const string Approve = "APPROVE";

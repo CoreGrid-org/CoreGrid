@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// FR-056/FR-057: an Auditor/Administrator-created verification campaign.
-// Its task list is generated once, synchronously, at creation time, from
-// its scope filters (all optional and combined with AND — an unset filter
-// doesn't narrow the scope).
+// Represents an asset verification campaign.
 public class VerificationCampaign
 {
     public Guid Id { get; set; }

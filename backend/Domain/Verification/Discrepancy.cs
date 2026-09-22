@@ -1,6 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// FR-060/FR-061/FR-062.
+// Represents an asset verification discrepancy.
 public class Discrepancy
 {
     public Guid Id { get; set; }
@@ -8,9 +8,7 @@ public class Discrepancy
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 
-    // Null for a discrepancy raised through SRS §9.2's standalone
-    // POST /api/assets/{id}/verify (FR-031) — there is no campaign or
-    // task outside a campaign for that action to belong to.
+// Optional verification campaign associated with the discrepancy.
     public Guid? CampaignId { get; set; }
     public VerificationCampaign? Campaign { get; set; }
 
@@ -29,14 +27,12 @@ public class Discrepancy
 
     public required string Description { get; set; }
 
-    // FR-061 asks for a photograph — this codebase has no file-upload/
-    // storage infrastructure yet, so this holds an externally-hosted URL
-    // rather than binary content.
+   // Stores the URL of the discrepancy photo.
     public string? PhotoUrl { get; set; }
 
     public DiscrepancyStatus Status { get; set; }
 
-    // FR-062 resolution.
+
     public string? ResolutionType { get; set; }
     public string? ResolutionExplanation { get; set; }
     public string? CorrectiveAction { get; set; }

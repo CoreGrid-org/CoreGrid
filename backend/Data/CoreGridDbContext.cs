@@ -4,13 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Data;
 
-// FR-006: every entity with an OrganizationId column gets a global query
-// filter scoped to currentOrganizationProvider.OrganizationId, on top of
-// (not instead of) each service's existing manual `.Where(x.OrganizationId
-// == ...)` — defense in depth, not a replacement for it. The filter is a
-// no-op when there's no org context yet (null) — see
-// Identity/ICurrentOrganizationProvider.cs for exactly which requests that
-// covers and why it's safe.
+// Apply organization-level filtering to tenant-scoped entities.
 public class CoreGridDbContext(
     DbContextOptions<CoreGridDbContext> options,
     ICurrentOrganizationProvider currentOrganizationProvider) : DbContext(options)
@@ -163,11 +157,7 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AssetAttributeDefinition>(entity =>
         {
-            // B8/FR-006: this entity carries no OrganizationId column of its
-            // own — filtered through the required AssetType navigation
-            // instead of duplicating the column, so a query that starts
-            // directly from AssetAttributeDefinitions (bypassing AssetType)
-            // stays org-scoped too.
+            // Apply organization filtering through the related AssetType.
             entity.HasQueryFilter(aad => currentOrganizationProvider.OrganizationId == null || aad.AssetType!.OrganizationId == currentOrganizationProvider.OrganizationId);
 
             entity.HasIndex(aad => aad.AssetTypeId);
@@ -242,8 +232,7 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AssetAttributeValue>(entity =>
         {
-            // B8/FR-006: same reasoning as AssetAttributeDefinition above —
-            // filtered through the required Asset navigation.
+            // Apply organization filtering through the related Asset.
             entity.HasQueryFilter(aav => currentOrganizationProvider.OrganizationId == null || aav.Asset!.OrganizationId == currentOrganizationProvider.OrganizationId);
 
             entity.HasIndex(aav => new { aav.AssetId, aav.AssetAttributeDefinitionId }).IsUnique();
@@ -642,9 +631,7 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AgentExecutionStep>(entity =>
         {
-            // B8/FR-006: no OrganizationId column of its own — filtered
-            // through the required Workflow navigation, same pattern as
-            // AssetAttributeDefinition/AssetAttributeValue above.
+            // Apply organization filtering through the related workflow.
             entity.HasQueryFilter(s => currentOrganizationProvider.OrganizationId == null || s.Workflow!.OrganizationId == currentOrganizationProvider.OrganizationId);
 
             entity.HasIndex(s => s.WorkflowId);
@@ -660,7 +647,7 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AgentApproval>(entity =>
         {
-            // B8/FR-006: same reasoning as AgentExecutionStep above.
+            // Apply organization filtering through the related workflow.
             entity.HasQueryFilter(a => currentOrganizationProvider.OrganizationId == null || a.Workflow!.OrganizationId == currentOrganizationProvider.OrganizationId);
 
             entity.HasIndex(a => a.WorkflowId);

@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// FR-062's five resolution types. Discrepancy.ResolutionType stays a plain
-// string column (matches ResolveDiscrepancyRequest already being free-text
-// from the API's point of view), but DiscrepancyService validates every
-// incoming value against this set.
+// Defines the supported discrepancy resolution types.
 public static class DiscrepancyResolutionTypes
 {
     public const string RegisterCorrected = "REGISTER_CORRECTED";
@@ -17,8 +14,6 @@ public static class DiscrepancyResolutionTypes
         RegisterCorrected, AssetRelocated, ConditionUpdated, WrittenOff, NoAction
     ];
 
-    // FR-062's acceptance criteria: NO_ACTION requires a justification of at
-    // least 20 characters (longer than the general "explanation required"
-    // floor every resolution type shares).
+// Minimum justification length required for the NoAction resolution.
     public const int NoActionMinimumJustificationLength = 20;
 }
