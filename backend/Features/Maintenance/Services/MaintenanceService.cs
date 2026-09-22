@@ -15,14 +15,12 @@ namespace CoreGrid.Api.Features.Maintenance.Services;
 
 public class MaintenanceService : IMaintenanceService
 {
-    // FR-034: a photo is only ever handed out as a signed, time-limited
-    // URL, minted fresh on every authorized read — never persisted.
+   // Defines the lifetime of generated photo URLs.
     private static readonly TimeSpan PhotoUrlExpiry = TimeSpan.FromMinutes(15);
 
     private static readonly string[] ValidConditions = AssetConditions.All;
 
-    // §5.4: the one MaintenanceRecordDto projection, previously duplicated
-    // between GetById and List.
+   // Defines the maintenance record DTO projection.
     private static readonly Expression<Func<MaintenanceRecord, MaintenanceRecordDto>> ToDtoExpression = m => new MaintenanceRecordDto
     {
         Id = m.Id,
@@ -71,10 +69,7 @@ public class MaintenanceService : IMaintenanceService
         _fileStorageService = fileStorageService;
     }
 
-    // Resolves a stored R2 object key into a fresh presigned URL — a no-op
-    // when there's no photo. Called only after the record's own read
-    // authorization has already been checked (the controller's role gate),
-    // so this never hands out a link nobody was cleared to see.
+   
     private async Task ResolvePhotoUrlAsync(MaintenanceRecordDto dto, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(dto.PhotoUrl))
@@ -104,14 +99,7 @@ public class MaintenanceService : IMaintenanceService
         return dto;
     }
 
-    // FR-084: populates AssetTypeName via a dedicated single-hop query
-    // (Assets → AssetType) rather than a two-hop MaintenanceRecord → Asset
-    // → AssetType navigation inside the main Select — EF Core's InMemory
-    // provider (used by this project's unit tests) doesn't reliably
-    // translate a nested null-conditional two levels deep and silently
-    // excludes matching rows instead of just nulling the field. One extra
-    // query, but it works identically against InMemory and the real
-    // Postgres provider, and it's a single indexed lookup either way.
+  // Resolves asset type names for the returned maintenance records.
     private async Task ResolveAssetTypeNamesAsync(IReadOnlyList<MaintenanceRecordDto> dtos, CancellationToken cancellationToken)
     {
         var assetIds = dtos.Select(d => d.AssetId).Distinct().ToList();
@@ -172,7 +160,7 @@ public class MaintenanceService : IMaintenanceService
         return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
-    // SRS §9.3: amend classification, priority and description. Blocked
+    
     // once the record is terminal (COMPLETED/CANCELLED) — same guard
     // CancelMaintenanceAsync uses — since there's nothing left to amend.
     public async Task<MaintenanceRecordDto?> AmendMaintenanceAsync(
@@ -202,7 +190,7 @@ public class MaintenanceService : IMaintenanceService
         return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
-    // FR-035 - Create maintenance record directly (Officer)
+    //Create maintenance record directly (Officer)
     public async Task<MaintenanceRecordDto?> CreateMaintenanceAsync(
         Guid organizationId, Guid currentUserId, CreateMaintenanceRequest request, CancellationToken cancellationToken)
     {
@@ -363,7 +351,7 @@ public class MaintenanceService : IMaintenanceService
         return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
 
-    // FR-038 / FR-040 - Complete maintenance (IN_PROGRESS → COMPLETED)
+    //  Complete maintenance (IN_PROGRESS → COMPLETED)
     public async Task<MaintenanceRecordDto?> CompleteMaintenanceAsync(
         Guid organizationId, Guid currentUserId, Guid maintenanceId, CompleteMaintenanceRequest request, CancellationToken cancellationToken)
     {
@@ -384,7 +372,7 @@ public class MaintenanceService : IMaintenanceService
             .FirstOrDefaultAsync(m => m.Id == maintenanceId && m.OrganizationId == organizationId, cancellationToken)
             ?? throw NotFoundException.For(nameof(MaintenanceRecord), maintenanceId);
 
-        // AC1 - a COMPLETED record cannot be completed again.
+        //  a COMPLETED record cannot be completed again.
         if (record.Status == MaintenanceStatus.COMPLETED)
         {
             throw new ConflictException("This maintenance record has already been completed.", "already_completed");
@@ -398,7 +386,7 @@ public class MaintenanceService : IMaintenanceService
 
         var asset = record.Asset ?? throw new InvalidOperationException("Associated asset could not be loaded.");
 
-        // BR1 - Cost variance tolerance check
+        // Cost variance tolerance check
         if (record.EstimatedCost.HasValue && record.EstimatedCost.Value > 0)
         {
             var policy = await _context.OrganizationPolicies
@@ -423,7 +411,7 @@ public class MaintenanceService : IMaintenanceService
             }
         }
 
-        // BR3 - Atomic transaction: all writes together
+        // Atomic transaction: all writes together
         var now = DateTimeOffset.UtcNow;
         var previousAssetStatus = asset.Status;
         var previousAssetCondition = asset.Condition;

@@ -11,12 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
-// FR-005 / SRS §4.6: asset type/attribute definitions are catalog
-// configuration, not asset instances — reads are broad (all four roles need
-// them to populate forms/filters), writes use CanManageConfiguration
-// (Administrator-only), matching the frontend's own routing (only
-// Administrator ever reaches AssetConfigPage — App.tsx; InventoryOfficer
-// gets asset create/edit but not /assets/config).
+// Manages asset type and attribute configuration.
 [ApiController]
 [Route("api/asset-types")]
 [Authorize]
@@ -65,8 +60,7 @@ public class AssetTypesController : CoreGridControllerBase
             : Ok(assetType);
     }
 
-    // Deliberately unpaginated (plan §12.3) — the dynamic asset form needs
-    // every attribute definition for the type, not a page of them.
+// Returns all attribute definitions for an asset type.
     [HttpGet("{id:guid}/attributes")]
     [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<List<AssetAttributeDefinitionDto>>> GetAttributeDefinitions(
@@ -119,8 +113,7 @@ public class AssetTypesController : CoreGridControllerBase
             : Ok(assetType);
     }
 
-    // Hard-deletes the type if no Asset references it; otherwise
-    // deactivates it instead so existing Assets keep displaying it.
+    // Deletes or deactivates an asset type.
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = Policies.CanManageConfiguration)]
     public async Task<IActionResult> DeleteAssetType(
@@ -198,9 +191,7 @@ public class AssetTypesController : CoreGridControllerBase
             : Ok(definition);
     }
 
-    // Hard-deletes the definition if no AssetAttributeValue references it;
-    // otherwise deactivates it instead so existing Assets keep displaying
-    // their previously stored value for it.
+    // Deletes or deactivates an attribute definition.
     [HttpDelete("{id:guid}/attributes/{attributeId:guid}")]
     [Authorize(Policy = Policies.CanManageConfiguration)]
     public async Task<IActionResult> DeleteAttributeDefinition(

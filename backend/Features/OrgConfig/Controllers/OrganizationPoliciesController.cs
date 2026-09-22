@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.OrgConfig.Controllers;
 
-// FR-015: Administrator-defined organisation policy parameters, consumed by
+// Administrator-defined organisation policy parameters, consumed by
 // lifecycle rules and the Policy Agent.
 [ApiController]
 [Route("api/organization-policies")]

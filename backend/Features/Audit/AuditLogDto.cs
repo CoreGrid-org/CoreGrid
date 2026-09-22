@@ -23,9 +23,7 @@ public class AuditLogEntryDto
 
 public class AuditLogQueryParameters : PagedQuery
 {
-    // Newest-first by default (unlike PagedQuery's own "asc" default), and
-    // 50 per page instead of PagedQuery's 20 — matches this list's previous
-    // defaults.
+ // Configures the default audit log sorting and page size.
     public AuditLogQueryParameters()
     {
         PageSize = 50;

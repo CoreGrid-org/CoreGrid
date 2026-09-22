@@ -6,10 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Audit;
 
-// FR-064: read-only, deliberately — no POST/PUT/PATCH/DELETE route exists
-// anywhere for AuditLogEntry, and the database itself revokes UPDATE/DELETE
-// from the app role (AddAuditLog migration), so immutability holds even if
-// a future change accidentally exposes db.AuditLogEntries for editing.
+// Provides read-only access to audit log entries.
 [ApiController]
 [Route("api/audit-log")]
 [Authorize(Policy = Policies.CanReadAuditLog)]

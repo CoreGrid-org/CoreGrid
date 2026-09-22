@@ -12,9 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Users;
 
-// Administrator-only user management (SRS §4.7). Only the first Administrator
-// is created unauthenticated, by Setup — every other CoreGrid user is created
-// here, by an already-signed-in Administrator, from the dashboard.
+// Handles user management operations.
 [ApiController]
 [Route("api/users")]
 [Authorize]
@@ -29,13 +27,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
             ["createdAt"] = u => u.CreatedAt,
         };
 
-    // Search + pagination — added for the Users & Roles admin page. Org
-    // scoping is already handled by the global OrganizationId query filter
-    // (FR-006), same as every other query against db.Users in this file.
-    // A deliberate deviation from Appendix B's Administrator-only
-    // user:manage (RoleGroups.ManageUsers) is kept inline here, not as a
-    // named policy: InventoryOfficer also needs this one read for the
-    // maintenance/transfer assignee picker (plan §12.4).
+  // Returns users with search and pagination.
     [HttpGet]
     [Authorize(Roles = $"{nameof(CoreGridRole.Administrator)},{nameof(CoreGridRole.InventoryOfficer)}")]
     public async Task<ActionResult<PagedResult<UserResponse>>> List(
@@ -65,9 +57,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
-
-        // [Required] on the DTO makes a missing value 400 for a
-        // model-bound HTTP caller before this method ever runs.
+        // Gets the validated user role.
         var role = request.Role!.Value;
 
         var externalSubjectId = await identityDirectory.ProvisionUserAsync(
@@ -96,7 +86,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         return Ok(ToResponse(user));
     }
 
-    // FR-014: change a user's role or department assignment.
+    // change a user's role or department assignment.
     [HttpPatch("{id:guid}")]
     [Authorize(Policy = Policies.CanManageUsers)]
     public async Task<ActionResult<UserResponse>> Update(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
@@ -133,11 +123,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
 
         return Ok(ToResponse(user));
     }
-
-    // FR-014: deactivate a user — retained for historical reference, never
-    // hard-deleted. Guards against locking the organisation out by
-    // deactivating its last active Administrator, and (Appendix B) against
-    // an Administrator deactivating their own account.
+    // Deactivates a user without deleting the account.
     [HttpPatch("{id:guid}/deactivate")]
     [Authorize(Policy = Policies.CanManageUsers)]
     public async Task<ActionResult<UserResponse>> Deactivate(Guid id, CancellationToken cancellationToken)
@@ -164,7 +150,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         return Ok(ToResponse(user));
     }
 
-    // FR-014 (reactivation is the natural inverse of deactivation).
+    // Reactivates a user.
     [HttpPatch("{id:guid}/activate")]
     [Authorize(Policy = Policies.CanManageUsers)]
     public async Task<ActionResult<UserResponse>> Activate(Guid id, CancellationToken cancellationToken)
@@ -195,10 +181,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         }
     }
 
-    // The one UserResponse mapper (previously built inline four times) —
-    // an Expression so List's EF projection can translate it to SQL, with
-    // ToResponse compiled from the same definition for the other three
-    // actions, which map an already-materialized entity in memory.
+    // Defines the shared user response mapping.
     private static readonly Expression<Func<User, UserResponse>> ToResponseExpression =
         u => new UserResponse(u.Id, u.Email, u.GivenName, u.FamilyName, u.Role, u.DepartmentId, u.IsActive, u.CreatedAt);
 

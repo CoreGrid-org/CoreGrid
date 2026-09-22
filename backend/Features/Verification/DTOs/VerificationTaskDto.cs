@@ -3,7 +3,7 @@ using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.Verification.DTOs;
-
+// Represents a verification task.
 public class VerificationTaskDto
 {
     public Guid Id { get; set; }
@@ -31,10 +31,7 @@ public class VerificationTaskDto
 
 public class CompleteVerificationTaskRequest
 {
-    // No safe default: false means "not present" and auto-raises a
-    // Missing discrepancy (FR-060) — an omitted field must fail
-    // validation, not silently assert an asset missing that the officer
-    // never actually checked.
+   // Indicates whether the asset was present during verification.
     [Required]
     public bool? AssertedPresent { get; set; }
 
@@ -44,9 +41,7 @@ public class CompleteVerificationTaskRequest
     public string? AssertedCondition { get; set; }
 }
 
-// Due-soonest-first by default — matches PagedQuery's own "asc" default,
-// so no direction override is needed here (unlike the other Verification
-// query-parameter types).
+// Defines filters for verification task queries.
 public class VerificationTaskQueryParameters : PagedQuery
 {
     public Guid? CampaignId { get; set; }

@@ -4,7 +4,7 @@ using CoreGrid.Api.Features.AgentTools.DTOs;
 namespace CoreGrid.Api.Features.Agents.DTOs;
 
 /// <summary>
-/// Output contract for Budget Analysis Agent (SRS §7.3, Node 3).
+/// Output contract for Budget Analysis Agent evaluation.
 /// Corresponds to Python contracts.py FinancialAssessment model.
 /// </summary>
 public class FinancialAssessmentResultDto

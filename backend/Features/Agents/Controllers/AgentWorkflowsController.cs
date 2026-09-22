@@ -12,18 +12,13 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace CoreGrid.Api.Features.Agents.Controllers;
 
-// SRS §7, FR-067 to FR-076: the Asset Lifecycle Decision workflow's
-// initiation, status, policy-gate evaluation and human-approval checkpoint.
+// Handles asset lifecycle decision workflows.
 [ApiController]
 [Route("api/agent-workflows")]
 [Authorize]
 public class AgentWorkflowsController : CoreGridControllerBase
 {
-    // FR-069: read access stays Officer/Auditor/Administrator — SRS §4.6's
-    // workflow:read row also grants Staff a "status only" view, but that
-    // needs a field-level restriction this refactor doesn't add; kept as-is
-    // (stricter than the matrix) and recorded, same posture as Maintenance's
-    // CreateMaintenance/CompleteMaintenance staying Officer-only (plan §5.4).
+    // Roles allowed to view workflow details.
     private const string ReadRoles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
 
     private readonly IAgentWorkflowService _workflowService;
@@ -65,9 +60,9 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(workflow);
     }
 
-    // GET /api/agent-workflows/{id}/execution-summary — SRS §9.6: the full
-    // auditable trace (plan, agent outputs, tool calls, validation,
-    // decision), same read access as GetWorkflowById.
+    // GET /api/agent-workflows/{id}/execution-summary 
+    // Returns the execution summary for a workflow.
+
     [HttpGet("{id:guid}/execution-summary")]
     [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<WorkflowExecutionSummaryDto>> GetExecutionSummary(Guid id, CancellationToken cancellationToken)
@@ -81,8 +76,7 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(summary);
     }
 
-    // FR-067/FR-068: Officer or Administrator initiates an evaluation.
-    // AI-27: rate-limited per user+org — initiation drives real agent work.
+    // Initiates a new asset lifecycle evaluation.
     [HttpPost]
     [Authorize(Policy = Policies.CanInitiateWorkflow)]
     [EnableRateLimiting(RateLimitPolicies.AgentWorkflowInitiate)]
@@ -97,10 +91,7 @@ public class AgentWorkflowsController : CoreGridControllerBase
         return CreatedAtAction(nameof(GetWorkflowById), new { id = workflow.Id }, workflow);
     }
 
-    // Stands in for nodes 2-4 having run and handed off to the Policy
-    // Compliance node — see AgentWorkflowService.EvaluatePolicyAsync. Same
-    // roles as CreateWorkflow (CanInitiateWorkflow): a continuation of an
-    // evaluation the caller was already allowed to start.
+    // Evaluates the workflow against applicable policies.
     [HttpPost("{id:guid}/evaluate")]
     [Authorize(Policy = Policies.CanInitiateWorkflow)]
     public async Task<ActionResult<AgentWorkflowDto>> EvaluatePolicy(
@@ -117,12 +108,7 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(workflow);
     }
 
-    // Runs the real Policy Compliance Agent (SRS §7.3, node 4): assembles
-    // policy/compliance facts via its own tool allow-list, runs a
-    // deterministic heuristic for a proposed recommendation (no LLM), then
-    // runs that through the same deterministic gate /evaluate does. Same
-    // roles as /evaluate — this replaces manually typing a recommendation,
-    // not who may trigger it.
+   // Runs the policy compliance agent for the workflow.
     [HttpPost("{id:guid}/run-policy-agent")]
     [Authorize(Policy = Policies.CanInitiateWorkflow)]
     public async Task<ActionResult<AgentWorkflowDto>> RunPolicyAgent(Guid id, CancellationToken cancellationToken)
@@ -136,12 +122,7 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(workflow);
     }
 
-    // Runs the real Maintenance Analysis Agent (SRS §7.3, node 2): assembles
-    // repair count / MTBF / cost trend / 12-month cost projection for the
-    // workflow's asset (deterministic, no LLM) and records them on the
-    // workflow for nodes 3/4 or a human reviewer to read. Same roles as
-    // /run-policy-agent — it produces facts, not a recommendation, so it
-    // never advances the workflow's status or approval state.
+   // Runs the maintenance analysis agent for the workflow.
     [HttpPost("{id:guid}/run-maintenance-agent")]
     [Authorize(Policy = Policies.CanInitiateWorkflow)]
     public async Task<ActionResult<AgentWorkflowDto>> RunMaintenanceAnalysisAgent(Guid id, CancellationToken cancellationToken)
@@ -155,7 +136,7 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(workflow);
     }
 
-    // AI-14: only an Administrator (`workflow:approve`) may decide a paused workflow.
+   // Records the administrator's decision for the workflow.
     [HttpPatch("{id:guid}/decide")]
     [Authorize(Policy = Policies.CanApproveWorkflow)]
     public async Task<ActionResult<AgentWorkflowDto>> Decide(

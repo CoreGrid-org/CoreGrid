@@ -1,5 +1,5 @@
 namespace CoreGrid.Api.Features.Assets.DTOs;
-
+// Represents an asset attribute definition.
 public class AssetAttributeDefinitionDto
 {
     public Guid Id { get; set; }

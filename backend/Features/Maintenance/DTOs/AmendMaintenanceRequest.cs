@@ -3,9 +3,7 @@ using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Maintenance.DTOs;
 
-// SRS §9.3: "Amend classification, priority, description." Full-replace
-// update, same convention as every other PUT in this codebase — all three
-// fields required.
+// Defines the request for updating a maintenance record.
 public class AmendMaintenanceRequest
 {
     [Required]

@@ -2,9 +2,7 @@ using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Verification.DTOs;
 
-// FR-065: campaign completion report — assets in scope, verified,
-// outstanding, and discrepancies broken down by classification and by
-// resolution status. FR-084/FR-085 export this same shape as PDF or CSV.
+// Represents a campaign verification report.
 public class CampaignReportDto
 {
     public Guid CampaignId { get; set; }

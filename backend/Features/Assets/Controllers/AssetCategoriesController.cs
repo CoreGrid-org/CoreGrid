@@ -11,11 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
-// FR-005 / SRS §4.6: broad read (every role needs the category list to
-// filter/register assets); management is a configuration action, so it
-// uses CanManageConfiguration (Administrator-only) rather than
-// CanManageAssets — matches AssetConfigPage's Administrator-only route in
-// App.tsx.
+// Manages asset category operations.
 [ApiController]
 [Route("api/asset-categories")]
 [Authorize]
@@ -102,10 +98,7 @@ public class AssetCategoriesController : CoreGridControllerBase
     }
 
     // DELETE /api/asset-categories/{id}
-    //
-    // Hard-deletes the category if no AssetType references it; otherwise
-    // deactivates it instead (IsActive = false) so existing AssetTypes keep
-    // working, while it stops appearing as a choice for new ones.
+   // Deletes or deactivates an asset category.
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = Policies.CanManageConfiguration)]
     public async Task<IActionResult> DeleteCategory(

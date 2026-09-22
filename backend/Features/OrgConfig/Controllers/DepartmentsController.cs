@@ -11,11 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.OrgConfig.Controllers;
 
-// FR-005 / SRS §4.6: config:manage is Administrator-only; reads stay broad
-// since every role needs department lists to register/filter assets, pick a
-// user's department, etc. — there is no named Appendix B policy for that
-// broad a read, so it stays an inline role list rather than a
-// CanManageConfiguration-scoped one.
+// Handles department management and retrieval.
 [ApiController]
 [Route("api/departments")]
 [Authorize]

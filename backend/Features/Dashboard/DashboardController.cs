@@ -8,9 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Dashboard;
 
-// FR-081/FR-082/FR-086: organisation- and department-scoped indicators and
-// visualisations (previously the React Admin Dashboard used mock data only
-// for the charts — see doc/PROGRESS.md).
+// Provides dashboard summary and chart data.
 [ApiController]
 [Route("api/dashboard")]
 [Authorize]
@@ -73,12 +71,7 @@ public class DashboardController : CoreGridControllerBase
             transfersAwaitingApproval + disposalsAwaitingApproval));
     }
 
-    // FR-082: assets by department, assets by condition, maintenance cost by
-    // month. Administrator/Auditor only — the two SRS grants these charts
-    // to; both are also the org-wide roles under FR-086, so no department
-    // restriction ever actually narrows what this endpoint returns, but the
-    // scope is still resolved and applied for the same reason GetSummary
-    // does: correctness shouldn't depend on who happens to call it today.
+   // Returns dashboard chart data.
     [HttpGet("charts")]
     [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]
     public async Task<ActionResult<DashboardCharts>> GetCharts(CancellationToken cancellationToken)
@@ -92,11 +85,7 @@ public class DashboardController : CoreGridControllerBase
         var assets = Db.Assets.AsNoTracking().Where(a => a.OrganizationId == organizationId);
         if (scope.IsRestricted) assets = assets.Where(a => a.DepartmentId == scope.DepartmentId);
 
-        // GroupBy → Select-into-record → OrderByDescending doesn't translate
-        // (EF tries to re-derive .Value through the record's constructor for
-        // the ORDER BY and fails) — materialize into an anonymous type first,
-        // same as conditionCounts below, then order and build the record
-        // client-side.
+       // Materialize grouped results before ordering to ensure EF Core translation.
         var departmentCounts = await assets
             .GroupBy(a => a.Department!.Name)
             .Select(g => new { Department = g.Key, Count = g.Count() })

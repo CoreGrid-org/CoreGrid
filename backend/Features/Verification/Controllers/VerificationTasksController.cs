@@ -10,15 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Verification.Controllers;
 
-// FR-005 / SRS §4.6 Appendix B (CanVerifyAssets): Staff has no role in
-// verification at all, so it's excluded from both actions here. Appendix B
-// lists CanVerifyAssets as Officer+Auditor only (Administrator explicitly
-// excluded, on the same "can't assert the physical world" principle as
-// transfer-receipt confirmation) — but CompleteTaskAsync's own
-// `canActOnAnyTask` flag already treats Administrator as a valid
-// any-task actor, so CanVerifyAssets keeps Administrator (plan §4.4's
-// documented deviation) rather than narrowing an existing, working
-// capability as an unrequested side effect.
+// Handles verification task operations.
 [ApiController]
 [Route("api/verification-tasks")]
 [Authorize]
@@ -34,6 +26,7 @@ public class VerificationTasksController : CoreGridControllerBase
     }
 
     // GET /api/verification-tasks?campaignId=&mine=&onlyPending=
+    // Returns verification tasks.
     [HttpGet]
     [Authorize(Policy = Policies.CanVerifyAssets)]
     public async Task<ActionResult<PagedResult<VerificationTaskDto>>> GetTasks(
@@ -49,7 +42,7 @@ public class VerificationTasksController : CoreGridControllerBase
         return Ok(tasks);
     }
 
-    // FR-059: complete a task by asserting presence/location/condition —
+    // complete a task by asserting presence/location/condition —
     // auto-raises discrepancies per FR-060 as a side effect.
     [HttpPatch("{id:guid}/complete")]
     [Authorize(Policy = Policies.CanVerifyAssets)]

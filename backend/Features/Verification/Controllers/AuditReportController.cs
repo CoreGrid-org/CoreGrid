@@ -9,10 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Verification.Controllers;
 
-// FR-084/FR-085: the "Audit Campaign Report" tab on the shared Reports page
-// — Auditor/Administrator only, matching every other export in this
-// feature. Distinct from VerificationCampaignsController's per-campaign
-// report (FR-065).
+// Defines the request and response models for audit reports.
 [ApiController]
 [Route("api/reports/audit")]
 [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]

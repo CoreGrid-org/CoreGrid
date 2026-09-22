@@ -8,9 +8,7 @@ public class DiscrepancyDto
 {
     public Guid Id { get; set; }
 
-    // Null for a discrepancy raised through the standalone
-    // POST /api/assets/{id}/verify action (FR-031) — it belongs to no
-    // campaign or task.
+   // Represents a verification discrepancy.
     public Guid? CampaignId { get; set; }
     public Guid? VerificationTaskId { get; set; }
     public Guid AssetId { get; set; }
@@ -54,18 +52,13 @@ public class ResolveDiscrepancyRequest
 
     [MaxLength(2000)]
     public string? CorrectiveAction { get; set; }
-
-    // Only supported for ConditionMismatch and LocationMismatch — those are
-    // the only two discrepancy types with a single, unambiguous register
-    // field to correct (Asset.Condition / Asset.LocationId), taken from the
-    // officer's assertion already recorded on the originating task.
+    // Indicates whether the related asset field should be corrected.
     public bool ApplyCorrection { get; set; }
 }
 
 public class DiscrepancyQueryParameters : PagedQuery
 {
-    // Newest-first by default (unlike PagedQuery's own "asc" default) —
-    // matches this list's previous, only ordering.
+    // Configures newest-first ordering by default.
     public DiscrepancyQueryParameters()
     {
         SortDirection = "desc";

@@ -10,9 +10,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Verification.Controllers;
 
-// FR-056: campaign creation is Auditor/Administrator only (CanManageCampaigns);
+// campaign creation is Auditor/Administrator only (CanManageCampaigns);
 // read access is open to any authenticated org member (an assigned officer
-// needs to see which campaign their task belongs to).
+
 [ApiController]
 [Route("api/verification-campaigns")]
 [Authorize]
@@ -102,7 +102,7 @@ public class VerificationCampaignsController : CoreGridControllerBase
         return NoContent();
     }
 
-    // FR-065: campaign completion report — Auditor/Administrator, same as
+    // campaign completion report — Auditor/Administrator, same as
     // creation, since generating one is itself an audit action.
     [HttpGet("{id:guid}/report")]
     [Authorize(Policy = Policies.CanManageCampaigns)]

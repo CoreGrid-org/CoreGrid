@@ -14,15 +14,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace CoreGrid.Api.Features.Maintenance.Controllers;
 
-// FR-005 / SRS §4.6: maintenance:request is Staff/Officer/Administrator
-// (not Auditor) — CanRequestMaintenance; maintenance:manage (approve/start/
-// cancel) is Officer/Administrator — CanManageMaintenance; read endpoints
-// stay broad (all four roles have a legitimate reason to see a maintenance
-// record — Staff who reported it, Auditor for reports), with Staff
-// restricted to their own department (B14). CreateMaintenance and
-// CompleteMaintenance stay InventoryOfficer-only, deliberately stricter
-// than CanManageMaintenance's Officer+Admin — an existing behaviour kept
-// and recorded (plan §5.4), not widened by this refactor.
+// Handles maintenance records and maintenance operations.
 [ApiController]
 [Route("api/maintenance")]
 [Authorize]
@@ -42,15 +34,7 @@ public class MaintenanceController : CoreGridControllerBase
         _maintenanceService = maintenanceService;
         _fileStorageService = fileStorageService;
     }
-
-    // FR-034: upload a fault-report photo to Cloudflare R2 as a private
-    // object and get back the object key to include in
-    // ReportFaultRequest/CreateMaintenanceRequest's PhotoUrl — a separate
-    // step from submitting the fault report itself so the JSON endpoints
-    // below don't need to change to multipart/form-data. The key alone is
-    // never independently useful — a read of the owning record (GetById /
-    // list, both role-gated) is what turns it into a short-lived, signed
-    // URL, so the raw upload response can't be used to bypass that gate.
+// Uploads a private photo for a maintenance record.
     [HttpPost("photos")]
     [Authorize(Policy = Policies.CanRequestMaintenance)]
     [EnableRateLimiting(RateLimitPolicies.PhotoUpload)]
@@ -98,7 +82,7 @@ public class MaintenanceController : CoreGridControllerBase
             : Ok(record);
     }
 
-    // PUT /api/maintenance/{id} — SRS §9.3: amend classification, priority, description.
+    // PUT /api/maintenance/{id} amend classification, priority, description.
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.CanManageMaintenance)]
     public async Task<ActionResult<MaintenanceRecordDto>> Amend(
@@ -115,7 +99,7 @@ public class MaintenanceController : CoreGridControllerBase
             : Ok(record);
     }
 
-    // FR-035 — creates a maintenance record directly (not via a fault
+    //  creates a maintenance record directly (not via a fault
     // report); the caller specifies type (CORRECTIVE / PREVENTIVE) and
     // priority.
     [HttpPost]
@@ -132,7 +116,7 @@ public class MaintenanceController : CoreGridControllerBase
         return CreatedAtAction(nameof(GetById), new { id = record!.Id }, record);
     }
 
-    // FR-036 — Approves a REQUESTED maintenance record: assigns it to a
+    // Approves a REQUESTED maintenance record: assigns it to a
     // responsible officer and records an estimated cost. Transitions
     // status: REQUESTED → APPROVED.
     [HttpPost("{id:guid}/approve")]
@@ -149,7 +133,7 @@ public class MaintenanceController : CoreGridControllerBase
         return Ok(record);
     }
 
-    // FR-037 / FR-039 — Starts an APPROVED maintenance record: transitions
+    // Starts an APPROVED maintenance record: transitions
     // status to IN_PROGRESS and places the asset into UNDER_MAINTENANCE.
     [HttpPost("{id:guid}/start")]
     [Authorize(Policy = Policies.CanManageMaintenance)]
@@ -164,11 +148,7 @@ public class MaintenanceController : CoreGridControllerBase
         return Ok(record);
     }
 
-    // FR-038 / FR-040 — Completes an IN_PROGRESS maintenance record.
-    // Records actual cost, work performed, completion date and resulting
-    // condition. Returns the asset to ACTIVE (or CONDEMNED for
-    // UNSERVICEABLE — BR2). Recalculates cumulative cost + repair count
-    // (FR-040). Enforces cost-variance tolerance (BR1). Atomic (BR3).
+    // Completes an in-progress maintenance record.
     [HttpPost("{id:guid}/complete")]
     [Authorize(Roles = nameof(CoreGridRole.InventoryOfficer))]
     public async Task<ActionResult<MaintenanceRecordDto>> CompleteMaintenance(

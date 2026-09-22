@@ -11,16 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.AgentTools.Controllers;
 
-// §5.9 (B3-B5): a human caller can reach these tools as themselves (e.g. an
-// Administrator exercising compute-depreciation directly), and so can the
-// agent service principal — CanReadAssets already covers exactly that
-// combination (every human role, plus the agent principal per SRS
-// Appendix B), so it replaces the dead AgentToolsAuthMiddleware (B3,
-// deleted) that never actually ran. Org scope is never taken from request
-// content (SEC-ID-02, B5): a human caller's org comes from ICurrentUser; a
-// service principal has no Users row, so its org is the M0 deployment's
-// one Organization, resolved server-side, the same invariant
-// SetupController relies on.
+// Provides tools for agent workflow operations.
 [ApiController]
 [Authorize(Policy = Policies.CanReadAssets)]
 public class AgentToolsController : CoreGridControllerBase
@@ -38,6 +29,7 @@ public class AgentToolsController : CoreGridControllerBase
     }
 
     // GET /api/agent-tools/assets/{assetId}/summary — Planner Agent tool.
+    // Returns a summary of an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/summary")]
     public async Task<ActionResult<AssetSummaryDto>> GetAssetSummary(
         Guid assetId,
@@ -63,6 +55,7 @@ public class AgentToolsController : CoreGridControllerBase
     }
 
     // GET /api/agent-tools/departments/{departmentId}/budget-summary?fiscalYear={year}
+    // Returns the budget summary for a department.
     [HttpGet("api/agent-tools/departments/{departmentId:guid}/budget-summary")]
     public async Task<ActionResult<DepartmentBudgetSummaryDto>> GetDepartmentBudgetSummary(
         Guid departmentId,
@@ -79,7 +72,7 @@ public class AgentToolsController : CoreGridControllerBase
     }
 
     // GET /api/agent-tools/organization-policies?assetTypeId={id}
-    // Policy Compliance Agent tool (§7.4).
+   // Returns the applicable organization policies.
     [HttpGet("api/agent-tools/organization-policies")]
     public async Task<ActionResult<OrganizationPolicyFactsDto>> GetOrganizationPolicies(
         [FromQuery] Guid? assetTypeId,
@@ -97,7 +90,7 @@ public class AgentToolsController : CoreGridControllerBase
     }
 
     // GET /api/agent-tools/assets/{assetId}/compliance-state
-    // Policy Compliance Agent tool (§7.4).
+    // Returns the compliance state of an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/compliance-state")]
     public async Task<ActionResult<AssetComplianceStateDto>> GetAssetComplianceState(
         Guid assetId,
@@ -111,7 +104,7 @@ public class AgentToolsController : CoreGridControllerBase
     }
 
     // GET /api/agent-tools/assets/{assetId}/maintenance-history
-    // Maintenance Analysis Agent tool (§7.4, node 2).
+   // Returns the maintenance history of an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/maintenance-history")]
     public async Task<ActionResult<MaintenanceHistoryDto>> GetMaintenanceHistory(
         Guid assetId,
@@ -125,7 +118,7 @@ public class AgentToolsController : CoreGridControllerBase
     }
 
     // GET /api/agent-tools/assets/{assetId}/failure-statistics
-    // Maintenance Analysis Agent tool (§7.4, node 2).
+    // Returns failure statistics for an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/failure-statistics")]
     public async Task<ActionResult<FailureStatisticsDto>> GetFailureStatistics(
         Guid assetId,
@@ -138,9 +131,7 @@ public class AgentToolsController : CoreGridControllerBase
             : Ok(result);
     }
 
-    // POST /api/agent-tools/compute-depreciation — pure computation, no DB
-    // access. B4: no longer [AllowAnonymous] — it requires AgentToolAccess
-    // like every other route on this controller now.
+    // Calculates asset depreciation.
     [HttpPost("api/agent-tools/compute-depreciation")]
     public ActionResult<ComputeDepreciationResponse> ComputeDepreciation(
         [FromBody] ComputeDepreciationRequest request)
@@ -149,11 +140,7 @@ public class AgentToolsController : CoreGridControllerBase
         return Ok(result);
     }
 
-    // B5 / SEC-ID-02: organisation is never taken from request content
-    // (query string or claim). A human caller's org comes from
-    // ICurrentUser. A service principal has no Users row, so its org is
-    // the M0 deployment's one Organization, resolved server-side (SRS
-    // §4.2's single-tenant invariant).
+    // Resolves the organization from the authenticated context.
     private async Task<Guid> ResolveOrganizationIdAsync(CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);

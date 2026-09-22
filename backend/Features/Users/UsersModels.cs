@@ -3,9 +3,7 @@ using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Users;
 
-// [property: Required] on Role: an omitted field would otherwise silently
-// bind to CoreGridRole.Staff (enum member 0) instead of failing
-// validation — for Update, that would demote an Administrator by accident.
+// Defines the request and response models for user management.
 public record CreateUserRequest(
     [property: Required, EmailAddress, MaxLength(256)] string Email,
     [property: Required, MaxLength(100)] string GivenName,

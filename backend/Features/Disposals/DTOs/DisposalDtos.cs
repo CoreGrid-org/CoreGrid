@@ -33,9 +33,7 @@ public class SubmitDisposalRequest
     [Required]
     public DisposalMethod? DisposalMethod { get; set; }
 
-    // P2 (disposal precondition) checks that a valuation amount is
-    // recorded — an absent value defaulting to 0 would silently pass that
-    // check instead of failing model validation.
+   // Stores the estimated residual value required for disposal.
     [Required]
     [Range(0, 1_000_000_000_000)]
     public decimal? EstimatedResidualValue { get; set; }
@@ -50,7 +48,7 @@ public class RequestDisposalRevisionRequest
     public required string Comments { get; set; }
 }
 
-// SRS §9.4: "Reject with a reason."
+// Defines the request for rejecting a disposal.
 public class RejectDisposalRequest
 {
     [Required, MinLength(1), MaxLength(2000)]
