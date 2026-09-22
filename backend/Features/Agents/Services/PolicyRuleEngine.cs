@@ -2,13 +2,7 @@ using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Agents.DTOs;
 
 namespace CoreGrid.Api.Features.Agents.Services;
-
-// SRS §7.6, rules PR-01 to PR-09. Deliberately a pure function over
-// PolicyEvaluationFacts — no DB access, no model call — so that "the same
-// inputs always produce the same verdict" (§7.3's answer to the viva
-// question about trusting an LLM with a compliance decision) is something
-// this class can actually prove, and so it's unit-testable without any of
-// the surrounding infrastructure.
+// Evaluates policy rules and returns the compliance verdict.
 public class PolicyRuleEngine : IPolicyRuleEngine
 {
     private const string Dispose = "DISPOSE";

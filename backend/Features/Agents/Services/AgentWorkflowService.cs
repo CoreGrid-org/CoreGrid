@@ -9,11 +9,7 @@ using CoreGrid.Api.Features.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Agents.Services;
-
-// SRS §7: owns workflow initiation (FR-067/068), the Policy Compliance
-// node + deterministic gate (§7.6) combined into EvaluatePolicyAsync since
-// nodes 1-3 (Planner/Maintenance/Budget) don't exist yet to feed it
-// automatically, and the human-approval checkpoint (§7.7, AI-13 to AI-20).
+// Manages asset lifecycle decision workflows.
 public class AgentWorkflowService : IAgentWorkflowService
 {
     private static readonly string[] InFlightStatuses =

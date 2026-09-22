@@ -167,7 +167,7 @@ public class LocationService : ILocationService
         bool isActive,
         CancellationToken cancellationToken)
     {
-        // §5.2: loads Department alongside the location so the response
+        // loads Department alongside the location so the response
         // below reuses it instead of re-querying the department name
         // afterwards.
         var location = await _context.Locations

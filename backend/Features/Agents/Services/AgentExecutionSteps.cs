@@ -3,10 +3,7 @@ using CoreGrid.Api.Features.AgentTools.DTOs;
 
 namespace CoreGrid.Api.Features.Agents.Services;
 
-// §5.9: the node 2 (Maintenance Analysis) AgentExecutionStep row was built
-// identically in both AgentWorkflowService (runs automatically right after
-// Planner accepts the objective) and MaintenanceAnalysisAgentService (runs
-// on demand via POST /run-maintenance-agent) — one builder now.
+// Creates execution steps for maintenance analysis.
 internal static class AgentExecutionSteps
 {
     public static AgentExecutionStep MaintenanceAnalysisSucceeded(Guid workflowId, FailureStatisticsDto stats, int durationMs, DateTimeOffset createdAt) => new()
