@@ -4,13 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { thunderIDTestDouble } from "@/test/mocks/thunderid";
 import type { MeResponse } from "@/features/auth/services/me";
 
-// Shell-level test only: does ReportsPage wire each tab to the right
-// panel, and gate the Audit tab to the roles the backend's own
-// AuditReportController actually allows (Auditor/Administrator)?
-// InventoryReportPanel (Component A), MaintenanceReportPanel (Component B),
-// DisposalReportPanel (Component C) and AuditReportPanel (Component D,
-// its own full test suite already) are stubbed so this doesn't depend on
-// their internals or data-fetching.
+// Tests report tab navigation and role-based access.
 vi.mock("../components/InventoryReportPanel", () => ({ default: () => <div>Inventory panel content</div> }));
 vi.mock("../components/MaintenanceReportPanel", () => ({ default: () => <div>Maintenance panel content</div> }));
 vi.mock("../components/DisposalReportPanel", () => ({ default: () => <div>Disposal panel content</div> }));

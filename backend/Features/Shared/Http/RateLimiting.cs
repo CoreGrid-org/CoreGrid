@@ -6,13 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace CoreGrid.Api.Features.Shared.Http;
 
-// NFR-16/AI-27: named per-user+org rate-limit policies for the
-// auth-adjacent and cost-bearing routes (agent workflow initiation, report
-// exports, photo uploads, setup completion). Registered here so the
-// mechanism exists and is testable from Phase 2 onward; individual
-// controllers opt in with [EnableRateLimiting(RateLimitPolicies.X)] as
-// each one is migrated in Phase 3 — exact limits are a production-tuning
-// exercise (plan §13.4), not something a one-time code change finalizes.
+// Defines the rate-limiting policies used by the application.
 public static class RateLimitPolicies
 {
     public const string AgentWorkflowInitiate = nameof(AgentWorkflowInitiate);
@@ -49,9 +43,7 @@ public static class RateLimitingExtensions
             options.AddPolicy(RateLimitPolicies.ReportExport, PerUserOrgPartition(permitLimit: 20, window: TimeSpan.FromMinutes(1)));
             options.AddPolicy(RateLimitPolicies.PhotoUpload, PerUserOrgPartition(permitLimit: 30, window: TimeSpan.FromMinutes(1)));
 
-            // No `sub`/`organization_id` claim exists yet at this route —
-            // it's the one deliberately unauthenticated write path
-            // (SetupController) — so this partitions by remote IP instead.
+            // Limits setup requests by client IP.
             options.AddPolicy(RateLimitPolicies.SetupComplete, httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",

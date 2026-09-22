@@ -31,7 +31,7 @@ public static class HealthCheckExtensions
         return services;
     }
 
-    // NFR-20: JSON, per-dependency — not the framework's plain-text default.
+    //JSON, per-dependency — not the framework's plain-text default.
     public static Task WriteResponse(HttpContext context, HealthReport report)
     {
         context.Response.ContentType = "application/json";

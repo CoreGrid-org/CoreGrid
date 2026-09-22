@@ -4,9 +4,7 @@ import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import ExecutionTrace from "./ExecutionTrace";
 import type { AgentWorkflow } from "../api/workflows";
 
-// A single labelled fact — reused across all three tabs' body content
-// (repair count, cost trend, started date, recommendation, ...) so every
-// card presents its key facts in the same visual language.
+// Displays a labelled workflow fact.
 export function KeyFact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="cg-workflow-card__fact">
@@ -16,12 +14,7 @@ export function KeyFact({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-// One shared shell for every workflow across all three Active/Awaiting
-// Approval/Completed tabs — same header (asset, objective, status), same
-// execution-trace footer, regardless of state. Only the body in between
-// (passed as children) differs, because Active/Awaiting/Completed
-// genuinely show different facts about a workflow — forcing identical
-// fields there would hide information, not simplify the design.
+// Provides a shared layout for workflow cards.
 export default function WorkflowCard({ workflow, children }: { workflow: AgentWorkflow; children: ReactNode }) {
   return (
     <div className="cg-workflow-card">

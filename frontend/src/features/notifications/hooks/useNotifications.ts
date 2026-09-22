@@ -10,9 +10,7 @@ import type { Notification } from "../api/notifications";
 
 const POLL_INTERVAL_MS = 30_000;
 
-// Backs the header bell: unread count polls in the background regardless of
-// whether the panel is open; the list itself only loads when the panel opens
-// (no point paying for it on every page when nobody's looking at it).
+// Manages notification polling and panel state.
 export function useNotificationCenter() {
   const { getAccessToken, isSignedIn } = useThunderID();
   const [notifications, setNotifications] = useState<Notification[]>([]);

@@ -3,10 +3,7 @@ import type { MaintenanceQueryParameters, MaintenanceRecord } from "@/features/m
 
 const PAGE_SIZE = 100;
 
-// FR-084 (Reports > Maintenance): same "fetch every page client-side and
-// aggregate in the browser" pattern as Asset Inventory's getInventoryAssets
-// — GET /api/maintenance already does server-side filter/sort/pagination
-// (FR-042), so no dedicated report backend endpoint is needed.
+// Retrieves all maintenance records across paginated results.
 export async function getMaintenanceReportRecords(
   params: Omit<MaintenanceQueryParameters, "page" | "pageSize">,
   accessToken: string,

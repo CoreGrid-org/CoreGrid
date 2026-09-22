@@ -6,7 +6,7 @@ import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { CORRECTABLE_DISCREPANCY_TYPES } from "../api/discrepancies";
 import type { Discrepancy } from "../api/discrepancies";
 
-// FR-062's five canonical resolution types — sent to the backend as-is; the
+//  five canonical resolution types — sent to the backend as-is; the
 // Select displays them through formatStatusLabel for a readable label.
 const RESOLUTION_TYPES = ["REGISTER_CORRECTED", "ASSET_RELOCATED", "CONDITION_UPDATED", "WRITTEN_OFF", "NO_ACTION"];
 const NO_ACTION_MIN_LENGTH = 20;
@@ -17,7 +17,7 @@ interface ResolveDiscrepancyModalProps {
   onResolved: () => void;
 }
 
-// FR-062: an Auditor/Administrator resolves a discrepancy with a typed
+// an Auditor/Administrator resolves a discrepancy with a typed
 // resolution and an explanation; the register correction checkbox is only
 // meaningful for ConditionMismatch/LocationMismatch (see
 // DiscrepancyService.ApplyRegisterCorrection on the backend).

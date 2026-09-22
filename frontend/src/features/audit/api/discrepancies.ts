@@ -26,8 +26,7 @@ interface PagedResult<T> {
 export type DiscrepancyType = "Missing" | "Surplus" | "LocationMismatch" | "ConditionMismatch" | "DataMismatch" | "Other";
 export type DiscrepancyStatus = "Open" | "Resolved";
 
-// Only these two have a single, unambiguous register field to correct —
-// see ResolveDiscrepancyRequest.ApplyCorrection on the backend.
+// Defines the discrepancy types that support register correction.
 export const CORRECTABLE_DISCREPANCY_TYPES: DiscrepancyType[] = ["ConditionMismatch", "LocationMismatch"];
 
 export interface Discrepancy {
@@ -59,10 +58,7 @@ export interface ResolveDiscrepancyRequest {
   apply_correction: boolean;
 }
 
-// backend/Features/Verification/Controllers/DiscrepanciesController.cs
-// GetDiscrepancies is paginated (§7 of the backend refactor plan); the
-// Audit page renders every discrepancy at once, so this walks every page
-// and flattens the result.
+// Retrieves all discrepancies across paginated results.
 export async function listDiscrepancies(
   params: { campaignId?: string; onlyOpen?: boolean },
   accessToken: string,
@@ -80,7 +76,7 @@ export async function listDiscrepancies(
   );
 }
 
-// FR-062 — Auditor/Administrator only.
+// Resolves a discrepancy using the provided resolution details.
 export async function resolveDiscrepancy(
   id: string,
   payload: ResolveDiscrepancyRequest,

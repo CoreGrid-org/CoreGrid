@@ -3,9 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Shared.Paging;
 
-// Replaces the six hand-rolled Skip/Take/Ceiling blocks (B19) with one
-// implementation. Callers apply filtering and SortExtensions.ApplySort
-// first; this only clamps, counts and pages.
+// Provides reusable pagination for queryable data.
 public static class QueryableExtensions
 {
     public static async Task<PagedResult<TResult>> ToPagedResultAsync<TSource, TResult>(

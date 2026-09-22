@@ -10,9 +10,7 @@ interface CreateWorkflowModalProps {
   onCreated: (workflow: AgentWorkflow) => void;
 }
 
-// FR-067/FR-068: initiate an asset lifecycle evaluation. The backend now
-// calls the Planner Agent and persists its typed execution plan before this
-// request returns.
+// Initiates an asset lifecycle evaluation.
 export default function CreateWorkflowModal({ onClose, onCreated }: CreateWorkflowModalProps) {
   const createWorkflow = useCreateWorkflow();
   const { data: assetsData, isLoading: isLoadingAssets } = useAssetsList({ pageSize: 100 });

@@ -4,10 +4,7 @@ namespace CoreGrid.Api.Features.Shared.Auth;
 
 public static class AuthorizationExtensions
 {
-    // Registers every named policy from Appendix B / plan §4.4, plus the
-    // fail-closed fallback (NFR-10): an endpoint with no [Authorize]
-    // attribute at all still requires an authenticated caller, rather than
-    // defaulting to anonymous access the way a bare AddAuthorization() does.
+   // Registers CoreGrid authorization policies and the authenticated fallback.
     public static IServiceCollection AddCoreGridAuthorization(this IServiceCollection services)
     {
         services.AddSingleton<IAuthorizationHandler, CoreGridPolicyHandler>();
@@ -17,10 +14,7 @@ public static class AuthorizationExtensions
                 .RequireAuthenticatedUser()
                 .Build())
 
-            // asset:read (Appendix B: Staff/Officer/Auditor/Admin, plus the
-            // agent principal per SRS §4.6's asset:read row) — Staff's
-            // own-department restriction is a service-layer filter (B14),
-            // not a policy condition.
+
             .AddPolicy(Policies.CanReadAssets, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ReadAssets, allowServicePrincipal: true)))
             .AddPolicy(Policies.CanManageAssets, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ManageAssets, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanVerifyAssets, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.VerifyAssets, allowServicePrincipal: false)))
@@ -38,15 +32,13 @@ public static class AuthorizationExtensions
             .AddPolicy(Policies.CanManageUsers, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ManageUsers, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanInitiateWorkflow, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.InitiateWorkflow, allowServicePrincipal: false)))
 
-            // workflow:read (SRS §4.6): every human role plus the agent
-            // principal, restricted to "own run" for the latter and
-            // "status only" for Staff at the service layer.
+            // Allows authorized users and service principals to read workflows.
             .AddPolicy(Policies.CanReadWorkflows, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ReadWorkflows, allowServicePrincipal: true)))
             .AddPolicy(Policies.CanApproveWorkflow, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ApproveWorkflow, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanGenerateReports, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.GenerateReports, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanReadNotifications, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ReadNotifications, allowServicePrincipal: false)))
 
-            // Agent tool routes only: no human role satisfies this, ever.
+            // Restricts access to agent tool routes.
             .AddPolicy(Policies.AgentToolAccess, p => p.Requirements.Add(new CoreGridPolicyRequirement([], allowServicePrincipal: true)));
 
         return services;

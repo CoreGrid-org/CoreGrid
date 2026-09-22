@@ -3,11 +3,7 @@ import type { DisposalQueryParameters, DisposalResponse } from "@/features/trans
 
 const PAGE_SIZE = 100;
 
-// FR-084 (Reports > Disposal): same "fetch every page client-side and
-// aggregate in the browser" pattern as Maintenance's getMaintenanceReportRecords
-// and Asset Inventory's getInventoryAssets — GET /api/disposals already does
-// server-side filter/pagination, so no dedicated report backend endpoint is
-// needed.
+// Retrieves all disposal records across paginated results.
 export async function getDisposalReportRecords(
   params: Omit<DisposalQueryParameters, "page" | "pageSize">,
   accessToken: string,

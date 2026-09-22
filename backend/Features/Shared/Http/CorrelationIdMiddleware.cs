@@ -1,11 +1,6 @@
 namespace CoreGrid.Api.Features.Shared.Http;
 
-// §5.4: every response carries a correlation id, honouring one the caller
-// already supplied (useful when a frontend or another service is chaining
-// requests) or minting a fresh one. Stashed on HttpContext.Items so
-// ApiExceptionFilter, InvalidModelStateResponseFactory and
-// AuditSaveChangesInterceptor can all attach the same id to whatever they
-// each produce for this request, without re-deriving or re-generating it.
+// Adds a correlation ID to each request and response.
 public class CorrelationIdMiddleware(RequestDelegate next, ILogger<CorrelationIdMiddleware> logger)
 {
     public const string HeaderName = "X-Correlation-Id";

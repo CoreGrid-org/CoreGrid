@@ -5,13 +5,7 @@ import InventoryReportPanel from "../components/InventoryReportPanel";
 import MaintenanceReportPanel from "../components/MaintenanceReportPanel";
 import DisposalReportPanel from "../components/DisposalReportPanel";
 
-// FR-084/FR-085: the backend's own AuditReportController is
-// Auditor/Administrator-only (audit is a compliance function, not an
-// inventory-operations one) — this page is shared across all three roles
-// (App.tsx mounts it at /admin/reports, /inventory/reports, /audit/reports),
-// so it has to match that gate itself rather than showing an Inventory
-// Officer a tab that just 403s. Inventory/Maintenance/Disposal stay visible
-// to all three roles — their own backend read endpoints already are.
+// Controls report visibility based on the current user's role.
 export default function ReportsPage() {
   const { data: me } = useMe();
   const canSeeAudit = me?.role === "Auditor" || me?.role === "Administrator";

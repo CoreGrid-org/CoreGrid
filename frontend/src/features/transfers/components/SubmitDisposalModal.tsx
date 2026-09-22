@@ -5,8 +5,7 @@ import { useAssetsList } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import type { DisposalMethod } from "../types";
 
-// FR-050 — CanRequestDisposal (Officer, Administrator). Shared by
-// TransfersPage (Administrator) and InventoryTransfersPage (Officer).
+// Provides the asset disposal submission form.
 export default function SubmitDisposalModal({ onClose, onSubmitted }: { onClose: () => void; onSubmitted: () => void }) {
   const [assetId, setAssetId] = useState("");
   const [method, setMethod] = useState<DisposalMethod>("AUCTION");

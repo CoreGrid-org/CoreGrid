@@ -3,13 +3,7 @@ using CoreGrid.Api.Features.Shared.CurrentUser;
 
 namespace CoreGrid.Api.Features.Shared.Scoping;
 
-// FR-086 / Appendix B: "Staff are restricted to their own department by a
-// service-layer filter." Administrator and Auditor are org-wide roles;
-// Staff and InventoryOfficer are restricted to their own department —
-// including the case where they have none assigned, which must show
-// nothing rather than everything. Moved out of Features/Dashboard (its
-// original, narrower home) so Phase 3 can apply the same rule to the
-// Assets/Maintenance/Transfers/Disposals lists Appendix B also names (B14).
+// Defines the department scope for role-based data access.
 public readonly record struct DepartmentScope(bool IsRestricted, Guid? DepartmentId)
 {
     public static readonly DepartmentScope Unrestricted = new(false, null);

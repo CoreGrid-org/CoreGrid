@@ -11,7 +11,7 @@ interface LocationModalProps {
   onSaved: () => void;
 }
 
-// Create or amend a location (FR-011). "Type" is deliberately free text, not
+// Create or amend a location "Type" is deliberately free text, not
 // an enum — SRS system.md §F.6 leaves it unconstrained on purpose.
 export default function LocationModal({ location, departments, onClose, onSaved }: LocationModalProps) {
   const [name, setName] = useState(location?.name ?? "");

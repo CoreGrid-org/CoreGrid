@@ -12,11 +12,7 @@ interface EvaluatePolicyModalProps {
   onEvaluated: (workflow: AgentWorkflow) => void;
 }
 
-// Stands in for nodes 2-4 (Maintenance Analysis, Budget Analysis, Policy
-// Compliance, §7.2) until those agents exist: you supply the proposed
-// recommendation and its supporting financial facts directly, in exactly
-// the shape the Budget Analysis Agent will eventually hand off, and this
-// runs the same deterministic gate (§7.6, PR-01 to PR-09) those agents feed.
+// Provides the inputs for deterministic policy evaluation.
 export default function EvaluatePolicyModal({ workflow, onClose, onEvaluated }: EvaluatePolicyModalProps) {
   const evaluatePolicy = useEvaluatePolicy();
 

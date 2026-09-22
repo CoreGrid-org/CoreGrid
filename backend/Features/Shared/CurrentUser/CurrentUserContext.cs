@@ -2,11 +2,7 @@ using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Shared.CurrentUser;
 
-// Scoped, request-lifetime implementation of ICurrentUser. Registered in
-// DI (Program.cs) so it can be resolved by CoreGridControllerBase, the
-// audit interceptor and the FR-006 org-filter provider once Phase 3 (§4.2)
-// switches them onto it — until then this is populated but unread, sitting
-// alongside the three still-live lookups it will replace.
+// Stores the current user's request-scoped context.
 public class CurrentUserContext : ICurrentUser
 {
     public bool IsResolved { get; private set; }

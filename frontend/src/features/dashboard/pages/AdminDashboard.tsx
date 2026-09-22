@@ -10,7 +10,7 @@ import { useDashboardSummary } from "../hooks/useDashboardSummary";
 import { useDashboardCharts } from "../hooks/useDashboardCharts";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 
-// FR-082 — "assets by condition" is always New→Unserviceable, positionally
+// "assets by condition" is always New→Unserviceable, positionally
 // zero-filled by the backend, so this ramp lines up with the response order.
 const CONDITION_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"];
 

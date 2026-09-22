@@ -1,16 +1,12 @@
 namespace CoreGrid.Api.Features.Shared.Paging;
 
-// Bound query parameters for every list endpoint (NFR-07, §5.4). Feature
-// query-parameter records embed or mirror this shape; ToPagedResultAsync
-// clamps it regardless of what the client sent.
+// Defines common pagination and filtering parameters.
 public class PagedQuery
 {
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
 
-    // §10 export paths (CSV/PDF) need more rows per page than a UI list
-    // ever would; ToPagedResultAsync accepts this as an explicit override
-    // for exactly those callers rather than raising MaxPageSize globally.
+// Defines the maximum page size for export operations.
     public const int MaxExportPageSize = 500;
 
     public int Page { get; set; } = 1;

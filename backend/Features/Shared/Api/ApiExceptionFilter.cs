@@ -6,13 +6,7 @@ using Npgsql;
 
 namespace CoreGrid.Api.Features.Shared.Api;
 
-// Single exception -> HTTP status mapping (§5.4), registered globally in
-// Program.cs. Only ever sees exceptions a controller didn't already handle
-// itself — as feature controllers migrate off their own try/catch blocks
-// (Phase 3), more of them reach here; until then this only catches what
-// previously fell through to ASP.NET Core's default (an unhandled 500).
-// Never writes exception text into the response (NFR-14) — only into the
-// server-side log, keyed by the same correlation id the client sees.
+// Maps application exceptions to standardized HTTP error responses.
 public class ApiExceptionFilter(ILogger<ApiExceptionFilter> logger) : IExceptionFilter
 {
     public void OnException(ExceptionContext context)

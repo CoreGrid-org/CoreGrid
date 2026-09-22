@@ -6,11 +6,7 @@ import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { getExecutionSummary } from "../api/workflows";
 import type { AgentExecutionStep, WorkflowExecutionSummary } from "../api/workflows";
 
-// SRS §9.6/§7.8: the same agent → icon/display-name mapping AgentsOverview
-// uses, so a step in this trace and that tab's reference card always read
-// as the same agent. Falls back to a generic icon/its raw identifier for
-// anything not in the four-agent allow-list (DeterministicGate, and
-// PolicyComplianceRecommendation — the node-4 recommendation sub-step).
+// Maps agent identifiers to their display names and icons.
 const AGENT_DISPLAY: Record<string, { label: string; icon: typeof Bot }> = {
   Planner: { label: "Planner Agent", icon: Bot },
   MaintenanceAnalysis: { label: "Maintenance Analysis Agent", icon: ToolBox },

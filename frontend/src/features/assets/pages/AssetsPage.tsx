@@ -20,17 +20,12 @@ import {
 } from "../types/asset";
 import { formatCurrency } from "../utils/format";
 
-// The asset register — GET /api/assets with server-side search/filter/pagination.
-// Categories and Types & Attributes management live on the separate Asset
-// Config page (sidebar: Assets > Asset Config).
+// Displays the asset register with search, filters, and pagination.
 export default function AssetsPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // asset:update / asset:create — Appendix B: Officer, Administrator only.
-  // This page is also mounted at /audit/assets (CanReadAssets covers
-  // Auditor too, per Appendix B's asset:read row); Auditor gets the same
-  // read-only register everyone else does, just without these two actions.
+ // Determines whether the current user can manage assets.
   const { data: me } = useMe();
   const canManageAssets = me?.role === "InventoryOfficer" || me?.role === "Administrator";
 
@@ -67,8 +62,7 @@ export default function AssetsPage() {
     setLocationId("");
   }, [departmentId]);
 
-  // Clear the navigation state once consumed, so a browser refresh doesn't
-  // keep re-opening the modal for an asset the user may have since closed.
+  // Clears the consumed navigation state.
   useEffect(() => {
     if ((location.state as { openAssetId?: string } | null)?.openAssetId) {
       navigate(location.pathname, { replace: true, state: null });
@@ -90,10 +84,7 @@ export default function AssetsPage() {
 
   const { data, isLoading, isError, error, refetch } = useAssetsList(params);
 
-  // This page is mounted under both /admin/assets and /inventory/assets
-  // (App.tsx) — derive the base path from the current role prefix rather
-  // than hardcoding one, so "Register asset" and the edit icon stay within
-  // whichever role's route branch the user is already in.
+  // Builds the asset route from the current role path.
   const assetsBasePath = `/${location.pathname.split("/")[1]}/assets`;
 
   return (

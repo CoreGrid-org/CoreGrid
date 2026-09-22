@@ -9,7 +9,7 @@ import { getRoleLabel } from "@/features/auth/lib/roles";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import type { CoreGridUser } from "../services/users";
 
-// FR-013/FR-014: invite a user by email and role, provisioned through
+//  invite a user by email and role, provisioned through
 // ThunderID; change an existing user's role/department or deactivate them
 // (never hard-deleted).
 export default function UsersPage() {

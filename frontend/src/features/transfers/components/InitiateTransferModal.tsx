@@ -4,10 +4,7 @@ import { useInitiateTransfer } from "../hooks/useTransfers";
 import { useAssetsList, useDepartments, useLocations } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 
-// FR-043/044 — CanRequestTransfer (Officer, Administrator). Shared by
-// TransfersPage (Administrator) and InventoryTransfersPage (Officer) so
-// the two roles the backend actually allows to initiate a transfer get the
-// identical form, not two copies that can drift apart.
+// Provides the asset transfer initiation form.
 export default function InitiateTransferModal({ onClose, onInitiated }: { onClose: () => void; onInitiated: () => void }) {
   const [assetId, setAssetId] = useState("");
   const [departmentId, setDepartmentId] = useState("");

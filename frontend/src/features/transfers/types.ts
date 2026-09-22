@@ -1,6 +1,3 @@
-// Wire types for backend/Features/Transfers and backend/Features/Disposals
-// JSON serialization uses JsonNamingPolicy.SnakeCaseLower (snake_case)
-// and JsonStringEnumConverter (string enums).
 
 export type TransferStatus =
   | "REQUESTED"
