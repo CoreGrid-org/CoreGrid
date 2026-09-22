@@ -43,9 +43,7 @@ export interface VerificationTask {
   completed_at: string | null;
 }
 
-// GetTasks is paginated (§7 of the backend refactor plan); the campaign
-// detail view renders every task at once, so this walks every page and
-// flattens the result.
+// Retrieves all tasks for a campaign across paginated results.
 export async function listCampaignTasks(
   campaignId: string,
   accessToken: string

@@ -1,8 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// AgentExecutionStep.Agent identifiers (Phase 4, §6.1) — each one written
-// by more than one call site (PlannerScopeGuard's deterministic plan and
-// the node that actually executes it), so they need to agree exactly.
+// Defines the agent identifiers used by workflow execution.
 public static class AgentNames
 {
     public const string Planner = "Planner";

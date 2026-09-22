@@ -16,7 +16,7 @@ public class InitiateTransferRequest
     public Guid? ToLocationId { get; set; }
 }
 
-// SRS §9.4 / FR-045: "reject a transfer request, recording a decision reason."
+//  "reject a transfer request, recording a decision reason."
 public class RejectTransferRequest
 {
     [Required, MinLength(1), MaxLength(1000)]

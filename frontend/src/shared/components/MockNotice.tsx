@@ -5,10 +5,7 @@ interface MockNoticeProps {
   children: string;
 }
 
-// Every tab below this notice is static mock data — there is no API behind
-// it yet (see doc/PROGRESS.md). This banner is the one place that explains,
-// right where a reviewer or teammate is looking, what the tab is a stand-in
-// for.
+
 export default function MockNotice({ children }: MockNoticeProps) {
   return (
     <InlineNotification

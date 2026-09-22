@@ -4,9 +4,7 @@ namespace CoreGrid.Api.Features.Shared.Scoping;
 
 public static class DepartmentScopeExtensions
 {
-    // A restricted caller with no department assigned must see nothing,
-    // not everything — an unrestricted-looking "no filter" here would be
-    // exactly the FR-086 gap this scope exists to close.
+    // Applies the department scope to a query.
     public static IQueryable<T> ApplyScope<T>(
         this IQueryable<T> query,
         DepartmentScope scope,

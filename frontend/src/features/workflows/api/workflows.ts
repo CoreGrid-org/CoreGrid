@@ -2,8 +2,7 @@ import { fetchAllPages } from "@/shared/lib/apiClient";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// backend/Features/Shared/Paging/PagedResult.cs — every list endpoint's
-// wire shape (§7 of the backend refactor plan).
+// Represents a paginated API response.
 export interface PagedResult<T> {
   items: T[];
   total_count: number;

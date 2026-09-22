@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Notifications.Controllers;
 
-// FR-080: every authenticated role can read/manage their own notifications
+//  every authenticated role can read/manage their own notifications
 // — same "no role restriction needed" reasoning as MeController, since this
 // is identity-scoped (the caller's own inbox), not a shared resource.
 [ApiController]

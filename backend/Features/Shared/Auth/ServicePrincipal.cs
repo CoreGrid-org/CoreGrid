@@ -2,13 +2,7 @@ using System.Security.Claims;
 
 namespace CoreGrid.Api.Features.Shared.Auth;
 
-// The agent service-principal detection logic that used to live only in
-// AgentToolsAuthMiddleware (B3: registered nowhere, so it never actually
-// ran — deleted, §6.2). Now the single source of truth for "is this caller
-// the agent service principal", read by both CoreGridPolicyHandler (every
-// AllowServicePrincipal policy) and RoleEnrichmentMiddleware (to skip the
-// Users-row lookup/401 for it while still rehydrating a human caller's
-// `roles` claim on the same routes).
+// Identifies whether the authenticated caller is the agent service principal.
 public static class ServicePrincipal
 {
     public static bool Is(ClaimsPrincipal user)

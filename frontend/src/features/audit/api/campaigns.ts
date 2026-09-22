@@ -62,13 +62,7 @@ export interface UpdateCampaignRequest {
   status: CampaignStatus;
 }
 
-// backend/Features/Verification/Controllers/VerificationCampaignsController.cs
-// — read is any authenticated org member, create is Auditor/Administrator
-// (FR-056). Task generation + officer assignment happens synchronously on
-// creation, so the returned campaign already has its task_count populated.
-// GetCampaigns is paginated (§7 of the backend refactor plan); the Audit
-// page renders every campaign at once, so this walks every page and
-// flattens the result.
+// Retrieves all verification campaigns across paginated results.
 export async function listCampaigns(accessToken: string): Promise<Campaign[]> {
   return fetchAllPages((page) =>
     fetch(`${API_URL}/verification-campaigns?page=${page}&pageSize=100`, {

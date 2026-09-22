@@ -11,10 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
-// FR-005 / SRS §4.6, Appendix B: asset:read is Staff/Officer/Auditor/Admin
-// (Staff restricted to their own department by a service-layer filter —
-// B14, DepartmentScope); asset:create and asset:update are Officer/Admin
-// only (CanManageAssets).
+// Manages asset operations.
 [ApiController]
 [Route("api/assets")]
 [Authorize]
@@ -115,10 +112,7 @@ public class AssetsController : CoreGridControllerBase
         return NoContent();
     }
 
-    // POST /api/assets/{id}/verify — SRS §9.2 / FR-031: standalone physical
-    // verification, outside any campaign. CanVerifyAssets (Officer, Auditor —
-    // Appendix B; Administrator via the same documented deviation
-    // VerificationTasksController's own CompleteTask action already uses).
+    // Verifies the physical status of an asset.
     [HttpPost("{id:guid}/verify")]
     [Authorize(Policy = Policies.CanVerifyAssets)]
     public async Task<ActionResult<AssetVerificationResultDto>> VerifyAsset(
@@ -172,10 +166,7 @@ public class AssetsController : CoreGridControllerBase
             : Ok(asset);
     }
 
-    // The organisation's short code (e.g. "MOTAHSL") derived from its name —
-    // the same prefix used when generating an asset's AssetCode/QrPayload
-    // (see AssetService.CreateAssetAsync). Exposed here so the frontend can
-    // display the real value in the asset registration form's code preview.
+    // Returns the organization code used for asset identification.
     [HttpGet("organization-code")]
     [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<OrganizationCodeDto>> GetOrganizationCode(

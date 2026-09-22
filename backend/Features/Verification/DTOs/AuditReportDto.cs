@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Features.Verification.DTOs;
 
-// FR-084/FR-085: the "Audit Campaign Report" tab on the shared Reports page
-// — an aggregate across every campaign/discrepancy in the caller's
-// organisation for the given filters, distinct from CampaignReportDto's
-// single-campaign completion report (FR-065).
+// Represents the audit report summary and discrepancy details.
 public class AuditReportDto
 {
     public DateOnly? From { get; set; }
@@ -16,12 +13,7 @@ public class AuditReportDto
 
     public List<AuditReportClassificationRow> ByClassification { get; set; } = [];
 
-    // The individual discrepancies behind ByClassification's counts. When
-    // AuditReportFilter.Page is set (the on-screen fetch), this is just that
-    // one page, server-paginated, and DiscrepanciesTotalCount/Page/PageSize/
-    // TotalPages describe it. The export endpoint calls GetReportAsync with
-    // Page left null instead, so this holds every matching row in full —
-    // exports always reflect the complete filtered set, never just one page.
+    // Defines the filters for audit report queries.
     public List<AuditReportDiscrepancyRow> Discrepancies { get; set; } = [];
     public int DiscrepanciesTotalCount { get; set; }
     public int Page { get; set; }
@@ -57,9 +49,7 @@ public class AuditReportFilter
     public Guid? AssetCategoryId { get; set; }
     public string? Status { get; set; } // "Open" | "Resolved" | null (all)
 
-    // Null (the export endpoint's call) = return every matching discrepancy
-    // row, unpaginated. Set (the on-screen fetch) = server-paginate the
-    // Discrepancies list; the aggregate stats above are unaffected either way.
+       // Controls pagination of discrepancy results.
     public int? Page { get; set; }
     public int? PageSize { get; set; }
 }

@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.OrgConfig.Controllers;
 
-// FR-005 / SRS §4.6: same split as DepartmentsController.
+// same split as DepartmentsController.
 [ApiController]
 [Route("api/locations")]
 [Authorize]

@@ -1,6 +1,4 @@
-// All mock — Component B (Maintenance Management) has no backend yet
-// (PROGRESS.md). Shapes follow doc/SRS/06-functional-requirements.md §6.5
-// and doc/SRS/system.md (Appendix F) §F.8.
+
 
 export interface MockMaintenanceRecord {
   assetCode: string;

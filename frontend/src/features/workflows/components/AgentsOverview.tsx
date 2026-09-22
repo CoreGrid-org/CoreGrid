@@ -18,11 +18,7 @@ interface AgentSpec {
   tools: AgentTool[];
 }
 
-// SRS §7.3 (Agent Specifications) and §7.4 (Tool Allow-List) — the source
-// of truth for every name, contract and tool below. Each agent's tool list
-// is its own allow-list, disjoint from every other agent's, enforced at
-// dependency-injection registration so an out-of-allow-list call is a
-// compile error, not a runtime one.
+// Defines the agents and their allowed tools.
 const AGENTS: AgentSpec[] = [
   {
     node: "Node 1",

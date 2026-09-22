@@ -8,7 +8,7 @@ public class FinancialAssessmentFacts
     public decimal? Confidence { get; set; } // 0-1
 }
 
-// SRS §7.3 output contract.
+// Represents the result of policy validation.
 public class PolicyValidation
 {
     public required string Verdict { get; set; } // PASS | FAIL | NEEDS_REVISION
@@ -25,9 +25,7 @@ public class PolicyRuleResult
     public required string Outcome { get; set; } // PASS | FAIL | NEEDS_REVISION | N/A
 }
 
-// The facts the rule engine actually evaluates — assembled from
-// get_asset_compliance_state + get_organization_policies (§7.4) plus
-// whatever FinancialAssessmentFacts the caller supplied.
+// Represents the facts used for policy evaluation.
 public class PolicyEvaluationFacts
 {
     public required string ProposedRecommendation { get; set; }

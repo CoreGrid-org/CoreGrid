@@ -2,11 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CoreGrid.Api.Features.Assets.DTOs;
 
-// Full-replace update (SRS FR-020-adjacent attribute-definition editing) —
-// IsRequired and DisplayOrder are [Required] nullable so an omitted field
-// fails validation instead of silently resetting to false/0 (Phase 1,
-// plan §3): the create counterpart keeps DisplayOrder genuinely optional
-// (auto-append), but an update has no "append" concept to fall back to.
+// Defines the request for updating an asset attribute definition.
 public class UpdateAssetAttributeDefinitionRequest
 {
     [Required, MaxLength(100)]

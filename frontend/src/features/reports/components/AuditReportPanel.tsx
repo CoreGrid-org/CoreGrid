@@ -14,11 +14,7 @@ function toDateOnly(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-// FR-065/FR-084/FR-085/FR-086 — the one report tab on this page that's
-// Component D's: an aggregate across every campaign and discrepancy in the
-// caller's organisation, filterable by date/department/category/status, and
-// exportable as exactly what's on screen. The other three tabs on this page
-// (inventory/maintenance/disposal) belong to Components A/B/C.
+// Displays the organisation-wide audit report with filters and export options.
 export default function AuditReportPanel() {
   const [from, setFrom] = useState<string>();
   const [to, setTo] = useState<string>();

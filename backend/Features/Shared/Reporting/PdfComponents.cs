@@ -4,8 +4,7 @@ using QuestPDF.Infrastructure;
 
 namespace CoreGrid.Api.Features.Shared.Reporting;
 
-// The StatBox/CountTable building blocks duplicated identically in
-// AuditReportService and CampaignReportService's QuestPDF templates.
+// Provides reusable PDF components for reports.
 public static class PdfComponents
 {
     public static void StatBox(IContainer container, string label, string value)

@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// Asset.Status values (constrained by CK_Assets_Status). Split out of the
-// former AssetStatusConstants (Phase 4, §6.1) so status and condition —
-// two different columns with two different constraints — aren't declared
-// in the same class.
+// Defines the supported asset statuses.
 public static class AssetStatuses
 {
     public const string Active = "ACTIVE";

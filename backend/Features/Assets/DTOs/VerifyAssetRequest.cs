@@ -3,12 +3,7 @@ using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Assets.DTOs;
 
-// SRS §9.2 / FR-031: "asserting its presence, its actual location and its
-// actual condition; the system shall compare the assertion against the
-// register and raise a discrepancy where they differ." Same shape and
-// validation as CompleteVerificationTaskRequest (Verification/DTOs) —
-// this is the same assertion, just made standalone instead of against a
-// campaign task.
+// Defines the request for verifying an asset.
 public class VerifyAssetRequest
 {
     [Required]
@@ -27,7 +22,7 @@ public class AssetVerificationResultDto
     public Guid? AssertedLocationId { get; set; }
     public string? AssertedCondition { get; set; }
 
-    // Empty when the assertion matched the register — nothing to reconcile.
+   // Lists discrepancies identified during verification.
     public List<DiscrepancyType> RaisedDiscrepancyTypes { get; set; } = [];
 
     public DateTimeOffset VerifiedAt { get; set; }

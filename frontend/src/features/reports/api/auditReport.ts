@@ -28,8 +28,7 @@ export interface AuditReport {
   assets_in_scope: number;
   open_discrepancies: number;
   by_classification: AuditReportClassificationRow[];
-  // Server-paginated when the query includes page/pageSize (the on-screen
-  // fetch); the export endpoint never sets those, so it gets every row.
+  // Stores the report discrepancy rows.
   discrepancies: AuditReportDiscrepancyRow[];
   discrepancies_total_count: number;
   page: number;
@@ -60,8 +59,7 @@ function toSearchParams(query: AuditReportQuery): URLSearchParams {
   return search;
 }
 
-// backend/Features/Verification/Controllers/AuditReportController.cs —
-// Auditor/Administrator only (FR-084, FR-085, FR-086).
+// Retrieves the audit report.
 export async function getAuditReport(query: AuditReportQuery, accessToken: string): Promise<AuditReport> {
   const qs = toSearchParams(query).toString();
   const response = await fetch(`${API_URL}/reports/audit${qs ? `?${qs}` : ""}`, {

@@ -19,11 +19,7 @@ public class MaintenanceHistoryEntryDto
     public string Description { get; set; } = string.Empty;
 }
 
-// compute_failure_statistics (§7.4) — Maintenance Analysis Agent tool
-// (node 2's job per SRS §7.3: "repair count, MTBF, cost trend, 12-month
-// projection"). Node 2 doesn't produce a recommendation like node 4 does —
-// it assembles facts for nodes 3/4 to use, so this is exactly that: numbers,
-// not a REPAIR/REPLACE-style verdict.
+// Represents maintenance failure statistics for an asset.
 public class FailureStatisticsDto
 {
     public Guid AssetId { get; set; }

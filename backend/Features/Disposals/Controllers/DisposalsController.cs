@@ -22,7 +22,8 @@ public class DisposalsController : CoreGridControllerBase
         _disposalService = disposalService;
     }
 
-    // POST /api/assets/{id}/condemn — FR-049 / CanRequestDisposal (InventoryOfficer, Administrator)
+    // POST /api/assets/{id}/condemn —/ CanRequestDisposal (InventoryOfficer, Administrator)
+    // Condemns an asset for disposal.
     [HttpPost("api/assets/{id:guid}/condemn")]
     [Authorize(Policy = Policies.CanRequestDisposal)]
     public async Task<ActionResult<CondemnAssetResponse>> CondemnAsset(
@@ -39,7 +40,8 @@ public class DisposalsController : CoreGridControllerBase
         return Ok(result);
     }
 
-    // POST /api/disposals — FR-050 / CanRequestDisposal (InventoryOfficer, Administrator)
+    // POST /api/disposals — / CanRequestDisposal (InventoryOfficer, Administrator)
+    // Submits an asset disposal request.
     [HttpPost("api/disposals")]
     [Authorize(Policy = Policies.CanRequestDisposal)]
     public async Task<ActionResult<DisposalResponse>> SubmitDisposal(
@@ -55,7 +57,8 @@ public class DisposalsController : CoreGridControllerBase
         return CreatedAtAction(nameof(GetDisposalById), new { id = result.Id }, result);
     }
 
-    // POST /api/disposals/{id}/approve — FR-051 / CanApproveDisposal (Administrator only)
+    // POST /api/disposals/{id}/approve / CanApproveDisposal (Administrator only)
+    // Approves an asset disposal request.
     [HttpPost("api/disposals/{id:guid}/approve")]
     [Authorize(Policy = Policies.CanApproveDisposal)]
     public async Task<ActionResult<DisposalResponse>> ApproveDisposal(
@@ -71,7 +74,8 @@ public class DisposalsController : CoreGridControllerBase
         return Ok(result);
     }
 
-    // POST /api/disposals/{id}/request-revision — FR-053 / CanApproveDisposal (Administrator only)
+    // POST /api/disposals/{id}/request-revision —/ CanApproveDisposal (Administrator only)
+    // Requests revisions to a disposal request.
     [HttpPost("api/disposals/{id:guid}/request-revision")]
     [Authorize(Policy = Policies.CanApproveDisposal)]
     public async Task<ActionResult<DisposalResponse>> RequestDisposalRevision(
@@ -88,7 +92,8 @@ public class DisposalsController : CoreGridControllerBase
         return Ok(result);
     }
 
-    // POST /api/disposals/{id}/reject — SRS §9.4 / CanApproveDisposal (Administrator only)
+    // POST /api/disposals/{id}/reject / CanApproveDisposal (Administrator only)
+    // Rejects an asset disposal request.
     [HttpPost("api/disposals/{id:guid}/reject")]
     [Authorize(Policy = Policies.CanApproveDisposal)]
     public async Task<ActionResult<DisposalResponse>> RejectDisposal(

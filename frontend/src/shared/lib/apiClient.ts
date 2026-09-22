@@ -1,17 +1,10 @@
-// Structurally matches every feature's own PagedResult<T> (assets,
-// transfers, audit, workflows, notifications, ...) without importing any of
-// them — the backend's paging shape (items/total_pages) is the same on the
-// wire everywhere, so one helper works for all of them.
+// Defines the common paginated response shape.
 interface PagedLike<T> {
   items: T[];
   total_pages: number;
 }
 
-// Reference-data pickers (asset categories/types, departments, locations,
-// organization policies, ...) need the complete list, not one page of it.
-// Since Phase 3 paginated those endpoints at the database, this walks every
-// page and returns the flattened result, so a picker's own code never has
-// to know — or change — because the endpoint underneath it is paginated.
+// Retrieves and combines all pages into a single list.
 export async function fetchAllPages<T>(
   fetchPage: (page: number) => Promise<PagedLike<T>>,
 ): Promise<T[]> {

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CoreGrid.Api.Features.Maintenance.Services;
 
-// FR-041: thin timer wrapper around IPreventiveMaintenanceScheduler — the
+//  thin timer wrapper around IPreventiveMaintenanceScheduler — the
 // actual scheduling logic lives there, DB-scoped and unit-testable on its
 // own, without a 24-hour Task.Delay or a hosted-service lifetime in the way.
 public class PreventiveMaintenanceBackgroundService : BackgroundService

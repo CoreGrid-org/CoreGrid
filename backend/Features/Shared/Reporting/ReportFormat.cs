@@ -6,9 +6,7 @@ public enum ReportFormat
     Pdf,
 }
 
-// Resolves the `?format=` query parameter shared by every export endpoint
-// (AuditReportController, CampaignReportController and friends), replacing
-// each one's own inline `switch` over the raw string.
+// Resolves the requested report export format.
 public static class ReportFormatResolver
 {
     public static bool TryResolve(string? format, out ReportFormat resolved)

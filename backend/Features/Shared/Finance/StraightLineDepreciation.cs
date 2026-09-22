@@ -5,22 +5,10 @@ public record DepreciationResult(
     decimal AccumulatedDepreciation,
     decimal CurrentValue);
 
-// One straight-line depreciation implementation, replacing the three that
-// previously computed the same thing slightly differently:
-// AssetService.CalculateResidualValue (fractional elapsed years, 365.25-day
-// based), AgentToolsService.ComputeDepreciation (whole elapsed years,
-// calendar-anniversary based) and DisposalPreconditionService.CheckP3
-// (also whole elapsed years, same algorithm as AgentToolsService's). Both
-// elapsed-time conventions are kept as named methods — whole years for
-// depreciation schedules and P3's minimum-service-life check, fractional
-// years for the residual-value/compliance-state figure — rather than
-// picked as "the one true way", since collapsing them would silently
-// change every existing caller's numbers.
+// Provides straight-line depreciation calculations.
 public static class StraightLineDepreciation
 {
-    // Whole calendar years elapsed from acquisitionDate to asOf, counting
-    // an anniversary only once it has actually passed (not yet reached ->
-    // one fewer full year). Never negative.
+ // Calculates the number of complete years elapsed.
     public static int ElapsedWholeYears(DateOnly acquisitionDate, DateOnly asOf)
     {
         var years = asOf.Year - acquisitionDate.Year;
@@ -32,8 +20,7 @@ public static class StraightLineDepreciation
         return Math.Max(0, years);
     }
 
-    // Elapsed years as a continuous fraction, using the 365.25-day-year
-    // convention AssetService's residual-value figure has always used.
+    // Calculates elapsed years as a fractional value.
     public static double ElapsedFractionalYears(DateOnly acquisitionDate, DateTimeOffset asOf)
     {
         var acquisitionDateTime = acquisitionDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
@@ -41,12 +28,7 @@ public static class StraightLineDepreciation
         return elapsedDays / 365.25;
     }
 
-    // Whole-year depreciation schedule: annual charge, cost-capped
-    // accumulated depreciation, and current book value. usefulLifeYears <= 0
-    // or acquisitionCost <= 0 is treated as "no depreciation" (the asset's
-    // full acquisition cost, floored at zero) rather than a division error
-    // — matching AgentToolsService.ComputeDepreciation's existing behaviour
-    // for an asset with no AssetType.
+   // Calculates annual depreciation, accumulated depreciation, and current value.
     public static DepreciationResult ComputeSchedule(decimal acquisitionCost, DateOnly acquisitionDate, int usefulLifeYears, DateOnly asOf)
     {
         if (usefulLifeYears <= 0 || acquisitionCost <= 0)

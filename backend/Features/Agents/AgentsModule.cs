@@ -14,19 +14,13 @@ public static class AgentsModule
         services.AddScoped<IMaintenanceAnalysisAgentService, MaintenanceAnalysisAgentService>();
         services.AddScoped<IBudgetAgentClient, BudgetAgentService>();
 
-        // Planner Agent's only external dependency. The named client keeps
-        // OpenAI transport settings out of workflow code and prevents an
-        // unavailable model from blocking a request indefinitely;
-        // PlannerAgentService safely falls back to the deterministic plan
-        // when this request fails.
+        // Configures the HTTP client used by the Planner Agent.
         services.AddHttpClient("OpenAI", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
-        // Budget Analysis Agent's outbound HTTP client. Configurable
-        // endpoint supports either OpenAI or Gemini's OpenAI-compatible
-        // endpoint with a 30-second timeout.
+        // Configures the HTTP client used by the Budget Agent.
         services.AddHttpClient("Budget", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);

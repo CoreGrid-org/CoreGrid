@@ -1,10 +1,6 @@
 namespace CoreGrid.Api.Features.Shared.Auth;
 
-// The named policies from SRS Appendix B / plan §4.4. Defined and
-// registered here (AuthorizationExtensions) starting Phase 2, but not yet
-// referenced by any controller's [Authorize(Policy = ...)] — that migration,
-// controller by controller, is Phase 3 (§5). Until then every route keeps
-// enforcing exactly what its existing [Authorize(Roles = "...")] says.
+// Defines the authorization policy names used by the application.
 public static class Policies
 {
     public const string CanReadAssets = nameof(CanReadAssets);
@@ -28,8 +24,6 @@ public static class Policies
     public const string CanGenerateReports = nameof(CanGenerateReports);
     public const string CanReadNotifications = nameof(CanReadNotifications);
 
-    // Read-only tool routes only; every write policy above is built with
-    // allowServicePrincipal: false, so the agent principal is denied all of
-    // them regardless of any role claim it might present (SEC-ID-10, AI-28).
+    // Defines the policy for agent tool access.
     public const string AgentToolAccess = nameof(AgentToolAccess);
 }

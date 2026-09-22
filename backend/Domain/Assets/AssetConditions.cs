@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// Asset.Condition values (constrained by CK_Assets_Condition). Split out of
-// the former AssetStatusConstants (Phase 4, §6.1). Order (NEW to
-// UNSERVICEABLE) matches the dashboard's condition breakdown and every
-// duplicated ValidConditions/ConditionOrder array the codebase already used.
+// Defines the supported asset conditions.
 public static class AssetConditions
 {
     public const string New = "NEW";

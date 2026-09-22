@@ -16,8 +16,7 @@ public static class IdentityModule
             var handler = new HttpClientHandler();
             if (environment.IsDevelopment())
             {
-                // Same self-signed-certificate relaxation as the JWT bearer
-                // backchannel below — ThunderID's local quick-start container.
+                // Allows the local development certificate.
                 handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
             }
             return handler;

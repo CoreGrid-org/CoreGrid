@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Features.Shared.Exceptions;
 
-// Maps to 400. For business-layer input problems that DataAnnotations model
-// binding can't express (cross-field checks, checks that need a DB lookup)
-// — [Required]/[Range]/etc. on the DTOs themselves already produce a 400
-// via InvalidModelStateResponseFactory before a service method ever runs.
+// Represents an input validation error.
 public class ValidationException : Exception
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; }

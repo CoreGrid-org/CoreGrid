@@ -7,13 +7,7 @@ using CoreGrid.Api.Domain;
 
 namespace CoreGrid.Api.Features.Identity;
 
-// Real implementation of IIdentityDirectory against ThunderID's management
-// API (doc/setup/ThunderID.md). Ported from the confirmed-working client in
-// the sibling OpenSchool project (backend/internal/thunderid/client.go),
-// adjusted for CoreGrid's single organisation unit — there is no
-// organisation-creation call here, only user creation + role assignment —
-// and CoreGrid's CoreGridUser attribute set (email/given_name/family_name/
-// password, no username).
+// Provides identity management operations through ThunderID.
 public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration configuration) : IIdentityDirectory
 {
     public async Task<string> ProvisionUserAsync(
@@ -35,8 +29,7 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
         return userId;
     }
 
-    // No token caching — this mirrors OpenSchool's own client, which
-    // re-fetches a token on every management call rather than caching one.
+    // Obtains an access token for ThunderID management operations.
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
     {
         var clientId = RequireConfig("ThunderID:ScimClientId");
@@ -84,11 +77,7 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
                 userType,
                 new Dictionary<string, string>
                 {
-                    ["email"] = email,
-                    // ThunderID's built-in "Username & Password" sign-in method looks
-                    // up the literal attribute key `username`, not whichever attribute
-                    // is marked Unique — see doc/setup/ThunderID.md's CoreGridUser Type
-                    // note. Mirroring email into it is what makes sign-in resolvable.
+                    ["email"] = email,// Uses the email address as the ThunderID username.
                     ["username"] = email,
                     ["given_name"] = givenName,
                     ["family_name"] = familyName,

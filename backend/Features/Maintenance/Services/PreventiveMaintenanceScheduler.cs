@@ -8,10 +8,7 @@ public class PreventiveMaintenanceScheduler(CoreGridDbContext db) : IPreventiveM
 {
     public async Task<int> ScheduleDueMaintenanceAsync(DateOnly asOfDate, CancellationToken cancellationToken)
     {
-        // Cross-tenant by design — this runs unattended with no caller
-        // identity, so the OrganizationId query filter (FR-006) is a no-op
-        // here regardless; every asset's own OrganizationId still flows
-        // onto the record it creates.
+        // Processes active assets across all organizations.
         var candidateAssets = await db.Assets
             .Include(a => a.AssetType)
             .Where(a => a.Status == AssetStatuses.Active && a.AssetType != null && a.AssetType.DefaultMaintenanceIntervalDays.HasValue)
@@ -30,9 +27,7 @@ public class PreventiveMaintenanceScheduler(CoreGridDbContext db) : IPreventiveM
                 continue;
             }
 
-            // Don't duplicate an already-open preventive record for this
-            // asset — AssetId alone is enough to scope this (it's a Guid,
-            // globally unique across organisations).
+            // Prevents duplicate open preventive maintenance records.
             var hasOpenRecord = await db.MaintenanceRecords.AnyAsync(
                 m => m.AssetId == asset.Id
                     && m.Type == MaintenanceType.PREVENTIVE

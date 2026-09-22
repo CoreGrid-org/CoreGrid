@@ -4,8 +4,7 @@ import { useCondemnAsset } from "../hooks/useDisposals";
 import { useAssetsList } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 
-// FR-049 — CanRequestDisposal (Officer, Administrator). Shared by
-// TransfersPage (Administrator) and InventoryTransfersPage (Officer).
+// Provides the asset condemnation form.
 export default function CondemnAssetModal({ onClose, onCondemned }: { onClose: () => void; onCondemned: () => void }) {
   const [assetId, setAssetId] = useState("");
   const [reason, setReason] = useState("");

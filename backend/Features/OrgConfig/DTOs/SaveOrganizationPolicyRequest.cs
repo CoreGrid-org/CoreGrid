@@ -2,11 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CoreGrid.Api.Features.OrgConfig.DTOs;
 
-// Used for both create and update — an organisation policy is a full
-// replace of its parameter set, never a partial patch (SRS FR-015). Every
-// numeric field is [Required] for exactly that reason: a field the client
-// omits must fail validation, not silently zero out a threshold that then
-// passes every policy check against it.
+// Defines the request for creating or updating an organization policy.
 public class SaveOrganizationPolicyRequest
 {
     public Guid? AssetTypeId { get; set; }

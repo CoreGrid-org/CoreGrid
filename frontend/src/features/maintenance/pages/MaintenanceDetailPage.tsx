@@ -21,11 +21,7 @@ export default function MaintenanceDetailPage() {
   const { data: record, isLoading, isError, error, refetch } = useMaintenanceDetail(id);
   const startMaintenance = useStartMaintenance();
 
-  // maintenance:manage — Appendix B: Officer, Administrator (Auditor reads
-  // this same page, /audit/maintenance/:id, but can't act on it). Complete
-  // is narrower still: InventoryOfficer only on the backend, deliberately
-  // stricter than maintenance:manage (plan §5.4) — Administrator gets
-  // Approve/Start/Cancel here but not Complete.
+ // Determines the maintenance actions available to the current user.
   const { data: me } = useMe();
   const canManage = me?.role === "InventoryOfficer" || me?.role === "Administrator";
   const canComplete = me?.role === "InventoryOfficer";

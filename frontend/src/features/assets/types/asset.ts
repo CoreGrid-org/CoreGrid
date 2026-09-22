@@ -1,5 +1,4 @@
-// Wire types for backend/Features/Assets/DTOs — JSON is snake_case
-// (Program.cs sets JsonNamingPolicy.SnakeCaseLower) and enums are strings.
+
 
 export type AssetStatus =
   | "ACTIVE"

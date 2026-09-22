@@ -24,7 +24,7 @@ public class TransfersController : CoreGridControllerBase
         _transferService = transferService;
     }
 
-    // POST /api/transfers — FR-044 / CanRequestTransfer (Officer, Administrator)
+    // POST /api/transfers —CanRequestTransfer (Officer, Administrator)
     [HttpPost]
     [Authorize(Policy = Policies.CanRequestTransfer)]
     public async Task<ActionResult<TransferResponse>> InitiateTransfer(
@@ -40,7 +40,7 @@ public class TransfersController : CoreGridControllerBase
         return CreatedAtAction(nameof(GetTransferById), new { id = result.Id }, result);
     }
 
-    // POST /api/transfers/{id}/approve — FR-045 / CanApproveTransfer (Administrator)
+    // POST /api/transfers/{id}/approve — CanApproveTransfer (Administrator)
     [HttpPost("{id:guid}/approve")]
     [Authorize(Policy = Policies.CanApproveTransfer)]
     public async Task<ActionResult<TransferResponse>> ApproveTransfer(
@@ -56,7 +56,7 @@ public class TransfersController : CoreGridControllerBase
         return Ok(result);
     }
 
-    // POST /api/transfers/{id}/reject — SRS §9.4 / FR-045 / CanApproveTransfer (Administrator)
+    // POST /api/transfers/{id}/reject — FR-045 / CanApproveTransfer (Administrator)
     [HttpPost("{id:guid}/reject")]
     [Authorize(Policy = Policies.CanApproveTransfer)]
     public async Task<ActionResult<TransferResponse>> RejectTransfer(
@@ -73,7 +73,7 @@ public class TransfersController : CoreGridControllerBase
         return Ok(result);
     }
 
-    // POST /api/transfers/{id}/confirm-receipt — FR-046 / CanConfirmReceipt (InventoryOfficer, Administrator)
+    // POST /api/transfers/{id}/confirm-receipt — CanConfirmReceipt (InventoryOfficer, Administrator)
     [HttpPost("{id:guid}/confirm-receipt")]
     [Authorize(Policy = Policies.CanConfirmReceipt)]
     public async Task<ActionResult<TransferResponse>> ConfirmReceipt(
@@ -121,7 +121,7 @@ public class TransfersController : CoreGridControllerBase
             : Ok(result);
     }
 
-    // GET /api/assets/{assetId}/transfers — FR-047: Complete transfer history for an asset
+    // GET /api/assets/{assetId}/transfers — Complete transfer history for an asset
     [HttpGet("/api/assets/{assetId:guid}/transfers")]
     public async Task<ActionResult<PagedResult<TransferResponse>>> GetTransferHistoryForAsset(
         Guid assetId,

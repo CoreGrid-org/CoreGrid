@@ -37,11 +37,7 @@ interface PagedResult<T> {
   total_pages: number;
 }
 
-// backend/Features/Notifications/Controllers/NotificationsController.cs
-// GetNotifications is paginated (§7 of the backend refactor plan), replacing
-// its old hard Take(50) — the bell panel matches that same ceiling by
-// requesting page 1 at pageSize=50 rather than every page (unlike a full
-// list page, "every notification ever" isn't the right UX for a dropdown).
+// Represents a paginated API response.
 export async function listNotifications(onlyUnread: boolean, accessToken: string): Promise<Notification[]> {
   const search = new URLSearchParams({ page: "1", pageSize: "50" });
   if (onlyUnread) search.set("onlyUnread", "true");

@@ -4,7 +4,7 @@ public static class OrganizationCodeGenerator
 {
     // Derives the asset-code prefix from the organisation's name: initials
     // for a multi-word name (e.g. "Ministry Of Health" -> "MOH"), first
-    // three letters for a single-word name (e.g. "CoreGrid" -> "COR").
+    // Generates an asset-code prefix from the organization name.
     public static string Generate(string organizationName)
     {
         var words = organizationName

@@ -55,7 +55,7 @@ public class PlannerPlanStep
     public required string ExpectedOutput { get; set; }
 }
 
-// FR-067/FR-068.
+// Defines the request for creating an agent workflow.
 public class CreateAgentWorkflowRequest
 {
     [Required]
@@ -65,10 +65,7 @@ public class CreateAgentWorkflowRequest
     public required string Objective { get; set; }
 }
 
-// Stands in for "node 4 (Policy Compliance) plus the deterministic gate"
-// (§7.2, §7.6) — until the Planner/Maintenance/Budget agents exist to
-// produce a proposedRecommendation automatically, a caller supplies it
-// directly, in exactly the shape those agents will eventually feed in.
+// Defines the input for policy evaluation.
 public class EvaluatePolicyRequest
 {
     [Required, MaxLength(50)]
@@ -77,7 +74,7 @@ public class EvaluatePolicyRequest
     public FinancialAssessmentFacts? FinancialAssessment { get; set; }
 }
 
-// AI-13 to AI-20.
+// Defines the request for recording a workflow decision.
 public class DecideWorkflowRequest
 {
     [Required, MaxLength(20)]
@@ -99,8 +96,7 @@ public class AgentWorkflowQueryParameters : PagedQuery
     public string? Status { get; set; }
 }
 
-// SRS §9.6 / §7.8: one row per node execution — the "agent outputs, tool
-// calls" half of the execution summary's auditable trace.
+// Represents an individual agent execution step.
 public class AgentExecutionStepDto
 {
     public Guid Id { get; set; }
@@ -114,8 +110,7 @@ public class AgentExecutionStepDto
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-// The "decision" half of the execution summary — AI-16's recorded reason,
-// decider and timestamp.
+// Represents an approval decision for a workflow.
 public class AgentApprovalDto
 {
     public Guid Id { get; set; }
@@ -126,10 +121,8 @@ public class AgentApprovalDto
     public DateTimeOffset DecidedAt { get; set; }
 }
 
-// GET /api/workflows/{id}/execution-summary (SRS §9.6): "Full auditable
-// trace: plan, agent outputs, tool calls, validation, decision." The first
-// four are already on AgentWorkflowDto (Plan/ValidationResult/Recommendation);
-// Steps and Approvals are the two collections that dto alone never exposed.
+// GET /api/workflows/{id}/execution-summary 
+// Provides the execution details and approval history for a workflow.
 public class WorkflowExecutionSummaryDto
 {
     public required AgentWorkflowDto Workflow { get; set; }

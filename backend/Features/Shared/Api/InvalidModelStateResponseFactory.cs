@@ -2,13 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace CoreGrid.Api.Features.Shared.Api;
-
-// Reshapes [ApiController]'s automatic ModelState-invalid 400 (produced
-// before a controller action ever runs) into the same ErrorEnvelope every
-// other 4xx/5xx uses (§5.4, NFR-11). Registered as
-// ApiBehaviorOptions.InvalidModelStateResponseFactory in Program.cs — a
-// wire addition, not a wire break: `message` stays present, so the
-// frontend's existing getErrorMessage() needs no change (§7).
+// Creates a standardized error response for invalid model state.
 public static class InvalidModelStateResponseFactory
 {
     public static IActionResult Create(ActionContext context)
