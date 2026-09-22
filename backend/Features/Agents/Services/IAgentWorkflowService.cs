@@ -9,7 +9,7 @@ public interface IAgentWorkflowService
 
     Task<AgentWorkflowDto?> GetWorkflowByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
 
-    // SRS §9.6 / §7.8: the full auditable trace — plan, agent outputs,
+   
     // tool calls, validation, decision — for one workflow.
     Task<WorkflowExecutionSummaryDto?> GetExecutionSummaryAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
 

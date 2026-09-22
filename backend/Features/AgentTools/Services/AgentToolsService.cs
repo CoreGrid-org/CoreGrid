@@ -115,10 +115,7 @@ public class AgentToolsService : IAgentToolsService
         };
     }
 
-    // get_organization_policies (§7.4) — falls back to the org-wide default
-    // policy (AssetTypeId == null) when no asset-type-specific one exists,
-    // matching OrganizationPoliciesController's "at most one policy per
-    // asset type, including the org-wide default" rule.
+// Loads the asset-specific policy or organization-wide default.
     public async Task<OrganizationPolicyFactsDto?> GetOrganizationPoliciesAsync(
         Guid organizationId,
         Guid? assetTypeId,
@@ -143,9 +140,7 @@ public class AgentToolsService : IAgentToolsService
         };
     }
 
-    // get_asset_compliance_state (§7.4). Valuation is read from the most
-    // recent DisposalRequest with a recorded ValuationDate for this asset —
-    // the schema's only source of an asset valuation.
+  // Loads the asset compliance state and latest valuation.
     public async Task<AssetComplianceStateDto?> GetAssetComplianceStateAsync(
         Guid organizationId,
         Guid assetId,
@@ -191,24 +186,13 @@ public class AgentToolsService : IAgentToolsService
 
     public ComputeDepreciationResponse ComputeDepreciation(ComputeDepreciationRequest request)
     {
-        // Required/Range on the DTO makes these 400 for an HTTP caller before
-        // this method ever runs; the internal in-process caller below
-        // (GetAssetFinancialsAsync) always supplies concrete values too, so
-        // .Value is safe here — but the useful-life/cost sanity check stays
-        // as a defensive fallback for that same internal caller, which can
-        // legitimately pass UsefulLifeYears = 0 when an asset has no
-        // AssetType (bypasses ModelState entirely, since it's a direct C#
-        // call, not a model-bound request).
+       // Uses validated depreciation inputs.
         var acquisitionCost = request.AcquisitionCost!.Value;
         var acquisitionDate = request.AcquisitionDate!.Value;
         var usefulLifeYears = request.UsefulLifeYears!.Value;
         var asOf = request.AsOfDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // §6.1/B22: one straight-line implementation (Shared/Finance) for
-        // what this method, AssetService.CalculateResidualValue and
-        // DisposalPreconditionService.CheckP3 each used to compute
-        // separately — ComputeSchedule matches this method's original
-        // whole-year, calendar-anniversary behaviour exactly.
+       // Uses the shared straight-line depreciation calculation.
         var schedule = StraightLineDepreciation.ComputeSchedule(acquisitionCost, acquisitionDate, usefulLifeYears, asOf);
 
         return new ComputeDepreciationResponse
