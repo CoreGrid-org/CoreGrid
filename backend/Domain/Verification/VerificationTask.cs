@@ -1,10 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// FR-057/FR-059: one task per in-scope asset. "Assigned to the officer
-// responsible for the in-scope location" is interpreted, in the absence of
-// any location-ownership concept elsewhere in the schema, as the first
-// active InventoryOfficer whose Department matches the asset's Department —
-// see VerificationCampaignService.
+// Represents a verification task for an asset.
 public class VerificationTask
 {
     public Guid Id { get; set; }

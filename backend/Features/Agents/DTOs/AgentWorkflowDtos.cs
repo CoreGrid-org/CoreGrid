@@ -1,7 +1,9 @@
 namespace CoreGrid.Api.Features.Agents.DTOs;
 
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using CoreGrid.Api.Features.AgentTools.DTOs;
+using CoreGrid.Api.Features.Shared.Paging;
 
 public class AgentWorkflowDto
 {
@@ -24,21 +26,6 @@ public class AgentWorkflowDto
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-}
-
-public class PlannerObjectiveRequest
-{
-    [JsonPropertyName("asset_id")]
-    public Guid AssetId { get; set; }
-
-    [JsonPropertyName("objective_text")]
-    public required string ObjectiveText { get; set; }
-
-    [JsonPropertyName("initiated_by")]
-    public Guid InitiatedBy { get; set; }
-
-    [JsonPropertyName("organization_id")]
-    public Guid OrganizationId { get; set; }
 }
 
 public class PlannerExecutionPlan
@@ -68,26 +55,77 @@ public class PlannerPlanStep
     public required string ExpectedOutput { get; set; }
 }
 
-// FR-067/FR-068.
+// Defines the request for creating an agent workflow.
 public class CreateAgentWorkflowRequest
 {
-    public Guid AssetId { get; set; }
+    [Required]
+    public Guid? AssetId { get; set; }
+
+    [Required, MaxLength(2000)]
     public required string Objective { get; set; }
 }
 
-// Stands in for "node 4 (Policy Compliance) plus the deterministic gate"
-// (§7.2, §7.6) — until the Planner/Maintenance/Budget agents exist to
-// produce a proposedRecommendation automatically, a caller supplies it
-// directly, in exactly the shape those agents will eventually feed in.
+// Defines the input for policy evaluation.
 public class EvaluatePolicyRequest
 {
+    [Required, MaxLength(50)]
     public required string ProposedRecommendation { get; set; }
+
     public FinancialAssessmentFacts? FinancialAssessment { get; set; }
 }
 
-// AI-13 to AI-20.
+// Defines the request for recording a workflow decision.
 public class DecideWorkflowRequest
 {
+    [Required, MaxLength(20)]
     public required string Decision { get; set; } // APPROVE | REJECT | REVISE
+
+    [Required, MaxLength(2000)]
     public required string Reason { get; set; }
+}
+
+public class AgentWorkflowQueryParameters : PagedQuery
+{
+    // Newest-first by default (unlike PagedQuery's own "asc" default) —
+    // matches this list's previous, only ordering.
+    public AgentWorkflowQueryParameters()
+    {
+        SortDirection = "desc";
+    }
+
+    public string? Status { get; set; }
+}
+
+// Represents an individual agent execution step.
+public class AgentExecutionStepDto
+{
+    public Guid Id { get; set; }
+    public required string Agent { get; set; }
+    public int Sequence { get; set; }
+    public string? InputHash { get; set; }
+    public string? OutputSummary { get; set; }
+    public int? DurationMs { get; set; }
+    public required string Status { get; set; } // SUCCESS | FAILED
+    public string? Error { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+// Represents an approval decision for a workflow.
+public class AgentApprovalDto
+{
+    public Guid Id { get; set; }
+    public required string Decision { get; set; } // APPROVE | REJECT | REVISE
+    public Guid DecidedByUserId { get; set; }
+    public string? DecidedByEmail { get; set; }
+    public required string Reason { get; set; }
+    public DateTimeOffset DecidedAt { get; set; }
+}
+
+// GET /api/workflows/{id}/execution-summary 
+// Provides the execution details and approval history for a workflow.
+public class WorkflowExecutionSummaryDto
+{
+    public required AgentWorkflowDto Workflow { get; set; }
+    public List<AgentExecutionStepDto> Steps { get; set; } = [];
+    public List<AgentApprovalDto> Approvals { get; set; } = [];
 }

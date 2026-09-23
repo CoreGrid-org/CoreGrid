@@ -7,14 +7,7 @@ using CoreGrid.Api.Features.Agents.DTOs;
 
 namespace CoreGrid.Api.Features.Agents.Services;
 
-// .NET-native replacement for the retired planner-agent Python/FastAPI service.
-//
-// Implements the same IPlannerAgentClient interface so AgentWorkflowService
-// requires zero changes. The only tool in the Planner's allow-list is
-// get_asset_summary, which is now called in-process via IAgentToolsService
-// (no HTTP hop).
-//
-// SRS §7.3 (Planner Agent), §7.4 (tool allow-list).
+// Implements the Planner Agent service.
 public sealed class PlannerAgentService : IPlannerAgentClient
 {
     private const string SystemPrompt =

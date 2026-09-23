@@ -737,3 +737,13 @@ VALUES ('20260917090120_RenameMaintenancePhotoUrlToPhotoObjectKey', '10.0.10');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "Discrepancies" ALTER COLUMN "VerificationTaskId" DROP NOT NULL;
+
+ALTER TABLE "Discrepancies" ALTER COLUMN "CampaignId" DROP NOT NULL;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260919141251_AllowAdHocDiscrepancies', '10.0.10');
+
+COMMIT;
+

@@ -38,10 +38,7 @@ public class FailureStatisticsEngine : IFailureStatisticsEngine
     }
 
     // Splits repairs chronologically in half and compares the average cost
-    // of the second half against the first — a simple, explainable trend
-    // signal rather than a statistical regression, matching this codebase's
-    // other deterministic engines' preference for explainability over
-    // sophistication (PolicyRuleEngine, AssetActionRecommendationEngine).
+   
     private static string ComputeCostTrend(List<CompletedRepair> repairs)
     {
         if (repairs.Count < 2)

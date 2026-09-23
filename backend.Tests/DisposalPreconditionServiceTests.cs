@@ -6,7 +6,7 @@ using Xunit;
 using backend.Tests;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Features.Disposals;
+using CoreGrid.Api.Features.Disposals.Services;
 
 namespace backend.Tests.Features.Disposals;
 
@@ -31,8 +31,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-001",
             Name = "Server Rack",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionUnserviceable,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Unserviceable,
             QrPayload = "payload"
         };
 
@@ -55,8 +55,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-002",
             Name = "Laptop",
-            Status = AssetStatusConstants.Active,
-            Condition = AssetStatusConstants.ConditionGood,
+            Status = AssetStatuses.Active,
+            Condition = AssetConditions.Good,
             QrPayload = "payload"
         };
 
@@ -79,8 +79,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-001",
             Name = "Asset",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             QrPayload = "payload"
         };
 
@@ -110,8 +110,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-001",
             Name = "Asset",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             QrPayload = "payload"
         };
 
@@ -141,8 +141,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-001",
             Name = "Asset",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             QrPayload = "payload"
         };
 
@@ -172,8 +172,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-001",
             Name = "Asset",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             QrPayload = "payload"
         };
 
@@ -204,8 +204,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-003",
             Name = "Old Vehicle",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             AcquisitionDate = new DateOnly(2020, 1, 1), // 6+ years ago
             QrPayload = "payload"
         };
@@ -242,8 +242,8 @@ public class DisposalPreconditionServiceTests
             Id = Guid.NewGuid(),
             AssetCode = "AST-004",
             Name = "New Vehicle",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionPoor,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Poor,
             AcquisitionDate = new DateOnly(2024, 1, 1), // Only 2 years elapsed
             QrPayload = "payload"
         };
@@ -476,8 +476,8 @@ public class DisposalPreconditionServiceTests
             AssetType = assetType,
             AssetCode = "AST-DESK-01",
             Name = "Office Desk",
-            Status = AssetStatusConstants.Condemned,
-            Condition = AssetStatusConstants.ConditionUnserviceable,
+            Status = AssetStatuses.Condemned,
+            Condition = AssetConditions.Unserviceable,
             AcquisitionDate = new DateOnly(2020, 1, 1),
             QrPayload = "payload"
         };

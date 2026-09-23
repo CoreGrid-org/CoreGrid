@@ -14,9 +14,7 @@ vi.mock("../api/campaigns", () => ({
   createCampaign: vi.fn(),
 }));
 
-// The two modals do their own data-fetching (asset types, users, ...) —
-// stubbed out here so this test stays focused on CampaignsPanel's own
-// rendering/wiring, not their internals.
+// Mock child modals to isolate CampaignsPanel tests.
 vi.mock("./CreateCampaignModal", () => ({
   default: ({ onClose }: { onClose: () => void }) => (
     <div role="dialog" aria-label="create campaign">

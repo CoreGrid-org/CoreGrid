@@ -1,6 +1,6 @@
-using System.Text;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Reporting;
 using CoreGrid.Api.Features.Verification.DTOs;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -108,37 +108,34 @@ public class CampaignReportService : ICampaignReportService
 
     public byte[] BuildCsv(CampaignReportDto report)
     {
-        var sb = new StringBuilder();
+        var csv = new CsvWriter();
 
-        void WriteRow(params object?[] fields) =>
-            sb.AppendLine(string.Join(",", fields.Select(CsvEscape)));
+        csv.WriteRow("Campaign", report.CampaignName);
+        csv.WriteRow("Period", $"{report.PeriodStart:yyyy-MM-dd} to {report.PeriodEnd:yyyy-MM-dd}");
+        csv.WriteRow("Scope", report.Scope);
+        csv.WriteRow("Status", report.Status);
+        csv.WriteRow("Generated", report.GeneratedAt.ToString("u"));
+        csv.WriteBlankRow();
 
-        WriteRow("Campaign", report.CampaignName);
-        WriteRow("Period", $"{report.PeriodStart:yyyy-MM-dd} to {report.PeriodEnd:yyyy-MM-dd}");
-        WriteRow("Scope", report.Scope);
-        WriteRow("Status", report.Status);
-        WriteRow("Generated", report.GeneratedAt.ToString("u"));
-        sb.AppendLine();
+        csv.WriteRow("Assets in scope", "Verified", "Outstanding");
+        csv.WriteRow(report.AssetsInScope, report.Verified, report.Outstanding);
+        csv.WriteBlankRow();
 
-        WriteRow("Assets in scope", "Verified", "Outstanding");
-        WriteRow(report.AssetsInScope, report.Verified, report.Outstanding);
-        sb.AppendLine();
+        csv.WriteRow("Discrepancies by classification");
+        csv.WriteRow("Classification", "Count");
+        foreach (var c in report.DiscrepanciesByClassification) csv.WriteRow(c.Label, c.Count);
+        csv.WriteBlankRow();
 
-        WriteRow("Discrepancies by classification");
-        WriteRow("Classification", "Count");
-        foreach (var c in report.DiscrepanciesByClassification) WriteRow(c.Label, c.Count);
-        sb.AppendLine();
+        csv.WriteRow("Discrepancies by resolution status");
+        csv.WriteRow("Status", "Count");
+        foreach (var c in report.DiscrepanciesByResolutionStatus) csv.WriteRow(c.Label, c.Count);
+        csv.WriteBlankRow();
 
-        WriteRow("Discrepancies by resolution status");
-        WriteRow("Status", "Count");
-        foreach (var c in report.DiscrepanciesByResolutionStatus) WriteRow(c.Label, c.Count);
-        sb.AppendLine();
-
-        WriteRow("Verification tasks");
-        WriteRow("Asset Code", "Asset Name", "Status", "Assigned To", "Due Date", "Completed At");
+        csv.WriteRow("Verification tasks");
+        csv.WriteRow("Asset Code", "Asset Name", "Status", "Assigned To", "Due Date", "Completed At");
         foreach (var t in report.Tasks)
         {
-            WriteRow(
+            csv.WriteRow(
                 t.AssetCode,
                 t.AssetName,
                 t.Status,
@@ -146,13 +143,13 @@ public class CampaignReportService : ICampaignReportService
                 t.DueDate.ToString("yyyy-MM-dd"),
                 t.CompletedAt?.ToString("u") ?? "");
         }
-        sb.AppendLine();
+        csv.WriteBlankRow();
 
-        WriteRow("Discrepancies");
-        WriteRow("Asset Code", "Classification", "Status", "Raised By", "Description", "Resolution", "Resolved At");
+        csv.WriteRow("Discrepancies");
+        csv.WriteRow("Asset Code", "Classification", "Status", "Raised By", "Description", "Resolution", "Resolved At");
         foreach (var d in report.Discrepancies)
         {
-            WriteRow(
+            csv.WriteRow(
                 d.AssetCode,
                 d.Type,
                 d.Status,
@@ -162,15 +159,7 @@ public class CampaignReportService : ICampaignReportService
                 d.ResolvedAt?.ToString("u") ?? "");
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
-    }
-
-    private static string CsvEscape(object? value)
-    {
-        var text = value?.ToString() ?? "";
-        return text.Contains(',') || text.Contains('"') || text.Contains('\n')
-            ? $"\"{text.Replace("\"", "\"\"")}\""
-            : text;
+        return csv.GetBytes();
     }
 
     public byte[] BuildPdf(CampaignReportDto report)
@@ -198,28 +187,18 @@ public class CampaignReportService : ICampaignReportService
 
                     column.Item().Row(row =>
                     {
-                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(c =>
-                        {
-                            c.Item().Text("Assets in scope").FontColor(Colors.Grey.Darken1);
-                            c.Item().Text(report.AssetsInScope.ToString()).FontSize(16).Bold();
-                        });
-                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(c =>
-                        {
-                            c.Item().Text("Verified").FontColor(Colors.Grey.Darken1);
-                            c.Item().Text(report.Verified.ToString()).FontSize(16).Bold();
-                        });
-                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(c =>
-                        {
-                            c.Item().Text("Outstanding").FontColor(Colors.Grey.Darken1);
-                            c.Item().Text(report.Outstanding.ToString()).FontSize(16).Bold();
-                        });
+                        row.RelativeItem().Element(e => PdfComponents.StatBox(e, "Assets in scope", report.AssetsInScope.ToString()));
+                        row.RelativeItem().Element(e => PdfComponents.StatBox(e, "Verified", report.Verified.ToString()));
+                        row.RelativeItem().Element(e => PdfComponents.StatBox(e, "Outstanding", report.Outstanding.ToString()));
                     });
 
                     column.Item().Row(row =>
                     {
-                        row.RelativeItem().Element(e => CountTable(e, "Discrepancies by classification", report.DiscrepanciesByClassification));
+                        row.RelativeItem().Element(e => PdfComponents.CountTable(e, "Discrepancies by classification",
+                            report.DiscrepanciesByClassification.Select(c => (c.Label, c.Count)).ToList()));
                         row.ConstantItem(12);
-                        row.RelativeItem().Element(e => CountTable(e, "Discrepancies by resolution status", report.DiscrepanciesByResolutionStatus));
+                        row.RelativeItem().Element(e => PdfComponents.CountTable(e, "Discrepancies by resolution status",
+                            report.DiscrepanciesByResolutionStatus.Select(c => (c.Label, c.Count)).ToList()));
                     });
 
                     column.Item().Text("Verification tasks").FontSize(11).Bold();
@@ -239,39 +218,6 @@ public class CampaignReportService : ICampaignReportService
         });
 
         return document.GeneratePdf();
-    }
-
-    private static void CountTable(IContainer container, string title, List<CampaignReportCount> counts)
-    {
-        container.Column(column =>
-        {
-            column.Item().Text(title).Bold();
-            column.Item().Table(table =>
-            {
-                table.ColumnsDefinition(c =>
-                {
-                    c.RelativeColumn(3);
-                    c.RelativeColumn(1);
-                });
-
-                table.Header(header =>
-                {
-                    header.Cell().Text("Label").Bold();
-                    header.Cell().Text("Count").Bold();
-                });
-
-                if (counts.Count == 0)
-                {
-                    table.Cell().ColumnSpan(2).Text("None").FontColor(Colors.Grey.Darken1);
-                }
-
-                foreach (var c in counts)
-                {
-                    table.Cell().Text(c.Label);
-                    table.Cell().Text(c.Count.ToString());
-                }
-            });
-        });
     }
 
     private static void TasksTable(IContainer container, List<CampaignReportTaskRow> tasks)

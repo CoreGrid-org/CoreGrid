@@ -1,35 +1,27 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Maintenance.DTOs;
 using CoreGrid.Api.Features.Maintenance.Services;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Auth;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Http;
+using CoreGrid.Api.Features.Shared.Scoping;
 using CoreGrid.Api.Features.Shared.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CoreGrid.Api.Features.Maintenance.Controllers;
 
-// FR-005 / SRS §4.6: maintenance:request is Staff/Officer/Administrator
-// (not Auditor); maintenance:manage (cancel) is Officer/Administrator; read
-// endpoints stay broad (all four roles have a legitimate reason to see a
-// maintenance record — Staff who reported it, Auditor for reports).
+// Handles maintenance records and maintenance operations.
 [ApiController]
 [Route("api/maintenance")]
 [Authorize]
 public class MaintenanceController : CoreGridControllerBase
 {
-    private const string RequestRoles =
-        $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}";
-    private const string ManageRoles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}";
     private const string ReadRoles =
         $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
-
-    private static readonly string[] AllowedPhotoContentTypes = ["image/jpeg", "image/png", "image/webp"];
-    private const long MaxPhotoSizeBytes = 5 * 1024 * 1024; // 5MB, matches ReportFaultPage's stated limit
 
     private readonly IMaintenanceService _maintenanceService;
     private readonly IFileStorageService _fileStorageService;
@@ -42,303 +34,159 @@ public class MaintenanceController : CoreGridControllerBase
         _maintenanceService = maintenanceService;
         _fileStorageService = fileStorageService;
     }
-
-    // FR-034: upload a fault-report photo to Cloudflare R2 as a private
-    // object and get back the object key to include in
-    // ReportFaultRequest/CreateMaintenanceRequest's PhotoUrl — a separate
-    // step from submitting the fault report itself so the JSON endpoints
-    // below don't need to change to multipart/form-data. The key alone is
-    // never independently useful — a read of the owning record (GetById /
-    // list, both role-gated) is what turns it into a short-lived, signed
-    // URL, so the raw upload response can't be used to bypass that gate.
+// Uploads a private photo for a maintenance record.
     [HttpPost("photos")]
-    [Authorize(Roles = RequestRoles)]
-    [RequestSizeLimit(MaxPhotoSizeBytes)]
+    [Authorize(Policy = Policies.CanRequestMaintenance)]
+    [EnableRateLimiting(RateLimitPolicies.PhotoUpload)]
+    [RequestSizeLimit(PhotoUploadValidator.MaxSizeBytes)]
     public async Task<ActionResult<UploadPhotoResponse>> UploadPhoto(
         IFormFile photo, CancellationToken cancellationToken)
     {
-        if (photo.Length == 0)
+        var validation = await PhotoUploadValidator.ValidateAsync(photo, cancellationToken);
+        if (!validation.IsValid)
         {
-            return BadRequest(new { message = "No file was uploaded." });
+            throw new ValidationException(nameof(photo), validation.Error!);
         }
 
-        if (photo.Length > MaxPhotoSizeBytes)
-        {
-            return BadRequest(new { message = "Photo must be 5MB or smaller." });
-        }
-
-        if (!AllowedPhotoContentTypes.Contains(photo.ContentType))
-        {
-            return BadRequest(new { message = "Only JPEG, PNG or WebP photos are accepted." });
-        }
-
-        try
-        {
-            await using var stream = photo.OpenReadStream();
-            var key = await _fileStorageService.UploadPrivateAsync("maintenance", photo.FileName, photo.ContentType, stream, cancellationToken);
-            return Ok(new UploadPhotoResponse { Url = key });
-        }
-        catch (InvalidOperationException ex)
-        {
-            // Cloudflare R2 not configured yet, or the upload itself failed.
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
-        }
+        await using var stream = photo.OpenReadStream();
+        var key = await _fileStorageService.UploadPrivateAsync("maintenance", photo.FileName, photo.ContentType, stream, cancellationToken);
+        return Ok(new UploadPhotoResponse { Url = key });
     }
 
     [HttpPost("faults")]
-    [Authorize(Roles = RequestRoles)]
+    [Authorize(Policy = Policies.CanRequestMaintenance)]
     public async Task<ActionResult<MaintenanceRecordDto>> ReportFault(
-        [FromBody] ReportFaultRequest request)
+        [FromBody] ReportFaultRequest request, CancellationToken cancellationToken)
     {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var record = await _maintenanceService.ReportFaultAsync(
-                currentUser.OrganizationId,
-                currentUser.Id,
-                request);
+        var record = await _maintenanceService.ReportFaultAsync(
+            currentUser.OrganizationId, currentUser.Id, request, cancellationToken);
 
-            if (record is null)
-            {
-                return BadRequest(new { message = "Failed to report fault." });
-            }
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = record.Id },
-                record);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return CreatedAtAction(nameof(GetById), new { id = record!.Id }, record);
     }
 
     [HttpGet("{id:guid}")]
     [Authorize(Roles = ReadRoles)]
-    public async Task<ActionResult<MaintenanceRecordDto>> GetById(Guid id)
+    public async Task<ActionResult<MaintenanceRecordDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
         var record = await _maintenanceService.GetMaintenanceRecordByIdAsync(
-            currentUser.OrganizationId,
-            id);
+            currentUser.OrganizationId, DepartmentScope.For(currentUser), id, cancellationToken);
 
-        if (record is null)
-        {
-            return NotFound(new { message = "Maintenance record not found." });
-        }
+        return record is null
+            ? throw NotFoundException.For(nameof(MaintenanceRecord), id)
+            : Ok(record);
+    }
+
+    // PUT /api/maintenance/{id} amend classification, priority, description.
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.CanManageMaintenance)]
+    public async Task<ActionResult<MaintenanceRecordDto>> Amend(
+        Guid id, [FromBody] AmendMaintenanceRequest request, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var record = await _maintenanceService.AmendMaintenanceAsync(
+            currentUser.OrganizationId, currentUser.Id, id, request, cancellationToken);
+
+        return record is null
+            ? throw NotFoundException.For(nameof(MaintenanceRecord), id)
+            : Ok(record);
+    }
+
+    //  creates a maintenance record directly (not via a fault
+    // report); the caller specifies type (CORRECTIVE / PREVENTIVE) and
+    // priority.
+    [HttpPost]
+    [Authorize(Roles = nameof(CoreGridRole.InventoryOfficer))]
+    public async Task<ActionResult<MaintenanceRecordDto>> CreateMaintenance(
+        [FromBody] CreateMaintenanceRequest request, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var record = await _maintenanceService.CreateMaintenanceAsync(
+            currentUser.OrganizationId, currentUser.Id, request, cancellationToken);
+
+        return CreatedAtAction(nameof(GetById), new { id = record!.Id }, record);
+    }
+
+    // Approves a REQUESTED maintenance record: assigns it to a
+    // responsible officer and records an estimated cost. Transitions
+    // status: REQUESTED → APPROVED.
+    [HttpPost("{id:guid}/approve")]
+    [Authorize(Policy = Policies.CanManageMaintenance)]
+    public async Task<ActionResult<MaintenanceRecordDto>> ApproveMaintenance(
+        Guid id, [FromBody] ApproveMaintenanceRequest request, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var record = await _maintenanceService.ApproveMaintenanceAsync(
+            currentUser.OrganizationId, currentUser.Id, id, request, cancellationToken);
 
         return Ok(record);
     }
 
-    // FR-035 - Create maintenance record directly                         
-    /// Creates a maintenance record directly (not via a fault report),The caller specifies type (CORRECTIVE / PREVENTIVE) and priority
-
-    [HttpPost]
-    [Authorize(Roles = nameof(CoreGridRole.InventoryOfficer))]
-    public async Task<ActionResult<MaintenanceRecordDto>> CreateMaintenance(
-        [FromBody] CreateMaintenanceRequest request)
-    {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
-
-        try
-        {
-            var record = await _maintenanceService.CreateMaintenanceAsync(
-                currentUser.OrganizationId,
-                currentUser.Id,
-                request);
-
-            if (record is null)
-            {
-                return BadRequest(new { message = "Failed to create maintenance record." });
-            }
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = record.Id },
-                record);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    // FR-036 — Approve maintenance record                                 
-    /// Approves a REQUESTED maintenance record: assigns it to a responsible
-    /// officer and records an estimated cost. Transitions status:
-    /// REQUESTED → APPROVED. Restricted to InventoryOfficer or Administrator.
-
-    [HttpPost("{id:guid}/approve")]
-    [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
-    public async Task<ActionResult<MaintenanceRecordDto>> ApproveMaintenance(
-        Guid id,
-        [FromBody] ApproveMaintenanceRequest request)
-    {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
-
-        try
-        {
-            var record = await _maintenanceService.ApproveMaintenanceAsync(
-                currentUser.OrganizationId,
-                currentUser.Id,
-                id,
-                request);
-
-            return Ok(record);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-    // FR-037 / FR-039 — Start maintenance record                          //
-    /// Starts an APPROVED maintenance record: transitions status to
-    /// IN_PROGRESS and places the asset into UNDER_MAINTENANCE (FR-039).
-    /// The caller must be an InventoryOfficer and must be the assignee
-    /// (or an Administrator progressing work on their behalf).
-
+    // Starts an APPROVED maintenance record: transitions
+    // status to IN_PROGRESS and places the asset into UNDER_MAINTENANCE.
     [HttpPost("{id:guid}/start")]
-    [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
-    public async Task<ActionResult<MaintenanceRecordDto>> StartMaintenance(Guid id)
+    [Authorize(Policy = Policies.CanManageMaintenance)]
+    public async Task<ActionResult<MaintenanceRecordDto>> StartMaintenance(Guid id, CancellationToken cancellationToken)
     {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var record = await _maintenanceService.StartMaintenanceAsync(
-                currentUser.OrganizationId,
-                currentUser.Id,
-                id);
+        var record = await _maintenanceService.StartMaintenanceAsync(
+            currentUser.OrganizationId, currentUser.Id, id, cancellationToken);
 
-            return Ok(record);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return Ok(record);
     }
-    // FR-038 / FR-040 — Complete maintenance record                       
-    /// Completes an IN_PROGRESS maintenance record (FR-038).
-    /// Records actual cost, work performed, completion date and resulting
-    /// condition. Returns the asset to ACTIVE (or CONDEMNED for UNSERVICEABLE
-    /// — BR2). Recalculates cumulative cost + repair count (FR-040).
-    /// Enforces cost-variance tolerance (BR1). Atomic (BR3).
-    /// Returns 409 if the record is already COMPLETED (AC1).
 
+    // Completes an in-progress maintenance record.
     [HttpPost("{id:guid}/complete")]
     [Authorize(Roles = nameof(CoreGridRole.InventoryOfficer))]
     public async Task<ActionResult<MaintenanceRecordDto>> CompleteMaintenance(
-        Guid id,
-        [FromBody] CompleteMaintenanceRequest request)
+        Guid id, [FromBody] CompleteMaintenanceRequest request, CancellationToken cancellationToken)
     {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var record = await _maintenanceService.CompleteMaintenanceAsync(
-                currentUser.OrganizationId,
-                currentUser.Id,
-                id,
-                request);
+        var record = await _maintenanceService.CompleteMaintenanceAsync(
+            currentUser.OrganizationId, currentUser.Id, id, request, cancellationToken);
 
-            return Ok(record);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex) when (ex.Message.StartsWith("This maintenance record has already been completed"))
-        {
-            // AC1 — a second completion attempt returns 409 Conflict.
-            return Conflict(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return Ok(record);
     }
 
     [HttpPost("{id:guid}/cancel")]
-    [Authorize(Roles = ManageRoles)]
+    [Authorize(Policy = Policies.CanManageMaintenance)]
     public async Task<ActionResult<MaintenanceRecordDto>> CancelMaintenance(
-        Guid id,
-        [FromBody] CancelMaintenanceRequest request)
+        Guid id, [FromBody] CancelMaintenanceRequest request, CancellationToken cancellationToken)
     {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var record = await _maintenanceService.CancelMaintenanceAsync(
-                currentUser.OrganizationId,
-                currentUser.Id,
-                id,
-                request);
+        var record = await _maintenanceService.CancelMaintenanceAsync(
+            currentUser.OrganizationId, currentUser.Id, id, request, cancellationToken);
 
-            return Ok(record);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return Ok(record);
     }
 
     [HttpGet]
     [Authorize(Roles = ReadRoles)]
     public async Task<ActionResult<PagedResult<MaintenanceRecordDto>>> ListMaintenanceRecords(
-        [FromQuery] MaintenanceRecordFilter filter)
+        [FromQuery] MaintenanceRecordFilter filter, CancellationToken cancellationToken)
     {
-        var currentUser = await GetCurrentUserAsync(default);
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
         var records = await _maintenanceService.ListMaintenanceRecordsAsync(
-            currentUser.OrganizationId,
-            filter);
+            currentUser.OrganizationId, DepartmentScope.For(currentUser), filter, cancellationToken);
 
         return Ok(records);
     }

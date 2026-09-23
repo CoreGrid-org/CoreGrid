@@ -1,37 +1,38 @@
-using System;
-using System.Threading.Tasks;
 using CoreGrid.Api.Features.Maintenance.DTOs;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Scoping;
 
 namespace CoreGrid.Api.Features.Maintenance.Services;
 
 public interface IMaintenanceService
 {
-    Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(Guid organizationId, Guid id);
-    Task<MaintenanceRecordDto?> ReportFaultAsync(Guid organizationId, Guid currentUserId, ReportFaultRequest request);
+    Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(Guid organizationId, DepartmentScope scope, Guid id, CancellationToken cancellationToken);
 
-    /// FR-035 - Officer creates a maintenance record directly, specifying type and priority.
-    Task<MaintenanceRecordDto?> CreateMaintenanceAsync(Guid organizationId, Guid currentUserId, CreateMaintenanceRequest request);
+    Task<MaintenanceRecordDto?> ReportFaultAsync(Guid organizationId, Guid currentUserId, ReportFaultRequest request, CancellationToken cancellationToken);
 
-    /// FR-036 - Officer/Administrator approves a REQUESTED record, assigns it and records an estimated cost.
+    /// Officer creates a maintenance record directly, specifying type and priority.
+    Task<MaintenanceRecordDto?> CreateMaintenanceAsync(Guid organizationId, Guid currentUserId, CreateMaintenanceRequest request, CancellationToken cancellationToken);
+
+    /// amend classification, priority and description on a
+    /// record that hasn't reached a terminal status yet.
+    Task<MaintenanceRecordDto?> AmendMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, AmendMaintenanceRequest request, CancellationToken cancellationToken);
+
+    ///Officer/Administrator approves a REQUESTED record, assigns it and records an estimated cost.
     /// Transitions status: REQUESTED → APPROVED.
-    Task<MaintenanceRecordDto?> ApproveMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, ApproveMaintenanceRequest request);
+    Task<MaintenanceRecordDto?> ApproveMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, ApproveMaintenanceRequest request, CancellationToken cancellationToken);
 
-    /// FR-037 / FR-039 - Assigned officer starts an APPROVED record.
+    ///Assigned officer starts an APPROVED record.
     /// Transitions status: APPROVED → IN_PROGRESS.
-    Task<MaintenanceRecordDto?> StartMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId);
+    Task<MaintenanceRecordDto?> StartMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CancellationToken cancellationToken);
 
-    /// FR-038 / FR-040 — Officer completes an IN_PROGRESS record.
+    /// Officer completes an IN_PROGRESS record.
     /// Transitions status: IN_PROGRESS → COMPLETED.
-    /// Updates asset condition, returns asset to ACTIVE (or CONDEMNED for UNSERVICEABLE — BR2).
-    /// Recalculates cumulative cost, repair count and last-repair date (FR-040).
-    /// Enforces cost-variance tolerance (BR1). All changes are atomic (BR3).
+ 
+    Task<MaintenanceRecordDto?> CompleteMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CompleteMaintenanceRequest request, CancellationToken cancellationToken);
 
-    Task<MaintenanceRecordDto?> CompleteMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CompleteMaintenanceRequest request);
+    Task<MaintenanceRecordDto?> CancelMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CancelMaintenanceRequest request, CancellationToken cancellationToken);
 
-    Task<MaintenanceRecordDto?> CancelMaintenanceAsync(Guid organizationId, Guid currentUserId, Guid maintenanceId, CancelMaintenanceRequest request);
-
-    /// FR-042 — filter by status, priority, department, asset, assignee and
+    /// filter by status, priority, department, asset, assignee and
     /// date range, with server-side sorting and pagination.
-    Task<PagedResult<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(Guid organizationId, MaintenanceRecordFilter filter);
+    Task<PagedResult<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(Guid organizationId, DepartmentScope scope, MaintenanceRecordFilter filter, CancellationToken cancellationToken);
 }

@@ -7,8 +7,7 @@ import { getErrorMessage } from "@/shared/lib/errorMessage";
 import AssetDetailModal from "../components/AssetDetailModal";
 
 // GET /api/assets/qr/{code} — a scanned or typed code resolves straight to
-// the asset. Codes belonging to another organisation come back as a plain
-// 404, same as a code that doesn't exist at all (never leaks cross-org data).
+
 export default function AssetScanPage() {
   const [code, setCode] = useState("");
   const lookup = useAssetByQrCode();

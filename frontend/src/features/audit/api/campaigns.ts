@@ -1,3 +1,5 @@
+import { fetchAllPages } from "@/shared/lib/apiClient";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 function authHeaders(accessToken: string) {
@@ -10,6 +12,15 @@ async function handle<T>(response: Response, fallback: string): Promise<T> {
     throw new Error(detail || fallback);
   }
   return response.json();
+}
+
+// backend/Features/Shared/Paging/PagedResult.cs
+interface PagedResult<T> {
+  items: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export type CampaignStatus = "Active" | "Completed" | "Cancelled";
@@ -51,15 +62,13 @@ export interface UpdateCampaignRequest {
   status: CampaignStatus;
 }
 
-// backend/Features/Verification/Controllers/VerificationCampaignsController.cs
-// — read is any authenticated org member, create is Auditor/Administrator
-// (FR-056). Task generation + officer assignment happens synchronously on
-// creation, so the returned campaign already has its task_count populated.
+// Retrieves all verification campaigns across paginated results.
 export async function listCampaigns(accessToken: string): Promise<Campaign[]> {
-  const response = await fetch(`${API_URL}/verification-campaigns`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load verification campaigns.");
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/verification-campaigns?page=${page}&pageSize=100`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<Campaign>>(response, "Could not load verification campaigns.")),
+  );
 }
 
 export async function createCampaign(payload: CreateCampaignRequest, accessToken: string): Promise<Campaign> {

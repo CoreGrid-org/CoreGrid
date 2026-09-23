@@ -1,13 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// SRS §7.5: durable, structured, inspectable state for the Asset Lifecycle
-// Decision workflow. Plan/AgentOutputs/ToolCalls/ValidationResult are JSONB
-// for flexibility (raw agent artefacts); the queryable facts below are
-// typed columns so dashboards/reports don't have to parse JSON (DR pattern
-// matches CampaignReportDto's own separation of aggregate vs. line-item
-// data). AI-10: chain-of-thought, raw prompts/responses, credentials and
-// tokens are never persisted here — only structured artefacts and
-// summaries, written by whatever populates AgentOutputs/ToolCalls.
+// Stores the state and results of an asset lifecycle decision workflow.
 public class AgentWorkflow
 {
     public Guid Id { get; set; }

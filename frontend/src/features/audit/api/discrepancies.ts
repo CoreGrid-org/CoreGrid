@@ -1,3 +1,5 @@
+import { fetchAllPages } from "@/shared/lib/apiClient";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 function authHeaders(accessToken: string) {
@@ -12,11 +14,19 @@ async function handle<T>(response: Response, fallback: string): Promise<T> {
   return response.json();
 }
 
+// backend/Features/Shared/Paging/PagedResult.cs
+interface PagedResult<T> {
+  items: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export type DiscrepancyType = "Missing" | "Surplus" | "LocationMismatch" | "ConditionMismatch" | "DataMismatch" | "Other";
 export type DiscrepancyStatus = "Open" | "Resolved";
 
-// Only these two have a single, unambiguous register field to correct —
-// see ResolveDiscrepancyRequest.ApplyCorrection on the backend.
+// Defines the discrepancy types that support register correction.
 export const CORRECTABLE_DISCREPANCY_TYPES: DiscrepancyType[] = ["ConditionMismatch", "LocationMismatch"];
 
 export interface Discrepancy {
@@ -48,7 +58,7 @@ export interface ResolveDiscrepancyRequest {
   apply_correction: boolean;
 }
 
-// backend/Features/Verification/Controllers/DiscrepanciesController.cs
+// Retrieves all discrepancies across paginated results.
 export async function listDiscrepancies(
   params: { campaignId?: string; onlyOpen?: boolean },
   accessToken: string,
@@ -56,15 +66,17 @@ export async function listDiscrepancies(
   const search = new URLSearchParams();
   if (params.campaignId) search.set("campaignId", params.campaignId);
   if (params.onlyOpen) search.set("onlyOpen", "true");
-  const qs = search.toString();
+  search.set("pageSize", "100");
+  const baseQuery = search.toString();
 
-  const response = await fetch(`${API_URL}/discrepancies${qs ? `?${qs}` : ""}`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load discrepancies.");
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/discrepancies?${baseQuery}&page=${page}`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<Discrepancy>>(response, "Could not load discrepancies.")),
+  );
 }
 
-// FR-062 — Auditor/Administrator only.
+// Resolves a discrepancy using the provided resolution details.
 export async function resolveDiscrepancy(
   id: string,
   payload: ResolveDiscrepancyRequest,

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace CoreGrid.Api.Features.AgentTools.DTOs;
 
@@ -28,7 +29,7 @@ public class AssetFinancialsDto
     public decimal ResidualBookValue { get; set; }
     public decimal CumulativeMaintenanceCost { get; set; }
     
-    // Nullable/explicit indicator if replacement estimate is not available from market/catalog sources
+   // Stores the estimated replacement cost when available.
     public decimal? ReplacementEstimate { get; set; }
     public string? ReplacementEstimateNote { get; set; }
 }
@@ -40,7 +41,7 @@ public class DepartmentBudgetSummaryDto
     public string DepartmentName { get; set; } = string.Empty;
     public int FiscalYear { get; set; }
     
-    // Explicitly markers for budget system gap
+    // Stores the available budget information.
     public decimal? AllocatedMaintenanceBudget { get; set; }
     public decimal? CommittedAmount { get; set; }
     public decimal? SpentAmount { get; set; }
@@ -49,7 +50,7 @@ public class DepartmentBudgetSummaryDto
     public string Note { get; set; } = string.Empty;
 }
 
-// get_organization_policies (§7.4) — Policy Compliance Agent tool.
+// Represents the organization policies used for evaluation.
 public class OrganizationPolicyFactsDto
 {
     public Guid? AssetTypeId { get; set; }
@@ -59,8 +60,7 @@ public class OrganizationPolicyFactsDto
     public int ValuationValidityWindowDays { get; set; }
     public decimal ConfidenceFloor { get; set; }
 }
-
-// get_asset_compliance_state (§7.4) — Policy Compliance Agent tool.
+// Represents the compliance state of an asset.
 public class AssetComplianceStateDto
 {
     public Guid AssetId { get; set; }
@@ -77,9 +77,17 @@ public class AssetComplianceStateDto
 
 public class ComputeDepreciationRequest
 {
-    public decimal AcquisitionCost { get; set; }
-    public DateOnly AcquisitionDate { get; set; }
-    public int UsefulLifeYears { get; set; }
+    [Required]
+    [Range(0, 1_000_000_000_000)]
+    public decimal? AcquisitionCost { get; set; }
+
+    [Required]
+    public DateOnly? AcquisitionDate { get; set; }
+
+    [Required]
+    [Range(1, 100)]
+    public int? UsefulLifeYears { get; set; }
+
     public DateOnly? AsOfDate { get; set; }
 }
 

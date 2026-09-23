@@ -4,6 +4,7 @@ import { Tag, Button, ComboBox, Select, SelectItem, Pagination, InlineNotificati
 import { Add, Edit, Search, Time } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useMe } from "@/features/auth/hooks/useMe";
 import { useAssetCategories, useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
 import AssetDetailModal from "../components/AssetDetailModal";
 import AssetHistoryModal from "../components/AssetHistoryModal";
@@ -19,12 +20,14 @@ import {
 } from "../types/asset";
 import { formatCurrency } from "../utils/format";
 
-// The asset register — GET /api/assets with server-side search/filter/pagination.
-// Categories and Types & Attributes management live on the separate Asset
-// Config page (sidebar: Assets > Asset Config).
+// Displays the asset register with search, filters, and pagination.
 export default function AssetsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+
+ // Determines whether the current user can manage assets.
+  const { data: me } = useMe();
+  const canManageAssets = me?.role === "InventoryOfficer" || me?.role === "Administrator";
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -59,8 +62,7 @@ export default function AssetsPage() {
     setLocationId("");
   }, [departmentId]);
 
-  // Clear the navigation state once consumed, so a browser refresh doesn't
-  // keep re-opening the modal for an asset the user may have since closed.
+  // Clears the consumed navigation state.
   useEffect(() => {
     if ((location.state as { openAssetId?: string } | null)?.openAssetId) {
       navigate(location.pathname, { replace: true, state: null });
@@ -82,10 +84,7 @@ export default function AssetsPage() {
 
   const { data, isLoading, isError, error, refetch } = useAssetsList(params);
 
-  // This page is mounted under both /admin/assets and /inventory/assets
-  // (App.tsx) — derive the base path from the current role prefix rather
-  // than hardcoding one, so "Register asset" and the edit icon stay within
-  // whichever role's route branch the user is already in.
+  // Builds the asset route from the current role path.
   const assetsBasePath = `/${location.pathname.split("/")[1]}/assets`;
 
   return (
@@ -95,9 +94,11 @@ export default function AssetsPage() {
           <h1 className="cg-page__title">Asset Register</h1>
           <p className="cg-page__subtitle">Every asset in the organisation, searchable and filterable (FR-021 to FR-025).</p>
         </div>
-        <Button renderIcon={Add} onClick={() => navigate(`${assetsBasePath}/new`)}>
-          Register asset
-        </Button>
+        {canManageAssets && (
+          <Button renderIcon={Add} onClick={() => navigate(`${assetsBasePath}/new`)}>
+            Register asset
+          </Button>
+        )}
       </div>
 
       {isError && (
@@ -237,14 +238,16 @@ export default function AssetsPage() {
                           hasIconOnly
                           onClick={() => setHistoryAsset(asset)}
                         />
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={Edit}
-                          iconDescription="Update asset"
-                          hasIconOnly
-                          onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
-                        />
+                        {canManageAssets && (
+                          <Button
+                            kind="ghost"
+                            size="sm"
+                            renderIcon={Edit}
+                            iconDescription="Update asset"
+                            hasIconOnly
+                            onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

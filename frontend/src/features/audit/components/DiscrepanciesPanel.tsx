@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Tag, Button, Dropdown, InlineNotification } from "@carbon/react";
+import { Tag, Button, Dropdown, InlineNotification, Pagination } from "@carbon/react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import { useClientPagination } from "@/shared/hooks/useClientPagination";
 import { useCampaignsList } from "../hooks/useCampaigns";
 import { useDiscrepanciesList } from "../hooks/useDiscrepancies";
 import ResolveDiscrepancyModal from "./ResolveDiscrepancyModal";
@@ -15,6 +16,7 @@ export default function DiscrepanciesPanel() {
   const [statusFilter, setStatusFilter] = useState(DISCREPANCY_STATUS_FILTERS[0]);
   const discrepancies = useDiscrepanciesList({ campaignId, onlyOpen: statusFilter === "Open only" });
   const [resolvingDiscrepancy, setResolvingDiscrepancy] = useState<Discrepancy | null>(null);
+  const { pageItems, page, pageSize, total, setPage, setPageSize } = useClientPagination(discrepancies.data);
 
   return (
     <>
@@ -59,6 +61,7 @@ export default function DiscrepanciesPanel() {
             <p>Loading discrepancies…</p>
           </div>
         ) : discrepancies.data && discrepancies.data.length > 0 ? (
+          <>
           <table className="cg-table cg-table--no-hover">
             <thead>
               <tr>
@@ -71,7 +74,7 @@ export default function DiscrepanciesPanel() {
               </tr>
             </thead>
             <tbody>
-              {discrepancies.data.map((d) => (
+              {pageItems.map((d) => (
                 <tr key={d.id}>
                   <td className="cg-table__mono">{d.asset_code}</td>
                   <td>
@@ -93,6 +96,17 @@ export default function DiscrepanciesPanel() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            pageSizes={[10, 20, 50, 100]}
+            totalItems={total}
+            onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+              setPage(nextPage);
+              setPageSize(nextPageSize);
+            }}
+          />
+          </>
         ) : (
           <div className="cg-placeholder">
             <p>No discrepancies match these filters.</p>

@@ -1,27 +1,23 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Scoping;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Dashboard;
 
-// FR-081/FR-082/FR-086: organisation- and department-scoped indicators and
-// visualisations (previously the React Admin Dashboard used mock data only
-// for the charts — see doc/PROGRESS.md).
+// Provides dashboard summary and chart data.
 [ApiController]
 [Route("api/dashboard")]
 [Authorize]
 public class DashboardController : CoreGridControllerBase
 {
-    private static readonly string[] ConditionOrder = ["NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE"];
-
-    private readonly CoreGridDbContext _db;
+    private static readonly string[] ConditionOrder = AssetConditions.All;
 
     public DashboardController(CoreGridDbContext db) : base(db)
     {
-        _db = db;
     }
 
     [HttpGet("summary")]
@@ -31,16 +27,16 @@ public class DashboardController : CoreGridControllerBase
         if (currentUser is null) return Unauthorized();
 
         var organizationId = currentUser.OrganizationId;
-        var scope = DashboardScope.Resolve(currentUser);
+        var scope = DepartmentScope.For(currentUser);
 
-        var assets = _db.Assets.AsNoTracking().Where(a => a.OrganizationId == organizationId);
+        var assets = Db.Assets.AsNoTracking().Where(a => a.OrganizationId == organizationId);
         if (scope.IsRestricted) assets = assets.Where(a => a.DepartmentId == scope.DepartmentId);
 
         var totalAssets = await assets.CountAsync(cancellationToken);
-        var activeAssets = await assets.CountAsync(a => a.Status == "ACTIVE", cancellationToken);
-        var underMaintenance = await assets.CountAsync(a => a.Status == "UNDER_MAINTENANCE", cancellationToken);
+        var activeAssets = await assets.CountAsync(a => a.Status == AssetStatuses.Active, cancellationToken);
+        var underMaintenance = await assets.CountAsync(a => a.Status == AssetStatuses.UnderMaintenance, cancellationToken);
 
-        var transfers = _db.AssetTransfers.AsNoTracking().Where(t => t.OrganizationId == organizationId);
+        var transfers = Db.AssetTransfers.AsNoTracking().Where(t => t.OrganizationId == organizationId);
         if (scope.IsRestricted) transfers = transfers.Where(t => t.Asset!.DepartmentId == scope.DepartmentId);
 
         var pendingTransfers = await transfers.CountAsync(
@@ -50,7 +46,7 @@ public class DashboardController : CoreGridControllerBase
             cancellationToken);
         var transfersAwaitingApproval = await transfers.CountAsync(t => t.Status == TransferStatus.REQUESTED, cancellationToken);
 
-        var disposals = _db.DisposalRequests.AsNoTracking().Where(d => d.OrganizationId == organizationId);
+        var disposals = Db.DisposalRequests.AsNoTracking().Where(d => d.OrganizationId == organizationId);
         if (scope.IsRestricted) disposals = disposals.Where(d => d.Asset!.DepartmentId == scope.DepartmentId);
 
         var pendingDisposals = await disposals.CountAsync(
@@ -60,7 +56,7 @@ public class DashboardController : CoreGridControllerBase
             cancellationToken);
         var disposalsAwaitingApproval = await disposals.CountAsync(d => d.Status == DisposalStatus.PENDING, cancellationToken);
 
-        var discrepancies = _db.Discrepancies.AsNoTracking().Where(d => d.OrganizationId == organizationId);
+        var discrepancies = Db.Discrepancies.AsNoTracking().Where(d => d.OrganizationId == organizationId);
         if (scope.IsRestricted) discrepancies = discrepancies.Where(d => d.Asset!.DepartmentId == scope.DepartmentId);
 
         var openDiscrepancies = await discrepancies.CountAsync(d => d.Status == DiscrepancyStatus.Open, cancellationToken);
@@ -75,12 +71,7 @@ public class DashboardController : CoreGridControllerBase
             transfersAwaitingApproval + disposalsAwaitingApproval));
     }
 
-    // FR-082: assets by department, assets by condition, maintenance cost by
-    // month. Administrator/Auditor only — the two SRS grants these charts
-    // to; both are also the org-wide roles under FR-086, so no department
-    // restriction ever actually narrows what this endpoint returns, but the
-    // scope is still resolved and applied for the same reason GetSummary
-    // does: correctness shouldn't depend on who happens to call it today.
+   // Returns dashboard chart data.
     [HttpGet("charts")]
     [Authorize(Roles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}")]
     public async Task<ActionResult<DashboardCharts>> GetCharts(CancellationToken cancellationToken)
@@ -89,21 +80,12 @@ public class DashboardController : CoreGridControllerBase
         if (currentUser is null) return Unauthorized();
 
         var organizationId = currentUser.OrganizationId;
-        var scope = DashboardScope.Resolve(currentUser);
-        return await GetChartsCore(organizationId, scope, cancellationToken);
-    }
+        var scope = DepartmentScope.For(currentUser);
 
-    private async Task<ActionResult<DashboardCharts>> GetChartsCore(Guid organizationId, DepartmentScope scope, CancellationToken cancellationToken)
-    {
-
-        var assets = _db.Assets.AsNoTracking().Where(a => a.OrganizationId == organizationId);
+        var assets = Db.Assets.AsNoTracking().Where(a => a.OrganizationId == organizationId);
         if (scope.IsRestricted) assets = assets.Where(a => a.DepartmentId == scope.DepartmentId);
 
-        // GroupBy → Select-into-record → OrderByDescending doesn't translate
-        // (EF tries to re-derive .Value through the record's constructor for
-        // the ORDER BY and fails) — materialize into an anonymous type first,
-        // same as conditionCounts below, then order and build the record
-        // client-side.
+       // Materialize grouped results before ordering to ensure EF Core translation.
         var departmentCounts = await assets
             .GroupBy(a => a.Department!.Name)
             .Select(g => new { Department = g.Key, Count = g.Count() })
@@ -121,7 +103,7 @@ public class DashboardController : CoreGridControllerBase
             .Select(c => new ChartDatum(c, conditionCounts.FirstOrDefault(x => x.Condition == c)?.Count ?? 0))
             .ToList();
 
-        var maintenance = _db.MaintenanceRecords.AsNoTracking().Where(
+        var maintenance = Db.MaintenanceRecords.AsNoTracking().Where(
             m => m.OrganizationId == organizationId
                 && m.Status == MaintenanceStatus.COMPLETED
                 && m.CompletionDate != null

@@ -2,17 +2,16 @@ using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Services;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Auth;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-
-using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Assets.Controllers;
 
-// FR-005 / SRS §4.6: same split as AssetTypesController — broad read,
-// Administrator-only writes (matches AssetConfigPage's Administrator-only
-// route in App.tsx).
+// Manages asset category operations.
 [ApiController]
 [Route("api/asset-categories")]
 [Authorize]
@@ -20,7 +19,6 @@ public class AssetCategoriesController : CoreGridControllerBase
 {
     private const string ReadRoles =
         $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
-    private const string ManageRoles = nameof(CoreGridRole.Administrator);
 
     private readonly IAssetCategoryService _assetCategoryService;
 
@@ -34,19 +32,16 @@ public class AssetCategoriesController : CoreGridControllerBase
     // GET /api/asset-categories
     [HttpGet]
     [Authorize(Roles = ReadRoles)]
-    public async Task<ActionResult<List<AssetCategoryDto>>> GetCategories(
+    public async Task<ActionResult<PagedResult<AssetCategoryDto>>> GetCategories(
+        [FromQuery] PagedQuery query,
+        [FromQuery] bool includeInactive,
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
-
-        var categories =
-            await _assetCategoryService.GetCategoriesAsync(
-                currentUser.OrganizationId);
+        var categories = await _assetCategoryService.GetCategoriesAsync(
+            currentUser.OrganizationId, query, includeInactive, cancellationToken);
 
         return Ok(categories);
     }
@@ -59,197 +54,86 @@ public class AssetCategoriesController : CoreGridControllerBase
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
-
-        var category =
-            await _assetCategoryService.GetCategoryByIdAsync(
-                currentUser.OrganizationId,
-                id);
-
-        if (category is null)
-        {
-            return NotFound(new
-            {
-                message = "Asset category not found."
-            });
-        }
-
-        return Ok(category);
+        var category = await _assetCategoryService.GetCategoryByIdAsync(currentUser.OrganizationId, id, cancellationToken);
+        return category is null
+            ? throw NotFoundException.For(nameof(AssetCategory), id)
+            : Ok(category);
     }
 
     // POST /api/asset-categories
     [HttpPost]
-    [Authorize(Roles = ManageRoles)]
+    [Authorize(Policy = Policies.CanManageConfiguration)]
     public async Task<ActionResult<AssetCategoryDto>> CreateCategory(
         [FromBody] CreateAssetCategoryRequest request,
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var category = await _assetCategoryService.CreateCategoryAsync(
+            currentUser.OrganizationId, currentUser.Id, request, cancellationToken);
 
-        try
-        {
-            var category = await _assetCategoryService.CreateCategoryAsync(
-                currentUser.OrganizationId,
-                currentUser.Id,
-                request);
-
-            return CreatedAtAction(
-                nameof(GetCategoryById),
-                new
-                {
-                    id = category.Id
-                },
-                category);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (DbUpdateException)
-        {
-            return Conflict(new
-            {
-                message = "Asset category could not be created because of a database conflict."
-            });
-        }
+        return CreatedAtAction(nameof(GetCategoryById), new { id = category.Id }, category);
     }
 
     // PUT /api/asset-categories/{id}
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = ManageRoles)]
+    [Authorize(Policy = Policies.CanManageConfiguration)]
     public async Task<ActionResult<AssetCategoryDto>> UpdateCategory(
         Guid id,
         [FromBody] UpdateAssetCategoryRequest request,
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        var category = await _assetCategoryService.UpdateCategoryAsync(
+            currentUser.OrganizationId, id, currentUser.Id, request, cancellationToken);
 
-        try
-        {
-            var category = await _assetCategoryService.UpdateCategoryAsync(
-                currentUser.OrganizationId,
-                id,
-                currentUser.Id,
-                request);
-
-            if (category is null)
-            {
-                return NotFound(new
-                {
-                    message = "Asset category not found."
-                });
-            }
-
-            return Ok(category);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (DbUpdateException)
-        {
-            return Conflict(new
-            {
-                message = "Asset category could not be updated because of a database conflict."
-            });
-        }
+        return category is null
+            ? throw NotFoundException.For(nameof(AssetCategory), id)
+            : Ok(category);
     }
 
     // DELETE /api/asset-categories/{id}
-    //
-    // Hard-deletes the category if no AssetType references it; otherwise
-    // deactivates it instead (IsActive = false) so existing AssetTypes keep
-    // working, while it stops appearing as a choice for new ones.
+   // Deletes or deactivates an asset category.
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = ManageRoles)]
+    [Authorize(Policy = Policies.CanManageConfiguration)]
     public async Task<IActionResult> DeleteCategory(
         Guid id,
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
 
-        if (currentUser is null)
+        var (found, hardDeleted, category) = await _assetCategoryService.DeleteCategoryAsync(
+            currentUser.OrganizationId, id, currentUser.Id, cancellationToken);
+
+        if (!found)
         {
-            return Unauthorized();
+            throw NotFoundException.For(nameof(AssetCategory), id);
         }
 
-        try
-        {
-            var (found, hardDeleted, category) = await _assetCategoryService.DeleteCategoryAsync(
-                currentUser.OrganizationId,
-                id,
-                currentUser.Id);
-
-            if (!found)
-            {
-                return NotFound(new
-                {
-                    message = "Asset category not found."
-                });
-            }
-
-            return hardDeleted
-                ? NoContent()
-                : Ok(category);
-        }
-        catch (DbUpdateException)
-        {
-            return Conflict(new
-            {
-                message = "Asset category could not be deleted because of a database conflict."
-            });
-        }
+        return hardDeleted ? NoContent() : Ok(category);
     }
 
     // PATCH /api/asset-categories/{id}/activate
     [HttpPatch("{id:guid}/activate")]
-    [Authorize(Roles = ManageRoles)]
+    [Authorize(Policy = Policies.CanManageConfiguration)]
     public async Task<ActionResult<AssetCategoryDto>> ActivateCategory(
         Guid id,
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
-
-        if (currentUser is null)
-        {
-            return Unauthorized();
-        }
+        if (currentUser is null) return Unauthorized();
 
         var category = await _assetCategoryService.SetCategoryActiveAsync(
-            currentUser.OrganizationId,
-            id,
-            currentUser.Id,
-            true);
+            currentUser.OrganizationId, id, currentUser.Id, true, cancellationToken);
 
-        if (category is null)
-        {
-            return NotFound(new
-            {
-                message = "Asset category not found."
-            });
-        }
-
-        return Ok(category);
+        return category is null
+            ? throw NotFoundException.For(nameof(AssetCategory), id)
+            : Ok(category);
     }
-
 }

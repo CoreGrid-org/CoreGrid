@@ -49,7 +49,7 @@ export interface CampaignReport {
   generated_at: string;
 }
 
-// FR-065 — Auditor/Administrator only, matching the backend.
+//Auditor/Administrator only, matching the backend.
 export async function getCampaignReport(campaignId: string, accessToken: string): Promise<CampaignReport> {
   const response = await fetch(`${API_URL}/verification-campaigns/${campaignId}/report`, {
     headers: authHeaders(accessToken),
@@ -61,7 +61,7 @@ export async function getCampaignReport(campaignId: string, accessToken: string)
   return response.json();
 }
 
-// FR-084/FR-085 — same report rendered server-side as PDF or CSV; the
+//same report rendered server-side as PDF or CSV; the
 // filename comes from the server's Content-Disposition header (see the CORS
 // exposed-headers config in backend/Program.cs).
 export async function downloadCampaignReportExport(

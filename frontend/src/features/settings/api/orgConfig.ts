@@ -1,6 +1,16 @@
+import { fetchAllPages } from "@/shared/lib/apiClient";
 import type { Department, Location } from "@/features/assets/types/asset";
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+// backend/Features/Shared/Paging/PagedResult.cs
+interface PagedResult<T> {
+  items: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
 
 async function handle<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) {
@@ -112,12 +122,15 @@ export async function setLocationActive(id: string, isActive: boolean, accessTok
 }
 
 // backend/Features/OrgConfig/Controllers/OrganizationPoliciesController.cs
-// — Administrator only (FR-015).
+// — Administrator only (FR-015). GetPolicies is paginated (§7 of the
+// backend refactor plan); the Settings page renders every policy row at
+// once, so this walks every page and flattens the result.
 export async function listOrganizationPolicies(accessToken: string): Promise<OrganizationPolicy[]> {
-  const response = await fetch(`${API_URL}/organization-policies`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load policy parameters.");
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/organization-policies?page=${page}&pageSize=100`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<OrganizationPolicy>>(response, "Could not load policy parameters.")),
+  );
 }
 
 export async function createOrganizationPolicy(

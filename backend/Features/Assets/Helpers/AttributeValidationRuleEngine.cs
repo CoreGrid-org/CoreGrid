@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
+using CoreGrid.Api.Features.Shared.Exceptions;
 
 namespace CoreGrid.Api.Features.Assets.Helpers;
 
@@ -65,13 +66,13 @@ internal static class AttributeValidationRuleEngine
         {
             if (!decimal.TryParse(minStr, out var min))
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Attribute '{attributeName}' has an invalid 'min' rule value '{minStr}'.");
             }
 
             if (number < min)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Value for '{attributeName}' must be at least {min}.");
             }
         }
@@ -80,13 +81,13 @@ internal static class AttributeValidationRuleEngine
         {
             if (!decimal.TryParse(maxStr, out var max))
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Attribute '{attributeName}' has an invalid 'max' rule value '{maxStr}'.");
             }
 
             if (number > max)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Value for '{attributeName}' must be at most {max}.");
             }
         }
@@ -105,13 +106,13 @@ internal static class AttributeValidationRuleEngine
         {
             if (!int.TryParse(minLenStr, out var minLen) || minLen < 0)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Attribute '{attributeName}' has an invalid 'minLength' rule value '{minLenStr}'.");
             }
 
             if (text.Length < minLen)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Value for '{attributeName}' must be at least {minLen} character(s) long.");
             }
         }
@@ -120,13 +121,13 @@ internal static class AttributeValidationRuleEngine
         {
             if (!int.TryParse(maxLenStr, out var maxLen) || maxLen < 0)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Attribute '{attributeName}' has an invalid 'maxLength' rule value '{maxLenStr}'.");
             }
 
             if (text.Length > maxLen)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Value for '{attributeName}' must be at most {maxLen} character(s) long.");
             }
         }
@@ -146,18 +147,18 @@ internal static class AttributeValidationRuleEngine
             }
             catch (RegexMatchTimeoutException)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Validation for attribute '{attributeName}' timed out. Check the regex rule.");
             }
             catch (ArgumentException ex)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Attribute '{attributeName}' has an invalid regex rule: {ex.Message}");
             }
 
             if (!matches)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Value for '{attributeName}' does not match the required format.");
             }
         }
@@ -177,13 +178,13 @@ internal static class AttributeValidationRuleEngine
         {
             if (!DateOnly.TryParse(maxDateStr, out var maxDate))
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Attribute '{attributeName}' has an invalid 'maxDate' rule value '{maxDateStr}'.");
             }
 
             if (date > maxDate)
             {
-                throw new InvalidOperationException(
+                throw new ValidationException("Attributes",
                     $"Value for '{attributeName}' must be on or before {maxDate:yyyy-MM-dd}.");
             }
         }

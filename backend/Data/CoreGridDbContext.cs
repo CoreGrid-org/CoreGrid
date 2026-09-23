@@ -1,16 +1,10 @@
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Identity;
+using CoreGrid.Api.Features.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Data;
 
-// FR-006: every entity with an OrganizationId column gets a global query
-// filter scoped to currentOrganizationProvider.OrganizationId, on top of
-// (not instead of) each service's existing manual `.Where(x.OrganizationId
-// == ...)` — defense in depth, not a replacement for it. The filter is a
-// no-op when there's no org context yet (null) — see
-// Identity/ICurrentOrganizationProvider.cs for exactly which requests that
-// covers and why it's safe.
+// Apply organization-level filtering to tenant-scoped entities.
 public class CoreGridDbContext(
     DbContextOptions<CoreGridDbContext> options,
     ICurrentOrganizationProvider currentOrganizationProvider) : DbContext(options)
@@ -163,6 +157,9 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AssetAttributeDefinition>(entity =>
         {
+            // Apply organization filtering through the related AssetType.
+            entity.HasQueryFilter(aad => currentOrganizationProvider.OrganizationId == null || aad.AssetType!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(aad => aad.AssetTypeId);
             entity.HasIndex(aad => new { aad.AssetTypeId, aad.Name }).IsUnique();
 
@@ -235,6 +232,9 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AssetAttributeValue>(entity =>
         {
+            // Apply organization filtering through the related Asset.
+            entity.HasQueryFilter(aav => currentOrganizationProvider.OrganizationId == null || aav.Asset!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(aav => new { aav.AssetId, aav.AssetAttributeDefinitionId }).IsUnique();
             entity.HasIndex(aav => new { aav.AssetAttributeDefinitionId, aav.ValueText });
             entity.HasIndex(aav => new { aav.AssetAttributeDefinitionId, aav.ValueNumber });
@@ -631,6 +631,9 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AgentExecutionStep>(entity =>
         {
+            // Apply organization filtering through the related workflow.
+            entity.HasQueryFilter(s => currentOrganizationProvider.OrganizationId == null || s.Workflow!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(s => s.WorkflowId);
 
             entity.Property(s => s.Agent).IsRequired();
@@ -644,6 +647,9 @@ public class CoreGridDbContext(
 
         modelBuilder.Entity<AgentApproval>(entity =>
         {
+            // Apply organization filtering through the related workflow.
+            entity.HasQueryFilter(a => currentOrganizationProvider.OrganizationId == null || a.Workflow!.OrganizationId == currentOrganizationProvider.OrganizationId);
+
             entity.HasIndex(a => a.WorkflowId);
 
             entity.Property(a => a.Decision).IsRequired();

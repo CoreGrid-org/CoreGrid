@@ -13,27 +13,33 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | FR-001: ThunderID OIDC sign-in (PKCE) | |
 | FR-002: Backend JWT validation (issuer + RS256 via JWKS) | |
 | `GET /api/me` — resolve the caller's CoreGrid profile/role by `sub` | |
-| FR-003: Resolve `OrganizationId` from the local user mirror | `RoleEnrichmentMiddleware` rehydrates the `organization_id` claim every request |
+| FR-003: Resolve `OrganizationId` from the local user mirror | `RoleEnrichmentMiddleware` resolves it once per request onto the scoped `CurrentUserContext` (`Features/Shared/CurrentUser/`); no `organization_id` claim rewrite — every consumer (controllers, the audit interceptor, the FR-006 query-filter provider) reads the context instead of re-deriving it |
 | FR-004: Create/refresh local user mirror on first request; audit role changes | Role itself is admin-driven only, never refreshed from the token |
-| FR-005: Every endpoint declares an authorisation policy | Role-based `[Authorize(Roles=...)]` |
-| FR-006: Global `OrganizationId` query filter | `CoreGridDbContext.HasQueryFilter` on every org-scoped entity |
+| FR-005: Every endpoint declares an authorisation policy | Named policies (Appendix B) — see below |
+| FR-006: Global `OrganizationId` query filter | `CoreGridDbContext.HasQueryFilter` on every org-scoped entity, including the four with no `OrganizationId` column of their own (`AssetAttributeDefinition`, `AssetAttributeValue`, `AgentExecutionStep`, `AgentApproval`), filtered through their required parent navigation instead |
+| Named ASP.NET Core authorisation policies | Appendix B's literal policy names (`CanReadAssets`, `CanManageAssets`, …) — `Features/Shared/Auth/Policies.cs` + `CoreGridPolicyRequirement`/`CoreGridPolicyHandler`; a fail-closed fallback policy (NFR-10) denies any route with no attribute at all |
+| NFR-16/AI-27: Rate limiting | Per-user+org policies on workflow initiation, report exports, photo uploads, `POST /api/setup/complete` |
+| NFR-09: HSTS | Enabled outside Development |
+| NFR-20: `GET /health` | Anonymous, per-dependency JSON (DB + ThunderID issuer reachability) |
+| §5.4: Correlation id | `CorrelationIdMiddleware` — every response carries `X-Correlation-Id`; audit rows share the originating request's id |
+| SEC-ID-09: Authorisation outcome logging | `AuthorizationOutcomeLoggingMiddleware` logs every 401/403 with subject, org, endpoint, timestamp — never the token |
 | FR-007: Frontend hides/protects unpermitted routes | `RoleRoute` |
 | FR-008: Sign-out clears state, revokes token, ends IdP session | |
 | FR-009: Deactivated user denied even with a valid token | |
 | First-Administrator provisioning via Setup | Creates ThunderID account + CoreGrid role |
 | FR-013: Admin invites a user by email + role | |
 | FR-014: Change a user's role/department, deactivate/reactivate | Guards against deactivating the org's last active Administrator |
+| Staff department scoping | `Features/Shared/Scoping/DepartmentScope` — applied to the Assets/Maintenance/Transfers/Disposals list and detail endpoints (Appendix B: "Staff are restricted to their own department by a service-layer filter") |
 | EF Core migrations + generated `db/schema.sql` export | |
-| CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` |
-| Backend test project | `backend.Tests`, xUnit — InMemory suite + a real-Postgres suite for append-only/authorisation |
+| CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` — backend and frontend jobs only; no secret-scanning job |
+| Backend test project | `backend.Tests`, xUnit — InMemory suite + a real-Postgres suite for append-only checks; compiles and runs in CI (the `CoreGrid.Api` `ProjectReference` that used to be missing is restored) |
 | Frontend test project | Vitest + React Testing Library |
 
 **❌ Not Started**
 
 | Task | Notes |
 |---|---|
-| Named ASP.NET Core authorisation policies | Appendix B's literal policy names (e.g. `CanReadAssets`) — role-based `[Authorize]` used instead |
-| CI: backend job has no Postgres connection string | `dotnet ef database update` and the real-Postgres test suite will fail on the next CI run until this is resupplied |
+| CI: real-Postgres test suite (`AppendOnlyTests`) isn't reliably exercised in CI | The CI Postgres service isn't migrated before `dotnet test` runs, and the suite's own default connection string (`localhost:5433`) doesn't match the service's mapped port (`5432`) unless `TEST_DB_CONNECTION` is set — neither is currently wired up |
 
 ## Component A — Asset Registry & QR Identification (Jayashan Guruge)
 
@@ -117,6 +123,7 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | Task | Notes |
 |---|---|
 | FR-044/045/046: Transfer state machine | |
+| SRS §9.4: Reject transfer / reject disposal | `POST /api/transfers/{id}/reject`, `POST /api/disposals/{id}/reject` — `CanApproveTransfer`/`CanApproveDisposal` (Administrator only), same as their approve counterpart. Transfer reject releases the asset back to `ACTIVE`; disposal reject reverts it to `CONDEMNED` so a fresh request can be raised |
 | FR-047: Transfer history endpoint | |
 | FR-049: Condemn asset | |
 | FR-050: Submit disposal | |
@@ -124,23 +131,16 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | FR-053: Disposal revision | |
 | FR-054/055: Disposal approval + terminal state | |
 | Database (`AssetTransfers`, `DisposalRequests`) | Real FK constraints |
-| React (Administrator, Inventory Officer, Auditor screens) | Live precondition checklist, approve/reject/request-revision, initiate transfer, confirm receipt, condemn, submit disposal |
+| React (Administrator, Inventory Officer, Auditor screens) | Live precondition checklist, approve/reject/request-revision, initiate transfer, confirm receipt, condemn, submit disposal. **Administrator now has full parity with Inventory Officer's own operational actions** (initiate transfer, confirm receipt, condemn, submit disposal), not just the approval half — `InitiateTransferModal`/`CondemnAssetModal`/`SubmitDisposalModal` extracted to `features/transfers/components/` and shared by both pages instead of duplicated |
+| FR-084: Reports > Disposal tab | Real — `DisposalReportPanel.tsx`, same "fetch every page and aggregate client-side" pattern as Maintenance/Inventory's own report panels; no dedicated report backend endpoint needed. Filters: status, method, date range. Stats: disposals in scope, total proceeds, average approval time. PDF/CSV export |
 | Agent tool endpoints for Budget Analysis Agent | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
 | Budget Analysis Agent | Migrated from standalone Python/LangGraph to in-process C# service (BudgetAgentService.cs), following team-wide architecture decision and matching PlannerAgentService.cs's blueprint (deterministic tools -> LLM call -> deterministic fallback). Uses configurable OpenAI-compatible endpoint (Budget:Endpoint/Model/ApiKey config), defaulting to Gemini's OpenAI-compatible endpoint for cost consistency. BudgetScopeGuard provides structural validation and a real deterministic fallback using OrganizationPolicy's actual RepairToReplaceCostThreshold when configured. 19 new unit tests (188 total repo-wide, 0 failures on full unfiltered run including Postgres-backed AppendOnlyTests). Original Python implementation (agent-service/) preserved untouched pending final decommission decision. |
-| Tests | 105 Component C-specific unit tests (86 transfer/disposal/tools + 19 budget agent tests across BudgetScopeGuardTests and BudgetAgentServiceTests). Repo-wide suite: 188 total, 186 passed, 2 skipped, 0 failures on full unfiltered run |
-
-**🟡 In Progress**
-
-| Task | Notes |
-|---|---|
-| Administrator transfer/disposal actions | Permission matrix grants Administrator `transfer:request`/`disposal:request`, but only the Inventory Officer screen exposes those actions today |
+| Tests | 105 Component C-specific unit tests (86 transfer/disposal/tools + 19 budget agent tests across BudgetScopeGuardTests and BudgetAgentServiceTests), plus reject×2/amend×3/verify×6 added for the SRS §9 opt-in items. Repo-wide suite: 371 total, 0 failures on full unfiltered run |
 
 **❌ Not Started**
 
 | Task | Notes |
 |---|---|
-| SRS Appendix B named-policy authorisation layer | Deferred by team lead |
-| FR-084: Reports > Disposal tab | Still mock data — no real records, stats, filters or export |
 | Copy cleanup | Remove rendered `(FR-0XX ...)` references and em-dashes from `TransfersPage.tsx`, `AuditorTransfersPage.tsx`, `InventoryTransfersPage.tsx` |
 | Hardcoded colors / shared components sweep | Own files not yet audited |
 
@@ -167,7 +167,7 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | React (org structure/users/policy admin, audit dashboard, campaigns, discrepancy resolution, Reports > Asset Inventory) | |
 | Users & Roles page: search + pagination | `GET /api/users` supports `search`/`page`/`pageSize`; picker dropdowns elsewhere unaffected |
 | Policy Compliance Agent + human-approval checkpoint | Deterministic rule engine, node-4 recommendation step, approval workflow — no LLM call, by team decision |
-| CI pipeline ownership | Backend/frontend/secret-scan jobs |
+| CI pipeline ownership | Backend/frontend jobs |
 | Tests (append-only, discrepancy resolution, authorisation matrix) | |
 
 **🟡 In Progress**
@@ -181,7 +181,6 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 
 | Task | Notes |
 |---|---|
-| Named ASP.NET Core authorisation policies | Appendix B's literal policy names — role-based `[Authorize]` used instead |
 | Hardcoded colors / shared components sweep | `WorkflowsPage.tsx`, `ReportsPage.tsx`, `UsersPage.tsx`, dashboard pages still have inline styles |
 | MSW for frontend tests | Considered, not adopted |
 

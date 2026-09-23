@@ -1,4 +1,5 @@
 using CoreGrid.Api.Features.Notifications.DTOs;
+using CoreGrid.Api.Features.Shared;
 
 namespace CoreGrid.Api.Features.Notifications.Services;
 
@@ -20,7 +21,7 @@ public interface INotificationService
         Guid? relatedEntityId,
         CancellationToken cancellationToken);
 
-    Task<List<NotificationDto>> GetForUserAsync(Guid organizationId, Guid userId, bool onlyUnread, CancellationToken cancellationToken);
+    Task<PagedResult<NotificationDto>> GetForUserAsync(Guid organizationId, Guid userId, NotificationQueryParameters query, CancellationToken cancellationToken);
 
     Task<int> GetUnreadCountAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken);
 

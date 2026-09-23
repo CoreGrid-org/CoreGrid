@@ -14,9 +14,7 @@ const FEATURE_CARDS = [
   { to: "/inventory/reports", icon: Report, title: "Reports", description: "Inventory, maintenance and disposal reports." },
 ];
 
-// FR-081: role-appropriate indicators for InventoryOfficer — the operational
-// subset (excludes open discrepancies and workflow approvals, which belong
-// to Auditor/Administrator per the SRS permission matrix).
+// Displays operational dashboard metrics for the inventory role.
 export default function InventoryDashboard() {
   const { user } = useThunderID();
   const summary = useDashboardSummary();

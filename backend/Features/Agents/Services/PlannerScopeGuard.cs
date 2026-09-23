@@ -1,3 +1,4 @@
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Agents.DTOs;
 
 namespace CoreGrid.Api.Features.Agents.Services;
@@ -8,7 +9,7 @@ internal static class PlannerScopeGuard
 {
     private static readonly string[] AllowedAgents =
     [
-        "MaintenanceAnalysis", "BudgetAnalysis", "PolicyCompliance", "DeterministicGate"
+        AgentNames.MaintenanceAnalysis, AgentNames.BudgetAnalysis, AgentNames.PolicyCompliance, AgentNames.DeterministicGate
     ];
 
     // Terms that must appear in an in-scope objective (case-insensitive).
@@ -93,16 +94,16 @@ internal static class PlannerScopeGuard
             InScope = true,
             Steps =
             [
-                new() { Seq = 1, Agent = "MaintenanceAnalysis",
+                new() { Seq = 1, Agent = AgentNames.MaintenanceAnalysis,
                     Purpose = "Analyse repair history and projected maintenance cost.",
                     ExpectedOutput = "MaintenanceAnalysis" },
-                new() { Seq = 2, Agent = "BudgetAnalysis",
+                new() { Seq = 2, Agent = AgentNames.BudgetAnalysis,
                     Purpose = "Compare repair, replacement, residual value, and budget facts.",
                     ExpectedOutput = "FinancialAssessment" },
-                new() { Seq = 3, Agent = "PolicyCompliance",
+                new() { Seq = 3, Agent = AgentNames.PolicyCompliance,
                     Purpose = "Evaluate the proposed recommendation against organisation policy.",
                     ExpectedOutput = "PolicyValidation" },
-                new() { Seq = 4, Agent = "DeterministicGate",
+                new() { Seq = 4, Agent = AgentNames.DeterministicGate,
                     Purpose = "Validate schemas, business rules, and authorisation before action.",
                     ExpectedOutput = "GateResult" },
             ]

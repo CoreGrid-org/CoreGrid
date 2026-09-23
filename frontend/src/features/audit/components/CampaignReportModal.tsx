@@ -10,11 +10,7 @@ interface CampaignReportModalProps {
   onClose: () => void;
 }
 
-// FR-065/FR-084/FR-085: the campaign completion report — what got verified,
-// what didn't, and every discrepancy raised along the way, with a PDF/CSV
-// export of exactly what's on screen. This is the only report Component D
-// owns end to end; the asset inventory, maintenance and disposal reports on
-// the Reports page belong to Components A/B/C respectively.
+// Displays the campaign completion report and export options.
 export default function CampaignReportModal({ campaignId, campaignName, onClose }: CampaignReportModalProps) {
   const report = useCampaignReport(campaignId);
   const exportReport = useExportCampaignReport();

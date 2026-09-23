@@ -1,12 +1,33 @@
+using System.Linq.Expressions;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Assets.Services;
 
 public class AssetCategoryService : IAssetCategoryService
 {
+    private static readonly Expression<Func<AssetCategory, AssetCategoryDto>> ToDtoExpression = c => new AssetCategoryDto
+    {
+        Id = c.Id,
+        Code = c.Code,
+        Name = c.Name,
+        IsActive = c.IsActive,
+        TypeCount = c.AssetTypes.Count,
+        AssetCount = c.AssetTypes.SelectMany(t => t.Assets).Count()
+    };
+
+    private static readonly IReadOnlyDictionary<string, Expression<Func<AssetCategory, object?>>> SortMap =
+        new Dictionary<string, Expression<Func<AssetCategory, object?>>>
+        {
+            ["code"] = c => c.Code,
+            ["name"] = c => c.Name,
+        };
+
     private readonly CoreGridDbContext _context;
 
     public AssetCategoryService(CoreGridDbContext context)
@@ -14,89 +35,58 @@ public class AssetCategoryService : IAssetCategoryService
         _context = context;
     }
 
-    public async Task<List<AssetCategoryDto>> GetCategoriesAsync(
-        Guid organizationId)
+    public async Task<PagedResult<AssetCategoryDto>> GetCategoriesAsync(
+        Guid organizationId,
+        PagedQuery query,
+        bool includeInactive,
+        CancellationToken cancellationToken)
     {
-        return await _context.AssetCategories
+        var categories = _context.AssetCategories
             .AsNoTracking()
-            .Where(c => c.OrganizationId == organizationId)
-            .OrderBy(c => c.Name)
-            .Select(c => new AssetCategoryDto
-            {
-                Id = c.Id,
-                Code = c.Code,
-                Name = c.Name,
-                IsActive = c.IsActive,
+            .Where(c => c.OrganizationId == organizationId);
 
-                TypeCount = c.AssetTypes.Count,
+        if (!includeInactive)
+        {
+            categories = categories.Where(c => c.IsActive);
+        }
 
-                AssetCount = c.AssetTypes
-                    .SelectMany(t => t.Assets)
-                    .Count()
-            })
-            .ToListAsync();
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var pattern = $"%{query.Search.Trim()}%";
+            categories = categories.Where(c => EF.Functions.ILike(c.Code, pattern) || EF.Functions.ILike(c.Name, pattern));
+        }
+
+        var sorted = categories.ApplySort(query, SortMap, defaultSortKey: "name");
+        return await sorted.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
     }
 
     public async Task<AssetCategoryDto?> GetCategoryByIdAsync(
         Guid organizationId,
-        Guid categoryId)
+        Guid categoryId,
+        CancellationToken cancellationToken)
     {
         return await _context.AssetCategories
             .AsNoTracking()
-            .Where(c =>
-                c.OrganizationId == organizationId &&
-                c.Id == categoryId)
-            .Select(c => new AssetCategoryDto
-            {
-                Id = c.Id,
-                Code = c.Code,
-                Name = c.Name,
-                IsActive = c.IsActive,
-
-                TypeCount = c.AssetTypes.Count,
-
-                AssetCount = c.AssetTypes
-                    .SelectMany(t => t.Assets)
-                    .Count()
-            })
-            .FirstOrDefaultAsync();
+            .Where(c => c.OrganizationId == organizationId && c.Id == categoryId)
+            .Select(ToDtoExpression)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<AssetCategoryDto> CreateCategoryAsync(
         Guid organizationId,
         Guid? userId,
-        CreateAssetCategoryRequest request)
+        CreateAssetCategoryRequest request,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Code))
-        {
-            throw new InvalidOperationException(
-                "Category code is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Category name is required.");
-        }
-
         var code = request.Code.Trim().ToUpperInvariant();
-
-        if (code.Length > 20)
-        {
-            throw new InvalidOperationException(
-                "Category code cannot be longer than 20 characters.");
-        }
 
         var codeInUse = await _context.AssetCategories
             .AsNoTracking()
-            .AnyAsync(c =>
-                c.OrganizationId == organizationId &&
-                c.Code == code);
+            .AnyAsync(c => c.OrganizationId == organizationId && c.Code == code, cancellationToken);
 
         if (codeInUse)
         {
-            throw new InvalidOperationException(
-                $"A category with code '{code}' already exists.");
+            throw new ConflictException($"A category with code '{code}' already exists.", "duplicate_code");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -115,8 +105,7 @@ public class AssetCategoryService : IAssetCategoryService
         };
 
         _context.AssetCategories.Add(category);
-
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return new AssetCategoryDto
         {
@@ -133,49 +122,26 @@ public class AssetCategoryService : IAssetCategoryService
         Guid organizationId,
         Guid categoryId,
         Guid? userId,
-        UpdateAssetCategoryRequest request)
+        UpdateAssetCategoryRequest request,
+        CancellationToken cancellationToken)
     {
         var category = await _context.AssetCategories
-            .FirstOrDefaultAsync(c =>
-                c.Id == categoryId &&
-                c.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(c => c.Id == categoryId && c.OrganizationId == organizationId, cancellationToken);
 
         if (category is null)
         {
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Code))
-        {
-            throw new InvalidOperationException(
-                "Category code is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new InvalidOperationException(
-                "Category name is required.");
-        }
-
         var code = request.Code.Trim().ToUpperInvariant();
-
-        if (code.Length > 20)
-        {
-            throw new InvalidOperationException(
-                "Category code cannot be longer than 20 characters.");
-        }
 
         var codeInUse = await _context.AssetCategories
             .AsNoTracking()
-            .AnyAsync(c =>
-                c.OrganizationId == organizationId &&
-                c.Code == code &&
-                c.Id != categoryId);
+            .AnyAsync(c => c.OrganizationId == organizationId && c.Code == code && c.Id != categoryId, cancellationToken);
 
         if (codeInUse)
         {
-            throw new InvalidOperationException(
-                $"A category with code '{code}' already exists.");
+            throw new ConflictException($"A category with code '{code}' already exists.", "duplicate_code");
         }
 
         category.Code = code;
@@ -183,9 +149,9 @@ public class AssetCategoryService : IAssetCategoryService
         category.UpdatedAt = DateTimeOffset.UtcNow;
         category.UpdatedBy = userId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetCategoryByIdAsync(organizationId, categoryId);
+        return await GetCategoryByIdAsync(organizationId, categoryId, cancellationToken);
     }
 
     // Deletes the category if nothing references it; otherwise deactivates
@@ -194,12 +160,11 @@ public class AssetCategoryService : IAssetCategoryService
     public async Task<(bool Found, bool HardDeleted, AssetCategoryDto? Category)> DeleteCategoryAsync(
         Guid organizationId,
         Guid categoryId,
-        Guid? userId)
+        Guid? userId,
+        CancellationToken cancellationToken)
     {
         var category = await _context.AssetCategories
-            .FirstOrDefaultAsync(c =>
-                c.Id == categoryId &&
-                c.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(c => c.Id == categoryId && c.OrganizationId == organizationId, cancellationToken);
 
         if (category is null)
         {
@@ -208,12 +173,12 @@ public class AssetCategoryService : IAssetCategoryService
 
         var referencedByAssetType = await _context.AssetTypes
             .AsNoTracking()
-            .AnyAsync(t => t.AssetCategoryId == categoryId);
+            .AnyAsync(t => t.AssetCategoryId == categoryId, cancellationToken);
 
         if (!referencedByAssetType)
         {
             _context.AssetCategories.Remove(category);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(cancellationToken);
             return (true, true, null);
         }
 
@@ -221,9 +186,9 @@ public class AssetCategoryService : IAssetCategoryService
         category.UpdatedAt = DateTimeOffset.UtcNow;
         category.UpdatedBy = userId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        var dto = await GetCategoryByIdAsync(organizationId, categoryId);
+        var dto = await GetCategoryByIdAsync(organizationId, categoryId, cancellationToken);
         return (true, false, dto);
     }
 
@@ -231,12 +196,11 @@ public class AssetCategoryService : IAssetCategoryService
         Guid organizationId,
         Guid categoryId,
         Guid? userId,
-        bool isActive)
+        bool isActive,
+        CancellationToken cancellationToken)
     {
         var category = await _context.AssetCategories
-            .FirstOrDefaultAsync(c =>
-                c.Id == categoryId &&
-                c.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(c => c.Id == categoryId && c.OrganizationId == organizationId, cancellationToken);
 
         if (category is null)
         {
@@ -247,8 +211,8 @@ public class AssetCategoryService : IAssetCategoryService
         category.UpdatedAt = DateTimeOffset.UtcNow;
         category.UpdatedBy = userId;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        return await GetCategoryByIdAsync(organizationId, categoryId);
+        return await GetCategoryByIdAsync(organizationId, categoryId, cancellationToken);
     }
 }
