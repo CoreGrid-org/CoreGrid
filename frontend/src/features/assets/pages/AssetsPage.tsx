@@ -217,57 +217,6 @@ export default function AssetsPage() {
                     <th>Condition</th>
                     <th>Acquisition cost</th>
                     <th style={{ width: "6.5rem", minWidth: "6.5rem", textAlign: "center" }}>Actions</th>
-            <table className="cg-table">
-              <thead>
-                <tr>
-                  <th>Asset code</th>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Department</th>
-                  <th>Location</th>
-                  <th>Status</th>
-                  <th>Condition</th>
-                  <th>Acquisition cost</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((asset) => (
-                  <tr key={asset.id} onClick={() => setSelectedAssetId(asset.id)} style={{ cursor: "pointer" }}>
-                    <td className="cg-table__mono">{asset.asset_code}</td>
-                    <td>{asset.name}</td>
-                    <td className="cg-table__muted">{asset.asset_type_name}</td>
-                    <td className="cg-table__muted">{asset.department_name}</td>
-                    <td className="cg-table__muted">{asset.location_name}</td>
-                    <td>
-                      <Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag>
-                    </td>
-                    <td>
-                      <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
-                    </td>
-                    <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: "flex", gap: "0.25rem" }}>
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={Time}
-                          iconDescription="View history"
-                          hasIconOnly
-                          onClick={() => setHistoryAsset(asset)}
-                        />
-                        {canManageAssets && (
-                          <Button
-                            kind="ghost"
-                            size="sm"
-                            renderIcon={Edit}
-                            iconDescription="Update asset"
-                            hasIconOnly
-                            onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
-                          />
-                        )}
-                      </div>
-                    </td>
                   </tr>
                 </thead>
                 <tbody>
@@ -295,14 +244,16 @@ export default function AssetsPage() {
                             hasIconOnly
                             onClick={() => setHistoryAsset(asset)}
                           />
-                          <Button
-                            kind="ghost"
-                            size="sm"
-                            renderIcon={Edit}
-                            iconDescription="Update asset"
-                            hasIconOnly
-                            onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
-                          />
+                          {canManageAssets && (
+                            <Button
+                              kind="ghost"
+                              size="sm"
+                              renderIcon={Edit}
+                              iconDescription="Update asset"
+                              hasIconOnly
+                              onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
