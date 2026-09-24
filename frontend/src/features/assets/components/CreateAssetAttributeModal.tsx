@@ -3,8 +3,7 @@ import {
   Modal,
   TextInput,
   NumberInput,
-  Select,
-  SelectItem,
+  Dropdown,
   Checkbox,
   InlineNotification,
   Button,
@@ -155,16 +154,14 @@ export default function CreateAssetAttributeModal({
         />
 
         {/* ── Data type ── */}
-        <Select
+        <Dropdown
           id="create-attribute-data-type"
-          labelText="Data type"
-          value={dataType}
-          onChange={(e) => handleDataTypeChange(e.target.value as AssetAttributeDataType)}
-        >
-          {ASSET_ATTRIBUTE_DATA_TYPES.map((t) => (
-            <SelectItem key={t} value={t} text={t} />
-          ))}
-        </Select>
+          titleText="Data type"
+          label={dataType}
+          items={ASSET_ATTRIBUTE_DATA_TYPES}
+          selectedItem={dataType}
+          onChange={({ selectedItem }) => selectedItem && handleDataTypeChange(selectedItem as AssetAttributeDataType)}
+        />
 
         {/* ── SELECT — options builder ── */}
         {dataType === "SELECT" && (

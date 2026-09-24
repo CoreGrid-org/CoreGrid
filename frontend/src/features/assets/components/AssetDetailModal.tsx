@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Modal, InlineNotification, Tag, Dropdown, Button, Pagination } from "@carbon/react";
 import { Modal, InlineNotification, Tag, Select, SelectItem, Button, Pagination } from "@carbon/react";
 import { useMe } from "@/features/auth/hooks/useMe";
 import { useAssetDetail, useAssetHistory, useUpdateAssetCondition } from "../hooks/useAssets";
@@ -150,6 +151,17 @@ export default function AssetDetailModal({ assetId, onClose, onConditionUpdated 
                 />
               )}
 
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", marginBottom: "1.5rem" }}>
+            <div style={{ minWidth: "12rem" }}>
+              <Dropdown
+                id="asset-condition"
+                titleText="Update condition"
+                label={condition ? formatStatusLabel(condition) : "Select condition"}
+                items={ASSET_CONDITIONS}
+                itemToString={(c) => (c ? formatStatusLabel(c) : "")}
+                selectedItem={condition}
+                onChange={({ selectedItem }) => selectedItem && setCondition(selectedItem)}
+              />
               <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", marginBottom: "1.5rem" }}>
                 <div style={{ minWidth: "12rem" }}>
                   <Select

@@ -660,9 +660,11 @@ html, body, #root {
 
 // ─── Row action buttons (trailing table cell / section header) ───────────────
 .cg-row-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  white-space: nowrap !important;
 
   &--full { padding: 0 0 0.5rem; }
 }
@@ -723,6 +725,31 @@ html, body, #root {
 .cds--tag--blue {
   background-color: color.adjust($cg-accent, $lightness: 38%) !important;
   color: $cg-accent-dark !important;
+}
+
+// Carbon ListBox / ComboBox / Dropdown menu expansion overrides:
+// Ensure dropdown menus pop over and dynamically expand to show full item names without truncating
+.cds--list-box__menu {
+  width: max-content !important;
+  min-width: 100% !important;
+  max-width: min(32rem, 90vw) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+  z-index: 9000 !important;
+}
+
+.cds--list-box__menu-item {
+  height: auto !important;
+  min-height: 2.5rem !important;
+}
+
+.cds--list-box__menu-item__option {
+  white-space: normal !important;
+  word-break: break-word !important;
+  text-overflow: unset !important;
+  overflow: visible !important;
+  line-height: 1.35 !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
 }
 
 // ─── Top-nav-only content (no sidebar) ────────────────────────────────────────
