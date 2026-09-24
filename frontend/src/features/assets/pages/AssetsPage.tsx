@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Tag, Button, ComboBox, Select, SelectItem, Pagination, InlineNotification } from "@carbon/react";
+import { Tag, Button, ComboBox, Dropdown, Pagination, InlineNotification } from "@carbon/react";
 import { Add, Edit, Search, Time } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
@@ -93,7 +93,7 @@ export default function AssetsPage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Asset Register</h1>
-          <p className="cg-page__subtitle">Every asset in the organisation, searchable and filterable (FR-021 to FR-025).</p>
+          <p className="cg-page__subtitle"></p>
         </div>
         <Button renderIcon={Add} onClick={() => navigate(`${assetsBasePath}/new`)}>
           Register asset
@@ -112,83 +112,88 @@ export default function AssetsPage() {
       )}
 
       <div className="cg-section">
-        <div className="cg-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
-          <div className="cg-search" style={{ minWidth: "18rem" }}>
-            <Search size={16} className="cg-search__icon" />
-            <input
-              className="cg-search__input"
-              placeholder="Search by code, name, category, type, or attribute value…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
+        <div className="cg-toolbar" style={{ flexDirection: "column", gap: "0.75rem", alignItems: "stretch" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", width: "100%" }}>
+            <div className="cg-search" style={{ minWidth: "16rem", flex: "1 1 16rem" }}>
+              <Search size={16} className="cg-search__icon" />
+              <input
+                className="cg-search__input"
+                placeholder="Search by code, name, category, type, or attribute value…"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+            <div style={{ minWidth: "11rem", flex: "1 1 11rem" }}>
+              <ComboBox<AssetCategory>
+                id="asset-filter-category"
+                aria-label="Category"
+                placeholder="All categories"
+                items={categories ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={categories?.find((c) => c.id === categoryId) ?? null}
+                onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
+              />
+            </div>
+            <div style={{ minWidth: "11rem", flex: "1 1 11rem" }}>
+              <ComboBox<AssetType>
+                id="asset-filter-type"
+                aria-label="Type"
+                placeholder="All types"
+                items={assetTypes ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={assetTypes?.find((t) => t.id === assetTypeId) ?? null}
+                onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
+              />
+            </div>
+            <div style={{ minWidth: "11rem", flex: "1 1 11rem" }}>
+              <ComboBox<Department>
+                id="asset-filter-department"
+                aria-label="Department"
+                placeholder="All departments"
+                items={departments ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={departments?.find((d) => d.id === departmentId) ?? null}
+                onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
+              />
+            </div>
+            <div style={{ minWidth: "11rem", flex: "1 1 11rem" }}>
+              <Dropdown
+                id="asset-filter-status"
+                titleText=""
+                aria-label="Status"
+                label="All statuses"
+                items={["", ...ASSET_STATUSES]}
+                itemToString={(item) => (item ? formatStatusLabel(item) : "All statuses")}
+                selectedItem={status}
+                onChange={({ selectedItem }) => setStatus(selectedItem ?? "")}
+              />
+            </div>
           </div>
-          <div style={{ minWidth: "10rem" }}>
-            <ComboBox<AssetCategory>
-              id="asset-filter-category"
-              aria-label="Category"
-              placeholder="All categories"
-              items={categories ?? []}
-              itemToString={(item) => item?.name ?? ""}
-              selectedItem={categories?.find((c) => c.id === categoryId) ?? null}
-              onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
-            />
-          </div>
-          <div style={{ minWidth: "10rem" }}>
-            <ComboBox<AssetType>
-              id="asset-filter-type"
-              aria-label="Type"
-              placeholder="All types"
-              items={assetTypes ?? []}
-              itemToString={(item) => item?.name ?? ""}
-              selectedItem={assetTypes?.find((t) => t.id === assetTypeId) ?? null}
-              onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
-            />
-          </div>
-          <div style={{ minWidth: "10rem" }}>
-            <ComboBox<Department>
-              id="asset-filter-department"
-              aria-label="Department"
-              placeholder="All departments"
-              items={departments ?? []}
-              itemToString={(item) => item?.name ?? ""}
-              selectedItem={departments?.find((d) => d.id === departmentId) ?? null}
-              onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
-            />
-          </div>
-          <div style={{ minWidth: "10rem" }}>
-            <ComboBox<Location>
-              id="asset-filter-location"
-              aria-label="Location"
-              placeholder="All locations"
-              items={locations ?? []}
-              itemToString={(item) => item?.name ?? ""}
-              selectedItem={locations?.find((l) => l.id === locationId) ?? null}
-              onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
-            />
-          </div>
-          <div style={{ minWidth: "10rem" }}>
-            <Select
-              id="asset-filter-status"
-              labelText="Status"
-              hideLabel
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <SelectItem value="" text="All statuses" />
-              {ASSET_STATUSES.map((s) => <SelectItem key={s} value={s} text={formatStatusLabel(s)} />)}
-            </Select>
-          </div>
-          <div style={{ minWidth: "10rem" }}>
-            <Select
-              id="asset-filter-condition"
-              labelText="Condition"
-              hideLabel
-              value={condition}
-              onChange={(e) => setCondition(e.target.value)}
-            >
-              <SelectItem value="" text="All conditions" />
-              {ASSET_CONDITIONS.map((c) => <SelectItem key={c} value={c} text={formatStatusLabel(c)} />)}
-            </Select>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", width: "100%" }}>
+            <div style={{ flex: "1 1 20rem", minWidth: "16rem" }}>
+              <ComboBox<Location>
+                id="asset-filter-location"
+                aria-label="Location"
+                placeholder="All locations"
+                items={locations ?? []}
+                itemToString={(item) => item?.name ?? ""}
+                selectedItem={locations?.find((l) => l.id === locationId) ?? null}
+                onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
+              />
+            </div>
+            <div style={{ minWidth: "12rem", flex: "0 1 14rem" }}>
+              <Dropdown
+                id="asset-filter-condition"
+                titleText=""
+                aria-label="Condition"
+                label="All conditions"
+                items={["", ...ASSET_CONDITIONS]}
+                itemToString={(item) => (item ? formatStatusLabel(item) : "All conditions")}
+                selectedItem={condition}
+                onChange={({ selectedItem }) => setCondition(selectedItem ?? "")}
+              />
+            </div>
           </div>
         </div>
 
@@ -198,59 +203,61 @@ export default function AssetsPage() {
           </div>
         ) : data && data.items.length > 0 ? (
           <>
-            <table className="cg-table">
-              <thead>
-                <tr>
-                  <th>Asset code</th>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Department</th>
-                  <th>Location</th>
-                  <th>Status</th>
-                  <th>Condition</th>
-                  <th>Acquisition cost</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((asset) => (
-                  <tr key={asset.id} onClick={() => setSelectedAssetId(asset.id)} style={{ cursor: "pointer" }}>
-                    <td className="cg-table__mono">{asset.asset_code}</td>
-                    <td>{asset.name}</td>
-                    <td className="cg-table__muted">{asset.asset_type_name}</td>
-                    <td className="cg-table__muted">{asset.department_name}</td>
-                    <td className="cg-table__muted">{asset.location_name}</td>
-                    <td>
-                      <Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag>
-                    </td>
-                    <td>
-                      <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
-                    </td>
-                    <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: "flex", gap: "0.25rem" }}>
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={Time}
-                          iconDescription="View history"
-                          hasIconOnly
-                          onClick={() => setHistoryAsset(asset)}
-                        />
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={Edit}
-                          iconDescription="Update asset"
-                          hasIconOnly
-                          onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
-                        />
-                      </div>
-                    </td>
+            <div style={{ overflowX: "auto", width: "100%" }}>
+              <table className="cg-table">
+                <thead>
+                  <tr>
+                    <th>Asset code</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Department</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Condition</th>
+                    <th>Acquisition cost</th>
+                    <th style={{ width: "6.5rem", minWidth: "6.5rem", textAlign: "center" }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.items.map((asset) => (
+                    <tr key={asset.id} onClick={() => setSelectedAssetId(asset.id)} style={{ cursor: "pointer" }}>
+                      <td className="cg-table__mono">{asset.asset_code}</td>
+                      <td>{asset.name}</td>
+                      <td className="cg-table__muted">{asset.asset_type_name}</td>
+                      <td className="cg-table__muted">{asset.department_name}</td>
+                      <td className="cg-table__muted">{asset.location_name}</td>
+                      <td>
+                        <Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag>
+                      </td>
+                      <td>
+                        <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
+                      </td>
+                      <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
+                      <td onClick={(e) => e.stopPropagation()} style={{ width: "6.5rem", minWidth: "6.5rem", padding: "0.5rem 0.75rem", verticalAlign: "middle" }}>
+                        <div className="cg-row-actions" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                          <Button
+                            kind="ghost"
+                            size="sm"
+                            renderIcon={Time}
+                            iconDescription="View history"
+                            hasIconOnly
+                            onClick={() => setHistoryAsset(asset)}
+                          />
+                          <Button
+                            kind="ghost"
+                            size="sm"
+                            renderIcon={Edit}
+                            iconDescription="Update asset"
+                            hasIconOnly
+                            onClick={() => navigate(`${assetsBasePath}/${asset.id}/edit`)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <Pagination
               page={data.page}
               pageSize={data.page_size}

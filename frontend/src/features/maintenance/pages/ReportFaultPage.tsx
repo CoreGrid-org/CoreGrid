@@ -4,8 +4,7 @@ import {
   Form,
   FormGroup,
   TextArea,
-  Select,
-  SelectItem,
+  Dropdown,
   Button,
   InlineNotification,
   FileUploader,
@@ -109,18 +108,17 @@ export default function ReportFaultPage() {
               style={{ marginBottom: "1rem" }}
             />
 
-            <Select
-              id="observedCondition"
-              labelText="Observed Condition"
-              value={observedCondition}
-              onChange={(e) => setCondition(e.target.value)}
-              required
-              style={{ marginBottom: "1rem" }}
-            >
-              <SelectItem value="" text="Choose condition..." disabled hidden />
-              <SelectItem value="POOR" text="Poor - Needs Repair" />
-              <SelectItem value="UNSERVICEABLE" text="Unserviceable - Broken" />
-            </Select>
+            <div style={{ marginBottom: "1rem" }}>
+              <Dropdown
+                id="observedCondition"
+                titleText="Observed Condition"
+                label={observedCondition ? (observedCondition === "POOR" ? "Poor - Needs Repair" : "Unserviceable - Broken") : "Choose condition..."}
+                items={["POOR", "UNSERVICEABLE"]}
+                itemToString={(item) => (item === "POOR" ? "Poor - Needs Repair" : item === "UNSERVICEABLE" ? "Unserviceable - Broken" : "")}
+                selectedItem={observedCondition}
+                onChange={({ selectedItem }) => selectedItem && setCondition(selectedItem)}
+              />
+            </div>
 
             <div style={{ marginBottom: "1rem" }}>
               <FileUploader

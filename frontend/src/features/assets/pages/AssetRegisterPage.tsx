@@ -5,8 +5,7 @@ import {
   TextInput,
   NumberInput,
   ComboBox,
-  Select,
-  SelectItem,
+  Dropdown,
   Checkbox,
   InlineNotification,
   CodeSnippet,
@@ -329,16 +328,15 @@ export default function AssetRegisterPage() {
                 onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
               />
               {!isEditMode && (
-                <Select
+                <Dropdown
                   id="register-asset-condition"
-                  labelText="Condition"
-                  value={condition}
-                  onChange={(e) => setCondition(e.target.value as AssetCondition)}
-                >
-                  {ASSET_CONDITIONS.map((c) => (
-                    <SelectItem key={c} value={c} text={formatStatusLabel(c)} />
-                  ))}
-                </Select>
+                  titleText="Condition"
+                  label={formatStatusLabel(condition)}
+                  items={ASSET_CONDITIONS}
+                  itemToString={(item) => (item ? formatStatusLabel(item) : "")}
+                  selectedItem={condition}
+                  onChange={({ selectedItem }) => selectedItem && setCondition(selectedItem)}
+                />
               )}
               <TextInput
                 id="register-asset-acquisition-date"
@@ -404,17 +402,19 @@ export default function AssetRegisterPage() {
                   }
 
                   if (def.data_type === "SELECT") {
+                    const options = def.select_options ?? [];
+                    const currentValue = typeof value === "string" ? value : "";
                     return (
-                      <Select
+                      <Dropdown
                         key={def.id}
                         id={`register-attr-${def.id}`}
-                        labelText={label}
-                        value={typeof value === "string" ? value : ""}
-                        onChange={(e) => setValue(e.target.value)}
-                      >
-                        <SelectItem value="" text="Choose…" />
-                        {def.select_options?.map((o) => <SelectItem key={o} value={o} text={o} />)}
-                      </Select>
+                        titleText={label}
+                        label={currentValue || "Choose…"}
+                        items={["", ...options]}
+                        itemToString={(item) => item || "Choose…"}
+                        selectedItem={currentValue}
+                        onChange={({ selectedItem }) => setValue(selectedItem ?? "")}
+                      />
                     );
                   }
 

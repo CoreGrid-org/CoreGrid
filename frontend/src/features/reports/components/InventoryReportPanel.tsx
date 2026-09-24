@@ -1,4 +1,4 @@
-import { Button, ComboBox, InlineNotification, Search, Select, SelectItem, SkeletonText, Tag } from "@carbon/react";
+import { Button, ComboBox, Dropdown, InlineNotification, Search, SkeletonText, Tag } from "@carbon/react";
 import { DocumentExport, DocumentPdf } from "@carbon/icons-react";
 import { jsPDF } from "jspdf";
 import { useEffect, useState } from "react";
@@ -265,14 +265,24 @@ export default function InventoryReportPanel() {
           onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
           disabled={!departmentId && locations?.length === 0}
         />
-        <Select id="inventory-report-status" labelText="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
-          <SelectItem value="" text="All statuses" />
-          {ASSET_STATUSES.map((value) => <SelectItem key={value} value={value} text={formatStatusLabel(value)} />)}
-        </Select>
-        <Select id="inventory-report-condition" labelText="Condition" value={condition} onChange={(event) => setCondition(event.target.value)}>
-          <SelectItem value="" text="All conditions" />
-          {ASSET_CONDITIONS.map((value) => <SelectItem key={value} value={value} text={formatStatusLabel(value)} />)}
-        </Select>
+        <Dropdown
+          id="inventory-report-status"
+          titleText="Status"
+          label="All statuses"
+          items={["", ...ASSET_STATUSES]}
+          itemToString={(val) => (val ? formatStatusLabel(val) : "All statuses")}
+          selectedItem={status}
+          onChange={({ selectedItem }) => setStatus(selectedItem ?? "")}
+        />
+        <Dropdown
+          id="inventory-report-condition"
+          titleText="Condition"
+          label="All conditions"
+          items={["", ...ASSET_CONDITIONS]}
+          itemToString={(val) => (val ? formatStatusLabel(val) : "All conditions")}
+          selectedItem={condition}
+          onChange={({ selectedItem }) => setCondition(selectedItem ?? "")}
+        />
         <Button
           kind="ghost"
           size="md"
