@@ -18,6 +18,7 @@ vi.mock("../api/workflows", () => ({
   createWorkflow: vi.fn(),
   evaluatePolicy: vi.fn(),
   runPolicyAgent: vi.fn(),
+  runMaintenanceAgent: vi.fn(),
   decideWorkflow: vi.fn(),
 }));
 vi.mock("@/features/auth/services/me", () => ({
@@ -47,6 +48,7 @@ const AWAITING: AgentWorkflow = {
   approval_status: "PENDING",
   revision_count: 0,
   failure_reason: null,
+  maintenance_analysis: null,
   validation_result: {
     verdict: "PASS",
     rule_results: [{ rule_id: "PR-01", expected: "CONDEMNED", actual: "CONDEMNED", outcome: "PASS" }],
@@ -67,12 +69,13 @@ describe("WorkflowsPage", () => {
     listWorkflowsMock.mockResolvedValue([AWAITING]);
     render(<WorkflowsPage />);
 
-    expect(screen.getByText("The Planner, Maintenance Analysis and Budget Analysis agents aren't built yet")).toBeInTheDocument();
+    expect(screen.getByText("Planner and Maintenance Analysis Agents are connected")).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(await screen.findByRole("tab", { name: "Awaiting Approval" }));
 
-    expect(await screen.findByText("MOHSL-ICT-SRV-0002: recommends Dispose")).toBeInTheDocument();
+    expect(await screen.findByText("MOHSL-ICT-SRV-0002")).toBeInTheDocument();
+    expect(screen.getByText("Dispose")).toBeInTheDocument();
     expect(screen.getByText("High impact")).toBeInTheDocument();
     expect(screen.getByText("PR-01")).toBeInTheDocument();
     expect(screen.getByText("CONDEMNED → CONDEMNED")).toBeInTheDocument();

@@ -19,84 +19,132 @@ The subsystem is deliberately not a chatbot, not a question-answering interface 
 
 One workflow is designated as the assessed workflow and satisfies every element of the assignment's minimum acceptance rule. It is initiated from either client, executes through the four agents, validates deterministically, pauses for approval, and returns an updated status to the user who started it.
 
-```
-  ┌────────────────────────────────────────────────────────────────────────┐
-  │  ENTRY   Officer scans AST-00042 in Flutter and taps "Evaluate"        │
-  │          → POST /api/workflows/asset-evaluation  {assetId, objective}  │
-  │          → API validates authorisation, asset state, no run in flight  │
-  │          → persists AgentWorkflow (status = PLANNING) and returns id   │
-  └────────────────────────────────┬───────────────────────────────────────┘
-                                   ▼
-  ┌──── NODE 1 · PLANNER AGENT ────────────────────────────────────────────┐
-  │  in: objective + asset summary   out: ordered plan of 4–6 typed steps  │
-  │  tools: get_asset_summary (read-only)                                  │
-  │  persists: plan[] to workflow state                                    │
-  └────────────────────────────────┬───────────────────────────────────────┘
-                                   ▼
-  ┌──── NODE 2 · MAINTENANCE ANALYSIS AGENT ───────────────────────────────┐
-  │  in: assetId + plan step        out: MaintenanceAnalysis (typed)       │
-  │  tools: get_maintenance_history, compute_failure_statistics            │
-  │  produces: repair count, cumulative cost, MTBF, cost trend,            │
-  │            projected 12-month repair cost, confidence                  │
-  └────────────────────────────────┬───────────────────────────────────────┘
-                                   ▼
-  ┌──── NODE 3 · BUDGET ANALYSIS AGENT ────────────────────────────────────┐
-  │  in: MaintenanceAnalysis        out: FinancialAssessment (typed)       │
-  │  tools: get_asset_financials, get_department_budget_summary,           │
-  │         compute_depreciation                                           │
-  │  produces: residual value, replacement estimate, repair:replace ratio, │
-  │            budget headroom, option ranking with rationale              │
-  └────────────────────────────────┬───────────────────────────────────────┘
-                                   ▼
-  ┌──── NODE 4 · POLICY COMPLIANCE AGENT ──────────────────────────────────┐
-  │  in: proposed recommendation    out: PolicyValidation (typed)          │
-  │  tools: get_organization_policies, get_asset_compliance_state          │
-  │  the verdict is produced by a DETERMINISTIC RULE ENGINE, not the LLM   │
-  └────────────────────────────────┬───────────────────────────────────────┘
-                                   ▼
-                       ┌───────────────────────┐
-                       │ DETERMINISTIC GATE    │
-                       │ schema + rules + auth │
-                       └───┬───────┬───────┬───┘
-            FAIL (fatal)   │       │ PASS  │  NEEDS_REVISION
-              ▼            │       ▼       │        ▼
-        SAFE FAILURE ◀─────┘   is action   └──▶ back to NODE 2
-        no state change        high-impact?      (max 2 revisions)
-                                   │
-                    ┌──────────────┴───────────────┐
-                 NO │                              │ YES
-                    ▼                              ▼
-            COMPLETED_ADVISORY          ┌──────────────────────────┐
-            recommendation stored       │  INTERRUPT — HITL PAUSE  │
-            no state change             │  status AWAITING_APPROVAL│
-                                        │  checkpoint persisted    │
-                                        └────────────┬─────────────┘
-                                                     ▼
-                                   Administrator reviews in REACT
-                                   [ APPROVE ] [ REJECT ] [ REVISE ]
-                                                     │
-                    ┌────────────────────────────────┼──────────────────┐
-                    ▼                                ▼                  ▼
-              APPROVED                          REJECTED            REVISION
-   API resumes from checkpoint,           terminal, reason      re-enters NODE 2
-   executes the action through the        recorded, no state    with reviewer
-   ordinary business service, writes      change                comments
-   audit entry, notifies, and returns
-   updated status to FLUTTER  ◀── cross-platform loop closed
+```mermaid
+flowchart TD
+    ENTRY["ENTRY\nOfficer scans AST-00042 in Flutter, taps Evaluate\nPOST /api/workflows/asset-evaluation {assetId, objective}\nAPI validates authorisation, asset state, no run in flight\npersists AgentWorkflow (status=PLANNING), returns id"]
+
+    N1["NODE 1 · PLANNER AGENT\nin: objective + asset summary → out: ordered plan, 4-6 typed steps\ntools: get_asset_summary (read-only)\npersists: plan[] to workflow state"]
+
+    N2["NODE 2 · MAINTENANCE ANALYSIS AGENT\nin: assetId + plan step → out: MaintenanceAnalysis (typed)\ntools: get_maintenance_history, compute_failure_statistics\nproduces: repair count, cumulative cost, MTBF, cost trend,\nprojected 12-month repair cost, confidence"]
+
+    N3["NODE 3 · BUDGET ANALYSIS AGENT\nin: MaintenanceAnalysis → out: FinancialAssessment (typed)\ntools: get_asset_financials, get_department_budget_summary,\ncompute_depreciation\nproduces: residual value, replacement estimate,\nrepair:replace ratio, budget headroom, ranked options"]
+
+    N4["NODE 4 · POLICY COMPLIANCE AGENT\nin: proposed recommendation → out: PolicyValidation (typed)\ntools: get_organization_policies, get_asset_compliance_state\nverdict is a DETERMINISTIC RULE ENGINE, not the model"]
+
+    GATE{{"DETERMINISTIC GATE\nschema + rules + auth"}}
+    SAFE["SAFE FAILURE\nno state change"]
+    IMPACT{"is action\nhigh-impact?"}
+    ADVISORY["COMPLETED_ADVISORY\nrecommendation stored, no state change"]
+    INTERRUPT["INTERRUPT — HITL PAUSE\nstatus AWAITING_APPROVAL, checkpoint persisted"]
+    REACT["Administrator reviews in REACT\nAPPROVE / REJECT / REVISE"]
+    APPROVED["APPROVED\nAPI resumes from checkpoint, executes the action through\nthe ordinary business service, writes audit entry, notifies,\nreturns updated status to FLUTTER — cross-platform loop closed"]
+    REJECTED["REJECTED\nterminal, reason recorded, no state change"]
+
+    ENTRY --> N1 --> N2 --> N3 --> N4 --> GATE
+    GATE -->|"FAIL (fatal)"| SAFE
+    GATE -->|"NEEDS_REVISION\n(max 2 revisions)"| N2
+    GATE -->|PASS| IMPACT
+    IMPACT -->|No| ADVISORY
+    IMPACT -->|Yes| INTERRUPT --> REACT
+    REACT -->|APPROVE| APPROVED
+    REACT -->|REJECT| REJECTED
+    REACT -->|"REVISE\n(max 2 revisions)"| N2
 ```
 
 Figure 8 — The assessed Asset Lifecycle Decision workflow, satisfying the minimum acceptance rule end to end.
+
+## 7.2.1 Orchestrator, Agent Nodes, and When a Node May Call a Model
+
+**Target architecture, decided 2026-09-15, superseding ADR-005's original "Python LangGraph" scope (appendix D):** the entire agent subsystem — the Orchestrator and all four agent nodes — runs in-process inside the single ASP.NET Core API deployable. There is no separate agent runtime, container or network hop. This follows directly from CoreGrid's M0 deployment model (§4.1, §19.10): one deployment per customer, so the fewer independently-deployed services a customer has to install, patch and secure, the better — an enterprise buyer's security review has one process boundary to evaluate, not several, and AI-21's "private network path" requirement becomes structurally true rather than something to configure.
+
+```mermaid
+flowchart TD
+    subgraph API["ASP.NET Core API — the only deployable"]
+        ORCH["Agent Orchestrator\nAgentWorkflowService\ncontrol-plane only"]
+
+        subgraph TOOLS_O["Orchestrator tools (control-plane)"]
+            direction LR
+            T1[persist_workflow_state]
+            T2[checkpoint / resume]
+            T3[enforce_timeout]
+            T4[run_deterministic_gate]
+            T5[request_human_approval]
+        end
+
+        N1["Planner\nIAgentNode\ncalls IModelClient"]
+        N2["Maintenance Analysis\nIAgentNode\nno model call"]
+        N3["Budget Analysis\nIAgentNode\nno model call (target)"]
+        N4["Policy Compliance\nIAgentNode\nno model call"]
+
+        TOOL1[get_asset_summary]
+        TOOL2["get_maintenance_history\ncompute_failure_statistics"]
+        TOOL3["get_asset_financials\nget_department_budget_summary\ncompute_depreciation"]
+        TOOL4["get_organization_policies\nget_asset_compliance_state"]
+
+        IMC["IModelClient"]
+
+        ORCH --- TOOLS_O
+        ORCH -->|sequences, typed handoff| N1 & N2 & N3 & N4
+        N1 --> TOOL1
+        N2 --> TOOL2
+        N3 --> TOOL3
+        N4 --> TOOL4
+        N1 --> IMC
+    end
+
+    IMC -->|"outbound HTTPS,\nprovider chosen by config"| MODEL["Azure OpenAI / OpenAI /\nAnthropic / on-prem model"]
+```
+
+Each agent's tool box is that agent's own allow-list (§7.4) — disjoint from every other agent's, and never touched by the Orchestrator directly.
+
+**The Orchestrator** is `AgentWorkflowService`. It owns the `AgentWorkflow` row, sequences the four nodes in order, enforces the per-tool timeout and retry budget (AI-06) and the overall 120-second budget (AI-25), runs the three-stage deterministic gate (§7.6), persists every checkpoint (AI-08/AI-09) and drives the human-approval interrupt (§7.7). It holds a small set of its own tools, and they are control-plane only — it never holds a business tool and never reasons about the asset itself:
+
+| Orchestrator tool | Purpose |
+|---|---|
+| `persist_workflow_state` | Write the current `AgentWorkflow`/`AgentExecutionStep` row |
+| `checkpoint` / `resume` | AI-09 — resume a paused workflow without re-executing completed steps |
+| `enforce_timeout` | AI-06, AI-25 — per-tool and per-workflow deadlines |
+| `run_deterministic_gate` | §7.6 — schema, business-rule and authorisation stages |
+| `request_human_approval` | AI-13 — raise the AWAITING_APPROVAL interrupt |
+
+**The four agents** (§7.3) are the Orchestrator's workers, each implementing a common `IAgentNode<TIn, TOut>` contract (one typed input, one typed output — exactly the contracts already in §7.3's table). Each holds its own disjoint allow-list of *business* tools (§7.4) that the Orchestrator itself never touches directly. A node's own reasoning step may or may not call a model; that's a property of the node, decided by the criteria below, not a property of "being an agent" — nothing about the pattern requires a model call, and a node that doesn't need one is just a typed method.
+
+**`IModelClient` — the only place a model call is made.** A node that needs one calls a single abstraction, not a provider SDK directly:
+
+```
+IModelClient.CompleteAsync<TOut>(ModelRequest request, CancellationToken ct) : Task<TOut>
+```
+
+The concrete provider — Azure OpenAI, OpenAI, Anthropic, or an on-prem/local model for a data-residency-constrained customer — is selected by configuration per deployment, never hardcoded into a node. This is what makes "which model vendor" a deployment decision for a customer's procurement team, not an engineering decision baked into the product, and it is the direct extension of the "provider-agnostic model call" principle already used for the Budget Analysis Agent (§7.3).
+
+**When a node may call a model.** A node calls one only when all four hold; if any fails, it must be deterministic:
+
+1. **Unstructured input** — the node has to interpret free text or another genuinely open-ended signal a fixed predicate can't parse (an objective typed by a human, not a set of typed fields).
+2. **Unenumerable output space** — the decision can't be written as `if <field> <operator> <threshold> then <outcome>` over the node's own input contract. If it can, write that rule instead; it is faster, free, reproducible and directly satisfies AI-12 (a reviewer must be able to reconstruct *why* from the persisted artefacts, not from a model's mood on the day) — and, commercially, every rule-based node is one fewer inference call in the product's cost of goods sold.
+3. **Advisory, not compliance-or-irreversible** — the node's output is never itself the verdict that permits a high-impact action. This is the existing rationale in §7.3 ("Why the Policy Agent does not decide"), generalised: nothing that gates an irreversible action may originate from a probabilistic call.
+4. **Non-determinism is acceptable for that specific output** — reviewers can tolerate two runs producing differently-phrased-but-equivalent output; they cannot tolerate two runs producing different *recommendations* from identical facts.
+
+Applied to the four agents:
+
+| Agent | Calls `IModelClient`? | Why |
+|---|---|---|
+| Planner | Yes | Free-text objective (criterion 1), plan shape isn't enumerable from a handful of predicates (2), output is advisory — a rejected/accepted plan, never an executed action (3) |
+| Maintenance Analysis | No | Repair count, MTBF, cost trend and 12-month projection are closed-form statistics over typed maintenance records — criterion 2 fails, so a model would add cost, latency, non-reproducibility and per-run inference spend for zero benefit. Same shape as Policy Compliance. |
+| Budget Analysis | No, target design — presently yes in the existing implementation | Residual value, replacement estimate, ratio and headroom are arithmetic (criterion 2 fails); the one generative part — rationale text on each ranked option — doesn't decide anything, it explains numbers already computed deterministically, so it can be templated instead of modelled. Target design moves this node in-process with the other three; the currently-built implementation (§7.3) predates this decision and is migrated on its own owner's schedule, not rewritten by this document. |
+| Policy Compliance | No | The verdict gates a potentially irreversible action — criterion 3 forbids a model outright, independent of how enumerable the rules are. |
+
+Under the target design, only **one** agent — Planner — calls a model at all. That is not a compromise; it is the criteria applied honestly, and it is also the cheapest and easiest-to-audit shape the subsystem could take while still satisfying the assignment's requirement for a genuine agentic reasoning step (§7.11).
 
 ## 7.3 Agent Specifications
 
 An agent counts as distinct only where it has an identifiable responsibility, a defined input and output contract, controlled tool permissions and visible participation in the workflow. The four agents below satisfy that test: each consumes a different input, produces a different typed artefact, holds a different tool allow-list, and appears as a separate node with its own recorded execution in the workflow trace. None is a renamed copy of another.
 
-| Agent | Owner | Responsibility | Input contract | Output contract | Allow-listed tools |
-|---|---|---|---|---|---|
-| Planner Agent | Student 1 | Interpret the objective, confirm it is in scope, and produce an ordered, typed plan naming which agent executes each step. Rejects out-of-scope objectives before any analysis is performed. | `EvaluationObjective { assetId, objectiveText, initiatedBy, organizationId }` | `ExecutionPlan { steps[]: { seq, agent, purpose, expectedOutput }, inScope, rejectionReason? }` | `get_asset_summary` |
-| Maintenance Analysis Agent | Student 2 | Quantify the asset's maintenance behaviour: how often it fails, what it has cost, whether the trend is worsening, and what the next twelve months are likely to cost. | `MaintenanceAnalysisRequest { assetId, windowMonths }` | `MaintenanceAnalysis { repairCount, cumulativeCost, meanTimeBetweenFailuresDays, costTrend, projectedAnnualCost, dataQuality, confidence }` | `get_maintenance_history`, `compute_failure_statistics` |
-| Budget Analysis Agent | Student 3 | Convert the maintenance picture into a financial comparison: residual value against projected repair cost against replacement cost, within the department's budget reality, and rank the options. | `FinancialAssessmentRequest { assetId, maintenanceAnalysis }` | `FinancialAssessment { residualValue, replacementEstimate, repairToReplaceRatio, budgetHeadroom, rankedOptions[]: { action, score, rationale }, proposedRecommendation }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
-| Policy Compliance Agent | Student 4 | Establish whether the proposed recommendation is permitted by the organisation's configured policy and by the asset's compliance state. Assembles the facts; the verdict itself is computed deterministically. | `PolicyValidationRequest { assetId, proposedRecommendation, financialAssessment }` | `PolicyValidation { verdict: PASS \| FAIL \| NEEDS_REVISION, ruleResults[]: { ruleId, expected, actual, outcome }, blockingReasons[], isHighImpact }` | `get_organization_policies`, `get_asset_compliance_state` |
+| Agent | Owner | Target implementation (§7.2.1) | Current implementation | Responsibility | Input contract | Output contract | Allow-listed tools |
+|---|---|---|---|---|---|---|---|
+| Planner Agent | Student 1 | `IAgentNode` in-process in the API, calling `IModelClient` | Python/FastAPI/LangGraph standalone service, called by the Orchestrator over HTTP (`PlannerAgentClient`) — built and wired before this target was set; migration to in-process is tracked in `doc/PROGRESS.md`, not yet done | Interpret the objective, confirm it is in scope, and produce an ordered, typed plan naming which agent executes each step. Rejects out-of-scope objectives before any analysis is performed. | `EvaluationObjective { assetId, objectiveText, initiatedBy, organizationId }` | `ExecutionPlan { steps[]: { seq, agent, purpose, expectedOutput }, inScope, rejectionReason? }` | `get_asset_summary` |
+| Maintenance Analysis Agent | Student 2 | `IAgentNode` in-process in the API, no `IModelClient` call — closed-form statistics, same shape as Policy Compliance | Not started | Quantify the asset's maintenance behaviour: how often it fails, what it has cost, whether the trend is worsening, and what the next twelve months are likely to cost. | `MaintenanceAnalysisRequest { assetId, windowMonths }` | `MaintenanceAnalysis { repairCount, cumulativeCost, meanTimeBetweenFailuresDays, costTrend, projectedAnnualCost, dataQuality, confidence }` | `get_maintenance_history`, `compute_failure_statistics` |
+| Budget Analysis Agent | Student 3 | `IAgentNode` in-process in the API; deterministic computation, with rationale text templated rather than modelled | Python/LangGraph standalone service (`agent-service/`), built and unit-tested, model call used for option-rationale text; not yet wired into the Orchestrator; migration to in-process is its owner's call | Convert the maintenance picture into a financial comparison: residual value against projected repair cost against replacement cost, within the department's budget reality, and rank the options. | `FinancialAssessmentRequest { assetId, maintenanceAnalysis }` | `FinancialAssessment { residualValue, replacementEstimate, repairToReplaceRatio, budgetHeadroom, rankedOptions[]: { action, score, rationale }, proposedRecommendation }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
+| Policy Compliance Agent | Student 4 | `IAgentNode` in-process in the API, no `IModelClient` call — deterministic rule engine | Matches target already — built in-process, deterministic | Establish whether the proposed recommendation is permitted by the organisation's configured policy and by the asset's compliance state. Assembles the facts; the verdict itself is computed deterministically. | `PolicyValidationRequest { assetId, proposedRecommendation, financialAssessment }` | `PolicyValidation { verdict: PASS \| FAIL \| NEEDS_REVISION, ruleResults[]: { ruleId, expected, actual, outcome }, blockingReasons[], isHighImpact }` | `get_organization_policies`, `get_asset_compliance_state` |
 
 **Why the Policy Agent does not decide**
 
@@ -104,7 +152,7 @@ The Policy Compliance Agent gathers policy parameters and compliance facts, but 
 
 ## 7.4 Tool Allow-List
 
-Tools are the only mechanism by which an agent may reach system data. Every tool is a read-only endpoint on the ASP.NET Core API, authenticated as the agent service principal, with a JSON-schema-validated request and response. A tool call outside the allow-list of the calling agent is rejected by the gateway before it reaches the API.
+Tools are the only mechanism by which an agent may reach system data, and every tool is read-only with a JSON-schema-validated request and response, regardless of how it's invoked. Under the target architecture (§7.2.1) a node calls its tools in-process, and the allow-list is enforced at dependency-injection registration — a node's constructor only accepts the tool-service interfaces its row in §7.3 lists, so an out-of-allow-list call is a compile error, not a runtime one. For any agent still running out-of-process (§7.3's "current implementation" column), the same tools are exposed as `/api/agent-tools/*` endpoints, authenticated as the agent service principal, with a call outside that agent's allow-list rejected by the gateway before it reaches business logic. Both paths produce the identical audit record (AI-07).
 
 | Tool | Available to | Input schema (summary) | Returns | Side effects |
 |---|---|---|---|---|

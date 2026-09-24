@@ -19,7 +19,7 @@ function toDateOnly(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-// FR-056: an Auditor/Administrator scopes a campaign by department,
+//  an Auditor/Administrator scopes a campaign by department,
 // location, category and/or asset type — every filter is optional and
 // combined with AND; leaving all of them unset scopes the whole register.
 export default function CreateCampaignModal({ onClose, onCreated }: CreateCampaignModalProps) {

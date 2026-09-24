@@ -1,12 +1,26 @@
+using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.Transfers.DTOs;
 
 public class InitiateTransferRequest
 {
-    public Guid AssetId { get; set; }
-    public Guid ToDepartmentId { get; set; }
-    public Guid ToLocationId { get; set; }
+    [Required]
+    public Guid? AssetId { get; set; }
+
+    [Required]
+    public Guid? ToDepartmentId { get; set; }
+
+    [Required]
+    public Guid? ToLocationId { get; set; }
+}
+
+//  "reject a transfer request, recording a decision reason."
+public class RejectTransferRequest
+{
+    [Required, MinLength(1), MaxLength(1000)]
+    public required string Reason { get; set; }
 }
 
 public class TransferResponse
@@ -47,8 +61,15 @@ public class TransferResponse
     public string? RejectionReason { get; set; }
 }
 
-public class TransferQueryParameters
+public class TransferQueryParameters : PagedQuery
 {
+    // Newest-first by default (unlike PagedQuery's own "asc" default) —
+    // matches this list's previous, only ordering.
+    public TransferQueryParameters()
+    {
+        SortDirection = "desc";
+    }
+
     public TransferStatus? Status { get; set; }
     public Guid? DepartmentId { get; set; }
 }

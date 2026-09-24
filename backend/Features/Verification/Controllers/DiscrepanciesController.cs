@@ -1,6 +1,9 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Auth;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Storage;
 using CoreGrid.Api.Features.Verification.DTOs;
 using CoreGrid.Api.Features.Verification.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -8,44 +11,61 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CoreGrid.Api.Features.Verification.Controllers;
 
-// FR-005 / SRS §4.6: audit:log-read is Auditor/Administrator only, and
-// discrepancy handling is only ever reached through the Audit page in the
-// frontend (App.tsx routes it to Auditor/Administrator alone — Officer's
-// own routes have no discrepancies view) — so both read and manual raise
-// get the same restriction as the already-gated Resolve action below.
+// Handles discrepancy management and verification photo uploads.
 [ApiController]
 [Route("api")]
 [Authorize]
 public class DiscrepanciesController : CoreGridControllerBase
 {
     private const string AuditRoles = $"{nameof(CoreGridRole.Auditor)},{nameof(CoreGridRole.Administrator)}";
+    private const string RaiseRoles = $"{AuditRoles},{nameof(CoreGridRole.InventoryOfficer)}";
 
     private readonly IDiscrepancyService _discrepancyService;
+    private readonly IFileStorageService _fileStorageService;
 
     public DiscrepanciesController(
         IDiscrepancyService discrepancyService,
+        IFileStorageService fileStorageService,
         CoreGridDbContext db) : base(db)
     {
         _discrepancyService = discrepancyService;
+        _fileStorageService = fileStorageService;
     }
 
     // GET /api/discrepancies?campaignId=&onlyOpen=
     [HttpGet("discrepancies")]
     [Authorize(Roles = AuditRoles)]
-    public async Task<ActionResult<List<DiscrepancyDto>>> GetDiscrepancies(
-        [FromQuery] Guid? campaignId,
-        [FromQuery] bool onlyOpen,
+    public async Task<ActionResult<PagedResult<DiscrepancyDto>>> GetDiscrepancies(
+        [FromQuery] DiscrepancyQueryParameters query,
         CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        return Ok(await _discrepancyService.GetDiscrepanciesAsync(currentUser.OrganizationId, campaignId, onlyOpen));
+        return Ok(await _discrepancyService.GetDiscrepanciesAsync(currentUser.OrganizationId, query, cancellationToken));
     }
 
-    // FR-061: manual discrepancy raising against a specific task.
+    // Uploads a photo associated with a verification discrepancy.
+    [HttpPost("verification-tasks/photos")]
+    [Authorize(Roles = RaiseRoles)]
+    [RequestSizeLimit(PhotoUploadValidator.MaxSizeBytes)]
+    public async Task<ActionResult<UploadDiscrepancyPhotoResponse>> UploadPhoto(
+        IFormFile photo, CancellationToken cancellationToken)
+    {
+        var validation = await PhotoUploadValidator.ValidateAsync(photo, cancellationToken);
+        if (!validation.IsValid)
+        {
+            throw new ValidationException(nameof(photo), validation.Error!);
+        }
+
+        await using var stream = photo.OpenReadStream();
+        var url = await _fileStorageService.UploadAsync("verification", photo.FileName, photo.ContentType, stream, cancellationToken);
+        return Ok(new UploadDiscrepancyPhotoResponse { Url = url });
+    }
+
+    // Raises a discrepancy for a verification task.
     [HttpPost("verification-tasks/{taskId:guid}/discrepancies")]
-    [Authorize(Roles = AuditRoles)]
+    [Authorize(Roles = RaiseRoles)]
     public async Task<ActionResult<DiscrepancyDto>> RaiseDiscrepancy(
         Guid taskId,
         [FromBody] RaiseDiscrepancyRequest request,
@@ -54,27 +74,17 @@ public class DiscrepanciesController : CoreGridControllerBase
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var discrepancy = await _discrepancyService.RaiseManualAsync(
-                currentUser.OrganizationId,
-                taskId,
-                currentUser.Id,
-                request);
+        var discrepancy = await _discrepancyService.RaiseManualAsync(
+            currentUser.OrganizationId, taskId, currentUser.Id, request, cancellationToken);
 
-            if (discrepancy is null) return NotFound(new { message = "Verification task not found." });
-
-            return Ok(discrepancy);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return discrepancy is null
+            ? throw NotFoundException.For(nameof(VerificationTask), taskId)
+            : Ok(discrepancy);
     }
 
-    // FR-062: An Auditor resolves a discrepancy.
+    //  An Auditor resolves a discrepancy.
     [HttpPatch("discrepancies/{id:guid}/resolve")]
-    [Authorize(Roles = AuditRoles)]
+    [Authorize(Policy = Policies.CanResolveDiscrepancy)]
     public async Task<ActionResult<DiscrepancyDto>> ResolveDiscrepancy(
         Guid id,
         [FromBody] ResolveDiscrepancyRequest request,
@@ -83,21 +93,11 @@ public class DiscrepanciesController : CoreGridControllerBase
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is null) return Unauthorized();
 
-        try
-        {
-            var discrepancy = await _discrepancyService.ResolveAsync(
-                currentUser.OrganizationId,
-                id,
-                currentUser.Id,
-                request);
+        var discrepancy = await _discrepancyService.ResolveAsync(
+            currentUser.OrganizationId, id, currentUser.Id, request, cancellationToken);
 
-            if (discrepancy is null) return NotFound(new { message = "Discrepancy not found." });
-
-            return Ok(discrepancy);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return discrepancy is null
+            ? throw NotFoundException.For(nameof(Discrepancy), id)
+            : Ok(discrepancy);
     }
 }

@@ -14,7 +14,9 @@ public class MaintenanceRecord
 
     public string Description { get; set; } = string.Empty;
     public string ObservedCondition { get; set; } = string.Empty; // NEW, GOOD, FAIR, POOR, UNSERVICEABLE
-    public string? PhotoUrl { get; set; }
+
+ // Stores the private object storage key for the maintenance photo.
+    public string? PhotoObjectKey { get; set; }
 
     public MaintenanceType Type { get; set; }
     public MaintenancePriority Priority { get; set; }

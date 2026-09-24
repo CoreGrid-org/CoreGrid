@@ -1,3 +1,4 @@
+import { fetchAllPages } from "@/shared/lib/apiClient";
 import type {
   Asset,
   AssetCategory,
@@ -140,11 +141,15 @@ export async function updateAssetCondition(
   return handle(response, "Could not update asset condition.");
 }
 
+// GET /api/asset-categories is paginated (§7 of the backend refactor plan);
+// every caller of this function still wants the complete list for a picker
+// or config table, so this walks every page and flattens the result.
 export async function listAssetCategories(accessToken: string): Promise<AssetCategory[]> {
-  const response = await fetch(`${API_URL}/asset-categories`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load asset categories.");
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/asset-categories?page=${page}&pageSize=100`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<AssetCategory>>(response, "Could not load asset categories.")),
+  );
 }
 
 export async function createAssetCategory(
@@ -196,11 +201,13 @@ export async function activateAssetCategory(
   return handle(response, "Could not reactivate asset category.");
 }
 
+// GET /api/asset-types is paginated (§7) — same reasoning as listAssetCategories.
 export async function listAssetTypes(accessToken: string): Promise<AssetType[]> {
-  const response = await fetch(`${API_URL}/asset-types`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load asset types.");
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/asset-types?page=${page}&pageSize=100`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<AssetType>>(response, "Could not load asset types.")),
+  );
 }
 
 export async function createAssetType(
@@ -262,22 +269,26 @@ export async function getAssetTypeAttributes(
   return handle(response, "Could not load asset type attributes.");
 }
 
+// GET /api/departments is paginated (§7) — same reasoning as listAssetCategories.
 export async function listDepartments(accessToken: string): Promise<Department[]> {
-  const response = await fetch(`${API_URL}/departments`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load departments.");
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/departments?page=${page}&pageSize=100`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<Department>>(response, "Could not load departments.")),
+  );
 }
 
+// GET /api/locations is paginated (§7) — same reasoning as listAssetCategories.
 export async function listLocations(
   departmentId: string | undefined,
   accessToken: string,
 ): Promise<Location[]> {
-  const query = departmentId ? `?departmentId=${encodeURIComponent(departmentId)}` : "";
-  const response = await fetch(`${API_URL}/locations${query}`, {
-    headers: authHeaders(accessToken),
-  });
-  return handle(response, "Could not load locations.");
+  const departmentQuery = departmentId ? `&departmentId=${encodeURIComponent(departmentId)}` : "";
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/locations?page=${page}&pageSize=100${departmentQuery}`, {
+      headers: authHeaders(accessToken),
+    }).then((response) => handle<PagedResult<Location>>(response, "Could not load locations.")),
+  );
 }
 
 export async function createAssetAttributeDefinition(

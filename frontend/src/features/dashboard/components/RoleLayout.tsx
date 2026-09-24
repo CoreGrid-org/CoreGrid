@@ -21,8 +21,7 @@ export interface RoleNavItem {
   icon: ComponentType<{ size?: number; className?: string }>;
 }
 
-// A labelled section of the nav — always fully visible, no expand/collapse.
-// Just a small caption above its items, not an interactive accordion.
+// Defines a labelled navigation section.
 export interface RoleNavGroup {
   label: string;
   items: RoleNavItem[];
@@ -34,23 +33,11 @@ interface RoleLayoutProps {
   navItems?: RoleNavItem[];
   navGroups?: RoleNavGroup[];
 }
-
-// Shared chrome for every per-role dashboard route: a minimal top header
-// (logo, then only global actions) plus a persistent side nav for
-// everything else, wrapping whichever page is active via <Outlet>. Extracted
-// from what was originally AdminLayout-only markup so InventoryLayout and
-// AuditLayout render identical chrome with role-specific nav content
-// instead of duplicating this file. Staff has no web portal at all (see
-// auth/lib/roles.ts), so there's no StaffLayout consumer.
+// Provides shared layout and navigation for role-based routes.
 export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups = [] }: RoleLayoutProps) {
   const { pathname } = useLocation();
   const notificationCenter = useNotificationCenter();
-
-  // "Register" (/admin/assets) is itself a prefix of "Scan QR"
-  // (/admin/assets/scan) and "Asset Config" (/admin/assets/config), so a
-  // plain pathname.startsWith(item.to) check would light up all three at
-  // once on those pages. Only the single most specific (longest) matching
-  // item should be active.
+// Activates only the most specific matching navigation item.
   const allItems = [...navGroups.flatMap((g) => g.items), ...navItems];
   const isItemActive = (to: string) =>
     pathname.startsWith(to) && !allItems.some((other) => other.to !== to && other.to.startsWith(to) && pathname.startsWith(other.to));

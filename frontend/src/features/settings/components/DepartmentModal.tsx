@@ -10,7 +10,7 @@ interface DepartmentModalProps {
   onSaved: () => void;
 }
 
-// Create or amend a department (FR-010) — same modal either way, following
+// Create or amend a department  — same modal either way, following
 // CreateUserModal's pattern; a fresh instance mounts each time it opens.
 export default function DepartmentModal({ department, onClose, onSaved }: DepartmentModalProps) {
   const [code, setCode] = useState(department?.code ?? "");

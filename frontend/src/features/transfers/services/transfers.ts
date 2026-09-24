@@ -1,5 +1,7 @@
+import { fetchAllPages } from "@/shared/lib/apiClient";
 import type {
   InitiateTransferRequest,
+  PagedResult,
   TransferQueryParameters,
   TransferResponse,
 } from "../types";
@@ -21,20 +23,22 @@ async function handle<T>(response: Response, fallback: string): Promise<T> {
   return response.json();
 }
 
-// GET /api/transfers — list transfers with optional status/department filters
+// GET /api/transfers — list transfers with optional status/department filters and pagination
 export async function listTransfers(
   params?: TransferQueryParameters,
   accessToken?: string
-): Promise<TransferResponse[]> {
+): Promise<PagedResult<TransferResponse>> {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
   if (params?.departmentId) search.set("departmentId", params.departmentId);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.pageSize) search.set("pageSize", String(params.pageSize));
   const query = search.toString() ? `?${search.toString()}` : "";
 
   const response = await fetch(`${API_URL}/transfers${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  return handle<TransferResponse[]>(response, "Could not load transfers.");
+  return handle<PagedResult<TransferResponse>>(response, "Could not load transfers.");
 }
 
 // GET /api/transfers/{id} — get transfer by id
@@ -48,17 +52,22 @@ export async function getTransferById(
   return handle<TransferResponse>(response, `Could not load transfer ${id}.`);
 }
 
-// GET /api/assets/{assetId}/transfers — FR-047: full transfer history for an asset
+// GET /api/assets/{assetId}/transfers — FR-047: full transfer history for an
+// asset. Paginated (§7 of the backend refactor plan); this view wants the
+// complete history, so this walks every page and flattens the result.
 export async function getTransferHistoryForAsset(
   assetId: string,
   accessToken: string
 ): Promise<TransferResponse[]> {
-  const response = await fetch(`${API_URL}/assets/${assetId}/transfers`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return handle<TransferResponse[]>(
-    response,
-    `Could not load transfer history for asset ${assetId}.`
+  return fetchAllPages((page) =>
+    fetch(`${API_URL}/assets/${assetId}/transfers?page=${page}&pageSize=100`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).then((response) =>
+      handle<PagedResult<TransferResponse>>(
+        response,
+        `Could not load transfer history for asset ${assetId}.`
+      )
+    ),
   );
 }
 

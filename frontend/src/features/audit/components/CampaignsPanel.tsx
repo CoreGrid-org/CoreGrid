@@ -1,17 +1,37 @@
 import { useState } from "react";
-import { Tag, Button, InlineNotification } from "@carbon/react";
-import { Add } from "@carbon/icons-react";
+import { Tag, Button, InlineNotification, Modal, Pagination } from "@carbon/react";
+import { Add, Edit, TrashCan } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
-import { useCampaignsList } from "../hooks/useCampaigns";
+import { useClientPagination } from "@/shared/hooks/useClientPagination";
+import { useCampaignsList, useDeleteCampaign } from "../hooks/useCampaigns";
 import CreateCampaignModal from "./CreateCampaignModal";
+import EditCampaignModal from "./EditCampaignModal";
 import CampaignReportModal from "./CampaignReportModal";
+import CampaignTasksModal from "./CampaignTasksModal";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { campaignScopeLabel } from "../lib/campaignScopeLabel";
+import type { Campaign } from "../api/campaigns";
 
 export default function CampaignsPanel() {
   const campaigns = useCampaignsList();
+  const deleteCampaign = useDeleteCampaign();
+  const { pageItems, page, pageSize, total, setPage, setPageSize } = useClientPagination(campaigns.data);
+
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
   const [reportCampaign, setReportCampaign] = useState<{ id: string; name: string } | null>(null);
+  const [tasksCampaign, setTasksCampaign] = useState<{ id: string; name: string } | null>(null);
+
+  const handleDeleteConfirm = () => {
+    if (!deletingCampaign || deleteCampaign.isPending) return;
+    deleteCampaign.mutate(deletingCampaign.id, {
+      onSuccess: () => {
+        setDeletingCampaign(null);
+        campaigns.refetch();
+      },
+    });
+  };
 
   return (
     <>
@@ -33,6 +53,17 @@ export default function CampaignsPanel() {
         />
       )}
 
+      {deleteCampaign.isError && (
+        <InlineNotification
+          kind="error"
+          title="Could not delete campaign"
+          subtitle={getErrorMessage(deleteCampaign.error, "Something went wrong. Please try again.")}
+          lowContrast
+          hideCloseButton
+          className="cg-panel-notification"
+        />
+      )}
+
       <div className="cg-section">
         <div className="cg-section__header">
           <p className="cg-section__title">Verification Campaigns</p>
@@ -45,6 +76,7 @@ export default function CampaignsPanel() {
             <p>Loading campaigns…</p>
           </div>
         ) : campaigns.data && campaigns.data.length > 0 ? (
+          <>
           <table className="cg-table cg-table--no-hover">
             <thead>
               <tr>
@@ -54,11 +86,11 @@ export default function CampaignsPanel() {
                 <th>Status</th>
                 <th>Progress</th>
                 <th>Discrepancies</th>
-                <th></th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {campaigns.data.map((c) => (
+              {pageItems.map((c) => (
                 <tr key={c.id}>
                   <td>{c.name}</td>
                   <td className="cg-table__muted">
@@ -75,14 +107,46 @@ export default function CampaignsPanel() {
                     <Tag type={c.open_discrepancy_count > 0 ? "magenta" : "gray"}>{c.open_discrepancy_count}</Tag>
                   </td>
                   <td>
-                    <Button kind="ghost" size="sm" onClick={() => setReportCampaign({ id: c.id, name: c.name })}>
-                      View report
-                    </Button>
+                    <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                      <Button kind="ghost" size="sm" onClick={() => setTasksCampaign({ id: c.id, name: c.name })}>
+                        View tasks
+                      </Button>
+                      <Button kind="ghost" size="sm" onClick={() => setReportCampaign({ id: c.id, name: c.name })}>
+                        View report
+                      </Button>
+                      <Button
+                        kind="ghost"
+                        size="sm"
+                        hasIconOnly
+                        iconDescription="Edit campaign"
+                        renderIcon={Edit}
+                        onClick={() => setEditingCampaign(c)}
+                      />
+                      <Button
+                        kind="danger--ghost"
+                        size="sm"
+                        hasIconOnly
+                        iconDescription="Delete campaign"
+                        renderIcon={TrashCan}
+                        onClick={() => setDeletingCampaign(c)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            pageSizes={[10, 20, 50, 100]}
+            totalItems={total}
+            onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+              setPage(nextPage);
+              setPageSize(nextPageSize);
+            }}
+          />
+          </>
         ) : (
           <div className="cg-placeholder">
             <p>No verification campaigns yet.</p>
@@ -97,6 +161,45 @@ export default function CampaignsPanel() {
             setShowCreateCampaign(false);
             campaigns.refetch();
           }}
+        />
+      )}
+
+      {editingCampaign && (
+        <EditCampaignModal
+          campaign={editingCampaign}
+          onClose={() => setEditingCampaign(null)}
+          onUpdated={() => {
+            setEditingCampaign(null);
+            campaigns.refetch();
+          }}
+        />
+      )}
+
+      {deletingCampaign && (
+        <Modal
+          open
+          danger
+          modalHeading="Delete Verification Campaign"
+          modalLabel="Confirm Deletion"
+          primaryButtonText={deleteCampaign.isPending ? "Deleting…" : "Delete"}
+          secondaryButtonText="Cancel"
+          onRequestClose={() => setDeletingCampaign(null)}
+          onRequestSubmit={handleDeleteConfirm}
+        >
+          <p>
+            Are you sure you want to delete campaign <strong>"{deletingCampaign.name}"</strong>?
+          </p>
+          <p className="cg-table__muted" style={{ marginTop: "0.5rem" }}>
+            This action will permanently delete the campaign and its {deletingCampaign.task_count} verification task(s).
+          </p>
+        </Modal>
+      )}
+
+      {tasksCampaign && (
+        <CampaignTasksModal
+          campaignId={tasksCampaign.id}
+          campaignName={tasksCampaign.name}
+          onClose={() => setTasksCampaign(null)}
         />
       )}
 

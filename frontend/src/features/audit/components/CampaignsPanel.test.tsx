@@ -14,9 +14,7 @@ vi.mock("../api/campaigns", () => ({
   createCampaign: vi.fn(),
 }));
 
-// The two modals do their own data-fetching (asset types, users, ...) —
-// stubbed out here so this test stays focused on CampaignsPanel's own
-// rendering/wiring, not their internals.
+// Mock child modals to isolate CampaignsPanel tests.
 vi.mock("./CreateCampaignModal", () => ({
   default: ({ onClose }: { onClose: () => void }) => (
     <div role="dialog" aria-label="create campaign">
@@ -26,6 +24,9 @@ vi.mock("./CreateCampaignModal", () => ({
 }));
 vi.mock("./CampaignReportModal", () => ({
   default: ({ campaignName }: { campaignName: string }) => <div role="dialog">Report for {campaignName}</div>,
+}));
+vi.mock("./CampaignTasksModal", () => ({
+  default: ({ campaignName }: { campaignName: string }) => <div role="dialog">Tasks for {campaignName}</div>,
 }));
 
 import CampaignsPanel from "./CampaignsPanel";
@@ -98,5 +99,15 @@ describe("CampaignsPanel", () => {
     await user.click(await screen.findByRole("button", { name: "View report" }));
 
     expect(screen.getByText("Report for Q3 Ward Verification")).toBeInTheDocument();
+  });
+
+  it("opens the campaign tasks modal from a row's 'View tasks' button", async () => {
+    listCampaignsMock.mockResolvedValue([CAMPAIGN]);
+    const user = userEvent.setup();
+    render(<CampaignsPanel />);
+
+    await user.click(await screen.findByRole("button", { name: "View tasks" }));
+
+    expect(screen.getByText("Tasks for Q3 Ward Verification")).toBeInTheDocument();
   });
 });

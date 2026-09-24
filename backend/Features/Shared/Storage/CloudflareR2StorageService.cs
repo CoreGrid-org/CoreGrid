@@ -21,21 +21,46 @@ public class CloudflareR2StorageService(IConfiguration configuration) : IFileSto
         Stream content,
         CancellationToken cancellationToken)
     {
-        var accountId = RequireConfig("CloudflareR2:AccountId");
-        var accessKeyId = RequireConfig("CloudflareR2:AccessKeyId");
-        var secretAccessKey = RequireConfig("CloudflareR2:SecretAccessKey");
-        var bucketName = RequireConfig("CloudflareR2:BucketName");
         var publicBaseUrl = RequireConfig("CloudflareR2:PublicBaseUrl");
+        var key = await PutObjectAsync(folder, fileName, contentType, content, cancellationToken);
+        return $"{publicBaseUrl.TrimEnd('/')}/{key}";
+    }
 
-        var key = $"{folder.Trim('/')}/{Guid.NewGuid():N}-{fileName}";
+    public Task<string> UploadPrivateAsync(
+        string folder,
+        string fileName,
+        string contentType,
+        Stream content,
+        CancellationToken cancellationToken)
+        => PutObjectAsync(folder, fileName, contentType, content, cancellationToken);
 
-        var s3Config = new AmazonS3Config
+    public async Task<string> GetPresignedUrlAsync(string key, TimeSpan expiry, CancellationToken cancellationToken)
+    {
+        using var client = BuildClient();
+        var bucketName = RequireConfig("CloudflareR2:BucketName");
+
+        var request = new GetPreSignedUrlRequest
         {
-            ServiceURL = $"https://{accountId}.r2.cloudflarestorage.com",
-            ForcePathStyle = true,
+            BucketName = bucketName,
+            Key = key,
+            Expires = DateTime.UtcNow.Add(expiry),
+            Verb = HttpVerb.GET,
         };
 
-        using var client = new AmazonS3Client(accessKeyId, secretAccessKey, s3Config);
+        return await client.GetPreSignedURLAsync(request);
+    }
+
+    private async Task<string> PutObjectAsync(
+        string folder,
+        string fileName,
+        string contentType,
+        Stream content,
+        CancellationToken cancellationToken)
+    {
+        var bucketName = RequireConfig("CloudflareR2:BucketName");
+        var key = $"{folder.Trim('/')}/{Guid.NewGuid():N}-{fileName}";
+
+        using var client = BuildClient();
 
         var request = new PutObjectRequest
         {
@@ -56,7 +81,22 @@ public class CloudflareR2StorageService(IConfiguration configuration) : IFileSto
             throw new InvalidOperationException($"Cloudflare R2 upload failed: {ex.Message}", ex);
         }
 
-        return $"{publicBaseUrl.TrimEnd('/')}/{key}";
+        return key;
+    }
+
+    private AmazonS3Client BuildClient()
+    {
+        var accountId = RequireConfig("CloudflareR2:AccountId");
+        var accessKeyId = RequireConfig("CloudflareR2:AccessKeyId");
+        var secretAccessKey = RequireConfig("CloudflareR2:SecretAccessKey");
+
+        var s3Config = new AmazonS3Config
+        {
+            ServiceURL = $"https://{accountId}.r2.cloudflarestorage.com",
+            ForcePathStyle = true,
+        };
+
+        return new AmazonS3Client(accessKeyId, secretAccessKey, s3Config);
     }
 
     private string RequireConfig(string key)

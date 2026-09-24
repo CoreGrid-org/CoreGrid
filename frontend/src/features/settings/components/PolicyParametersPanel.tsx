@@ -8,7 +8,7 @@ import type { OrganizationPolicy, SaveOrganizationPolicyRequest } from "../api/o
 
 type PolicyFieldKey = keyof Omit<OrganizationPolicy, "id" | "asset_type_id" | "asset_type_name">;
 
-// FR-015 field descriptions — genuinely useful context the backend doesn't
+// field descriptions — genuinely useful context the backend doesn't
 // (and shouldn't) send over the wire; keyed to OrganizationPolicy's fields.
 const POLICY_LABELS: Record<PolicyFieldKey, { label: string; purpose: string; format: (v: number) => string; step: number }> = {
   repair_to_replace_cost_threshold: {

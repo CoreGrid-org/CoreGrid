@@ -27,7 +27,6 @@ import AuditPage from "@/features/audit/pages/AuditPage";
 import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
 import ReportsPage from "@/features/reports/pages/ReportsPage";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
-import ComingSoon from "@/shared/components/ComingSoon";
 import NotFound from "@/shared/pages/NotFound";
 
 export default function App() {
@@ -51,6 +50,7 @@ export default function App() {
         <Route path="assets/config" element={<AssetConfigPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/new" element={<CreateMaintenancePage />} />
+        <Route path="maintenance/report" element={<ReportFaultPage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<TransfersPage />} />
         <Route path="audit" element={<AuditPage />} />
@@ -93,7 +93,7 @@ export default function App() {
         <Route index element={<AuditDashboard />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="reports" element={<ReportsPage />} />
-        <Route path="assets" element={<ComingSoon feature="Asset Registry" />} />
+        <Route path="assets" element={<AssetsPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<AuditorTransfersPage />} />

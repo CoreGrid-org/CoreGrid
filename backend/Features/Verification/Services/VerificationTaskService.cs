@@ -1,5 +1,10 @@
+using System.Linq.Expressions;
+using System.Text.Json;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Paging;
 using CoreGrid.Api.Features.Verification.DTOs;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +12,33 @@ namespace CoreGrid.Api.Features.Verification.Services;
 
 public class VerificationTaskService : IVerificationTaskService
 {
-    private static readonly string[] ValidConditions = ["NEW", "GOOD", "FAIR", "POOR", "UNSERVICEABLE"];
+    private static readonly string[] ValidConditions = AssetConditions.All;
+
+    private static readonly Expression<Func<VerificationTask, VerificationTaskDto>> ToDtoExpression = t => new VerificationTaskDto
+    {
+        Id = t.Id,
+        CampaignId = t.CampaignId,
+        CampaignName = t.Campaign != null ? t.Campaign.Name : string.Empty,
+        AssetId = t.AssetId,
+        AssetCode = t.Asset != null ? t.Asset.AssetCode : string.Empty,
+        AssetName = t.Asset != null ? t.Asset.Name : string.Empty,
+        AssignedToUserId = t.AssignedToUserId,
+        AssignedToEmail = t.AssignedToUser != null ? t.AssignedToUser.Email : null,
+        DueDate = t.DueDate,
+        Status = t.Status,
+        AssertedPresent = t.AssertedPresent,
+        AssertedLocationId = t.AssertedLocationId,
+        AssertedLocationName = t.AssertedLocation != null ? t.AssertedLocation.Name : null,
+        AssertedCondition = t.AssertedCondition,
+        CompletedAt = t.CompletedAt
+    };
+
+    private static readonly IReadOnlyDictionary<string, Expression<Func<VerificationTask, object?>>> SortMap =
+        new Dictionary<string, Expression<Func<VerificationTask, object?>>>
+        {
+            ["duedate"] = t => t.DueDate,
+            ["status"] = t => t.Status,
+        };
 
     private readonly CoreGridDbContext _context;
 
@@ -16,54 +47,33 @@ public class VerificationTaskService : IVerificationTaskService
         _context = context;
     }
 
-    public async Task<List<VerificationTaskDto>> GetTasksAsync(
+    public async Task<PagedResult<VerificationTaskDto>> GetTasksAsync(
         Guid organizationId,
-        Guid? campaignId,
         Guid? assignedToUserId,
-        bool onlyPending)
+        VerificationTaskQueryParameters query,
+        CancellationToken cancellationToken)
     {
-        var query = _context.VerificationTasks
+        var tasks = _context.VerificationTasks
             .AsNoTracking()
-            .Include(t => t.Campaign)
-            .Include(t => t.Asset)
-            .Include(t => t.AssignedToUser)
             .Where(t => t.OrganizationId == organizationId);
 
-        if (campaignId.HasValue)
+        if (query.CampaignId.HasValue)
         {
-            query = query.Where(t => t.CampaignId == campaignId.Value);
+            tasks = tasks.Where(t => t.CampaignId == query.CampaignId.Value);
         }
 
         if (assignedToUserId.HasValue)
         {
-            query = query.Where(t => t.AssignedToUserId == assignedToUserId.Value);
+            tasks = tasks.Where(t => t.AssignedToUserId == assignedToUserId.Value);
         }
 
-        if (onlyPending)
+        if (query.OnlyPending)
         {
-            query = query.Where(t => t.Status == VerificationTaskStatus.Pending);
+            tasks = tasks.Where(t => t.Status == VerificationTaskStatus.Pending);
         }
 
-        return await query
-            .OrderBy(t => t.DueDate)
-            .Select(t => new VerificationTaskDto
-            {
-                Id = t.Id,
-                CampaignId = t.CampaignId,
-                CampaignName = t.Campaign != null ? t.Campaign.Name : string.Empty,
-                AssetId = t.AssetId,
-                AssetCode = t.Asset != null ? t.Asset.AssetCode : string.Empty,
-                AssetName = t.Asset != null ? t.Asset.Name : string.Empty,
-                AssignedToUserId = t.AssignedToUserId,
-                AssignedToEmail = t.AssignedToUser != null ? t.AssignedToUser.Email : null,
-                DueDate = t.DueDate,
-                Status = t.Status,
-                AssertedPresent = t.AssertedPresent,
-                AssertedLocationId = t.AssertedLocationId,
-                AssertedCondition = t.AssertedCondition,
-                CompletedAt = t.CompletedAt
-            })
-            .ToListAsync();
+        var sorted = tasks.ApplySort(query, SortMap, defaultSortKey: "duedate");
+        return await sorted.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
     }
 
     public async Task<VerificationTaskDto?> CompleteTaskAsync(
@@ -71,11 +81,12 @@ public class VerificationTaskService : IVerificationTaskService
         Guid taskId,
         Guid currentUserId,
         bool currentUserCanActOnAnyTask,
-        CompleteVerificationTaskRequest request)
+        CompleteVerificationTaskRequest request,
+        CancellationToken cancellationToken)
     {
         var task = await _context.VerificationTasks
             .Include(t => t.Asset)
-            .FirstOrDefaultAsync(t => t.Id == taskId && t.OrganizationId == organizationId);
+            .FirstOrDefaultAsync(t => t.Id == taskId && t.OrganizationId == organizationId, cancellationToken);
 
         if (task is null)
         {
@@ -89,53 +100,83 @@ public class VerificationTaskService : IVerificationTaskService
 
         if (task.Status != VerificationTaskStatus.Pending)
         {
-            throw new InvalidOperationException("This task has already been completed.");
+            throw new ConflictException("This task has already been completed.", "already_completed");
         }
 
         if (!currentUserCanActOnAnyTask
             && task.AssignedToUserId.HasValue
             && task.AssignedToUserId.Value != currentUserId)
         {
-            throw new InvalidOperationException("This task is assigned to a different officer.");
+            throw new ForbiddenException("This task is assigned to a different officer.");
         }
 
-        if (request.AssertedPresent)
+        // [Required] on the DTO makes a missing value 400 for a
+        // model-bound HTTP caller before this method ever runs.
+        var assertedPresent = request.AssertedPresent!.Value;
+
+        if (assertedPresent)
         {
             if (request.AssertedLocationId is null || string.IsNullOrWhiteSpace(request.AssertedCondition))
             {
-                throw new InvalidOperationException(
-                    "Location and condition must be asserted when the asset is present.");
+                throw new ValidationException("Attributes", "Location and condition must be asserted when the asset is present.");
             }
 
             var normalizedCondition = request.AssertedCondition.Trim().ToUpperInvariant();
             if (!ValidConditions.Contains(normalizedCondition))
             {
-                throw new InvalidOperationException(
-                    $"Condition must be one of: {string.Join(", ", ValidConditions)}.");
+                throw new ValidationException(nameof(request.AssertedCondition), $"Condition must be one of: {string.Join(", ", ValidConditions)}.");
             }
 
             var locationExists = await _context.Locations.AsNoTracking()
-                .AnyAsync(l => l.Id == request.AssertedLocationId.Value && l.OrganizationId == organizationId);
+                .AnyAsync(l => l.Id == request.AssertedLocationId.Value && l.OrganizationId == organizationId, cancellationToken);
             if (!locationExists)
             {
-                throw new InvalidOperationException("Asserted location was not found.");
+                throw new ValidationException(nameof(request.AssertedLocationId), "Asserted location was not found.");
             }
 
             task.AssertedCondition = normalizedCondition;
             task.AssertedLocationId = request.AssertedLocationId;
         }
 
-        task.AssertedPresent = request.AssertedPresent;
+        var now = DateTimeOffset.UtcNow;
+
+        task.AssertedPresent = assertedPresent;
         task.Status = VerificationTaskStatus.Completed;
         task.CompletedByUserId = currentUserId;
-        task.CompletedAt = DateTimeOffset.UtcNow;
+        task.CompletedAt = now;
 
         RaiseAutomaticDiscrepancies(task);
 
-        await _context.SaveChangesAsync();
+        // FR-027 (B12): lifecycle history for the verification itself,
+        // independent of any auto-raised discrepancy.
+        _context.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = task.AssetId,
+            ActorUserId = currentUserId,
+            EventType = AssetHistoryEventTypes.Verification,
+            Description = assertedPresent
+                ? $"Verified present at completion of task {task.Id}."
+                : $"Verified NOT present at completion of task {task.Id}.",
+            PreviousValue = null,
+            NewValue = JsonSerializer.Serialize(new
+            {
+                assertedPresent,
+                assertedLocationId = task.AssertedLocationId,
+                assertedCondition = task.AssertedCondition
+            }),
+            CreatedAt = now
+        });
 
-        return (await GetTasksAsync(organizationId, null, null, false))
-            .FirstOrDefault(t => t.Id == taskId);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // B18: a real single-row query, not GetTasksAsync(...).FirstOrDefault(...).
+        return await _context.VerificationTasks
+            .AsNoTracking()
+            .Where(t => t.Id == taskId && t.OrganizationId == organizationId)
+            .Select(ToDtoExpression)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     // FR-060: compares the officer's assertion against the register and

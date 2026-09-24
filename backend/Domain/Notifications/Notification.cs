@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Domain;
 
-// FR-080: in-app Notification Centre. Deliberately in-app only — no email
-// (FR-077-079 is explicitly deferred to a later phase, see doc/PROGRESS.md) —
-// so "dispatch" here just means writing this row; there is no external
-// delivery step to fail independently of the database write itself.
+// Represents an in-app notification for a user.
 public class Notification
 {
     public Guid Id { get; set; }
@@ -18,8 +15,7 @@ public class Notification
     public required string Title { get; set; }
     public required string Message { get; set; }
 
-    // Optional deep-link target (e.g. "MaintenanceRecord" + its Id) so the
-    // frontend can route straight to the record a notification is about.
+    // Identifies the related entity for navigation.
     public string? RelatedEntityType { get; set; }
     public Guid? RelatedEntityId { get; set; }
 

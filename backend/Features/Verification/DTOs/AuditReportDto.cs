@@ -1,9 +1,6 @@
 namespace CoreGrid.Api.Features.Verification.DTOs;
 
-// FR-084/FR-085: the "Audit Campaign Report" tab on the shared Reports page
-// — an aggregate across every campaign/discrepancy in the caller's
-// organisation for the given filters, distinct from CampaignReportDto's
-// single-campaign completion report (FR-065).
+// Represents the audit report summary and discrepancy details.
 public class AuditReportDto
 {
     public DateOnly? From { get; set; }
@@ -16,10 +13,12 @@ public class AuditReportDto
 
     public List<AuditReportClassificationRow> ByClassification { get; set; } = [];
 
-    // The individual discrepancies behind ByClassification's counts — every
-    // row matching the same filter, unpaginated (exports reflect this list
-    // in full; the React client paginates it for on-screen display only).
+    // Defines the filters for audit report queries.
     public List<AuditReportDiscrepancyRow> Discrepancies { get; set; } = [];
+    public int DiscrepanciesTotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages { get; set; }
 
     public DateTimeOffset GeneratedAt { get; set; }
 }
@@ -49,4 +48,8 @@ public class AuditReportFilter
     public Guid? DepartmentId { get; set; }
     public Guid? AssetCategoryId { get; set; }
     public string? Status { get; set; } // "Open" | "Resolved" | null (all)
+
+       // Controls pagination of discrepancy results.
+    public int? Page { get; set; }
+    public int? PageSize { get; set; }
 }

@@ -1,7 +1,9 @@
+using System.ComponentModel.DataAnnotations;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.Verification.DTOs;
-
+// Represents a verification task.
 public class VerificationTaskDto
 {
     public Guid Id { get; set; }
@@ -21,6 +23,7 @@ public class VerificationTaskDto
 
     public bool? AssertedPresent { get; set; }
     public Guid? AssertedLocationId { get; set; }
+    public string? AssertedLocationName { get; set; }
     public string? AssertedCondition { get; set; }
 
     public DateTimeOffset? CompletedAt { get; set; }
@@ -28,7 +31,20 @@ public class VerificationTaskDto
 
 public class CompleteVerificationTaskRequest
 {
-    public bool AssertedPresent { get; set; }
+   // Indicates whether the asset was present during verification.
+    [Required]
+    public bool? AssertedPresent { get; set; }
+
     public Guid? AssertedLocationId { get; set; }
+
+    [MaxLength(20)]
     public string? AssertedCondition { get; set; }
+}
+
+// Defines filters for verification task queries.
+public class VerificationTaskQueryParameters : PagedQuery
+{
+    public Guid? CampaignId { get; set; }
+    public bool Mine { get; set; }
+    public bool OnlyPending { get; set; }
 }

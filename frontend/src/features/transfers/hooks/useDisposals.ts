@@ -14,13 +14,14 @@ import type {
   CondemnAssetResponse,
   DisposalQueryParameters,
   DisposalResponse,
+  PagedResult,
   RequestDisposalRevisionRequest,
   SubmitDisposalRequest,
 } from "../types";
 
 export function useDisposalsList(params?: DisposalQueryParameters) {
   const { getAccessToken } = useThunderID();
-  const [data, setData] = useState<DisposalResponse[]>();
+  const [data, setData] = useState<PagedResult<DisposalResponse>>();
   const [error, setError] = useState<unknown>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
@@ -48,7 +49,7 @@ export function useDisposalsList(params?: DisposalQueryParameters) {
     return () => {
       cancelled = true;
     };
-  }, [attempt, getAccessToken, params?.status, params?.method]);
+  }, [attempt, getAccessToken, params?.status, params?.method, params?.page, params?.pageSize]);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 

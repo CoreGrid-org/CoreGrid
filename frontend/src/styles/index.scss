@@ -1,7 +1,4 @@
-// Carbon's own @font-face rules resolve IBM Plex from a webpack-only "~"
-// path alias that Vite can't follow (that's the font-decode/OTS-parsing
-// console errors) — disabled here since IBM Plex is already loaded via
-// Google Fonts in index.html.
+
 @use "@carbon/react" with (
   $css--font-face: false
 );
@@ -873,4 +870,380 @@ html, body, #root {
 
   &__label { color: rgba(255, 255, 255, 0.7); }
   &__value { color: #ffffff; font-size: 0.8125rem; }
+}
+
+// ─── Agents overview (Workflows > Agents tab) ────────────────────────────────
+.cg-agent-intro {
+  margin: 0 0 1.5rem;
+  font-size: 0.8125rem;
+  color: $cg-text-secondary;
+  max-width: 62rem;
+}
+
+.cg-agent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.cg-agent-card {
+  background: #ffffff;
+  border: 1px solid $cg-border;
+  padding: 1.25rem 1.5rem 1.5rem;
+  transition: border-color 0.2s ease;
+
+  &:hover { border-color: $cg-accent-border; }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__identity {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  &__icon {
+    color: $cg-accent;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  &__node {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $cg-text-tertiary;
+    margin: 0 0 0.125rem;
+  }
+
+  &__name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    margin: 0;
+  }
+
+  &__responsibility {
+    font-size: 0.8125rem;
+    color: $cg-text-secondary;
+    line-height: 1.5;
+    margin: 0 0 0.875rem;
+  }
+
+  &__contract {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    background: #f4f4f4;
+    padding: 0.625rem 0.75rem;
+    margin: 0 0 1.125rem;
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    color: $cg-text-secondary;
+
+    code {
+      font-family: 'IBM Plex Mono', monospace;
+      background: transparent;
+      color: $cg-text-primary;
+    }
+  }
+
+  &__contract-icon {
+    color: $cg-accent-mid;
+    flex-shrink: 0;
+    margin-top: 0.1875rem;
+  }
+
+  &__contract-arrow {
+    color: $cg-text-tertiary;
+    font-weight: 600;
+  }
+
+  &__tools-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-text-tertiary;
+    margin: 0 0 0.625rem;
+  }
+
+  &__tools {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__tool {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid $cg-border;
+
+    &:first-child { padding-top: 0; border-top: none; }
+  }
+
+  &__tool-icon {
+    color: $cg-accent;
+    flex-shrink: 0;
+    margin-top: 0.1875rem;
+  }
+
+  &__tool-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    margin: 0 0 0.125rem;
+  }
+
+  &__tool-desc {
+    font-size: 0.75rem;
+    color: $cg-text-secondary;
+    line-height: 1.45;
+    margin: 0;
+  }
+}
+
+.cg-agent-footnote {
+  margin: 1.5rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid $cg-border;
+  font-size: 0.75rem;
+  color: $cg-text-tertiary;
+  line-height: 1.6;
+  max-width: 62rem;
+
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    color: $cg-text-secondary;
+  }
+}
+
+// ─── Workflow cards (Workflows > Active/Awaiting Approval/Completed) ────────
+// One shared card shell (WorkflowCard.tsx) across all three tabs, so the
+// same header/fact/action language reads consistently regardless of a
+// workflow's status — only the body content between header and trace
+// differs per tab.
+.cg-workflow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cg-workflow-card {
+  background: #ffffff;
+  border: 1px solid $cg-border;
+  transition: border-color 0.2s ease;
+
+  &:hover { border-color: $cg-accent-border; }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid $cg-border;
+  }
+
+  &__asset {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    margin: 0 0 0.125rem;
+  }
+
+  &__objective {
+    font-size: 0.8125rem;
+    color: $cg-text-secondary;
+    margin: 0;
+  }
+
+  &__tags {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  &__body {
+    padding: 1.25rem 1.5rem;
+  }
+
+  &__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  &__fact {
+    &-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: $cg-text-tertiary;
+      margin: 0 0 0.25rem;
+    }
+
+    &-value {
+      font-size: 0.875rem;
+      color: $cg-text-primary;
+      margin: 0;
+    }
+  }
+
+  &__section-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-text-tertiary;
+    margin: 0 0 0.625rem;
+  }
+
+  &__rules {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  &__rule {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+
+    &-id {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: $cg-text-secondary;
+      min-width: 3.5rem;
+    }
+
+    &-values {
+      font-size: 0.8125rem;
+      color: $cg-text-secondary;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+}
+
+// ─── Execution trace (ExecutionTrace.tsx) ────────────────────────────────────
+.cg-trace-accordion {
+  border-top: 1px solid $cg-border;
+
+  .cds--accordion__title { font-size: 0.8125rem; font-weight: 600; }
+  .cds--accordion__content { padding-right: 1rem; }
+}
+
+.cg-trace-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.cg-trace-step {
+  display: flex;
+  gap: 0.75rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid $cg-border;
+
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+
+  &__icon {
+    color: $cg-accent;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  &__body { min-width: 0; flex: 1; }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+  }
+
+  &__seq {
+    color: $cg-text-tertiary;
+    font-weight: 400;
+  }
+
+  &__agent {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+  }
+
+  &__duration {
+    font-size: 0.75rem;
+    color: $cg-text-tertiary;
+  }
+
+  &__summary {
+    font-size: 0.8125rem;
+    color: $cg-text-secondary;
+    margin: 0;
+    line-height: 1.5;
+  }
+}
+
+.cg-trace-approvals {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid $cg-border;
+
+  &__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-text-tertiary;
+    margin: 0 0 0.625rem;
+  }
+}
+
+.cg-trace-approval {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+
+  &__by {
+    font-size: 0.75rem;
+    color: $cg-text-tertiary;
+  }
+
+  &__reason {
+    flex-basis: 100%;
+    font-size: 0.8125rem;
+    color: $cg-text-secondary;
+    margin: 0.125rem 0 0;
+  }
 }

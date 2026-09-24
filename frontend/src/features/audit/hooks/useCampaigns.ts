@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
 import { useStubMutation } from "@/shared/hooks/useStubMutation";
-import { createCampaign, listCampaigns } from "../api/campaigns";
-import type { Campaign, CreateCampaignRequest } from "../api/campaigns";
+import { createCampaign, listCampaigns, updateCampaign, deleteCampaign } from "../api/campaigns";
+import type { Campaign, CreateCampaignRequest, UpdateCampaignRequest } from "../api/campaigns";
 
 export function useCampaignsList() {
   const { getAccessToken } = useThunderID();
@@ -46,5 +46,21 @@ export function useCreateCampaign() {
   return useStubMutation<CreateCampaignRequest, Campaign>(async (payload) => {
     const accessToken = await getAccessToken();
     return createCampaign(payload, accessToken);
+  });
+}
+
+export function useUpdateCampaign() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string; payload: UpdateCampaignRequest }, Campaign>(async ({ id, payload }) => {
+    const accessToken = await getAccessToken();
+    return updateCampaign(id, payload, accessToken);
+  });
+}
+
+export function useDeleteCampaign() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<string, void>(async (id) => {
+    const accessToken = await getAccessToken();
+    return deleteCampaign(id, accessToken);
   });
 }

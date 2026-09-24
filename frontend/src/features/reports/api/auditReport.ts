@@ -28,7 +28,12 @@ export interface AuditReport {
   assets_in_scope: number;
   open_discrepancies: number;
   by_classification: AuditReportClassificationRow[];
+  // Stores the report discrepancy rows.
   discrepancies: AuditReportDiscrepancyRow[];
+  discrepancies_total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
   generated_at: string;
 }
 
@@ -38,6 +43,8 @@ export interface AuditReportQuery {
   departmentId?: string;
   categoryId?: string;
   status?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 function toSearchParams(query: AuditReportQuery): URLSearchParams {
@@ -47,11 +54,12 @@ function toSearchParams(query: AuditReportQuery): URLSearchParams {
   if (query.departmentId) search.set("departmentId", query.departmentId);
   if (query.categoryId) search.set("categoryId", query.categoryId);
   if (query.status) search.set("status", query.status);
+  if (query.page) search.set("page", String(query.page));
+  if (query.pageSize) search.set("pageSize", String(query.pageSize));
   return search;
 }
 
-// backend/Features/Verification/Controllers/AuditReportController.cs —
-// Auditor/Administrator only (FR-084, FR-085, FR-086).
+// Retrieves the audit report.
 export async function getAuditReport(query: AuditReportQuery, accessToken: string): Promise<AuditReport> {
   const qs = toSearchParams(query).toString();
   const response = await fetch(`${API_URL}/reports/audit${qs ? `?${qs}` : ""}`, {

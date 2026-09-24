@@ -1,6 +1,3 @@
-// Wire types for backend/Features/Transfers and backend/Features/Disposals
-// JSON serialization uses JsonNamingPolicy.SnakeCaseLower (snake_case)
-// and JsonStringEnumConverter (string enums).
 
 export type TransferStatus =
   | "REQUESTED"
@@ -53,9 +50,19 @@ export interface TransferResponse {
   rejection_reason: string | null;
 }
 
+export interface PagedResult<T> {
+  items: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export interface TransferQueryParameters {
   status?: TransferStatus;
   departmentId?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 // Precondition evaluation matching CoreGrid.Api.Domain.DisposalPreconditionResult
@@ -127,4 +134,6 @@ export interface DisposalResponse {
 export interface DisposalQueryParameters {
   status?: DisposalStatus;
   method?: DisposalMethod;
+  page?: number;
+  pageSize?: number;
 }

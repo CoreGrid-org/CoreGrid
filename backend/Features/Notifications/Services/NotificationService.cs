@@ -1,6 +1,8 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Notifications.DTOs;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Paging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -46,33 +48,31 @@ public class NotificationService(CoreGridDbContext db, ILogger<NotificationServi
         }
     }
 
-    public async Task<List<NotificationDto>> GetForUserAsync(
-        Guid organizationId, Guid userId, bool onlyUnread, CancellationToken cancellationToken)
+    public async Task<PagedResult<NotificationDto>> GetForUserAsync(
+        Guid organizationId, Guid userId, NotificationQueryParameters query, CancellationToken cancellationToken)
     {
-        var query = db.Notifications
+        var notifications = db.Notifications
             .AsNoTracking()
             .Where(n => n.OrganizationId == organizationId && n.RecipientUserId == userId);
 
-        if (onlyUnread)
+        if (query.OnlyUnread)
         {
-            query = query.Where(n => !n.IsRead);
+            notifications = notifications.Where(n => !n.IsRead);
         }
 
-        return await query
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(50)
-            .Select(n => new NotificationDto
-            {
-                Id = n.Id,
-                Type = n.Type,
-                Title = n.Title,
-                Message = n.Message,
-                RelatedEntityType = n.RelatedEntityType,
-                RelatedEntityId = n.RelatedEntityId,
-                IsRead = n.IsRead,
-                CreatedAt = n.CreatedAt,
-            })
-            .ToListAsync(cancellationToken);
+        var ordered = notifications.OrderByDescending(n => n.CreatedAt);
+
+        return await ordered.ToPagedResultAsync(query, n => new NotificationDto
+        {
+            Id = n.Id,
+            Type = n.Type,
+            Title = n.Title,
+            Message = n.Message,
+            RelatedEntityType = n.RelatedEntityType,
+            RelatedEntityId = n.RelatedEntityId,
+            IsRead = n.IsRead,
+            CreatedAt = n.CreatedAt,
+        }, cancellationToken);
     }
 
     public Task<int> GetUnreadCountAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken) =>

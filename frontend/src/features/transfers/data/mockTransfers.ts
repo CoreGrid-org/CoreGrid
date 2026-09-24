@@ -1,6 +1,4 @@
-// All mock — Component C (Transfer & Disposal) has no backend yet
-// (PROGRESS.md). Shapes follow doc/SRS/06-functional-requirements.md §6.6
-// and doc/SRS/system.md (Appendix F) §F.9.
+
 
 export interface MockTransfer {
   assetCode: string;

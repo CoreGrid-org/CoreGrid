@@ -5,10 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.AgentTools.Services;
 
-// Maintenance Analysis Agent tools (SRS §7.3 node 2, §7.4): get_maintenance_history
-// and compute_failure_statistics. DB-facing wrapper around the pure
-// IFailureStatisticsEngine — mirrors AgentToolsService/PolicyComplianceAgentService's
-// split of "load facts from the DB" vs. "pure, unit-tested computation."
+// Provides maintenance history and failure statistics tools.
 public class MaintenanceAnalysisToolsService(CoreGridDbContext db, IFailureStatisticsEngine statisticsEngine)
     : IMaintenanceAnalysisToolsService
 {

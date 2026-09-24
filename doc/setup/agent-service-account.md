@@ -1,13 +1,13 @@
 # Agent Service Account & Machine-to-Machine (M2M) Authentication
 
-This document details the configuration required in **ThunderID** and **CoreGrid API** for the **Budget Analysis Agent** (and subsequent AI agents) to securely communicate with the backend's `/api/agent-tools/*` endpoints via OAuth2 `client_credentials`.
+This document details the configuration required in **ThunderID** and **CoreGrid API** for an agent node still running as a **standalone external process** to securely communicate with the backend's `/api/agent-tools/*` endpoints via OAuth2 `client_credentials`. Under the target architecture (SRS §7.2.1, ADR-010) every node eventually runs in-process and needs none of this — it applies only until a given node is migrated.
 
 ---
 
 ## 1. Overview & Architecture
 
 Per **SRS §4.6, §7.4, and SEC-ID-10**:
-- This M2M setup applies to agents that run as standalone external processes — today that's only the Budget Analysis Agent (Python/LangGraph, `agent-service/`). Team direction as of 2026-09-14 is to build the remaining agent nodes .NET-native inside the API (matching the Policy Compliance Agent, which already runs in-process and doesn't need this setup at all — it calls its tool endpoints directly, no token request required).
+- This M2M setup applies to agents that run as standalone external processes — today that's only the Planner Agent (Python/LangGraph, `planner-agent/`), pending its own migration in-process. The Budget Analysis Agent's prior standalone implementation was removed 2026-09-15 once the target design (SRS §7.2.1, ADR-010) made it redundant before it was ever wired in; its replacement will be built in-process from the start. Maintenance Analysis and Policy Compliance run in-process and need none of this setup at all — they call their tool services directly, no token request required.
 - Agents act as advisory and read-only services.
 - Agents authenticate as an **"Agent Service Principal"** using the standard OAuth2 `client_credentials` grant against ThunderID.
 - The issued JWT token is presented as a `Bearer` token to the CoreGrid backend.
@@ -98,3 +98,25 @@ THUNDERID_RESOURCE=https://localhost:8090/mcp
 THUNDERID_AGENT_CLIENT_ID=coregrid-agent-service
 THUNDERID_AGENT_CLIENT_SECRET=<secret_from_thunderid_console>
 ```
+
+---
+
+## 5. In-Process Agent LLM Configuration (.NET Core)
+
+With the migration of agents into the ASP.NET Core process (PlannerAgentService and BudgetAgentService), external M2M tokens and standalone Python runtimes are no longer needed for these nodes. Their LLM outbound endpoints are configured via standard .NET `IConfiguration` (via `appsettings.json`, `appsettings.Development.json`, User Secrets, or environment variables).
+
+### Planner Agent (`PlannerAgentService`)
+- **`Planner:OpenAiApiKey`** (Env: `Planner__OpenAiApiKey`): OpenAI API key. If empty or unconfigured, gracefully falls back to deterministic `PlannerScopeGuard.FallbackPlan()`.
+- **`Planner:Model`** (Env: `Planner__Model`): OpenAI model identifier (default: `gpt-4o-mini`).
+
+### Budget Analysis Agent (`BudgetAgentService`)
+- **`Budget:ApiKey`** (Env: `Budget__ApiKey`): API key for LLM inference (supports either OpenAI API key or Google Gemini API key). If not set, falls back to checking `Planner:OpenAiApiKey`, or returns deterministic `BudgetScopeGuard.FallbackAssessment()`.
+- **`Budget:Endpoint`** (Env: `Budget__Endpoint`): OpenAI-compatible chat completions endpoint URL.
+  - **Recommended Cost-Conscious Default (Google Gemini)**:
+    `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`
+  - **Direct OpenAI Default**:
+    `https://api.openai.com/v1/chat/completions`
+- **`Budget:Model`** (Env: `Budget__Model`): Target model name.
+  - For Gemini: `gemini-2.0-flash` or `gemini-2.5-flash`
+  - For OpenAI: `gpt-4o-mini`
+

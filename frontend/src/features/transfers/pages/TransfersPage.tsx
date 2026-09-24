@@ -10,26 +10,46 @@ import {
   InlineNotification,
   Modal,
   TextArea,
+  Pagination,
 } from "@carbon/react";
-import { CheckmarkFilled, CloseFilled, Restart, Checkmark } from "@carbon/icons-react";
+import { Add, CheckmarkFilled, CloseFilled, DeliveryTruck, Restart, Checkmark, Warning } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { useTransfersList, useApproveTransfer } from "../hooks/useTransfers";
+import { useTransfersList, useApproveTransfer, useConfirmTransferReceipt } from "../hooks/useTransfers";
 import {
   useDisposalsList,
   useApproveDisposal,
   useRequestDisposalRevision,
 } from "../hooks/useDisposals";
+import InitiateTransferModal from "../components/InitiateTransferModal";
+import CondemnAssetModal from "../components/CondemnAssetModal";
+import SubmitDisposalModal from "../components/SubmitDisposalModal";
 import type { DisposalResponse, TransferResponse } from "../types";
 
+// Appendix B / RoleGroups (backend): transfer:request and disposal:request
+// both include Administrator alongside Officer, and confirm-receipt
+// includes Administrator too (the same documented deviation
+// ConfirmReceiptAsync's own guard already allows) — so this page carries
+// every action InventoryTransfersPage has, plus the Administrator-only
+// approval actions neither Officer page ever gets. Previously this page
+// only had the approval half (doc/PROGRESS.md tracked the gap).
 export default function TransfersPage() {
+  const [transferPage, setTransferPage] = useState(1);
+  const [transferPageSize, setTransferPageSize] = useState(20);
+  const [disposalPage, setDisposalPage] = useState(1);
+  const [disposalPageSize, setDisposalPageSize] = useState(20);
+
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isCondemnModalOpen, setIsCondemnModalOpen] = useState(false);
+  const [isDisposalModalOpen, setIsDisposalModalOpen] = useState(false);
+
   const {
     data: transfers,
     isLoading: isLoadingTransfers,
     isError: isErrorTransfers,
     error: transfersError,
     refetch: refetchTransfers,
-  } = useTransfersList();
+  } = useTransfersList({ page: transferPage, pageSize: transferPageSize });
 
   const {
     data: disposals,
@@ -37,9 +57,10 @@ export default function TransfersPage() {
     isError: isErrorDisposals,
     error: disposalsError,
     refetch: refetchDisposals,
-  } = useDisposalsList();
+  } = useDisposalsList({ page: disposalPage, pageSize: disposalPageSize });
 
   const approveTransfer = useApproveTransfer();
+  const confirmReceipt = useConfirmTransferReceipt();
   const approveDisposal = useApproveDisposal();
   const requestRevision = useRequestDisposalRevision();
 
@@ -50,6 +71,12 @@ export default function TransfersPage() {
 
   const handleApproveTransfer = (transfer: TransferResponse) => {
     approveTransfer.mutate(transfer.id, {
+      onSuccess: () => refetchTransfers(),
+    });
+  };
+
+  const handleConfirmReceipt = (transfer: TransferResponse) => {
+    confirmReceipt.mutate(transfer.id, {
       onSuccess: () => refetchTransfers(),
     });
   };
@@ -90,10 +117,32 @@ export default function TransfersPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Transfers & Disposals</h1>
           <p className="cg-page__subtitle">
-            Administrator queue for transfer approvals (FR-045) and disposal evaluations (FR-051–055).
+            Initiate and approve transfers, confirm receipt, condemn assets, and submit or approve disposal requests (FR-043–055).
           </p>
         </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Button renderIcon={DeliveryTruck} kind="primary" onClick={() => setIsTransferModalOpen(true)}>
+            Initiate transfer
+          </Button>
+          <Button renderIcon={Warning} kind="secondary" onClick={() => setIsCondemnModalOpen(true)}>
+            Condemn asset
+          </Button>
+          <Button renderIcon={Add} kind="tertiary" onClick={() => setIsDisposalModalOpen(true)}>
+            Submit disposal
+          </Button>
+        </div>
       </div>
+
+      {confirmReceipt.isError && (
+        <InlineNotification
+          kind="error"
+          title="Could not confirm receipt"
+          subtitle={getErrorMessage(confirmReceipt.error, "An error occurred while confirming asset receipt.")}
+          lowContrast
+          hideCloseButton
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        />
+      )}
 
       {/* Global Mutation Notifications */}
       {approveTransfer.isError && (
@@ -165,65 +214,88 @@ export default function TransfersPage() {
                 <div className="cg-placeholder">
                   <p>Loading transfers…</p>
                 </div>
-              ) : transfers && transfers.length > 0 ? (
-                <table className="cg-table cg-table--no-hover">
-                  <thead>
-                    <tr>
-                      <th>Asset</th>
-                      <th>From</th>
-                      <th>To</th>
-                      <th>Status</th>
-                      <th>Requested by</th>
-                      <th>Requested</th>
-                      <th style={{ textAlign: "right" }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transfers.map((t) => (
-                      <tr key={t.id}>
-                        <td>
-                          <span className="cg-table__mono">{t.asset_code}</span>
-                          <br />
-                          <span className="cg-table__muted">{t.asset_name}</span>
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.from_department_name || "—"}
-                          {t.from_location_name ? ` (${t.from_location_name})` : ""}
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.to_department_name || "—"}
-                          {t.to_location_name ? ` (${t.to_location_name})` : ""}
-                        </td>
-                        <td>
-                          <Tag type={statusTagColor(t.status)}>
-                            {formatStatusLabel(t.status)}
-                          </Tag>
-                        </td>
-                        <td className="cg-table__muted">
-                          {t.initiated_by_user_email || "—"}
-                        </td>
-                        <td className="cg-table__muted">
-                          {new Date(t.requested_at).toLocaleDateString()}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          {t.status === "REQUESTED" ? (
-                            <Button
-                              size="sm"
-                              kind="primary"
-                              renderIcon={Checkmark}
-                              disabled={approveTransfer.isPending}
-                              onClick={() => handleApproveTransfer(t)}
-                            >
-                              Approve
-                            </Button>
-                          ) : (
-                            <span className="cg-table__muted">—</span>
-                          )}
-                        </td>
+              ) : transfers && transfers.items.length > 0 ? (
+                <>
+                  <table className="cg-table cg-table--no-hover">
+                    <thead>
+                      <tr>
+                        <th>Asset</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Status</th>
+                        <th>Requested by</th>
+                        <th>Requested</th>
+                        <th style={{ textAlign: "right" }}>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {transfers.items.map((t) => (
+                        <tr key={t.id}>
+                          <td>
+                            <span className="cg-table__mono">{t.asset_code}</span>
+                            <br />
+                            <span className="cg-table__muted">{t.asset_name}</span>
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.from_department_name || "—"}
+                            {t.from_location_name ? ` (${t.from_location_name})` : ""}
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.to_department_name || "—"}
+                            {t.to_location_name ? ` (${t.to_location_name})` : ""}
+                          </td>
+                          <td>
+                            <Tag type={statusTagColor(t.status)}>
+                              {formatStatusLabel(t.status)}
+                            </Tag>
+                          </td>
+                          <td className="cg-table__muted">
+                            {t.initiated_by_user_email || "—"}
+                          </td>
+                          <td className="cg-table__muted">
+                            {new Date(t.requested_at).toLocaleDateString()}
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            {t.status === "REQUESTED" ? (
+                              <Button
+                                size="sm"
+                                kind="primary"
+                                renderIcon={Checkmark}
+                                disabled={approveTransfer.isPending}
+                                onClick={() => handleApproveTransfer(t)}
+                              >
+                                Approve
+                              </Button>
+                            ) : t.status === "APPROVED" || t.status === "IN_TRANSIT" ? (
+                              <Button
+                                size="sm"
+                                kind="primary"
+                                renderIcon={Checkmark}
+                                disabled={confirmReceipt.isPending}
+                                onClick={() => handleConfirmReceipt(t)}
+                              >
+                                Confirm receipt
+                              </Button>
+                            ) : (
+                              <span className="cg-table__muted">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={transfers.page}
+                    pageSize={transfers.page_size}
+                    pageSizes={[10, 20, 50, 100]}
+                    totalItems={transfers.total_count}
+                    onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+                      setTransferPage(nextPage);
+                      setTransferPageSize(nextPageSize);
+                    }}
+                    style={{ marginTop: "1rem" }}
+                  />
+                </>
               ) : (
                 <div className="cg-placeholder">
                   <p>No transfer requests found.</p>
@@ -253,63 +325,76 @@ export default function TransfersPage() {
                 <div className="cg-placeholder">
                   <p>Loading disposals…</p>
                 </div>
-              ) : disposals && disposals.length > 0 ? (
-                <table className="cg-table cg-table--no-hover">
-                  <thead>
-                    <tr>
-                      <th>Asset</th>
-                      <th>Proposed method</th>
-                      <th>Status</th>
-                      <th>Estimated residual value</th>
-                      <th>Requested by</th>
-                      <th>Requested</th>
-                      <th style={{ textAlign: "right" }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {disposals.map((d) => (
-                      <tr key={d.id}>
-                        <td>
-                          <span className="cg-table__mono">{d.asset_code}</span>
-                          <br />
-                          <span className="cg-table__muted">{d.asset_name}</span>
-                        </td>
-                        <td className="cg-table__muted">
-                          {formatStatusLabel(d.disposal_method)}
-                        </td>
-                        <td>
-                          <Tag type={statusTagColor(d.status)}>
-                            {formatStatusLabel(d.status)}
-                          </Tag>
-                        </td>
-                        <td className="cg-table__muted">
-                          {d.estimated_residual_value != null
-                            ? `LKR ${Number(d.estimated_residual_value).toLocaleString()}`
-                            : "—"}
-                        </td>
-                        <td className="cg-table__muted">
-                          {d.initiated_by_user_email || "—"}
-                        </td>
-                        <td className="cg-table__muted">
-                          {new Date(d.requested_at).toLocaleDateString()}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          {d.status === "PENDING" && (
-                            <Button
-                              size="sm"
-                              kind="ghost"
-                              renderIcon={Restart}
-                              disabled={requestRevision.isPending}
-                              onClick={() => handleOpenRevisionModal(d)}
-                            >
-                              Request revision
-                            </Button>
-                          )}
-                        </td>
+              ) : disposals && disposals.items.length > 0 ? (
+                <>
+                  <table className="cg-table cg-table--no-hover">
+                    <thead>
+                      <tr>
+                        <th>Asset</th>
+                        <th>Proposed method</th>
+                        <th>Status</th>
+                        <th>Estimated residual value</th>
+                        <th>Requested by</th>
+                        <th>Requested</th>
+                        <th style={{ textAlign: "right" }}>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {disposals.items.map((d) => (
+                        <tr key={d.id}>
+                          <td>
+                            <span className="cg-table__mono">{d.asset_code}</span>
+                            <br />
+                            <span className="cg-table__muted">{d.asset_name}</span>
+                          </td>
+                          <td className="cg-table__muted">
+                            {formatStatusLabel(d.disposal_method)}
+                          </td>
+                          <td>
+                            <Tag type={statusTagColor(d.status)}>
+                              {formatStatusLabel(d.status)}
+                            </Tag>
+                          </td>
+                          <td className="cg-table__muted">
+                            {d.estimated_residual_value != null
+                              ? `LKR ${Number(d.estimated_residual_value).toLocaleString()}`
+                              : "—"}
+                          </td>
+                          <td className="cg-table__muted">
+                            {d.initiated_by_user_email || "—"}
+                          </td>
+                          <td className="cg-table__muted">
+                            {new Date(d.requested_at).toLocaleDateString()}
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            {d.status === "PENDING" && (
+                              <Button
+                                size="sm"
+                                kind="ghost"
+                                renderIcon={Restart}
+                                disabled={requestRevision.isPending}
+                                onClick={() => handleOpenRevisionModal(d)}
+                              >
+                                Request revision
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={disposals.page}
+                    pageSize={disposals.page_size}
+                    pageSizes={[10, 20, 50, 100]}
+                    totalItems={disposals.total_count}
+                    onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+                      setDisposalPage(nextPage);
+                      setDisposalPageSize(nextPageSize);
+                    }}
+                    style={{ marginTop: "1rem" }}
+                  />
+                </>
               ) : (
                 <div className="cg-placeholder">
                   <p>No disposal requests found.</p>
@@ -318,7 +403,7 @@ export default function TransfersPage() {
             </div>
 
             {/* Live Precondition Checklists for PENDING Disposals */}
-            {disposals
+            {disposals?.items
               ?.filter((d) => d.status === "PENDING" && d.precondition_evaluation?.checks)
               .map((d) => {
                 const evalResult = d.precondition_evaluation;
@@ -476,6 +561,30 @@ export default function TransfersPage() {
             onChange={(e) => setRevisionComments(e.target.value)}
           />
         </Modal>
+      )}
+
+      {isTransferModalOpen && (
+        <InitiateTransferModal
+          onClose={() => setIsTransferModalOpen(false)}
+          onInitiated={() => {
+            setIsTransferModalOpen(false);
+            refetchTransfers();
+          }}
+        />
+      )}
+
+      {isCondemnModalOpen && (
+        <CondemnAssetModal onClose={() => setIsCondemnModalOpen(false)} onCondemned={() => setIsCondemnModalOpen(false)} />
+      )}
+
+      {isDisposalModalOpen && (
+        <SubmitDisposalModal
+          onClose={() => setIsDisposalModalOpen(false)}
+          onSubmitted={() => {
+            setIsDisposalModalOpen(false);
+            refetchDisposals();
+          }}
+        />
       )}
     </div>
   );

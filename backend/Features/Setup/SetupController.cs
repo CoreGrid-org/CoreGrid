@@ -1,7 +1,11 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
-using CoreGrid.Api.Identity;
+using CoreGrid.Api.Features.Identity;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Setup;
@@ -10,8 +14,13 @@ namespace CoreGrid.Api.Features.Setup;
 // There is no authenticated user yet at this point, so these endpoints are
 // deliberately the only unauthenticated write path in the API, and only
 // ever do anything while zero organisations exist (see Complete below).
+// [AllowAnonymous] is explicit here (plan §4.4/NFR-10) so the new global
+// fallback policy — every other endpoint requires an authenticated caller
+// by default — doesn't lock out the one surface that must stay reachable
+// before any user exists.
 [ApiController]
 [Route("api/setup")]
+[AllowAnonymous]
 public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDirectory) : ControllerBase
 {
     [HttpGet("status")]
@@ -21,7 +30,11 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
         return Ok(new SetupStatusResponse(needsSetup));
     }
 
+    // NFR-16: the one unauthenticated write path in the API, so it's the
+    // one route here rate-limited by remote IP rather than by user+org
+    // (RateLimiting.cs — no caller identity exists yet at this point).
     [HttpPost("complete")]
+    [EnableRateLimiting(RateLimitPolicies.SetupComplete)]
     public async Task<ActionResult<CompleteSetupResponse>> Complete(
         CompleteSetupRequest request,
         CancellationToken cancellationToken)
@@ -34,7 +47,7 @@ public class SetupController(CoreGridDbContext db, IIdentityDirectory identityDi
         // self-service signup — this check is the one line that changes.
         if (await db.Organizations.AnyAsync(cancellationToken))
         {
-            return Conflict("This CoreGrid instance is already set up.");
+            throw new ConflictException("This CoreGrid instance is already set up.", "already_set_up");
         }
 
         // Creates the admin's ThunderID account (SRS §4.7). This deployment's

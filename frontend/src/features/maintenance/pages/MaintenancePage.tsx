@@ -1,19 +1,66 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Tabs, TabList, Tab, TabPanels, TabPanel, Tag, Button, InlineNotification, Select, SelectItem } from "@carbon/react";
-import { Add, NotificationNew } from "@carbon/icons-react";
-import MockNotice from "@/shared/components/MockNotice";
+import {
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+  Tag,
+  Button,
+  InlineNotification,
+  Select,
+  SelectItem,
+  Dropdown,
+  DatePicker,
+  DatePickerInput,
+  Pagination,
+} from "@carbon/react";
+import { Add } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { MOCK_PREVENTIVE_SCHEDULE, MOCK_NOTIFICATIONS } from "../data/mockMaintenance";
+import { useMe } from "@/features/auth/hooks/useMe";
+import { useDepartments } from "@/features/assets/hooks/useAssets";
+import { useUsersList } from "@/features/users/hooks/useUsers";
+import { MOCK_PREVENTIVE_SCHEDULE } from "../data/mockMaintenance";
 import { useMaintenanceList } from "../hooks/useMaintenance";
+import type { MaintenanceStatus } from "../types/maintenance";
 
 export default function MaintenancePage() {
   const navigate = useNavigate();
+  const { data: me } = useMe();
+  // POST /api/maintenance (direct record creation) is InventoryOfficer-only
+  // on the backend — stricter than the general maintenance:request policy
+  // on purpose (plan §5.4), so Administrator doesn't get this button.
+  // Reporting a fault (POST /api/maintenance/faults) is broader
+  // (Staff/Officer/Administrator) and both roles get it here.
+  const canCreateDirectly = me?.role === "InventoryOfficer";
+  const canReportFault = me?.role === "InventoryOfficer" || me?.role === "Administrator";
   const [statusFilter, setStatusFilter] = useState("");
-  const { data: records, isLoading, isError, error } = useMaintenanceList({
-    status: statusFilter ? (statusFilter as any) : undefined,
+  const [departmentId, setDepartmentId] = useState<string | undefined>();
+  const [assigneeId, setAssigneeId] = useState<string | undefined>();
+  const [dateFrom, setDateFrom] = useState<string | undefined>();
+  const [dateTo, setDateTo] = useState<string | undefined>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const { data: departments } = useDepartments();
+  const { data: users } = useUsersList();
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, departmentId, assigneeId, dateFrom, dateTo]);
+
+  const { data: pageResult, isLoading, isError, error } = useMaintenanceList({
+    status: statusFilter ? (statusFilter as MaintenanceStatus) : undefined,
+    departmentId,
+    assigneeId,
+    dateFrom,
+    dateTo,
+    page,
+    pageSize,
   });
+  const records = pageResult.items;
 
   return (
     <div className="cg-page">
@@ -22,14 +69,24 @@ export default function MaintenancePage() {
           <h1 className="cg-page__title">Maintenance</h1>
           <p className="cg-page__subtitle">Faults, repairs and preventive schedules</p>
         </div>
-        <Button renderIcon={Add} onClick={() => navigate("new")}>New maintenance record</Button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {canReportFault && (
+            <Button kind={canCreateDirectly ? "tertiary" : "primary"} onClick={() => navigate("report")}>
+              Report fault
+            </Button>
+          )}
+          {canCreateDirectly && (
+            <Button renderIcon={Add} onClick={() => navigate("new")}>
+              New maintenance record
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs>
         <TabList aria-label="Maintenance sections">
           <Tab>Maintenance Records</Tab>
           <Tab>Preventive Schedule</Tab>
-          <Tab>Notifications</Tab>
         </TabList>
         <TabPanels>
           {/* ── Records ─────────────────────────────────────────────────── */}
@@ -45,7 +102,7 @@ export default function MaintenancePage() {
               />
             )}
             <div className="cg-section">
-              <div className="cg-toolbar" style={{ marginBottom: "1rem" }}>
+              <div className="cg-toolbar" style={{ marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
                 <div style={{ width: "12rem" }}>
                   <Select
                     id="maintenance-status-filter"
@@ -62,6 +119,48 @@ export default function MaintenancePage() {
                     <SelectItem value="CANCELLED" text="Cancelled" />
                   </Select>
                 </div>
+                <Dropdown
+                  id="maintenance-department-filter"
+                  titleText="Department"
+                  hideLabel
+                  label="All departments"
+                  items={["", ...(departments ?? []).map((d) => d.id)]}
+                  itemToString={(id) =>
+                    !id ? "All departments" : (departments ?? []).find((d) => d.id === id)?.name ?? id
+                  }
+                  selectedItem={departmentId ?? ""}
+                  onChange={({ selectedItem }) => setDepartmentId(selectedItem || undefined)}
+                  style={{ minWidth: "12rem" }}
+                />
+                <Dropdown
+                  id="maintenance-assignee-filter"
+                  titleText="Assignee"
+                  hideLabel
+                  label="All assignees"
+                  items={["", ...(users ?? []).map((u) => u.id)]}
+                  itemToString={(id) => {
+                    if (!id) return "All assignees";
+                    const u = (users ?? []).find((u) => u.id === id);
+                    return u ? `${u.given_name} ${u.family_name}` : id;
+                  }}
+                  selectedItem={assigneeId ?? ""}
+                  onChange={({ selectedItem }) => setAssigneeId(selectedItem || undefined)}
+                  style={{ minWidth: "12rem" }}
+                />
+                <DatePicker
+                  datePickerType="single"
+                  dateFormat="Y-m-d"
+                  onChange={([date]) => setDateFrom(date ? date.toISOString() : undefined)}
+                >
+                  <DatePickerInput id="maintenance-date-from" labelText="Requested from" placeholder="yyyy-mm-dd" />
+                </DatePicker>
+                <DatePicker
+                  datePickerType="single"
+                  dateFormat="Y-m-d"
+                  onChange={([date]) => setDateTo(date ? date.toISOString() : undefined)}
+                >
+                  <DatePickerInput id="maintenance-date-to" labelText="Requested to" placeholder="yyyy-mm-dd" />
+                </DatePicker>
               </div>
               {isLoading ? (
                 <div className="cg-placeholder"><p>Loading records…</p></div>
@@ -106,6 +205,19 @@ export default function MaintenancePage() {
                 <div className="cg-placeholder"><p>No maintenance records found.</p></div>
               )}
             </div>
+
+            {pageResult.total_count > 0 && (
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                pageSizes={[10, 20, 50, 100]}
+                totalItems={pageResult.total_count}
+                onChange={({ page: nextPage, pageSize: nextPageSize }) => {
+                  setPage(nextPage);
+                  setPageSize(nextPageSize);
+                }}
+              />
+            )}
           </TabPanel>
 
           {/* ── Preventive schedule ─────────────────────────────────────── */}
@@ -135,41 +247,6 @@ export default function MaintenancePage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </TabPanel>
-
-          {/* ── Notifications ───────────────────────────────────────────── */}
-          <TabPanel>
-            <MockNotice>
-              Real notifications are queued server-side on maintenance assignment, transfer/disposal/workflow
-              approval requirements and approval decisions; dispatch never blocks or rolls back the business
-              operation that triggered it.
-            </MockNotice>
-
-            <div className="cg-section">
-              {MOCK_NOTIFICATIONS.map((n, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    gap: "0.75rem",
-                    alignItems: "flex-start",
-                    padding: "0.875rem 1.5rem",
-                    borderBottom: i < MOCK_NOTIFICATIONS.length - 1 ? "1px solid #e0e0e0" : "none",
-                  }}
-                >
-                  {!n.isRead && <NotificationNew size={16} style={{ marginTop: "2px", flexShrink: 0, fill: "#406AAF" }} />}
-                  <div style={{ flex: 1, marginLeft: n.isRead ? "1.5rem" : 0 }}>
-                    <p style={{ margin: 0, fontWeight: n.isRead ? 400 : 600, fontSize: "0.875rem" }}>{n.title}</p>
-                    <p className="cg-table__muted" style={{ margin: "0.15rem 0 0", fontSize: "0.8125rem" }}>
-                      {n.body}
-                    </p>
-                  </div>
-                  <span className="cg-table__muted" style={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-                    {n.sentAt}
-                  </span>
-                </div>
-              ))}
             </div>
           </TabPanel>
         </TabPanels>

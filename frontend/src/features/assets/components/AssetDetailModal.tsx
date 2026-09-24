@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, InlineNotification, Tag, Dropdown, Button, Pagination } from "@carbon/react";
+import { Modal, InlineNotification, Tag, Select, SelectItem, Button, Pagination } from "@carbon/react";
+import { useMe } from "@/features/auth/hooks/useMe";
 import { useAssetDetail, useAssetHistory, useUpdateAssetCondition } from "../hooks/useAssets";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
@@ -20,6 +22,10 @@ interface AssetDetailModalProps {
 export default function AssetDetailModal({ assetId, onClose, onConditionUpdated }: AssetDetailModalProps) {
   const { data: asset, isLoading, isError, error, refetch } = useAssetDetail(assetId);
   const updateCondition = useUpdateAssetCondition();
+  // asset:update — Appendix B: Officer, Administrator only. Auditor reads
+  // this same modal (CanReadAssets covers Auditor too) but can't act on it.
+  const { data: me } = useMe();
+  const canManageAssets = me?.role === "InventoryOfficer" || me?.role === "Administrator";
   const [condition, setCondition] = useState<AssetCondition | undefined>(undefined);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(5);
@@ -132,16 +138,18 @@ export default function AssetDetailModal({ assetId, onClose, onConditionUpdated 
             </div>
           </div>
 
-          {updateCondition.isError && (
-            <InlineNotification
-              kind="error"
-              title="Could not update condition"
-              subtitle={getErrorMessage(updateCondition.error, "Something went wrong. Please try again.")}
-              lowContrast
-              hideCloseButton
-              style={{ marginBottom: "1rem", maxWidth: "100%" }}
-            />
-          )}
+          {canManageAssets ? (
+            <>
+              {updateCondition.isError && (
+                <InlineNotification
+                  kind="error"
+                  title="Could not update condition"
+                  subtitle={getErrorMessage(updateCondition.error, "Something went wrong. Please try again.")}
+                  lowContrast
+                  hideCloseButton
+                  style={{ marginBottom: "1rem", maxWidth: "100%" }}
+                />
+              )}
 
           <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", marginBottom: "1.5rem" }}>
             <div style={{ minWidth: "12rem" }}>
@@ -154,15 +162,36 @@ export default function AssetDetailModal({ assetId, onClose, onConditionUpdated 
                 selectedItem={condition}
                 onChange={({ selectedItem }) => selectedItem && setCondition(selectedItem)}
               />
+              <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", marginBottom: "1.5rem" }}>
+                <div style={{ minWidth: "12rem" }}>
+                  <Select
+                    id="asset-condition"
+                    labelText="Update condition"
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value as AssetCondition)}
+                  >
+                    {ASSET_CONDITIONS.map((c) => (
+                      <SelectItem key={c} value={c} text={formatStatusLabel(c)} />
+                    ))}
+                  </Select>
+                </div>
+                <Button
+                  size="md"
+                  disabled={!condition || condition === asset.condition || updateCondition.isPending}
+                  onClick={handleUpdateCondition}
+                >
+                  {updateCondition.isPending ? "Saving…" : "Save condition"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <p className="cg-table__muted" style={{ fontSize: "0.75rem", marginBottom: "0.375rem" }}>
+                Condition
+              </p>
+              <Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag>
             </div>
-            <Button
-              size="md"
-              disabled={!condition || condition === asset.condition || updateCondition.isPending}
-              onClick={handleUpdateCondition}
-            >
-              {updateCondition.isPending ? "Saving…" : "Save condition"}
-            </Button>
-          </div>
+          )}
 
           <p className="cg-section__title">Attributes</p>
           {asset.attributes.length > 0 ? (

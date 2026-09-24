@@ -1,17 +1,19 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using CoreGrid.Api.Data;
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.AgentTools.Services;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Auth;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.AgentTools.Controllers;
 
+// Provides tools for agent workflow operations.
 [ApiController]
-[Authorize]
+[Authorize(Policy = Policies.CanReadAssets)]
 public class AgentToolsController : CoreGridControllerBase
 {
     private readonly IAgentToolsService _agentToolsService;
@@ -27,206 +29,126 @@ public class AgentToolsController : CoreGridControllerBase
     }
 
     // GET /api/agent-tools/assets/{assetId}/summary — Planner Agent tool.
+    // Returns a summary of an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/summary")]
     public async Task<ActionResult<AssetSummaryDto>> GetAssetSummary(
         Guid assetId,
-        [FromQuery] Guid? organizationId,
         CancellationToken cancellationToken)
     {
-        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
-        if (orgId is null)
-        {
-            return Unauthorized(new { message = "Unable to resolve organization context." });
-        }
-
-        var result = await _agentToolsService.GetAssetSummaryAsync(
-            orgId.Value,
-            assetId,
-            cancellationToken);
-
-        if (result is null)
-        {
-            return NotFound(new { message = $"Asset with ID {assetId} not found." });
-        }
-
-        return Ok(result);
+        var orgId = await ResolveOrganizationIdAsync(cancellationToken);
+        var result = await _agentToolsService.GetAssetSummaryAsync(orgId, assetId, cancellationToken);
+        return result is null
+            ? throw NotFoundException.For(nameof(Asset), assetId)
+            : Ok(result);
     }
 
-    // =========================================================
-    // GET /api/agent-tools/assets/{assetId}/financials
-    // =========================================================
     [HttpGet("api/agent-tools/assets/{assetId:guid}/financials")]
     public async Task<ActionResult<AssetFinancialsDto>> GetAssetFinancials(
         Guid assetId,
-        [FromQuery] Guid? organizationId,
         CancellationToken cancellationToken)
     {
-        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
-        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
-
-        var result = await _agentToolsService.GetAssetFinancialsAsync(
-            orgId.Value,
-            assetId,
-            cancellationToken);
-
-        if (result is null)
-        {
-            return NotFound(new { message = $"Asset with ID {assetId} not found." });
-        }
-
-        return Ok(result);
+        var orgId = await ResolveOrganizationIdAsync(cancellationToken);
+        var result = await _agentToolsService.GetAssetFinancialsAsync(orgId, assetId, cancellationToken);
+        return result is null
+            ? throw NotFoundException.For(nameof(Asset), assetId)
+            : Ok(result);
     }
 
-    // =========================================================
     // GET /api/agent-tools/departments/{departmentId}/budget-summary?fiscalYear={year}
-    // =========================================================
+    // Returns the budget summary for a department.
     [HttpGet("api/agent-tools/departments/{departmentId:guid}/budget-summary")]
     public async Task<ActionResult<DepartmentBudgetSummaryDto>> GetDepartmentBudgetSummary(
         Guid departmentId,
         [FromQuery] int? fiscalYear,
-        [FromQuery] Guid? organizationId,
         CancellationToken cancellationToken)
     {
-        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
-        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
-
+        var orgId = await ResolveOrganizationIdAsync(cancellationToken);
         var year = fiscalYear ?? DateTime.UtcNow.Year;
 
-        var result = await _agentToolsService.GetDepartmentBudgetSummaryAsync(
-            orgId.Value,
-            departmentId,
-            year,
-            cancellationToken);
-
-        if (result is null)
-        {
-            return NotFound(new { message = $"Department with ID {departmentId} not found." });
-        }
-
-        return Ok(result);
+        var result = await _agentToolsService.GetDepartmentBudgetSummaryAsync(orgId, departmentId, year, cancellationToken);
+        return result is null
+            ? throw NotFoundException.For(nameof(Department), departmentId)
+            : Ok(result);
     }
 
-    // =========================================================
     // GET /api/agent-tools/organization-policies?assetTypeId={id}
-    // Policy Compliance Agent tool (§7.4).
-    // =========================================================
+   // Returns the applicable organization policies.
     [HttpGet("api/agent-tools/organization-policies")]
     public async Task<ActionResult<OrganizationPolicyFactsDto>> GetOrganizationPolicies(
         [FromQuery] Guid? assetTypeId,
-        [FromQuery] Guid? organizationId,
         CancellationToken cancellationToken)
     {
-        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
-        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
-
-        var result = await _agentToolsService.GetOrganizationPoliciesAsync(orgId.Value, assetTypeId, cancellationToken);
+        var orgId = await ResolveOrganizationIdAsync(cancellationToken);
+        var result = await _agentToolsService.GetOrganizationPoliciesAsync(orgId, assetTypeId, cancellationToken);
 
         if (result is null)
         {
-            return NotFound(new { message = "No organisation policy configured (neither asset-type-specific nor the org-wide default)." });
+            throw new ValidationException(nameof(assetTypeId), "No organisation policy configured (neither asset-type-specific nor the org-wide default).");
         }
 
         return Ok(result);
     }
 
-    // =========================================================
     // GET /api/agent-tools/assets/{assetId}/compliance-state
-    // Policy Compliance Agent tool (§7.4).
-    // =========================================================
+    // Returns the compliance state of an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/compliance-state")]
     public async Task<ActionResult<AssetComplianceStateDto>> GetAssetComplianceState(
         Guid assetId,
-        [FromQuery] Guid? organizationId,
         CancellationToken cancellationToken)
     {
-        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
-        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
-
-        var result = await _agentToolsService.GetAssetComplianceStateAsync(orgId.Value, assetId, cancellationToken);
-
-        if (result is null)
-        {
-            return NotFound(new { message = $"Asset with ID {assetId} not found." });
-        }
-
-        return Ok(result);
+        var orgId = await ResolveOrganizationIdAsync(cancellationToken);
+        var result = await _agentToolsService.GetAssetComplianceStateAsync(orgId, assetId, cancellationToken);
+        return result is null
+            ? throw NotFoundException.For(nameof(Asset), assetId)
+            : Ok(result);
     }
 
-    // =========================================================
     // GET /api/agent-tools/assets/{assetId}/maintenance-history
-    // Maintenance Analysis Agent tool (§7.4, node 2).
-    // =========================================================
+   // Returns the maintenance history of an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/maintenance-history")]
     public async Task<ActionResult<MaintenanceHistoryDto>> GetMaintenanceHistory(
         Guid assetId,
-        [FromQuery] Guid? organizationId,
         CancellationToken cancellationToken)
     {
-        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
-        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
-
-        var result = await _maintenanceAnalysisToolsService.GetMaintenanceHistoryAsync(orgId.Value, assetId, cancellationToken);
-        if (result is null) return NotFound(new { message = $"Asset with ID {assetId} not found." });
-
-        return Ok(result);
+        var orgId = await ResolveOrganizationIdAsync(cancellationToken);
+        var result = await _maintenanceAnalysisToolsService.GetMaintenanceHistoryAsync(orgId, assetId, cancellationToken);
+        return result is null
+            ? throw NotFoundException.For(nameof(Asset), assetId)
+            : Ok(result);
     }
 
-    // =========================================================
     // GET /api/agent-tools/assets/{assetId}/failure-statistics
-    // Maintenance Analysis Agent tool (§7.4, node 2).
-    // =========================================================
+    // Returns failure statistics for an asset.
     [HttpGet("api/agent-tools/assets/{assetId:guid}/failure-statistics")]
     public async Task<ActionResult<FailureStatisticsDto>> GetFailureStatistics(
         Guid assetId,
-        [FromQuery] Guid? organizationId,
         CancellationToken cancellationToken)
     {
-        var orgId = await ResolveOrganizationIdAsync(organizationId, cancellationToken);
-        if (orgId is null) return Unauthorized(new { message = "Unable to resolve organization context." });
+        var orgId = await ResolveOrganizationIdAsync(cancellationToken);
+        var result = await _maintenanceAnalysisToolsService.ComputeFailureStatisticsAsync(orgId, assetId, cancellationToken);
+        return result is null
+            ? throw NotFoundException.For(nameof(Asset), assetId)
+            : Ok(result);
+    }
 
-        var result = await _maintenanceAnalysisToolsService.ComputeFailureStatisticsAsync(orgId.Value, assetId, cancellationToken);
-        if (result is null) return NotFound(new { message = $"Asset with ID {assetId} not found." });
-
+    // Calculates asset depreciation.
+    [HttpPost("api/agent-tools/compute-depreciation")]
+    public ActionResult<ComputeDepreciationResponse> ComputeDepreciation(
+        [FromBody] ComputeDepreciationRequest request)
+    {
+        var result = _agentToolsService.ComputeDepreciation(request);
         return Ok(result);
     }
 
-    private async Task<Guid?> ResolveOrganizationIdAsync(Guid? queryOrgId, CancellationToken cancellationToken)
+    // Resolves the organization from the authenticated context.
+    private async Task<Guid> ResolveOrganizationIdAsync(CancellationToken cancellationToken)
     {
-        // 1. Try human user
         var currentUser = await GetCurrentUserAsync(cancellationToken);
         if (currentUser is not null)
         {
             return currentUser.OrganizationId;
         }
 
-        // 2. Try service account token (org claim or query parameter per AI-05)
-        var orgClaim = User.FindFirst("org_id")?.Value ?? User.FindFirst("organization_id")?.Value;
-        if (Guid.TryParse(orgClaim, out var claimOrgId))
-        {
-            return claimOrgId;
-        }
-
-        if (queryOrgId.HasValue && queryOrgId.Value != Guid.Empty)
-        {
-            return queryOrgId.Value;
-        }
-
-        // In single-tenant M0 (SRS §4.2), fallback to the single deployment Organization
-        var singleOrg = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-            Db.Organizations.Select(o => (Guid?)o.Id), cancellationToken);
-        return singleOrg;
-    }
-
-    // =========================================================
-    // POST /api/agent-tools/compute-depreciation
-    // Pure computation endpoint — no DB access
-    // =========================================================
-    [HttpPost("api/agent-tools/compute-depreciation")]
-    [AllowAnonymous]
-    public ActionResult<ComputeDepreciationResponse> ComputeDepreciation(
-        [FromBody] ComputeDepreciationRequest request)
-    {
-        var result = _agentToolsService.ComputeDepreciation(request);
-        return Ok(result);
+        return await Db.Organizations.Select(o => o.Id).SingleAsync(cancellationToken);
     }
 }

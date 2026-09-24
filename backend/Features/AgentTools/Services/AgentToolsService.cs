@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.DTOs;
+using CoreGrid.Api.Features.Shared.Finance;
 
 namespace CoreGrid.Api.Features.AgentTools.Services;
 
@@ -114,10 +115,7 @@ public class AgentToolsService : IAgentToolsService
         };
     }
 
-    // get_organization_policies (§7.4) — falls back to the org-wide default
-    // policy (AssetTypeId == null) when no asset-type-specific one exists,
-    // matching OrganizationPoliciesController's "at most one policy per
-    // asset type, including the org-wide default" rule.
+// Loads the asset-specific policy or organization-wide default.
     public async Task<OrganizationPolicyFactsDto?> GetOrganizationPoliciesAsync(
         Guid organizationId,
         Guid? assetTypeId,
@@ -142,9 +140,7 @@ public class AgentToolsService : IAgentToolsService
         };
     }
 
-    // get_asset_compliance_state (§7.4). Valuation is read from the most
-    // recent DisposalRequest with a recorded ValuationDate for this asset —
-    // the schema's only source of an asset valuation.
+  // Loads the asset compliance state and latest valuation.
     public async Task<AssetComplianceStateDto?> GetAssetComplianceStateAsync(
         Guid organizationId,
         Guid assetId,
@@ -179,7 +175,7 @@ public class AgentToolsService : IAgentToolsService
             AssetCode = asset.AssetCode,
             CurrentStatus = asset.Status,
             CurrentCondition = asset.Condition,
-            IsCondemned = asset.Status == AssetStatusConstants.Condemned,
+            IsCondemned = asset.Status == AssetStatuses.Condemned,
             HasValuation = latestValuationDate.HasValue,
             ValuationDate = latestValuationDate,
             OpenMaintenanceCount = openMaintenanceCount,
@@ -190,47 +186,24 @@ public class AgentToolsService : IAgentToolsService
 
     public ComputeDepreciationResponse ComputeDepreciation(ComputeDepreciationRequest request)
     {
-        if (request.UsefulLifeYears <= 0 || request.AcquisitionCost <= 0)
-        {
-            return new ComputeDepreciationResponse
-            {
-                AcquisitionCost = request.AcquisitionCost,
-                AcquisitionDate = request.AcquisitionDate,
-                UsefulLifeYears = request.UsefulLifeYears,
-                AsOfDate = request.AsOfDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
-                AnnualDepreciation = 0,
-                AccumulatedDepreciation = 0,
-                CurrentValue = Math.Max(0, request.AcquisitionCost),
-                DepreciationMethod = "straight-line"
-            };
-        }
-
+       // Uses validated depreciation inputs.
+        var acquisitionCost = request.AcquisitionCost!.Value;
+        var acquisitionDate = request.AcquisitionDate!.Value;
+        var usefulLifeYears = request.UsefulLifeYears!.Value;
         var asOf = request.AsOfDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Calculate full elapsed years
-        int yearsElapsed = asOf.Year - request.AcquisitionDate.Year;
-        if (asOf < request.AcquisitionDate.AddYears(yearsElapsed))
-        {
-            yearsElapsed--;
-        }
-        if (yearsElapsed < 0)
-        {
-            yearsElapsed = 0;
-        }
-
-        decimal annualDepreciation = request.AcquisitionCost / request.UsefulLifeYears;
-        decimal accumulated = Math.Min(annualDepreciation * yearsElapsed, request.AcquisitionCost);
-        decimal currentValue = Math.Max(0, request.AcquisitionCost - accumulated);
+       // Uses the shared straight-line depreciation calculation.
+        var schedule = StraightLineDepreciation.ComputeSchedule(acquisitionCost, acquisitionDate, usefulLifeYears, asOf);
 
         return new ComputeDepreciationResponse
         {
-            AcquisitionCost = request.AcquisitionCost,
-            AcquisitionDate = request.AcquisitionDate,
-            UsefulLifeYears = request.UsefulLifeYears,
+            AcquisitionCost = acquisitionCost,
+            AcquisitionDate = acquisitionDate,
+            UsefulLifeYears = usefulLifeYears,
             AsOfDate = asOf,
-            AnnualDepreciation = Math.Round(annualDepreciation, 2),
-            AccumulatedDepreciation = Math.Round(accumulated, 2),
-            CurrentValue = Math.Round(currentValue, 2),
+            AnnualDepreciation = schedule.AnnualDepreciation,
+            AccumulatedDepreciation = schedule.AccumulatedDepreciation,
+            CurrentValue = schedule.CurrentValue,
             DepreciationMethod = "straight-line"
         };
     }

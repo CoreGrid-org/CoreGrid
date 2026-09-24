@@ -15,6 +15,7 @@ import {
 import type {
   MaintenanceRecord,
   MaintenanceQueryParameters,
+  PagedMaintenanceRecords,
   ReportFaultRequest,
   CreateMaintenanceRequest,
   ApproveMaintenanceRequest,
@@ -22,9 +23,11 @@ import type {
   CancelMaintenanceRequest,
 } from "../types/maintenance";
 
+const EMPTY_PAGE: PagedMaintenanceRecords = { items: [], total_count: 0, page: 1, page_size: 20, total_pages: 0 };
+
 export function useMaintenanceList(params: MaintenanceQueryParameters) {
   const { getAccessToken } = useThunderID();
-  const [data, setData] = useState<MaintenanceRecord[]>([]);
+  const [data, setData] = useState<PagedMaintenanceRecords>(EMPTY_PAGE);
   const [error, setError] = useState<unknown>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);

@@ -1,21 +1,17 @@
+using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.Agents.DTOs;
 
 namespace CoreGrid.Api.Features.Agents.Services;
 
-// Deterministic stand-in for what an LLM-based Policy Compliance Agent would
-// otherwise propose — a small decision tree over the same facts
-// PolicyRuleEngine itself gates on (condition, elapsed service life vs. the
-// org's configured minimum, open maintenance/transfer records), so a
-// well-behaved input tends to actually clear PR-01/PR-02 downstream instead
-// of the recommendation and the gate talking past each other.
+// Generates a deterministic asset action recommendation.
 public class AssetActionRecommendationEngine : IAssetActionRecommendationEngine
 {
     public AssetActionRecommendation Propose(AssetComplianceStateDto complianceState, OrganizationPolicyFactsDto policy)
     {
         var pastMinimumServiceLife = complianceState.ElapsedServiceLifeYears >= policy.MinimumServiceLifeYears;
 
-        if (complianceState.IsCondemned || complianceState.CurrentCondition == "UNSERVICEABLE")
+        if (complianceState.IsCondemned || complianceState.CurrentCondition == AssetConditions.Unserviceable)
         {
             if (pastMinimumServiceLife)
             {

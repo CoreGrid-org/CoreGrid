@@ -9,9 +9,7 @@ import FeatureCard from "../components/FeatureCard";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
 import { useDashboardCharts } from "../hooks/useDashboardCharts";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-
-// FR-082 — "assets by condition" is always New→Unserviceable, positionally
-// zero-filled by the backend, so this ramp lines up with the response order.
+// Defines colors for asset condition chart segments.
 const CONDITION_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"];
 
 const FEATURE_CARDS = [
@@ -24,11 +22,7 @@ const FEATURE_CARDS = [
 ];
 
 const formatCurrency = (value: number) => `LKR ${value.toLocaleString()}`;
-
-// FR-081/FR-082: Auditor gets the same three visualisations as Administrator
-// (only role besides Admin the SRS grants them to), plus indicators weighted
-// toward org-wide read and compliance (open discrepancies) rather than
-// operational counts like pending transfers/disposals.
+// Displays dashboard metrics, charts, and audit features.
 export default function AuditDashboard() {
   const { user } = useThunderID();
   const summary = useDashboardSummary();

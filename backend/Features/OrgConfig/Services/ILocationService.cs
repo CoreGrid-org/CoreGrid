@@ -1,27 +1,35 @@
 using CoreGrid.Api.Features.OrgConfig.DTOs;
+using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Paging;
 
 namespace CoreGrid.Api.Features.OrgConfig.Services;
 
 public interface ILocationService
 {
-    Task<List<LocationDto>> GetLocationsAsync(
+    Task<PagedResult<LocationDto>> GetLocationsAsync(
         Guid organizationId,
-        Guid? departmentId);
+        Guid? departmentId,
+        PagedQuery query,
+        bool includeInactive,
+        CancellationToken cancellationToken);
 
     Task<LocationDto> CreateLocationAsync(
         Guid organizationId,
         Guid? userId,
-        CreateLocationRequest request);
+        CreateLocationRequest request,
+        CancellationToken cancellationToken);
 
     Task<LocationDto?> UpdateLocationAsync(
         Guid organizationId,
         Guid id,
         Guid? userId,
-        UpdateLocationRequest request);
+        UpdateLocationRequest request,
+        CancellationToken cancellationToken);
 
     Task<LocationDto?> SetLocationActiveAsync(
         Guid organizationId,
         Guid id,
         Guid? userId,
-        bool isActive);
+        bool isActive,
+        CancellationToken cancellationToken);
 }
