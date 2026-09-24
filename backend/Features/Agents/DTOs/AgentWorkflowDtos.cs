@@ -20,6 +20,7 @@ public class AgentWorkflowDto
     public PlannerExecutionPlan? Plan { get; set; }
     public PolicyValidation? ValidationResult { get; set; }
     public FailureStatisticsDto? MaintenanceAnalysis { get; set; }
+    public FinancialAssessmentResultDto? BudgetAnalysis { get; set; }
     public required string CorrelationId { get; set; }
     public Guid InitiatedByUserId { get; set; }
     public string? InitiatedByEmail { get; set; }

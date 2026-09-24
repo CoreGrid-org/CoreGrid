@@ -69,7 +69,7 @@ describe("WorkflowsPage", () => {
     listWorkflowsMock.mockResolvedValue([AWAITING]);
     render(<WorkflowsPage />);
 
-    expect(screen.getByText("Planner and Maintenance Analysis Agents are connected")).toBeInTheDocument();
+    expect(screen.getByText("Planner, Maintenance Analysis, and Budget Analysis Agents are connected")).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(await screen.findByRole("tab", { name: "Awaiting Approval" }));

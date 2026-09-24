@@ -17,5 +17,7 @@ public interface IAgentWorkflowService
 
     Task<AgentWorkflowDto?> EvaluatePolicyAsync(Guid organizationId, Guid id, EvaluatePolicyRequest request, CancellationToken cancellationToken);
 
+    Task<AgentWorkflowDto?> RunBudgetAnalysisAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
+
     Task<AgentWorkflowDto?> DecideAsync(Guid organizationId, Guid id, Guid deciderUserId, DecideWorkflowRequest request, CancellationToken cancellationToken);
 }

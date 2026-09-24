@@ -136,6 +136,20 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(workflow);
     }
 
+    // Runs the budget analysis agent for the workflow.
+    [HttpPost("{id:guid}/run-budget-agent")]
+    [Authorize(Policy = Policies.CanInitiateWorkflow)]
+    public async Task<ActionResult<AgentWorkflowDto>> RunBudgetAgent(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var workflow = await _workflowService.RunBudgetAnalysisAsync(currentUser.OrganizationId, id, cancellationToken);
+        return workflow is null
+            ? throw NotFoundException.For(nameof(AgentWorkflow), id)
+            : Ok(workflow);
+    }
+
    // Records the administrator's decision for the workflow.
     [HttpPatch("{id:guid}/decide")]
     [Authorize(Policy = Policies.CanApproveWorkflow)]

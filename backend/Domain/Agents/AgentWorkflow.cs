@@ -20,6 +20,7 @@ public class AgentWorkflow
     public string? ToolCalls { get; set; } // jsonb: name/agent/outcome/duration/retries
     public string? ValidationResult { get; set; } // jsonb: verdict + per-rule outcomes
     public string? MaintenanceAnalysis { get; set; } // jsonb: node 2's FailureStatisticsDto (repair count, MTBF, cost trend, 12mo projection)
+    public string? BudgetAnalysis { get; set; } // jsonb: node 3's FinancialAssessmentResultDto (residual value, ratio, headroom, ranked options)
 
     public string? Recommendation { get; set; } // REPAIR | REPLACE | TRANSFER | DISPOSE | RETAIN
     public bool IsHighImpact { get; set; }

@@ -606,6 +606,7 @@ public class CoreGridDbContext(
             entity.Property(w => w.AgentOutputs).HasColumnType("jsonb");
             entity.Property(w => w.ToolCalls).HasColumnType("jsonb");
             entity.Property(w => w.ValidationResult).HasColumnType("jsonb");
+            entity.Property(w => w.BudgetAnalysis).HasColumnType("jsonb");
 
             entity.HasOne(w => w.Organization)
                 .WithMany()
