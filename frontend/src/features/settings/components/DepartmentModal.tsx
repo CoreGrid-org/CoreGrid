@@ -10,19 +10,32 @@ interface DepartmentModalProps {
   onSaved: () => void;
 }
 
+type Touched = Partial<Record<"code" | "name", boolean>>;
+
 // Create or amend a department  — same modal either way, following
 // CreateUserModal's pattern; a fresh instance mounts each time it opens.
 export default function DepartmentModal({ department, onClose, onSaved }: DepartmentModalProps) {
   const [code, setCode] = useState(department?.code ?? "");
   const [name, setName] = useState(department?.name ?? "");
+  const [touched, setTouched] = useState<Touched>({});
+
+  const markTouched = (field: keyof Touched) => setTouched((t) => ({ ...t, [field]: true }));
 
   const createDepartment = useCreateDepartment();
   const updateDepartment = useUpdateDepartment();
   const mutation = department ? updateDepartment : createDepartment;
 
-  const canSubmit = code.trim().length > 0 && name.trim().length > 0;
+  // Mirrors Create/UpdateDepartmentRequest's [Required]/[MaxLength]
+  // (backend/Features/OrgConfig/DTOs).
+  const codeValid = code.trim().length > 0 && code.trim().length <= 20;
+  const nameValid = name.trim().length > 0 && name.trim().length <= 200;
+  const codeInvalid = touched.code && !codeValid;
+  const nameInvalid = touched.name && !nameValid;
+
+  const canSubmit = codeValid && nameValid;
 
   const handleSubmit = () => {
+    setTouched({ code: true, name: true });
     if (!canSubmit || mutation.isPending) return;
     const payload = { code: code.trim(), name: name.trim() };
     if (department) {
@@ -58,10 +71,23 @@ export default function DepartmentModal({ department, onClose, onSaved }: Depart
           id="department-code"
           labelText="Code"
           helperText="A short, unique identifier — e.g. FLT for Fleet Operations."
+          maxLength={20}
           value={code}
           onChange={(e) => setCode(e.target.value)}
+          onBlur={() => markTouched("code")}
+          invalid={!!codeInvalid}
+          invalidText="Code is required."
         />
-        <TextInput id="department-name" labelText="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextInput
+          id="department-name"
+          labelText="Name"
+          maxLength={200}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => markTouched("name")}
+          invalid={!!nameInvalid}
+          invalidText="Name is required."
+        />
       </div>
     </Modal>
   );

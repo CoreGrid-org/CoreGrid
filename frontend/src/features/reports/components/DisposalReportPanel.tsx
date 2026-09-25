@@ -123,6 +123,8 @@ export default function DisposalReportPanel() {
   const [error, setError] = useState<unknown>();
   const [isLoading, setIsLoading] = useState(true);
 
+  const dateRangeInvalid = !!dateFrom && !!dateTo && new Date(dateFrom).getTime() > new Date(dateTo).getTime();
+
   const query: Omit<Parameters<typeof getDisposalReportRecords>[0], never> = {
     status: status ? (status as DisposalStatus) : undefined,
     method: method ? (method as DisposalMethod) : undefined,
@@ -255,7 +257,13 @@ export default function DisposalReportPanel() {
           <DatePickerInput id="disposal-report-date-from" labelText="Requested from" placeholder="yyyy-mm-dd" />
         </DatePicker>
         <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateTo(date ? date.toISOString() : undefined)}>
-          <DatePickerInput id="disposal-report-date-to" labelText="Requested to" placeholder="yyyy-mm-dd" />
+          <DatePickerInput
+            id="disposal-report-date-to"
+            labelText="Requested to"
+            placeholder="yyyy-mm-dd"
+            invalid={dateRangeInvalid}
+            invalidText="Must be on or after the “Requested from” date."
+          />
         </DatePicker>
         <Button
           kind="ghost"

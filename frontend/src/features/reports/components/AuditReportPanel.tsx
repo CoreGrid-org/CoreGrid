@@ -39,6 +39,8 @@ export default function AuditReportPanel() {
   const { data: departments } = useDepartments();
   const { data: categories } = useAssetCategories();
 
+  const dateRangeInvalid = !!from && !!to && from > to;
+
   return (
     <>
       <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
@@ -53,7 +55,13 @@ export default function AuditReportPanel() {
             <DatePickerInput id="audit-report-from" labelText="From" placeholder="yyyy-mm-dd" />
           </DatePicker>
           <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => { setTo(date ? toDateOnly(date) : undefined); setPage(1); }}>
-            <DatePickerInput id="audit-report-to" labelText="To" placeholder="yyyy-mm-dd" />
+            <DatePickerInput
+              id="audit-report-to"
+              labelText="To"
+              placeholder="yyyy-mm-dd"
+              invalid={dateRangeInvalid}
+              invalidText="Must be on or after the “From” date."
+            />
           </DatePicker>
           <Dropdown
             id="audit-report-department"

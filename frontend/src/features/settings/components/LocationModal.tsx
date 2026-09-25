@@ -11,20 +11,35 @@ interface LocationModalProps {
   onSaved: () => void;
 }
 
+type Touched = Partial<Record<"name" | "type" | "department", boolean>>;
+
 // Create or amend a location "Type" is deliberately free text, not
 // an enum — SRS system.md §F.6 leaves it unconstrained on purpose.
 export default function LocationModal({ location, departments, onClose, onSaved }: LocationModalProps) {
   const [name, setName] = useState(location?.name ?? "");
   const [type, setType] = useState(location?.type ?? "");
   const [departmentId, setDepartmentId] = useState(location?.department_id ?? departments[0]?.id ?? "");
+  const [touched, setTouched] = useState<Touched>({});
+
+  const markTouched = (field: keyof Touched) => setTouched((t) => ({ ...t, [field]: true }));
 
   const createLocation = useCreateLocation();
   const updateLocation = useUpdateLocation();
   const mutation = location ? updateLocation : createLocation;
 
-  const canSubmit = name.trim().length > 0 && type.trim().length > 0 && departmentId.length > 0;
+  // Mirrors Create/UpdateLocationRequest's [Required]/[MaxLength]
+  // (backend/Features/OrgConfig/DTOs).
+  const nameValid = name.trim().length > 0 && name.trim().length <= 200;
+  const typeValid = type.trim().length > 0 && type.trim().length <= 50;
+  const departmentValid = departmentId.length > 0;
+  const nameInvalid = touched.name && !nameValid;
+  const typeInvalid = touched.type && !typeValid;
+  const departmentInvalid = touched.department && !departmentValid;
+
+  const canSubmit = nameValid && typeValid && departmentValid;
 
   const handleSubmit = () => {
+    setTouched({ name: true, type: true, department: true });
     if (!canSubmit || mutation.isPending) return;
     const payload = { name: name.trim(), type: type.trim(), department_id: departmentId };
     if (location) {
@@ -56,19 +71,35 @@ export default function LocationModal({ location, departments, onClose, onSaved 
         />
       )}
       <div style={{ display: "grid", gap: "1rem" }}>
-        <TextInput id="location-name" labelText="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextInput
+          id="location-name"
+          labelText="Name"
+          maxLength={200}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => markTouched("name")}
+          invalid={!!nameInvalid}
+          invalidText="Name is required."
+        />
         <TextInput
           id="location-type"
           labelText="Type"
           helperText="e.g. store, workshop, office, ward — any label your organisation uses."
+          maxLength={50}
           value={type}
           onChange={(e) => setType(e.target.value)}
+          onBlur={() => markTouched("type")}
+          invalid={!!typeInvalid}
+          invalidText="Type is required."
         />
         <Select
           id="location-department"
           labelText="Department"
           value={departmentId}
           onChange={(e) => setDepartmentId(e.target.value)}
+          onBlur={() => markTouched("department")}
+          invalid={!!departmentInvalid}
+          invalidText="Select a department."
         >
           {departments.map((d) => (
             <SelectItem key={d.id} value={d.id} text={d.name} />

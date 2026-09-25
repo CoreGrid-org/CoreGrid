@@ -143,6 +143,8 @@ export default function MaintenanceReportPanel() {
   const { data: departments } = useDepartments();
   const { data: users } = useUsersList();
 
+  const dateRangeInvalid = !!dateFrom && !!dateTo && new Date(dateFrom).getTime() > new Date(dateTo).getTime();
+
   const query: Omit<MaintenanceQueryParameters, "page" | "pageSize"> = {
     departmentId,
     assigneeId,
@@ -291,7 +293,13 @@ export default function MaintenanceReportPanel() {
           <DatePickerInput id="maintenance-report-date-from" labelText="Requested from" placeholder="yyyy-mm-dd" />
         </DatePicker>
         <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateTo(date ? date.toISOString() : undefined)}>
-          <DatePickerInput id="maintenance-report-date-to" labelText="Requested to" placeholder="yyyy-mm-dd" />
+          <DatePickerInput
+            id="maintenance-report-date-to"
+            labelText="Requested to"
+            placeholder="yyyy-mm-dd"
+            invalid={dateRangeInvalid}
+            invalidText="Must be on or after the “Requested from” date."
+          />
         </DatePicker>
         <Button
           kind="ghost"
