@@ -44,6 +44,18 @@ export default function CompleteMaintenanceModal({
       setError("Please fill in all required fields.");
       return;
     }
+
+    const reqDate = new Date(record.created_at);
+    reqDate.setHours(0, 0, 0, 0);
+    
+    const compParts = completionDate.split("-");
+    const compDateObj = new Date(Number(compParts[0]), Number(compParts[1]) - 1, Number(compParts[2]));
+    
+    if (compDateObj < reqDate) {
+      setError("Completion date cannot be earlier than the requested date.");
+      return;
+    }
+
     setError(null);
 
     completeMaintenance.mutate(

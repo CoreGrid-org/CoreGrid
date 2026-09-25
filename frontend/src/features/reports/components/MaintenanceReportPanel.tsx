@@ -287,10 +287,14 @@ export default function MaintenanceReportPanel() {
           <SelectItem value="CORRECTIVE" text="Corrective" />
           <SelectItem value="PREVENTIVE" text="Preventive" />
         </Select>
-        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateFrom(date ? date.toISOString() : undefined)}>
+        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={(_dates: Date[], _dateStr: string) => {
+          setDateFrom(_dateStr || undefined);
+        }}>
           <DatePickerInput id="maintenance-report-date-from" labelText="Requested from" placeholder="yyyy-mm-dd" />
         </DatePicker>
-        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateTo(date ? date.toISOString() : undefined)}>
+        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={(_dates: Date[], _dateStr: string) => {
+          setDateTo(_dateStr || undefined);
+        }}>
           <DatePickerInput id="maintenance-report-date-to" labelText="Requested to" placeholder="yyyy-mm-dd" />
         </DatePicker>
         <Button

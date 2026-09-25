@@ -27,6 +27,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 export async function getDashboardSummary(accessToken: string): Promise<DashboardSummary> {
   const response = await fetch(`${API_URL}/dashboard/summary`, {
     headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -41,6 +42,7 @@ export async function getDashboardSummary(accessToken: string): Promise<Dashboar
 export async function getDashboardCharts(accessToken: string): Promise<DashboardCharts> {
   const response = await fetch(`${API_URL}/dashboard/charts`, {
     headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");

@@ -60,7 +60,10 @@ export default function MaintenancePage() {
           <h1 className="cg-page__title">Maintenance</h1>
           <p className="cg-page__subtitle">Faults, repairs and preventive schedules</p>
         </div>
-        <Button renderIcon={Add} onClick={() => navigate("new")}>New maintenance record</Button>
+        <div style={{ display: "flex", gap: "1rem" }}>
+          <Button kind="secondary" renderIcon={Add} onClick={() => navigate("report")}>Report fault</Button>
+          <Button renderIcon={Add} onClick={() => navigate("new")}>New maintenance record</Button>
+        </div>
       </div>
 
       <Tabs>
@@ -130,14 +133,18 @@ export default function MaintenancePage() {
                 <DatePicker
                   datePickerType="single"
                   dateFormat="Y-m-d"
-                  onChange={([date]) => setDateFrom(date ? date.toISOString() : undefined)}
+                  onChange={(_dates: Date[], _dateStr: string, _instance: unknown) => {
+                    setDateFrom(_dateStr || undefined);
+                  }}
                 >
                   <DatePickerInput id="maintenance-date-from" labelText="Requested from" placeholder="yyyy-mm-dd" />
                 </DatePicker>
                 <DatePicker
                   datePickerType="single"
                   dateFormat="Y-m-d"
-                  onChange={([date]) => setDateTo(date ? date.toISOString() : undefined)}
+                  onChange={(_dates: Date[], _dateStr: string, _instance: unknown) => {
+                    setDateTo(_dateStr || undefined);
+                  }}
                 >
                   <DatePickerInput id="maintenance-date-to" labelText="Requested to" placeholder="yyyy-mm-dd" />
                 </DatePicker>

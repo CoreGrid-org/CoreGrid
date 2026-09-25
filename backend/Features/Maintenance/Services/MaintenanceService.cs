@@ -391,11 +391,7 @@ public class MaintenanceService : IMaintenanceService
                 "Invalid resulting condition. Use: NEW, GOOD, FAIR, POOR or UNSERVICEABLE.");
         }
 
-        if (request.CompletionDate > DateOnly.FromDateTime(DateTime.UtcNow))
-        {
-            throw new InvalidOperationException(
-                "Completion date cannot be in the future.");
-        }
+        // Future dates are allowed by user request.
 
         //  Load record + asset -
 
