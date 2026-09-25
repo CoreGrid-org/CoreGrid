@@ -490,3 +490,6 @@ Separately, the five items in §9 (`reject` endpoints, `POST /assets/{id}/verify
 
 - **CI dependency conflict fixed**: `frontend/package.json` had `eslint: ^9.39.5` alongside `@eslint/js: ^10.0.1`, whose peer requires `eslint@^10.0.0` — `npm ci` failed with `ERESOLVE` on every CI run. Bumped `eslint` to `^10.0.1` (all other eslint-adjacent devDeps — `typescript-eslint@8.70.0`, `eslint-plugin-react-hooks@7.1.1`, `eslint-plugin-react-refresh@0.5.6` — already accept eslint 10 per their own peerDependencies) and regenerated `package-lock.json`. `npm ci` and `npm install` both clean now.
 - **Known remaining gap, not yet fixed**: `npx tsc -b --force` surfaces pre-existing test-file errors unrelated to this session's app-code changes — several `*.test.tsx` files import `screen`/`waitFor` from `@testing-library/react` but that module has no such exports at the currently-resolved version, and `WorkflowsPage.test.tsx` has a duplicate object-literal property (TS1117). `dotnet build` (backend) is clean at 0 warnings/0 errors regardless. Needs a follow-up pass on `@testing-library/react`'s resolved version and the duplicate-property fix.
+- User profile card is not getting correct
+- Check notification works correctly,
+- Add a password reset feature. and pages to reset password correctly. 
