@@ -21,7 +21,7 @@ vi.mock("@/features/auth/services/me", () => ({
 
 import ReportsPage from "./ReportsPage";
 
-const ADMIN: MeResponse = { id: "u1", email: "admin@mohsl.gov.lk", given_name: "A", family_name: "B", role: "Administrator", is_active: true };
+const ADMIN: MeResponse = { id: "u1", email: "admin@mohsl.gov.lk", given_name: "A", family_name: "B", role: "Administrator", is_active: true, organization_name: "Test Organisation" };
 const OFFICER: MeResponse = { ...ADMIN, id: "u2", email: "officer@mohsl.gov.lk", role: "InventoryOfficer" };
 
 describe("ReportsPage", () => {

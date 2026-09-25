@@ -62,6 +62,7 @@ public class UserMirrorProvisioningTests : IClassFixture<CoreGridWebApplicationF
         Assert.Equal("User", me.RootElement.GetProperty("family_name").GetString());
         Assert.Equal("Auditor", me.RootElement.GetProperty("role").GetString());
         Assert.Equal(_orgId, me.RootElement.GetProperty("organization_id").GetGuid());
+        Assert.False(string.IsNullOrWhiteSpace(me.RootElement.GetProperty("organization_name").GetString()));
 
         using var db = _factory.CreateDbContext();
         var stored = await db.Users.SingleAsync(u => u.ExternalSubjectId == subject);

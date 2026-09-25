@@ -9,6 +9,7 @@ export interface MeResponse {
   family_name: string;
   role: CoreGridRole;
   is_active: boolean;
+  organization_name: string;
 }
 
 // Backend-authoritative role resolution (backend/Features/Me/MeController.cs)
