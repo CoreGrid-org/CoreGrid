@@ -67,7 +67,9 @@ export default function MaintenancePage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Maintenance</h1>
-          <p className="cg-page__subtitle">Faults, repairs and preventive schedules</p>
+          <p className="cg-page__subtitle">
+            Log asset faults, track work orders, manage repairs, and oversee preventive maintenance schedules across the organization.
+          </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {canReportFault && (

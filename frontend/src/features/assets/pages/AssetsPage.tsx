@@ -92,7 +92,9 @@ export default function AssetsPage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Asset Register</h1>
-          <p className="cg-page__subtitle"></p>
+          <p className="cg-page__subtitle">
+            View, filter, and track lifecycle records and verification details for all organization assets.
+          </p>
         </div>
         {canManageAssets && (
           <Button renderIcon={Add} onClick={() => navigate(`${assetsBasePath}/new`)}>

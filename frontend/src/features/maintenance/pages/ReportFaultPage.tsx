@@ -70,7 +70,9 @@ export default function ReportFaultPage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Report a Fault</h1>
-          <p className="cg-page__subtitle">Report an issue with an asset (FR-033).</p>
+          <p className="cg-page__subtitle">
+            Report equipment malfunctions, damage, or operational defects to initiate repair work orders.
+          </p>
         </div>
       </div>
 

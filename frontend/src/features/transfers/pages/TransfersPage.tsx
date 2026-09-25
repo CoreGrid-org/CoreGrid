@@ -117,7 +117,7 @@ export default function TransfersPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Transfers & Disposals</h1>
           <p className="cg-page__subtitle">
-            Initiate and approve transfers, confirm receipt, condemn assets, and submit or approve disposal requests (FR-043–055).
+            Initiate and approve inter-departmental asset transfers, confirm shipping receipts, condemn damaged equipment, and manage disposal requests.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
