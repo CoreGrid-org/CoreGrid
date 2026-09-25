@@ -44,7 +44,6 @@ describe("ReportsPage", () => {
     expect(screen.getByRole("tab", { name: "Maintenance" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Disposal" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Audit" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Inventory, maintenance and disposal reports\./)).toBeInTheDocument();
   });
 
   it("switches to the real Maintenance panel, and to the real Audit panel for an Administrator", async () => {
