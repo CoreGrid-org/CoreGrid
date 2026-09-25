@@ -82,6 +82,20 @@ public class MaintenanceController : CoreGridControllerBase
             : Ok(record);
     }
 
+    // Mobile dashboard feed. Ownership is enforced by the authenticated user
+    // context; no reporter identifier is accepted from the client.
+    [HttpGet("my-reports")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)}")]
+    public async Task<ActionResult<PagedResult<MaintenanceRecordDto>>> GetMyReports(
+        [FromQuery] MaintenanceRecordFilter filter, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        return Ok(await _maintenanceService.ListMyFaultReportsAsync(
+            currentUser.OrganizationId, currentUser.Id, filter, cancellationToken));
+    }
+
     // PUT /api/maintenance/{id} amend classification, priority, description.
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.CanManageMaintenance)]

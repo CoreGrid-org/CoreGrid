@@ -357,6 +357,11 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
     [InlineData("POST", "/api/maintenance/faults", CoreGridRole.InventoryOfficer, false)]
     [InlineData("POST", "/api/maintenance/faults", CoreGridRole.Administrator, false)]
     [InlineData("POST", "/api/maintenance/faults", CoreGridRole.Auditor, true)]
+    // Personal fault reports are a mobile workflow limited to Staff and Officers.
+    [InlineData("GET", "/api/maintenance/my-reports", CoreGridRole.Staff, false)]
+    [InlineData("GET", "/api/maintenance/my-reports", CoreGridRole.InventoryOfficer, false)]
+    [InlineData("GET", "/api/maintenance/my-reports", CoreGridRole.Auditor, true)]
+    [InlineData("GET", "/api/maintenance/my-reports", CoreGridRole.Administrator, true)]
     // CanRequestTransfer — Officer, Administrator
     [InlineData("POST", "/api/transfers", CoreGridRole.InventoryOfficer, false)]
     [InlineData("POST", "/api/transfers", CoreGridRole.Administrator, false)]

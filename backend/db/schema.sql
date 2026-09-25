@@ -747,3 +747,16 @@ VALUES ('20260919141251_AllowAdHocDiscrepancies', '10.0.10');
 
 COMMIT;
 
+START TRANSACTION;
+
+ALTER TABLE "MaintenanceRecords" ADD "ReportedByUserId" uuid;
+
+CREATE INDEX "IX_MaintenanceRecords_ReportedByUserId" ON "MaintenanceRecords" ("ReportedByUserId");
+
+ALTER TABLE "MaintenanceRecords" ADD CONSTRAINT "FK_MaintenanceRecords_Users_ReportedByUserId"
+    FOREIGN KEY ("ReportedByUserId") REFERENCES "Users" ("Id") ON DELETE RESTRICT;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260925090000_AddMaintenanceReporter', '10.0.10');
+
+COMMIT;
