@@ -27,6 +27,7 @@ import AuditPage from "@/features/audit/pages/AuditPage";
 import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
 import ReportsPage from "@/features/reports/pages/ReportsPage";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
+import ProfilePage from "@/features/profile/pages/ProfilePage";
 import NotFound from "@/shared/pages/NotFound";
 
 export default function App() {
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="users" element={<UsersPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route
@@ -80,6 +82,7 @@ export default function App() {
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<InventoryTransfersPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route
@@ -98,6 +101,7 @@ export default function App() {
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<AuditorTransfersPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="signin" element={<SignIn />} />

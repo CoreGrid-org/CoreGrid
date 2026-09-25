@@ -21,9 +21,20 @@ public class MeController(CoreGridDbContext db, CurrentUserContext currentUser) 
             return Unauthorized();
         }
 
-       // Loads the user's profile details.
-        var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == currentUser.Id, cancellationToken);
+        // Loads the user's profile and organisation name for the account screen.
+        var user = await db.Users
+            .AsNoTracking()
+            .Include(u => u.Organization)
+            .SingleAsync(u => u.Id == currentUser.Id, cancellationToken);
 
-        return Ok(new MeResponse(user.Id, user.Email, user.GivenName, user.FamilyName, user.Role, user.IsActive, user.OrganizationId));
+        return Ok(new MeResponse(
+            user.Id,
+            user.Email,
+            user.GivenName,
+            user.FamilyName,
+            user.Role,
+            user.IsActive,
+            user.OrganizationId,
+            user.Organization?.Name ?? "organisation"));
     }
 }

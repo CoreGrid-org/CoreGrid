@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { ComponentType } from "react";
 import {
   Header,
@@ -36,6 +36,7 @@ interface RoleLayoutProps {
 // Provides shared layout and navigation for role-based routes.
 export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups = [] }: RoleLayoutProps) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const notificationCenter = useNotificationCenter();
 // Activates only the most specific matching navigation item.
   const allItems = [...navGroups.flatMap((g) => g.items), ...navItems];
@@ -101,7 +102,7 @@ export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups
               </HeaderGlobalAction>
             )}
           </SignOutButton>
-          <HeaderGlobalAction aria-label="User profile">
+          <HeaderGlobalAction onClick={() => navigate(`${homeTo}/profile`)} aria-label="Open user profile">
             <UserAvatar size={20} className="cg-header-icon" />
           </HeaderGlobalAction>
         </HeaderGlobalBar>

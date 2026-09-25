@@ -606,6 +606,38 @@ html, body, #root {
   &__value  { font-size: 0.875rem; color: #161616; margin: 0; }
 }
 
+// ─── User profile ───────────────────────────────────────────────────────────
+.cg-user-profile {
+  &__hero { margin-bottom: 1.5rem; }
+
+  &__badges { margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  &__summary-line { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  &__email .cg-kv-item__value { display: flex; align-items: center; gap: 0.5rem; overflow-wrap: anywhere; }
+
+  &__id { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+  &__id code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; }
+
+  &__security { display: flex; gap: 1rem; padding: 1.25rem 1.5rem; background: #f4f7fb; border-bottom: 1px solid #e0e0e0; }
+  &__security-icon { color: $cg-accent; flex: 0 0 auto; }
+  &__security h3 { font-size: 0.9375rem; margin: 0 0 0.375rem; }
+  &__security p { color: $cg-text-secondary; font-size: 0.8125rem; line-height: 1.4; margin: 0; }
+  &__actions { padding: 1rem 1.5rem; }
+}
+
+@media (max-width: 768px) {
+  .cg-user-profile {
+    &__grid { grid-template-columns: 1fr; }
+    &__badges { margin-left: 0; width: 100%; }
+  }
+}
+
 // ─── Search / toolbar ────────────────────────────────────────────────────────
 .cg-search {
   position: relative;

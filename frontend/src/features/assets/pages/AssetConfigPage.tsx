@@ -146,7 +146,7 @@ export default function AssetConfigPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Asset Configuration</h1>
           <p className="cg-page__subtitle">
-            
+            Manage asset categories, types, and custom attribute definitions across the organization.
           </p>
         </div>
         <Button

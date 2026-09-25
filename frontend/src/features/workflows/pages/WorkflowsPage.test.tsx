@@ -33,7 +33,7 @@ vi.mock("../components/DecideWorkflowModal", () => ({ default: () => null }));
 
 import WorkflowsPage from "./WorkflowsPage";
 
-const ADMIN: MeResponse = { id: "u1", email: "admin@mohsl.gov.lk", given_name: "A", family_name: "B", role: "Administrator", is_active: true };
+const ADMIN: MeResponse = { id: "u1", email: "admin@mohsl.gov.lk", given_name: "A", family_name: "B", role: "Administrator", is_active: true, organization_name: "Test Organisation" };
 const AUDITOR: MeResponse = { ...ADMIN, id: "u2", email: "auditor@mohsl.gov.lk", role: "Auditor" };
 
 const AWAITING: AgentWorkflow = {

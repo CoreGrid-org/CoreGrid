@@ -50,7 +50,7 @@ export default function InventoryTransfersPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Transfers & Disposals</h1>
           <p className="cg-page__subtitle">
-            Initiate transfers, confirm asset arrivals, condemn unserviceable assets, and submit disposal requests (FR-043–050).
+            Initiate inter-departmental transfers, confirm physical asset arrivals, condemn unserviceable assets, and submit disposal requests.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>

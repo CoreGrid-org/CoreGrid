@@ -1,4 +1,4 @@
-import { Button, ComboBox, Dropdown, InlineNotification, Search, SkeletonText, Tag } from "@carbon/react";
+import { Button, ComboBox, Dropdown, InlineNotification, Pagination, Search, SkeletonText, Tag } from "@carbon/react";
 import { DocumentExport, DocumentPdf } from "@carbon/icons-react";
 import { jsPDF } from "jspdf";
 import { useEffect, useState } from "react";
