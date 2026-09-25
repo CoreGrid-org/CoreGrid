@@ -6,4 +6,5 @@ public static class NotificationTypes
     public const string MaintenanceAssigned = "MAINTENANCE_ASSIGNED";
     public const string MaintenanceCompleted = "MAINTENANCE_COMPLETED";
     public const string MaintenanceCancelled = "MAINTENANCE_CANCELLED";
+    public const string MaintenanceStatusChanged = "MAINTENANCE_STATUS_CHANGED";
 }

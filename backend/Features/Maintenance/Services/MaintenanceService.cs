@@ -40,6 +40,7 @@ public class MaintenanceService : IMaintenanceService
         ResultingCondition = m.ResultingCondition,
         AssigneeId = m.AssigneeId,
         AssigneeEmail = m.Assignee != null ? m.Assignee.Email : null,
+        ReportedByUserId = m.ReportedByUserId,
         CancellationReason = m.CancellationReason,
         CreatedAt = m.CreatedAt
     };
@@ -77,7 +78,15 @@ public class MaintenanceService : IMaintenanceService
             return;
         }
 
-        dto.PhotoUrl = await _fileStorageService.GetPresignedUrlAsync(dto.PhotoUrl, PhotoUrlExpiry, cancellationToken);
+        try
+        {
+            dto.PhotoUrl = await _fileStorageService.GetPresignedUrlAsync(dto.PhotoUrl, PhotoUrlExpiry, cancellationToken);
+        }
+        catch
+        {
+            // If storage service fails to generate a presigned URL (e.g. unconfigured in dev),
+            // retain the existing PhotoUrl string so maintenance queries do not crash.
+        }
     }
 
     public async Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(
@@ -151,7 +160,8 @@ public class MaintenanceService : IMaintenanceService
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
             CreatedBy = currentUserId,
-            UpdatedBy = currentUserId
+            UpdatedBy = currentUserId,
+            ReportedByUserId = currentUserId
         };
 
         _context.MaintenanceRecords.Add(record);
@@ -284,6 +294,8 @@ public class MaintenanceService : IMaintenanceService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        await NotifyReporterOfStatusChangeAsync(record, record.Asset?.AssetCode ?? "an asset", cancellationToken);
+
         // FR-080: notify the newly assigned officer.
         await _notificationService.NotifyAsync(
             organizationId,
@@ -347,6 +359,8 @@ public class MaintenanceService : IMaintenanceService
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await NotifyReporterOfStatusChangeAsync(record, asset.AssetCode, cancellationToken);
 
         return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
@@ -467,22 +481,7 @@ public class MaintenanceService : IMaintenanceService
         // Single SaveChangesAsync - satisfies BR3 (atomic).
         await _context.SaveChangesAsync(cancellationToken);
 
-        // FR-080: notify whoever originally reported/requested this work,
-        // if that's someone other than the person completing it. AC4:
-        // NotifyAsync never throws, so a notification failure here can
-        // never undo the completion that already committed above.
-        if (record.CreatedBy.HasValue && record.CreatedBy.Value != currentUserId)
-        {
-            await _notificationService.NotifyAsync(
-                organizationId,
-                record.CreatedBy.Value,
-                NotificationTypes.MaintenanceCompleted,
-                "Maintenance completed",
-                $"Maintenance for {asset.AssetCode} has been completed. Resulting condition: {conditionUpper}.",
-                "MaintenanceRecord",
-                record.Id,
-                cancellationToken);
-        }
+        await NotifyReporterOfStatusChangeAsync(record, asset.AssetCode, cancellationToken);
 
         return await GetMaintenanceRecordByIdAsync(organizationId, DepartmentScope.Unrestricted, record.Id, cancellationToken);
     }
@@ -534,10 +533,11 @@ public class MaintenanceService : IMaintenanceService
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // FR-080: notify the assignee and the original reporter (if either
-        // is someone other than whoever cancelled it), so nobody keeps
-        // working toward a record that no longer exists.
-        var recipientIds = new[] { record.AssigneeId, record.CreatedBy }
+        await NotifyReporterOfStatusChangeAsync(record, asset?.AssetCode ?? "an asset", cancellationToken);
+
+        // Notify the assignee too; the reporter-specific notification above
+        // is based solely on ReportedByUserId, never generic audit metadata.
+        var recipientIds = new[] { record.AssigneeId }
             .Where(id => id.HasValue && id.Value != currentUserId)
             .Select(id => id!.Value)
             .Distinct();
@@ -620,6 +620,40 @@ public class MaintenanceService : IMaintenanceService
         await ResolveAssetTypeNamesAsync(result.Items, cancellationToken);
 
         return result;
+    }
+
+    public async Task<PagedResult<MaintenanceRecordDto>> ListMyFaultReportsAsync(
+        Guid organizationId, Guid reporterUserId, MaintenanceRecordFilter filter, CancellationToken cancellationToken)
+    {
+        var query = _context.MaintenanceRecords
+            .AsNoTracking()
+            .Where(m => m.OrganizationId == organizationId
+                     && m.ReportedByUserId == reporterUserId
+                     && m.Type == MaintenanceType.CORRECTIVE);
+
+        var sorted = query.OrderByDescending(m => m.CreatedAt);
+        var result = await sorted.ToPagedResultAsync(filter, ToDtoExpression, cancellationToken);
+        await Task.WhenAll(result.Items.Select(dto => ResolvePhotoUrlAsync(dto, cancellationToken)));
+        await ResolveAssetTypeNamesAsync(result.Items, cancellationToken);
+        return result;
+    }
+
+    private Task NotifyReporterOfStatusChangeAsync(MaintenanceRecord record, string assetCode, CancellationToken cancellationToken)
+    {
+        if (!record.ReportedByUserId.HasValue)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _notificationService.NotifyAsync(
+            record.OrganizationId,
+            record.ReportedByUserId.Value,
+            NotificationTypes.MaintenanceStatusChanged,
+            "Fault report status updated",
+            $"Your fault report for {assetCode} is now {record.Status}.",
+            "MaintenanceRecord",
+            record.Id,
+            cancellationToken);
     }
 
     private static string ValidateCondition(string condition, string fieldName)

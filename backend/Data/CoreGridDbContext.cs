@@ -544,6 +544,7 @@ public class CoreGridDbContext(
             entity.HasIndex(m => m.Priority);
             entity.HasIndex(m => m.Type);
             entity.HasIndex(m => m.AssigneeId);
+            entity.HasIndex(m => m.ReportedByUserId);
 
             entity.Property(m => m.Description).IsRequired();
             entity.Property(m => m.ObservedCondition).HasMaxLength(15).IsRequired();
@@ -579,6 +580,11 @@ public class CoreGridDbContext(
             entity.HasOne(m => m.Assignee)
                 .WithMany()
                 .HasForeignKey(m => m.AssigneeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.ReportedByUser)
+                .WithMany()
+                .HasForeignKey(m => m.ReportedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.ToTable(tb =>

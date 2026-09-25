@@ -31,6 +31,7 @@ public class MaintenanceRecordDto
     public string? ResultingCondition { get; set; }
     public Guid? AssigneeId { get; set; }
     public string? AssigneeEmail { get; set; }
+    public Guid? ReportedByUserId { get; set; }
     public string? CancellationReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

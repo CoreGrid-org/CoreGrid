@@ -35,4 +35,6 @@ public interface IMaintenanceService
     /// filter by status, priority, department, asset, assignee and
     /// date range, with server-side sorting and pagination.
     Task<PagedResult<MaintenanceRecordDto>> ListMaintenanceRecordsAsync(Guid organizationId, DepartmentScope scope, MaintenanceRecordFilter filter, CancellationToken cancellationToken);
+
+    Task<PagedResult<MaintenanceRecordDto>> ListMyFaultReportsAsync(Guid organizationId, Guid reporterUserId, MaintenanceRecordFilter filter, CancellationToken cancellationToken);
 }
