@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.Services;
@@ -41,25 +42,63 @@ public class PolicyComplianceAgentService(
 
         var proposal = recommendationEngine.Propose(complianceState, policy);
 
+        // Map Node 3 (Budget Analysis) assessment facts if available, or degrade gracefully to null
+        FinancialAssessmentFacts? financialAssessment = null;
+        var proposedRecommendation = proposal.Recommendation;
+
+        if (!string.IsNullOrEmpty(workflow.BudgetAnalysis))
+        {
+            var budgetResult = JsonSerializer.Deserialize<FinancialAssessmentResultDto>(workflow.BudgetAnalysis);
+            if (budgetResult != null)
+            {
+                if (!string.IsNullOrWhiteSpace(budgetResult.ProposedRecommendation))
+                {
+                    proposedRecommendation = budgetResult.ProposedRecommendation;
+                }
+
+                decimal? topScore = budgetResult.RankedOptions.Count > 0
+                    ? budgetResult.RankedOptions.Max(o => o.Score)
+                    : null;
+
+                decimal? projectedRepairCost = null;
+                if (!string.IsNullOrEmpty(workflow.MaintenanceAnalysis))
+                {
+                    var maintenanceStats = JsonSerializer.Deserialize<CoreGrid.Api.Features.AgentTools.DTOs.FailureStatisticsDto>(workflow.MaintenanceAnalysis);
+                    projectedRepairCost = maintenanceStats?.ProjectedNextTwelveMonthsCost;
+                }
+
+                financialAssessment = new FinancialAssessmentFacts
+                {
+                    RepairToReplaceRatio = budgetResult.RepairToReplaceRatio,
+                    BudgetHeadroom = budgetResult.BudgetHeadroom,
+                    ProjectedRepairCost = projectedRepairCost,
+                    Confidence = topScore
+                };
+            }
+        }
+
         db.AgentExecutionSteps.Add(new AgentExecutionStep
         {
             Id = Guid.NewGuid(),
             WorkflowId = workflow.Id,
             Agent = AgentNames.PolicyComplianceRecommendation,
-            Sequence = 3,
-            OutputSummary = $"Proposed {proposal.Recommendation}: {proposal.Rationale}",
+            Sequence = 4,
+            OutputSummary = $"Proposed {proposedRecommendation}: {proposal.Rationale}",
             Status = "SUCCESS",
             CreatedAt = DateTimeOffset.UtcNow
         });
         await db.SaveChangesAsync(cancellationToken);
 
         // Hand off to the same deterministic gate a human's manual
-        // "Evaluate policy compliance" submission runs through — the
-        // heuristic's proposal is just this call's input, never the verdict.
+        // "Evaluate policy compliance" submission runs through.
         return await workflowService.EvaluatePolicyAsync(
             organizationId,
             workflowId,
-            new EvaluatePolicyRequest { ProposedRecommendation = proposal.Recommendation },
+            new EvaluatePolicyRequest
+            {
+                ProposedRecommendation = proposedRecommendation,
+                FinancialAssessment = financialAssessment
+            },
             cancellationToken);
     }
 }

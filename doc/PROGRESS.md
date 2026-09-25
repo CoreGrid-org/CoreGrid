@@ -32,8 +32,9 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | Staff department scoping | `Features/Shared/Scoping/DepartmentScope` — applied to the Assets/Maintenance/Transfers/Disposals list and detail endpoints (Appendix B: "Staff are restricted to their own department by a service-layer filter") |
 | EF Core migrations + generated `db/schema.sql` export | |
 | CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` — backend and frontend jobs only; no secret-scanning job |
-| Backend test project | `backend.Tests`, xUnit — InMemory suite + a real-Postgres suite for append-only checks; compiles and runs in CI (the `CoreGrid.Api` `ProjectReference` that used to be missing is restored) |
-| Frontend test project | Vitest + React Testing Library |
+| Backend test project | `backend.Tests`, xUnit — InMemory suite + a real-Postgres suite for append-only checks; compiles and runs in CI (376 backend tests, 100% passing) |
+| Frontend test project | Vitest + React Testing Library (51 frontend tests, 100% passing) |
+| Multi-agent orchestration pipeline | Full Planner -> Maintenance -> Budget -> Policy pipeline is genuinely connected end-to-end for the first time in the project; new `BudgetAnalysis` jsonb column on `AgentWorkflows` table |
 
 **❌ Not Started**
 
@@ -134,8 +135,8 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | React (Administrator, Inventory Officer, Auditor screens) | Live precondition checklist, approve/reject/request-revision, initiate transfer, confirm receipt, condemn, submit disposal. **Administrator now has full parity with Inventory Officer's own operational actions** (initiate transfer, confirm receipt, condemn, submit disposal), not just the approval half — `InitiateTransferModal`/`CondemnAssetModal`/`SubmitDisposalModal` extracted to `features/transfers/components/` and shared by both pages instead of duplicated |
 | FR-084: Reports > Disposal tab | Real — `DisposalReportPanel.tsx`, same "fetch every page and aggregate client-side" pattern as Maintenance/Inventory's own report panels; no dedicated report backend endpoint needed. Filters: status, method, date range. Stats: disposals in scope, total proceeds, average approval time. PDF/CSV export |
 | Agent tool endpoints for Budget Analysis Agent | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
-| Budget Analysis Agent | Migrated from standalone Python/LangGraph to in-process C# service (BudgetAgentService.cs), following team-wide architecture decision and matching PlannerAgentService.cs's blueprint (deterministic tools -> LLM call -> deterministic fallback). Uses configurable OpenAI-compatible endpoint (Budget:Endpoint/Model/ApiKey config), defaulting to Gemini's OpenAI-compatible endpoint for cost consistency. BudgetScopeGuard provides structural validation and a real deterministic fallback using OrganizationPolicy's actual RepairToReplaceCostThreshold when configured. 19 new unit tests (188 total repo-wide, 0 failures on full unfiltered run including Postgres-backed AppendOnlyTests). Original Python implementation (agent-service/) preserved untouched pending final decommission decision. |
-| Tests | 105 Component C-specific unit tests (86 transfer/disposal/tools + 19 budget agent tests across BudgetScopeGuardTests and BudgetAgentServiceTests), plus reject×2/amend×3/verify×6 added for the SRS §9 opt-in items. Repo-wide suite: 371 total, 0 failures on full unfiltered run |
+| Budget Analysis Agent | Migrated from standalone Python/LangGraph to in-process C# service (BudgetAgentService.cs), following team-wide architecture decision and matching PlannerAgentService.cs's blueprint (deterministic tools -> LLM call -> deterministic fallback). Uses configurable OpenAI-compatible endpoint (Budget:Endpoint/Model/ApiKey config), defaulting to Gemini's OpenAI-compatible endpoint for cost consistency. BudgetScopeGuard provides structural validation and a real deterministic fallback using OrganizationPolicy's actual RepairToReplaceCostThreshold when configured. 19 new unit tests (188 total repo-wide, 0 failures on full unfiltered run including Postgres-backed AppendOnlyTests). Original Python implementation (agent-service/) preserved untouched pending final decommission decision. Wired into the live multi-agent orchestration pipeline as Node 3 (AgentWorkflowService.cs), sequenced correctly after Maintenance Analysis. Graceful degradation on failure (does not hard-fail the workflow). New POST /api/agent-workflows/{id}/run-budget-agent endpoint for independent re-runs. |
+| Tests | 105 Component C-specific unit tests (86 transfer/disposal/tools + 19 budget agent tests across BudgetScopeGuardTests and BudgetAgentServiceTests), plus reject×2/amend×3/verify×6 added for the SRS §9 opt-in items. Repo-wide suite: 376 backend tests, 51 frontend tests, both currently 100% passing |
 
 **❌ Not Started**
 
@@ -166,7 +167,7 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 | Reports page: Audit tab hidden from Inventory Officer | Matches the backend's own Auditor/Administrator-only authorisation |
 | React (org structure/users/policy admin, audit dashboard, campaigns, discrepancy resolution, Reports > Asset Inventory) | |
 | Users & Roles page: search + pagination | `GET /api/users` supports `search`/`page`/`pageSize`; picker dropdowns elsewhere unaffected |
-| Policy Compliance Agent + human-approval checkpoint | Deterministic rule engine, node-4 recommendation step, approval workflow — no LLM call, by team decision |
+| Policy Compliance Agent + human-approval checkpoint | Deterministic rule engine, node-4 recommendation step, approval workflow — no LLM call, by team decision. Fixed incorrect AgentExecutionStep sequence (was hardcoded 3, now correctly 4). Now consumes real FinancialAssessmentResultDto from Node 3 instead of always evaluating null financial facts. |
 | CI pipeline ownership | Backend/frontend jobs |
 | Tests (append-only, discrepancy resolution, authorisation matrix) | |
 
@@ -174,7 +175,7 @@ Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individ
 
 | Task | Notes |
 |---|---|
-| Policy Compliance Agent: full orchestration | Node 4 sequenced after nodes 1/2; node 3 (Budget) not wired in yet; executing an approved action against the underlying business record is stubbed |
+| Policy Compliance Agent: full orchestration | Node 4 sequenced after nodes 1/2/3 (full 4-node pipeline now connected); executing an approved action against the underlying business record is stubbed |
 | Append-only enforcement | Restricted DB role + grants exist and are proven correct by tests; the app's runtime connection still needs to be split from the migration-owner one to take effect |
 
 **❌ Not Started**

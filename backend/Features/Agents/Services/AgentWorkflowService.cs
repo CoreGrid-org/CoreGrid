@@ -23,19 +23,22 @@ public class AgentWorkflowService : IAgentWorkflowService
     private readonly IPolicyRuleEngine _ruleEngine;
     private readonly IPlannerAgentClient _plannerAgent;
     private readonly IMaintenanceAnalysisToolsService _maintenanceAnalysisTools;
+    private readonly IBudgetAgentClient _budgetAgent;
 
     public AgentWorkflowService(
         CoreGridDbContext db,
         IAgentToolsService agentTools,
         IPolicyRuleEngine ruleEngine,
         IPlannerAgentClient plannerAgent,
-        IMaintenanceAnalysisToolsService maintenanceAnalysisTools)
+        IMaintenanceAnalysisToolsService maintenanceAnalysisTools,
+        IBudgetAgentClient budgetAgent)
     {
         _db = db;
         _agentTools = agentTools;
         _ruleEngine = ruleEngine;
         _plannerAgent = plannerAgent;
         _maintenanceAnalysisTools = maintenanceAnalysisTools;
+        _budgetAgent = budgetAgent;
     }
 
     public async Task<PagedResult<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, AgentWorkflowQueryParameters query, CancellationToken cancellationToken)
@@ -207,16 +210,16 @@ public class AgentWorkflowService : IAgentWorkflowService
 
             await _db.SaveChangesAsync(cancellationToken);
 
-            // Node 2 (Maintenance Analysis, SRS §7.3): runs automatically
-            // right after Planner accepts the objective, same as node 4
-            // eventually will once node 3 exists too. In-process, no model
-            // call — it only assembles facts for nodes 3/4 (or a human
-            // reviewer) to read, so a failure here is recorded and
-            // swallowed rather than failing the whole workflow the way a
-            // Planner failure does; it never gates anything.
+            // Node 2 (Maintenance Analysis, SRS §7.3) & Node 3 (Budget Analysis, SRS §7.3):
+            // run automatically right after Planner accepts the objective.
+            // In-process, assembling facts and lifecycle option assessments
+            // for Policy Compliance (node 4) to evaluate. Failures are recorded
+            // as advisory execution steps and swallowed rather than failing
+            // the whole workflow.
             if (plan.InScope)
             {
                 await RunMaintenanceAnalysisAsync(workflow, cancellationToken);
+                await RunBudgetAnalysisAsync(workflow, cancellationToken);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
@@ -261,6 +264,79 @@ public class AgentWorkflowService : IAgentWorkflowService
 
             await _db.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    private async Task RunBudgetAnalysisAsync(AgentWorkflow workflow, CancellationToken cancellationToken)
+    {
+        var started = DateTimeOffset.UtcNow;
+        try
+        {
+            var failureStats = !string.IsNullOrEmpty(workflow.MaintenanceAnalysis)
+                ? JsonSerializer.Deserialize<AgentToolsDtos.FailureStatisticsDto>(workflow.MaintenanceAnalysis)
+                : null;
+
+            if (failureStats is null)
+            {
+                failureStats = new AgentToolsDtos.FailureStatisticsDto
+                {
+                    AssetId = workflow.AssetId,
+                    AssetCode = workflow.Asset?.AssetCode ?? string.Empty,
+                    EvaluatedAsOf = DateOnly.FromDateTime(DateTime.UtcNow)
+                };
+            }
+
+            Guid? departmentId = workflow.Asset?.DepartmentId;
+            if (!departmentId.HasValue)
+            {
+                departmentId = await _db.Assets.AsNoTracking()
+                    .Where(a => a.Id == workflow.AssetId)
+                    .Select(a => (Guid?)a.DepartmentId)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            var assessment = await _budgetAgent.RunAssessmentAsync(
+                workflow.OrganizationId,
+                workflow.AssetId,
+                departmentId,
+                DateTime.UtcNow.Year,
+                failureStats,
+                cancellationToken);
+
+            workflow.BudgetAnalysis = JsonSerializer.Serialize(assessment);
+            workflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.BudgetAnalysisSucceeded(
+                workflow.Id, assessment, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Advisory-only node — record the failure, never fail the whole workflow over it.
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.BudgetAnalysisFailed(
+                workflow.Id, ex.Message, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public async Task<AgentWorkflowDto?> RunBudgetAnalysisAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
+    {
+        var workflow = await _db.AgentWorkflows
+            .Include(w => w.Asset)
+            .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
+        if (workflow is null) return null;
+
+        if (workflow.Status is not (WorkflowStatus.PLANNING or WorkflowStatus.ANALYZING))
+        {
+            throw new ConflictException(
+                $"Workflow is {workflow.Status} — the Budget Analysis Agent only runs from PLANNING or ANALYZING.",
+                "invalid_status_transition");
+        }
+
+        await RunBudgetAnalysisAsync(workflow, cancellationToken);
+
+        return await GetWorkflowByIdAsync(organizationId, id, cancellationToken);
     }
 
     public async Task<AgentWorkflowDto?> EvaluatePolicyAsync(
@@ -498,6 +574,9 @@ public class AgentWorkflowService : IAgentWorkflowService
         MaintenanceAnalysis = string.IsNullOrEmpty(w.MaintenanceAnalysis)
             ? null
             : JsonSerializer.Deserialize<AgentToolsDtos.FailureStatisticsDto>(w.MaintenanceAnalysis),
+        BudgetAnalysis = string.IsNullOrEmpty(w.BudgetAnalysis)
+            ? null
+            : JsonSerializer.Deserialize<FinancialAssessmentResultDto>(w.BudgetAnalysis),
         CorrelationId = w.CorrelationId,
         InitiatedByUserId = w.InitiatedByUserId,
         InitiatedByEmail = w.InitiatedByUser?.Email,
