@@ -1,0 +1,33 @@
+# ─── Build output ───────────────────────────────────────────────────────────
+bin/
+obj/
+out/
+publish/
+*.binlog
+
+# ─── Local configuration & secrets ──────────────────────────────────────────
+# appsettings.json and appsettings.Development.json are committed and must
+# hold NO secrets. Credentials go in `dotnet user-secrets` (dev) or
+# environment variables (prod); see doc/setup/CloudflareR2.md and
+# doc/setup/agent-service-account.md. Personal overrides go in a *.Local file.
+appsettings.*.Local.json
+appsettings.Local.json
+secrets.json
+*.pfx
+*.p12
+*.key
+
+# ─── IDE / tooling ──────────────────────────────────────────────────────────
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# ─── Runtime artefacts ──────────────────────────────────────────────────────
+logs/
+*.log
+TestResults/
+coverage/
+*.coverage
+*.dump
