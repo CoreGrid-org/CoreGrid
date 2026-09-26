@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { ComponentType } from "react";
 import {
@@ -9,6 +9,7 @@ import {
   SideNav,
   SideNavItems,
   SideNavLink,
+  Modal,
 } from "@carbon/react";
 import { Notification, Logout, UserAvatar, Dashboard as DashboardIcon } from "@carbon/icons-react";
 import { SignOutButton } from "@thunderid/react";
@@ -38,6 +39,9 @@ export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const notificationCenter = useNotificationCenter();
+  const notificationAreaRef = useRef<HTMLDivElement>(null);
+  const [isSignOutOpen, setIsSignOutOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 // Activates only the most specific matching navigation item.
   const allItems = [...navGroups.flatMap((g) => g.items), ...navItems];
   const isItemActive = (to: string) =>
@@ -55,7 +59,7 @@ export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups
           </span>
         </HeaderName>
         <HeaderGlobalBar>
-          <div style={{ position: "relative" }}>
+          <div ref={notificationAreaRef} className="cg-header-notifications">
             <HeaderGlobalAction
               aria-label={`Notifications${notificationCenter.unreadCount > 0 ? ` (${notificationCenter.unreadCount} unread)` : ""}`}
               onClick={notificationCenter.toggle}
@@ -63,23 +67,7 @@ export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups
             >
               <Notification size={20} className="cg-header-icon" />
               {notificationCenter.unreadCount > 0 && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    top: "0.5rem",
-                    right: "0.5rem",
-                    minWidth: "0.9rem",
-                    height: "0.9rem",
-                    padding: "0 0.2rem",
-                    borderRadius: "0.5rem",
-                    background: "#da1e28",
-                    color: "#fff",
-                    fontSize: "0.625rem",
-                    lineHeight: "0.9rem",
-                    textAlign: "center",
-                  }}
-                >
+                <span aria-hidden="true" className="cg-header-badge">
                   {notificationCenter.unreadCount > 9 ? "9+" : notificationCenter.unreadCount}
                 </span>
               )}
@@ -89,19 +77,24 @@ export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups
                 notifications={notificationCenter.notifications}
                 isLoading={notificationCenter.isLoading}
                 isError={notificationCenter.isError}
+                containerRef={notificationAreaRef}
+                homeTo={homeTo}
                 onClose={notificationCenter.close}
-                onMarkAsRead={notificationCenter.markAsRead}
+                onRetry={notificationCenter.retry}
                 onMarkAllAsRead={notificationCenter.markAllAsRead}
+                onOpenNotification={(n, link) => {
+                  void notificationCenter.markAsRead(n.id);
+                  if (link) {
+                    notificationCenter.close();
+                    navigate(link);
+                  }
+                }}
               />
             )}
           </div>
-          <SignOutButton>
-            {({ signOut }) => (
-              <HeaderGlobalAction aria-label="Sign out" onClick={() => signOut()}>
-                <Logout size={20} className="cg-header-icon" />
-              </HeaderGlobalAction>
-            )}
-          </SignOutButton>
+          <HeaderGlobalAction aria-label="Sign out" onClick={() => setIsSignOutOpen(true)}>
+            <Logout size={20} className="cg-header-icon" />
+          </HeaderGlobalAction>
           <HeaderGlobalAction onClick={() => navigate(`${homeTo}/profile`)} aria-label="Open user profile">
             <UserAvatar size={20} className="cg-header-icon" />
           </HeaderGlobalAction>
@@ -136,6 +129,31 @@ export default function RoleLayout({ ariaLabel, homeTo, navItems = [], navGroups
       <div className="cg-topnav-content cg-topnav-content--with-sidenav">
         <Outlet />
       </div>
+
+      {/* Mounted only while open: a closed Carbon Modal still renders its buttons. */}
+      {isSignOutOpen && (
+        <SignOutButton>
+          {({ signOut }) => (
+            <Modal
+              open
+              size="xs"
+              modalHeading="Sign out of CoreGrid?"
+              primaryButtonText={isSigningOut ? "Signing out…" : "Sign out"}
+              secondaryButtonText="Cancel"
+              primaryButtonDisabled={isSigningOut}
+              onRequestClose={() => !isSigningOut && setIsSignOutOpen(false)}
+              onRequestSubmit={() => {
+                setIsSigningOut(true);
+                Promise.resolve(signOut()).catch(() => setIsSigningOut(false));
+              }}
+            >
+              <p className="cg-modal-form__intro">
+                You'll need to sign in again to continue. Anything you haven't saved on this page will be lost.
+              </p>
+            </Modal>
+          )}
+        </SignOutButton>
+      )}
     </>
   );
 }

@@ -670,7 +670,7 @@ function AttributesTab({
   if (!data || data.length === 0) {
     return (
       <div className="cg-placeholder">
-        <p>No asset types yet — add one on the Types tab first.</p>
+        <p>No asset types yet - add one on the Types tab first.</p>
       </div>
     );
   }
@@ -858,7 +858,7 @@ function AssetTypeAttributesPanel({
                     <Tag type={DATA_TYPE_COLOR[attr.data_type]}>{attr.data_type}</Tag>
                   </td>
                   <td className="cg-table__muted">{attr.is_required ? "Required" : "Optional"}</td>
-                  <td className="cg-table__muted">{attr.select_options?.join(", ") ?? "—"}</td>
+                  <td className="cg-table__muted">{attr.select_options?.join(", ") ?? "-"}</td>
                   <td className="cg-table__muted">{attr.display_order}</td>
                   <td>
                     {attr.is_active ? (
@@ -901,7 +901,7 @@ function AssetTypeAttributesPanel({
             </tbody>
           </table>
           <p style={{ padding: "0.75rem 1rem", fontSize: "0.75rem", color: "#525252", background: "#fafafa", margin: 0 }}>
-            These rows are AssetAttributeDefinitions — the registration form renders exactly this list, in this
+            These rows are AssetAttributeDefinitions - the registration form renders exactly this list, in this
             order.
           </p>
         </>

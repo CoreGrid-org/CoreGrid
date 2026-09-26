@@ -1,99 +1,104 @@
 import { useState } from "react";
-import { Button, Dropdown, DatePicker, DatePickerInput, InlineNotification, Pagination, Tag } from "@carbon/react";
-import { DocumentPdf, DocumentExport } from "@carbon/icons-react";
-import { useAuditReport, useExportAuditReport } from "../hooks/useAuditReport";
-import { useDepartments, useAssetCategories } from "@/features/assets/hooks/useAssets";
+import { ComboBox, InlineNotification, Pagination, Select, SelectItem, Tag } from "@carbon/react";
+import { useAssetCategories, useDepartments } from "@/features/assets/hooks/useAssets";
+import type { AssetCategory, Department } from "@/features/assets/types/asset";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
+import { formatDate, hasDateRangeErrors, validateDateRange, type DateRange } from "@/shared/lib/dates";
+import DateRangeFilter from "@/shared/components/DateRangeFilter";
+import { useAuditReport, useExportAuditReport } from "../hooks/useAuditReport";
+import { exportBlockReason } from "../lib/export";
+import { ReportExportBar, ReportFilters, ReportStats } from "./ReportParts";
 
-const STATUS_FILTERS = ["All statuses", "Open", "Resolved"];
-
-function toDateOnly(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-// Displays the organisation-wide audit report with filters and export options.
+// Organisation-wide audit report. Unlike the other report panels this one
+// is aggregated, paged and exported server-side (GET /api/audit-report and
+// its /export), so it only sends the filters.
 export default function AuditReportPanel() {
-  const [from, setFrom] = useState<string>();
-  const [to, setTo] = useState<string>();
-  const [departmentId, setDepartmentId] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [status, setStatus] = useState(STATUS_FILTERS[0]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [range, setRange] = useState<DateRange>({});
+  const [department, setDepartment] = useState<Department | null>(null);
+  const [category, setCategory] = useState<AssetCategory | null>(null);
+  const [status, setStatus] = useState("");
+  const [paging, setPaging] = useState({ page: 1, pageSize: 25 });
 
-  const query = {
-    from,
-    to,
-    departmentId: departmentId || undefined,
-    categoryId: categoryId || undefined,
-    status: status === "All statuses" ? undefined : status,
-    page,
-    pageSize,
-  };
-
-  const report = useAuditReport(query);
-  const exportReport = useExportAuditReport();
   const { data: departments } = useDepartments();
   const { data: categories } = useAssetCategories();
 
-  const dateRangeInvalid = !!from && !!to && from > to;
+  const rangeErrors = validateDateRange(range);
+  const rangeValid = !hasDateRangeErrors(rangeErrors);
+
+  const filters = {
+    from: range.from,
+    to: range.to,
+    departmentId: department?.id,
+    categoryId: category?.id,
+    status: status || undefined,
+  };
+  const report = useAuditReport({ ...filters, ...paging }, rangeValid);
+  const exportReport = useExportAuditReport();
+
+  // Any filter change goes back to the first page.
+  const applyFilter = (apply: () => void) => {
+    apply();
+    setPaging((p) => ({ ...p, page: 1 }));
+  };
+
+  const activeCount = [range.from, range.to, department, category, status].filter(Boolean).length;
+  const data = report.data;
+  const byClassification = data?.by_classification ?? [];
+  const discrepancies = data?.discrepancies ?? [];
+  const totalCount = data?.discrepancies_total_count ?? discrepancies.length;
 
   return (
-    <>
-      <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
-        Every campaign and discrepancy in your organisation, aggregated across the filters below: how many assets
-        were in scope and verified, and discrepancies broken down by classification and resolution status. Export
-        reflects exactly what's filtered on screen, restricted to your organisation.
+    <div className="cg-report">
+      <p className="cg-report__intro">
+        Every campaign and discrepancy in your organisation: how many assets were in scope and verified, and
+        discrepancies by classification and resolution status. Exports cover exactly what's filtered here.
       </p>
 
-      <div className="cg-section" style={{ marginBottom: "1rem" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", padding: "1rem 1.5rem", alignItems: "flex-end" }}>
-          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => { setFrom(date ? toDateOnly(date) : undefined); setPage(1); }}>
-            <DatePickerInput id="audit-report-from" labelText="From" placeholder="yyyy-mm-dd" />
-          </DatePicker>
-          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => { setTo(date ? toDateOnly(date) : undefined); setPage(1); }}>
-            <DatePickerInput
-              id="audit-report-to"
-              labelText="To"
-              placeholder="yyyy-mm-dd"
-              invalid={dateRangeInvalid}
-              invalidText="Must be on or after the “From” date."
-            />
-          </DatePicker>
-          <Dropdown
-            id="audit-report-department"
-            titleText="Department"
-            label="All departments"
-            items={["", ...(departments?.map((d) => d.id) ?? [])]}
-            itemToString={(id) => (id ? departments?.find((d) => d.id === id)?.name ?? id : "All departments")}
-            selectedItem={departmentId}
-            onChange={({ selectedItem }) => { setDepartmentId(selectedItem || ""); setPage(1); }}
-            style={{ minWidth: "12rem" }}
-          />
-          <Dropdown
-            id="audit-report-category"
-            titleText="Category"
-            label="All categories"
-            items={["", ...(categories?.map((c) => c.id) ?? [])]}
-            itemToString={(id) => (id ? categories?.find((c) => c.id === id)?.name ?? id : "All categories")}
-            selectedItem={categoryId}
-            onChange={({ selectedItem }) => { setCategoryId(selectedItem || ""); setPage(1); }}
-            style={{ minWidth: "12rem" }}
-          />
-          <Dropdown
-            id="audit-report-status"
-            titleText="Discrepancy status"
-            label={status}
-            items={STATUS_FILTERS}
-            selectedItem={status}
-            onChange={({ selectedItem }) => { setStatus(selectedItem ?? STATUS_FILTERS[0]); setPage(1); }}
-            style={{ minWidth: "10rem" }}
-          />
-        </div>
-      </div>
+      <ReportFilters
+        activeCount={activeCount}
+        onClear={() =>
+          applyFilter(() => {
+            setRange({});
+            setDepartment(null);
+            setCategory(null);
+            setStatus("");
+          })
+        }
+        isRefreshing={report.isLoading && Boolean(data)}
+      >
+        <ComboBox<Department>
+          id="audit-report-department"
+          titleText="Department"
+          placeholder="All departments"
+          items={departments ?? []}
+          itemToString={(d) => d?.name ?? ""}
+          selectedItem={department}
+          shouldFilterItem={comboBoxFilter(department)}
+          onChange={({ selectedItem }) => applyFilter(() => setDepartment(selectedItem ?? null))}
+        />
+        <ComboBox<AssetCategory>
+          id="audit-report-category"
+          titleText="Category"
+          placeholder="All categories"
+          items={categories ?? []}
+          itemToString={(c) => c?.name ?? ""}
+          selectedItem={category}
+          shouldFilterItem={comboBoxFilter(category)}
+          onChange={({ selectedItem }) => applyFilter(() => setCategory(selectedItem ?? null))}
+        />
+        <Select
+          id="audit-report-status"
+          labelText="Discrepancy status"
+          value={status}
+          onChange={(e) => applyFilter(() => setStatus(e.target.value))}
+        >
+          <SelectItem value="" text="All statuses" />
+          <SelectItem value="Open" text="Open" />
+          <SelectItem value="Resolved" text="Resolved" />
+        </Select>
+        <DateRangeFilter idPrefix="audit-report" value={range} onChange={(r) => applyFilter(() => setRange(r))} errors={rangeErrors} />
+      </ReportFilters>
 
       {report.isError && (
         <InlineNotification
@@ -102,7 +107,7 @@ export default function AuditReportPanel() {
           subtitle={getErrorMessage(report.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          style={{ maxWidth: "100%" }}
         />
       )}
       {exportReport.isError && (
@@ -112,72 +117,40 @@ export default function AuditReportPanel() {
           subtitle={getErrorMessage(exportReport.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          style={{ maxWidth: "100%" }}
         />
       )}
 
-      <div className="cg-section">
-        <div className="cg-toolbar" style={{ justifyContent: "flex-end" }}>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <Button
-              kind="tertiary"
-              size="sm"
-              renderIcon={DocumentPdf}
-              disabled={exportReport.isPending}
-              onClick={() => exportReport.mutate({ query, format: "pdf" })}
-            >
-              Export PDF
-            </Button>
-            <Button
-              kind="tertiary"
-              size="sm"
-              renderIcon={DocumentExport}
-              disabled={exportReport.isPending}
-              onClick={() => exportReport.mutate({ query, format: "csv" })}
-            >
-              Export CSV
-            </Button>
-          </div>
+      {report.isLoading && !data ? (
+        <div className="cg-section cg-placeholder">
+          <p>Loading…</p>
         </div>
+      ) : data ? (
+        <div className={report.isLoading || !rangeValid ? "cg-report__results is-stale" : "cg-report__results"}>
+          <ReportStats
+            stats={[
+              { label: "Campaigns in period", value: data.campaigns_in_period },
+              { label: "Assets in scope", value: data.assets_in_scope },
+              { label: "Verified", value: data.assets_verified },
+              { label: "Open discrepancies", value: data.open_discrepancies },
+            ]}
+          />
 
-        {report.isLoading ? (
-          <div className="cg-placeholder">
-            <p>Loading…</p>
-          </div>
-        ) : report.data ? (
-          (() => {
-            const byClassification = report.data.by_classification ?? [];
-            const discrepancies = report.data.discrepancies ?? [];
-            const discrepanciesTotalCount = report.data.discrepancies_total_count ?? discrepancies.length;
-            return (
-          <>
-            <div className="cg-stat-grid" style={{ padding: "1.5rem", marginBottom: 0, gridTemplateColumns: "repeat(4, 1fr)" }}>
-              <div className="cg-stat-card">
-                <p className="cg-stat-card__label">Campaigns in period</p>
-                <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>
-                  {report.data.campaigns_in_period}
-                </p>
-              </div>
-              <div className="cg-stat-card">
-                <p className="cg-stat-card__label">Assets in scope</p>
-                <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>
-                  {report.data.assets_in_scope}
-                </p>
-              </div>
-              <div className="cg-stat-card">
-                <p className="cg-stat-card__label">Verified</p>
-                <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>
-                  {report.data.assets_verified}
-                </p>
-              </div>
-              <div className="cg-stat-card">
-                <p className="cg-stat-card__label">Open discrepancies</p>
-                <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>
-                  {report.data.open_discrepancies}
-                </p>
-              </div>
-            </div>
+          <ReportExportBar
+            count={totalCount}
+            noun="discrepancies"
+            isExporting={exportReport.isPending}
+            onPdf={() => exportReport.mutate({ query: filters, format: "pdf" })}
+            onCsv={() => exportReport.mutate({ query: filters, format: "csv" })}
+            // The export also includes the campaign totals, so an empty
+            // discrepancy list is still worth exporting.
+            disabledReason={exportBlockReason(rangeValid, report.isLoading, 1)}
+          />
 
+          <section className="cg-section cg-report__table">
+            <header className="cg-section__header">
+              <p className="cg-section__title">By classification</p>
+            </header>
             <table className="cg-table cg-table--no-hover">
               <thead>
                 <tr>
@@ -187,87 +160,76 @@ export default function AuditReportPanel() {
                 </tr>
               </thead>
               <tbody>
-                {byClassification.length > 0 ? (
-                  byClassification.map((row) => (
-                    <tr key={row.classification}>
-                      <td>{row.classification}</td>
-                      <td className="cg-table__muted">{row.raised}</td>
-                      <td className="cg-table__muted">{row.resolved}</td>
-                    </tr>
-                  ))
-                ) : (
+                {byClassification.map((row) => (
+                  <tr key={row.classification}>
+                    <td>{row.classification}</td>
+                    <td className="cg-table__muted">{row.raised}</td>
+                    <td className="cg-table__muted">{row.resolved}</td>
+                  </tr>
+                ))}
+                {byClassification.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="cg-table__muted">
-                      No discrepancies match these filters.
-                    </td>
+                    <td colSpan={3} className="cg-table__muted">No discrepancies match these filters.</td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </section>
 
-            <div style={{ marginTop: "2rem" }}>
-              <div className="cg-section__header">
-                <div>
-                  <h2 className="cg-section__title">Discrepancies</h2>
-                  <p className="cg-section__subtitle">
-                    Showing {discrepancies.length.toLocaleString()} of {discrepanciesTotalCount.toLocaleString()} filtered discrepancies
-                  </p>
-                </div>
+          <section className="cg-section cg-report__table">
+            <header className="cg-section__header">
+              <div>
+                <p className="cg-section__title">Discrepancies</p>
+                <p className="cg-report__table-subtitle">
+                  Showing {discrepancies.length.toLocaleString()} of {totalCount.toLocaleString()} filtered discrepancies
+                </p>
               </div>
-              <div style={{ overflowX: "auto" }}>
-                <table className="cg-table cg-table--no-hover">
-                  <thead>
-                    <tr>
-                      <th>Asset</th>
-                      <th>Department</th>
-                      <th>Classification</th>
-                      <th>Status</th>
-                      <th>Raised</th>
-                      <th>Resolved</th>
+            </header>
+            <div style={{ overflowX: "auto" }}>
+              <table className="cg-table cg-table--no-hover">
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Department</th>
+                    <th>Classification</th>
+                    <th>Status</th>
+                    <th>Raised</th>
+                    <th>Resolved</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {discrepancies.map((row, i) => (
+                    <tr key={`${row.asset_code}-${row.raised_at}-${i}`}>
+                      <td className="cg-table__mono">{row.asset_code}</td>
+                      <td className="cg-table__muted">{row.department_name}</td>
+                      <td>{row.classification}</td>
+                      <td>
+                        <Tag type={row.status === "Open" ? "red" : "green"}>{row.status}</Tag>
+                      </td>
+                      <td className="cg-table__muted">{formatDate(row.raised_at)}</td>
+                      <td className="cg-table__muted">{formatDate(row.resolved_at)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {discrepancies.length > 0 ? (
-                      discrepancies.map((row, i) => (
-                        <tr key={`${row.asset_code}-${row.raised_at}-${i}`}>
-                          <td className="cg-table__mono">{row.asset_code}</td>
-                          <td className="cg-table__muted">{row.department_name}</td>
-                          <td>{row.classification}</td>
-                          <td>
-                            <Tag type={row.status === "Open" ? "red" : "green"}>{row.status}</Tag>
-                          </td>
-                          <td className="cg-table__muted">{new Date(row.raised_at).toLocaleDateString()}</td>
-                          <td className="cg-table__muted">{row.resolved_at ? new Date(row.resolved_at).toLocaleDateString() : "—"}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="cg-table__muted">
-                          No discrepancies match these filters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {discrepanciesTotalCount > 0 && (
-                <Pagination
-                  page={page}
-                  pageSize={pageSize}
-                  pageSizes={[10, 25, 50, 100]}
-                  totalItems={discrepanciesTotalCount}
-                  onChange={({ page: nextPage, pageSize: nextPageSize }) => {
-                    setPage(nextPage);
-                    setPageSize(nextPageSize);
-                  }}
-                />
-              )}
+                  ))}
+                  {discrepancies.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="cg-table__muted">No discrepancies match these filters.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          </>
-            );
-          })()
-        ) : null}
-      </div>
-    </>
+            {totalCount > 0 && (
+              <Pagination
+                page={paging.page}
+                pageSize={paging.pageSize}
+                pageSizes={[10, 25, 50, 100]}
+                totalItems={totalCount}
+                onChange={({ page, pageSize }) => setPaging({ page, pageSize })}
+              />
+            )}
+          </section>
+        </div>
+      ) : null}
+    </div>
   );
 }

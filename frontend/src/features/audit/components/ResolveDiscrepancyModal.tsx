@@ -10,6 +10,8 @@ import type { Discrepancy } from "../api/discrepancies";
 // Select displays them through formatStatusLabel for a readable label.
 const RESOLUTION_TYPES = ["REGISTER_CORRECTED", "ASSET_RELOCATED", "CONDITION_UPDATED", "WRITTEN_OFF", "NO_ACTION"];
 const NO_ACTION_MIN_LENGTH = 20;
+// Matches ResolveDiscrepancyRequest's [MaxLength(2000)] on both text fields.
+const TEXT_MAX = 2000;
 
 interface ResolveDiscrepancyModalProps {
   discrepancy: Discrepancy;
@@ -99,6 +101,8 @@ export default function ResolveDiscrepancyModal({ discrepancy, onClose, onResolv
             resolutionType === "NO_ACTION" ? `No Action requires a justification of at least ${NO_ACTION_MIN_LENGTH} characters.` : undefined
           }
           rows={3}
+          enableCounter
+          maxCount={TEXT_MAX}
           value={resolutionExplanation}
           onChange={(e) => setResolutionExplanation(e.target.value)}
           invalid={resolutionExplanation.length > 0 && resolutionExplanation.trim().length < explanationMinLength}
@@ -108,6 +112,8 @@ export default function ResolveDiscrepancyModal({ discrepancy, onClose, onResolv
           id="resolve-corrective-action"
           labelText="Corrective action (optional)"
           rows={2}
+          enableCounter
+          maxCount={TEXT_MAX}
           value={correctiveAction}
           onChange={(e) => setCorrectiveAction(e.target.value)}
         />

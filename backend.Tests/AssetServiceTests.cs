@@ -160,4 +160,21 @@ public class AssetServiceTests
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task CreateAsset_FuturePurchaseDate_ThrowsValidationException()
+    {
+        await using var db = CreateInMemoryDbContext();
+        var service = new AssetService(db);
+
+        var request = new CreateAssetRequest
+        {
+            AssetTypeId = Guid.NewGuid(), DepartmentId = Guid.NewGuid(), LocationId = Guid.NewGuid(),
+            Name = "Laptop", AcquisitionDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)), AcquisitionCost = 1000m,
+        };
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            service.CreateAssetAsync(Guid.NewGuid(), Guid.NewGuid(), request, CancellationToken.None));
+        Assert.Contains("future", ex.Message);
+    }
 }

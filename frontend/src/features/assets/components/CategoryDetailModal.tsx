@@ -104,12 +104,12 @@ export default function CategoryDetailModal({
                       <td>
                         {type.useful_life_years
                           ? `${type.useful_life_years} years`
-                          : "—"}
+                          : "-"}
                       </td>
                       <td>
                         {type.default_maintenance_interval_days
                           ? `Every ${type.default_maintenance_interval_days} days`
-                          : "—"}
+                          : "-"}
                       </td>
                       <td>{type.attribute_count} custom attrs</td>
                       <td>

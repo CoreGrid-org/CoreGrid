@@ -1,22 +1,15 @@
 import { useState } from "react";
-import { Modal, TextInput, Select, SelectItem, DatePicker, DatePickerInput, InlineNotification } from "@carbon/react";
+import { Modal, TextInput, Select, SelectItem, InlineNotification } from "@carbon/react";
 import { useCreateCampaign } from "../hooks/useCampaigns";
 import { useDepartments, useLocations, useAssetCategories, useAssetTypes } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import type { Campaign } from "../api/campaigns";
+import DateRangeFilter from "@/shared/components/DateRangeFilter";
+import { CAMPAIGN_NAME_MAX, hasCampaignErrors, validateCampaign } from "../lib/campaignValidation";
 
 interface CreateCampaignModalProps {
   onClose: () => void;
   onCreated: (campaign: Campaign) => void;
-}
-
-// yyyy-MM-dd from local date parts — avoids the UTC-shift a plain
-// toISOString() would introduce for a DateOnly-typed field on the backend.
-function toDateOnly(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 //  an Auditor/Administrator scopes a campaign by department,
@@ -38,10 +31,15 @@ export default function CreateCampaignModal({ onClose, onCreated }: CreateCampai
   const { data: categories } = useAssetCategories();
   const { data: types } = useAssetTypes();
 
-  const canSubmit = name.trim().length > 0 && !!periodStart && !!periodEnd && periodStart <= periodEnd;
+  const [submitted, setSubmitted] = useState(false);
+
+  const errors = validateCampaign({ name, periodStart, periodEnd });
+  // Required-field messages wait for a submit attempt; wrong values show straight away.
+  const show = (message: string | undefined, touched: boolean) => (submitted || touched ? message : undefined);
 
   const handleSubmit = () => {
-    if (!canSubmit || createCampaign.isPending) return;
+    setSubmitted(true);
+    if (hasCampaignErrors(errors) || createCampaign.isPending) return;
     createCampaign.mutate(
       {
         name: name.trim(),
@@ -63,7 +61,7 @@ export default function CreateCampaignModal({ onClose, onCreated }: CreateCampai
       modalHeading="New verification campaign"
       primaryButtonText={createCampaign.isPending ? "Creating…" : "Create campaign"}
       secondaryButtonText="Cancel"
-      primaryButtonDisabled={!canSubmit || createCampaign.isPending}
+      primaryButtonDisabled={createCampaign.isPending}
       onRequestClose={onClose}
       onRequestSubmit={handleSubmit}
     >
@@ -78,25 +76,34 @@ export default function CreateCampaignModal({ onClose, onCreated }: CreateCampai
         />
       )}
       <div style={{ display: "grid", gap: "1rem" }}>
-        <TextInput id="campaign-name" labelText="Campaign name" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextInput
+          id="campaign-name"
+          labelText="Campaign name"
+          placeholder="e.g. Q4 2026 Radiology verification"
+          value={name}
+          maxLength={CAMPAIGN_NAME_MAX}
+          onChange={(e) => setName(e.target.value)}
+          invalid={Boolean(show(errors.name, false))}
+          invalidText={errors.name}
+        />
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setPeriodStart(date ? toDateOnly(date) : undefined)}>
-            <DatePickerInput id="campaign-period-start" labelText="Period start" placeholder="yyyy-mm-dd" />
-          </DatePicker>
-          <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setPeriodEnd(date ? toDateOnly(date) : undefined)}>
-            <DatePickerInput id="campaign-period-end" labelText="Period end" placeholder="yyyy-mm-dd" />
-          </DatePicker>
-        </div>
-        {periodStart && periodEnd && periodStart > periodEnd && (
-          <InlineNotification
-            kind="warning"
-            lowContrast
-            hideCloseButton
-            title="Period end must be on or after period start"
-            style={{ maxWidth: "100%" }}
+          <DateRangeFilter
+            idPrefix="campaign-period"
+            fromLabel="Period start"
+            toLabel="Period end"
+            allowFuture
+            value={{ from: periodStart, to: periodEnd }}
+            onChange={(r) => {
+              setPeriodStart(r.from);
+              setPeriodEnd(r.to);
+            }}
+            errors={{
+              from: show(errors.periodStart, Boolean(periodStart)),
+              to: show(errors.periodEnd, Boolean(periodEnd)),
+            }}
           />
-        )}
+        </div>
 
         <p className="cg-table__muted" style={{ margin: 0, fontSize: "0.8125rem" }}>
           Scope — every filter below is optional; leaving all of them unset covers the whole register.

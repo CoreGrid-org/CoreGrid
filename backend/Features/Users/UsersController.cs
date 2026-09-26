@@ -60,8 +60,19 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         // Gets the validated user role.
         var role = request.Role!.Value;
 
+        // Emails are unique across every organisation (Users.Email index), so
+        // check all of them, not just this tenant's, before creating the
+        // ThunderID account; otherwise the database insert fails afterwards
+        // and leaves an orphaned identity behind.
+        var email = request.Email.Trim();
+        var normalisedEmail = email.ToLowerInvariant();
+        if (await Db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email.ToLower() == normalisedEmail, cancellationToken))
+        {
+            throw new ConflictException("A user with this email address already exists.", "email_taken");
+        }
+
         var externalSubjectId = await identityDirectory.ProvisionUserAsync(
-            request.Email,
+            email,
             request.GivenName,
             request.FamilyName,
             request.Password,
@@ -73,7 +84,7 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
             Id = Guid.NewGuid(),
             OrganizationId = currentUser.OrganizationId,
             ExternalSubjectId = externalSubjectId,
-            Email = request.Email,
+            Email = email,
             GivenName = request.GivenName,
             FamilyName = request.FamilyName,
             Role = role,

@@ -3,98 +3,58 @@ import { Modal, ComboBox, NumberInput, InlineNotification } from "@carbon/react"
 import { useCreateOrganizationPolicy, useUpdateOrganizationPolicy } from "../hooks/useOrgConfig";
 import { useAssetTypes } from "@/features/assets/hooks/useAssets";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
 import type { OrganizationPolicy, SaveOrganizationPolicyRequest } from "../api/orgConfig";
+import { POLICY_DEFAULTS, POLICY_FIELDS, POLICY_GROUPS, policyToPayload, policyValueError } from "../lib/policyFields";
 
-const ORGANIZATION_WIDE_DEFAULT = { id: "", name: "Organisation-wide default" };
+type Target = { id: string; name: string };
+const ORGANIZATION_WIDE_DEFAULT: Target = { id: "", name: "Organisation-wide default" };
 
 interface PolicyModalProps {
   policy?: OrganizationPolicy;
+  /** Every existing policy: used to offer only unclaimed targets and to start from the default's values. */
+  existingPolicies: OrganizationPolicy[];
   onClose: () => void;
-  onSaved: () => void;
+  /** Called with the policy's display name. */
+  onSaved: (name: string) => void;
 }
 
-const DEFAULTS: SaveOrganizationPolicyRequest = {
-  asset_type_id: null,
-  repair_to_replace_cost_threshold: 0.65,
-  minimum_service_life_years: 5,
-  max_acceptable_failure_frequency: 3,
-  valuation_validity_window_days: 90,
-  confidence_floor: 0.7,
-  cost_variance_tolerance_percent: 15,
-  outstanding_transfer_days: 7,
-  approval_overdue_period_hours: 48,
-};
-
-// Mirrors SaveOrganizationPolicyRequest's [Range] attributes
-// (backend/Features/OrgConfig/DTOs/SaveOrganizationPolicyRequest.cs).
-const BOUNDS: Record<keyof Omit<SaveOrganizationPolicyRequest, "asset_type_id">, { min: number; max: number }> = {
-  repair_to_replace_cost_threshold: { min: 0, max: 100 },
-  minimum_service_life_years: { min: 0, max: 100 },
-  max_acceptable_failure_frequency: { min: 0, max: 100 },
-  valuation_validity_window_days: { min: 0, max: 3650 },
-  confidence_floor: { min: 0, max: 1 },
-  cost_variance_tolerance_percent: { min: 0, max: 100 },
-  outstanding_transfer_days: { min: 0, max: 3650 },
-  approval_overdue_period_hours: { min: 0, max: 8760 },
-};
-
-type NumericField = keyof typeof BOUNDS;
-
-function isFieldValid(field: NumericField, value: number): boolean {
-  const { min, max } = BOUNDS[field];
-  return Number.isFinite(value) && value >= min && value <= max;
-}
-
-// Create or amend an organisation policy (FR-015) — at most one per asset
-// type, plus at most one organisation-wide default (assetTypeId = null);
-// the backend enforces this and returns a 400 on conflict.
-export default function PolicyModal({ policy, onClose, onSaved }: PolicyModalProps) {
+// Create or amend an organisation policy (FR-015): at most one per asset type
+// plus at most one organisation-wide default (assetTypeId = null). Targets
+// that already have a policy aren't offered, so the backend's conflict 400
+// can't be hit from here.
+export default function PolicyModal({ policy, existingPolicies, onClose, onSaved }: PolicyModalProps) {
   const { data: assetTypes } = useAssetTypes();
-  const [form, setForm] = useState<SaveOrganizationPolicyRequest>(
-    policy
-      ? {
-          asset_type_id: policy.asset_type_id,
-          repair_to_replace_cost_threshold: policy.repair_to_replace_cost_threshold,
-          minimum_service_life_years: policy.minimum_service_life_years,
-          max_acceptable_failure_frequency: policy.max_acceptable_failure_frequency,
-          valuation_validity_window_days: policy.valuation_validity_window_days,
-          confidence_floor: policy.confidence_floor,
-          cost_variance_tolerance_percent: policy.cost_variance_tolerance_percent,
-          outstanding_transfer_days: policy.outstanding_transfer_days,
-          approval_overdue_period_hours: policy.approval_overdue_period_hours,
-        }
-      : DEFAULTS,
-  );
+  const defaultPolicy = existingPolicies.find((p) => p.asset_type_id === null);
 
-  const [touched, setTouched] = useState<Partial<Record<NumericField, boolean>>>({});
-  const markTouched = (field: NumericField) => setTouched((t) => ({ ...t, [field]: true }));
+  // A new asset-type override starts from the organisation default's values.
+  const [form, setForm] = useState<SaveOrganizationPolicyRequest>(() =>
+    policy ? policyToPayload(policy) : defaultPolicy ? { ...policyToPayload(defaultPolicy), asset_type_id: null } : POLICY_DEFAULTS,
+  );
+  const [submitted, setSubmitted] = useState(false);
 
   const createPolicy = useCreateOrganizationPolicy();
   const updatePolicy = useUpdateOrganizationPolicy();
   const mutation = policy ? updatePolicy : createPolicy;
 
-  const set = <K extends keyof SaveOrganizationPolicyRequest>(key: K, value: SaveOrganizationPolicyRequest[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  const claimed = new Set(existingPolicies.filter((p) => p.id !== policy?.id).map((p) => p.asset_type_id ?? ""));
+  const targets: Target[] = [ORGANIZATION_WIDE_DEFAULT, ...(assetTypes ?? []).map((t) => ({ id: t.id, name: t.name }))].filter(
+    (t) => !claimed.has(t.id),
+  );
+  const selectedTarget = targets.find((t) => t.id === (form.asset_type_id ?? "")) ?? null;
+  const targetError = !selectedTarget ? "Choose what this policy applies to." : undefined;
 
-  const fieldInvalid = (field: NumericField) => touched[field] && !isFieldValid(field, form[field]);
-  const canSubmit = (Object.keys(BOUNDS) as NumericField[]).every((field) => isFieldValid(field, form[field]));
+  const errors = Object.fromEntries(POLICY_FIELDS.map((f) => [f.key, policyValueError(f, form[f.key])]));
+  const hasErrors = Boolean(targetError) || Object.values(errors).some(Boolean);
 
   const handleSubmit = () => {
-    setTouched({
-      repair_to_replace_cost_threshold: true,
-      minimum_service_life_years: true,
-      max_acceptable_failure_frequency: true,
-      valuation_validity_window_days: true,
-      confidence_floor: true,
-      cost_variance_tolerance_percent: true,
-      outstanding_transfer_days: true,
-      approval_overdue_period_hours: true,
-    });
-    if (!canSubmit || mutation.isPending) return;
+    setSubmitted(true);
+    if (hasErrors || mutation.isPending) return;
+    const name = selectedTarget?.name ?? "Policy";
     if (policy) {
-      updatePolicy.mutate({ id: policy.id, payload: form }, { onSuccess: onSaved });
+      updatePolicy.mutate({ id: policy.id, payload: form }, { onSuccess: () => onSaved(name) });
     } else {
-      createPolicy.mutate(form, { onSuccess: onSaved });
+      createPolicy.mutate(form, { onSuccess: () => onSaved(name) });
     }
   };
 
@@ -103,133 +63,73 @@ export default function PolicyModal({ policy, onClose, onSaved }: PolicyModalPro
       open
       size="lg"
       modalLabel="Organisation Settings"
-      modalHeading={policy ? "Edit policy" : "Add policy"}
-      primaryButtonText={mutation.isPending ? "Saving…" : "Save"}
+      modalHeading={policy ? `Edit policy: ${policy.asset_type_name ?? "Organisation-wide default"}` : "Add policy"}
+      primaryButtonText={mutation.isPending ? "Saving…" : policy ? "Save changes" : "Add policy"}
       secondaryButtonText="Cancel"
-      primaryButtonDisabled={!canSubmit || mutation.isPending}
+      primaryButtonDisabled={mutation.isPending}
+      preventCloseOnClickOutside
+      hasScrollingContent
       onRequestClose={onClose}
       onRequestSubmit={handleSubmit}
     >
-      {mutation.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not save policy"
-          subtitle={getErrorMessage(mutation.error, "Something went wrong. Please try again.")}
-          hideCloseButton
-          lowContrast
-          className="cg-panel-notification"
-        />
-      )}
-      <div style={{ display: "grid", gap: "1rem" }}>
-        <ComboBox<{ id: string; name: string }>
-          id="policy-asset-type"
-          titleText="Applies to"
-          placeholder="Search asset types…"
-          items={[ORGANIZATION_WIDE_DEFAULT, ...(assetTypes ?? [])]}
-          itemToString={(item) => item?.name ?? ""}
-          selectedItem={
-            form.asset_type_id
-              ? assetTypes?.find((t) => t.id === form.asset_type_id) ?? null
-              : ORGANIZATION_WIDE_DEFAULT
-          }
-          onChange={({ selectedItem }) => set("asset_type_id", selectedItem?.id || null)}
-        />
+      <div className="cg-modal-form">
+        {mutation.isError && (
+          <InlineNotification
+            kind="error"
+            title="Could not save policy"
+            subtitle={getErrorMessage(mutation.error, "Something went wrong. Please try again.")}
+            hideCloseButton
+            lowContrast
+            style={{ maxWidth: "100%" }}
+          />
+        )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-          <NumberInput
-            id="policy-repair-to-replace"
-            label="Repair-to-replace cost threshold"
-            helperText="Above this ratio, favour replacement over repair."
-            step={0.01}
-            min={BOUNDS.repair_to_replace_cost_threshold.min}
-            max={BOUNDS.repair_to_replace_cost_threshold.max}
-            value={form.repair_to_replace_cost_threshold}
-            onChange={(_e, { value }) => set("repair_to_replace_cost_threshold", Number(value))}
-            onBlur={() => markTouched("repair_to_replace_cost_threshold")}
-            invalid={!!fieldInvalid("repair_to_replace_cost_threshold")}
-            invalidText="Must be between 0 and 100."
-          />
-          <NumberInput
-            id="policy-min-service-life"
-            label="Minimum service life (years)"
-            helperText="Required before a disposal recommendation."
-            min={BOUNDS.minimum_service_life_years.min}
-            max={BOUNDS.minimum_service_life_years.max}
-            value={form.minimum_service_life_years}
-            onChange={(_e, { value }) => set("minimum_service_life_years", Number(value))}
-            onBlur={() => markTouched("minimum_service_life_years")}
-            invalid={!!fieldInvalid("minimum_service_life_years")}
-            invalidText="Must be between 0 and 100."
-          />
-          <NumberInput
-            id="policy-max-failure-frequency"
-            label="Max acceptable failure frequency (/year)"
-            min={BOUNDS.max_acceptable_failure_frequency.min}
-            max={BOUNDS.max_acceptable_failure_frequency.max}
-            value={form.max_acceptable_failure_frequency}
-            onChange={(_e, { value }) => set("max_acceptable_failure_frequency", Number(value))}
-            onBlur={() => markTouched("max_acceptable_failure_frequency")}
-            invalid={!!fieldInvalid("max_acceptable_failure_frequency")}
-            invalidText="Must be between 0 and 100."
-          />
-          <NumberInput
-            id="policy-valuation-window"
-            label="Valuation validity window (days)"
-            min={BOUNDS.valuation_validity_window_days.min}
-            max={BOUNDS.valuation_validity_window_days.max}
-            value={form.valuation_validity_window_days}
-            onChange={(_e, { value }) => set("valuation_validity_window_days", Number(value))}
-            onBlur={() => markTouched("valuation_validity_window_days")}
-            invalid={!!fieldInvalid("valuation_validity_window_days")}
-            invalidText="Must be between 0 and 3650 days."
-          />
-          <NumberInput
-            id="policy-confidence-floor"
-            label="Confidence floor"
-            helperText="Below this, human review is forced."
-            step={0.01}
-            min={BOUNDS.confidence_floor.min}
-            max={BOUNDS.confidence_floor.max}
-            value={form.confidence_floor}
-            onChange={(_e, { value }) => set("confidence_floor", Number(value))}
-            onBlur={() => markTouched("confidence_floor")}
-            invalid={!!fieldInvalid("confidence_floor")}
-            invalidText="Must be between 0 and 1."
-          />
-          <NumberInput
-            id="policy-cost-variance"
-            label="Cost variance tolerance (%)"
-            min={BOUNDS.cost_variance_tolerance_percent.min}
-            max={BOUNDS.cost_variance_tolerance_percent.max}
-            value={form.cost_variance_tolerance_percent}
-            onChange={(_e, { value }) => set("cost_variance_tolerance_percent", Number(value))}
-            onBlur={() => markTouched("cost_variance_tolerance_percent")}
-            invalid={!!fieldInvalid("cost_variance_tolerance_percent")}
-            invalidText="Must be between 0 and 100."
-          />
-          <NumberInput
-            id="policy-outstanding-transfer"
-            label="Outstanding transfer threshold (days)"
-            min={BOUNDS.outstanding_transfer_days.min}
-            max={BOUNDS.outstanding_transfer_days.max}
-            value={form.outstanding_transfer_days}
-            onChange={(_e, { value }) => set("outstanding_transfer_days", Number(value))}
-            onBlur={() => markTouched("outstanding_transfer_days")}
-            invalid={!!fieldInvalid("outstanding_transfer_days")}
-            invalidText="Must be between 0 and 3650 days."
-          />
-          <NumberInput
-            id="policy-approval-overdue"
-            label="Approval overdue period (hours)"
-            min={BOUNDS.approval_overdue_period_hours.min}
-            max={BOUNDS.approval_overdue_period_hours.max}
-            value={form.approval_overdue_period_hours}
-            onChange={(_e, { value }) => set("approval_overdue_period_hours", Number(value))}
-            onBlur={() => markTouched("approval_overdue_period_hours")}
-            invalid={!!fieldInvalid("approval_overdue_period_hours")}
-            invalidText="Must be between 0 and 8760 hours."
-          />
-        </div>
+        {!policy && (
+          <>
+            <ComboBox<Target>
+              id="policy-asset-type"
+              titleText="Applies to"
+              helperText={
+                defaultPolicy
+                  ? "Asset types that already have a policy aren't listed. Values start from the organisation default."
+                  : "Start with the organisation-wide default; add asset-type overrides afterwards."
+              }
+              placeholder="Type to search asset types…"
+              autoAlign
+              items={targets}
+              itemToString={(item) => item?.name ?? ""}
+              selectedItem={selectedTarget}
+              shouldFilterItem={comboBoxFilter(selectedTarget)}
+              onChange={({ selectedItem }) => setForm((f) => ({ ...f, asset_type_id: selectedItem ? selectedItem.id || null : f.asset_type_id }))}
+              invalid={submitted && Boolean(targetError)}
+              invalidText={targetError}
+            />
+          </>
+        )}
+
+        {POLICY_GROUPS.map((group) => (
+          <fieldset key={group.title} className="cg-policy-form__group">
+            <legend className="cg-policy__group-title">{group.title}</legend>
+            <div className="cg-modal-form__row">
+              {group.fields.map((field) => (
+                <NumberInput
+                  key={field.key}
+                  id={`policy-${field.key}`}
+                  label={field.unit ? `${field.label} (${field.unit})` : field.label}
+                  helperText={field.purpose}
+                  hideSteppers
+                  step={field.step}
+                  min={field.min}
+                  max={field.max}
+                  value={form[field.key]}
+                  onChange={(_e, { value }) => setForm((f) => ({ ...f, [field.key]: Number(value) }))}
+                  invalid={Boolean(errors[field.key])}
+                  invalidText={errors[field.key]}
+                />
+              ))}
+            </div>
+          </fieldset>
+        ))}
       </div>
     </Modal>
   );

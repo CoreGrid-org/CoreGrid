@@ -1,5 +1,6 @@
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using CoreGrid.Api.Features.Shared.Reporting;
 using CoreGrid.Api.Features.Verification.DTOs;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,13 @@ public class AuditReportService : IAuditReportService
 
     public async Task<AuditReportDto> GetReportAsync(Guid organizationId, AuditReportFilter filter, CancellationToken cancellationToken)
     {
+        // An inverted range would otherwise just return an empty report,
+        // indistinguishable from "nothing happened in this period".
+        if (filter.From.HasValue && filter.To.HasValue && filter.From.Value > filter.To.Value)
+        {
+            throw new ValidationException(nameof(filter.To), "The 'to' date must be on or after the 'from' date.");
+        }
+
         // Precomputed outside the query — comparing a DateOnly-derived bound
         // against a DateTimeOffset column translates safely; calling
         // DateOnly.FromDateTime(...) *inside* the query does not.

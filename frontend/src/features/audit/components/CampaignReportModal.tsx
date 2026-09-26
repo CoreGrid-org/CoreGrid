@@ -27,8 +27,8 @@ export default function CampaignReportModal({ campaignId, campaignName, onClose 
       <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
         This is the campaign's completion report: how many in-scope assets were verified, how many are still
         outstanding, and every discrepancy raised during the campaign, broken down by classification and by
-        resolution status (FR-065). Export it as a PDF to file or share, or as a CSV to work with the raw numbers —
-        either one reflects exactly what's shown here (FR-084, FR-085).
+        resolution status. Export it as a PDF to file or share, or as a CSV to work with the raw numbers —
+        either one reflects exactly what's shown here.
       </p>
 
       {report.isError && (

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CoreGrid.Api.Domain;
+using CoreGrid.Api.Features.Shared.Exceptions;
 
 namespace CoreGrid.Api.Features.Identity;
 
@@ -88,6 +89,11 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            // The account exists in ThunderID but not (yet) in CoreGrid.
+            throw new ConflictException("A user with this email address already exists in the identity provider.", "email_taken");
+        }
         if (response.StatusCode != HttpStatusCode.Created)
         {
             throw new InvalidOperationException($"ThunderID user creation failed ({(int)response.StatusCode}): {body}");

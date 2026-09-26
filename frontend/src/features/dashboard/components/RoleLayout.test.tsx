@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ToolBox, Catalog, QrCode, SettingsAdjust } from "@carbon/icons-react";
 import RoleLayout from "./RoleLayout";
 import type { RoleNavGroup } from "./RoleLayout";
 
+const { signOutMock } = vi.hoisted(() => ({ signOutMock: vi.fn() }));
 vi.mock("@thunderid/react", () => ({
   useThunderID: () => ({ getAccessToken: async () => "token", isSignedIn: true }),
-  SignOutButton: ({ children }: { children: (args: { signOut: () => void }) => React.ReactNode }) => children({ signOut: () => {} }),
+  SignOutButton: ({ children }: { children: (args: { signOut: () => void }) => React.ReactNode }) => children({ signOut: signOutMock }),
 }));
 vi.mock("@/features/notifications/hooks/useNotifications", () => ({
   useNotificationCenter: () => ({
@@ -20,6 +22,7 @@ vi.mock("@/features/notifications/hooks/useNotifications", () => ({
     isError: false,
     markAsRead: () => {},
     markAllAsRead: () => {},
+    retry: () => {},
   }),
 }));
 
@@ -77,5 +80,31 @@ describe("RoleLayout — active nav item highlighting", () => {
     renderAt("/admin/maintenance");
     expect(isHighlighted("Maintenance")).toBe(true);
     expect(isHighlighted("Register")).toBe(false);
+  });
+});
+
+describe("RoleLayout — sign out", () => {
+  it("asks for confirmation before signing out, and Cancel keeps the user signed in", async () => {
+    signOutMock.mockClear();
+    const user = userEvent.setup();
+    renderAt("/admin");
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(screen.getByText("Sign out of CoreGrid?")).toBeInTheDocument();
+    expect(signOutMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("signs out once confirmed", async () => {
+    signOutMock.mockClear();
+    const user = userEvent.setup();
+    renderAt("/admin");
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    const dialog = screen.getByRole("dialog", { name: /Sign out of CoreGrid/ });
+    await user.click(within(dialog).getByRole("button", { name: "Sign out" }));
+    expect(signOutMock).toHaveBeenCalledTimes(1);
   });
 });

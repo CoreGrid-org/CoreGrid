@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tag, Button, Dropdown, InlineNotification, Pagination } from "@carbon/react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { useClientPagination } from "@/shared/hooks/useClientPagination";
+import { formatDate } from "@/shared/lib/dates";
 import { useCampaignsList } from "../hooks/useCampaigns";
 import { useDiscrepanciesList } from "../hooks/useDiscrepancies";
 import ResolveDiscrepancyModal from "./ResolveDiscrepancyModal";
@@ -84,7 +85,7 @@ export default function DiscrepanciesPanel() {
                     <Tag type={statusTagColor(d.status)}>{formatStatusLabel(d.status)}</Tag>
                   </td>
                   <td className="cg-table__muted">{d.is_automatic ? "System (auto)" : d.raised_by_email ?? "—"}</td>
-                  <td className="cg-table__muted">{new Date(d.created_at).toLocaleDateString()}</td>
+                  <td className="cg-table__muted">{formatDate(d.created_at)}</td>
                   <td>
                     {d.status === "Open" && (
                       <Button kind="ghost" size="sm" onClick={() => setResolvingDiscrepancy(d)}>

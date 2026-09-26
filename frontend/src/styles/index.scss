@@ -710,10 +710,20 @@ html, body, #root {
   padding: 0.625rem 0;
   border-top: 1px solid $cg-border;
 
-  &__label { margin: 0; font-size: 0.875rem; }
-  &__purpose { margin: 0.15rem 0 0; font-size: 0.75rem; }
-  &__edit { display: flex; align-items: center; gap: 0.5rem; }
-  &__value { cursor: pointer; }
+  &__label { margin: 0; font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; }
+  &__purpose { margin: 0.15rem 0 0; font-size: 0.75rem; line-height: 1.4; }
+  &__edit { display: flex; align-items: flex-start; gap: 0.25rem; flex: none; .cds--form-item { width: 9rem; } }
+  &__value-wrap { display: flex; align-items: center; gap: 0.25rem; flex: none; }
+  &__value-text { display: flex; flex-direction: column; align-items: flex-end; }
+  &__value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    &.is-override { color: $cg-accent-dark; }
+  }
+  &__default { font-size: 0.6875rem; color: $cg-text-tertiary; white-space: nowrap; }
 }
 
 // ─── Settings > About key/value list ──────────────────────────────────────────
@@ -1279,3 +1289,978 @@ html, body, #root {
     margin: 0.125rem 0 0;
   }
 }
+
+// ─── Asset register form ─────────────────────────────────────────────────────
+.cg-asset-register {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: 1.5rem;
+  align-items: start;
+
+  @media (max-width: 1100px) { grid-template-columns: minmax(0, 1fr); }
+
+  &__main { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
+
+  &__aside {
+    position: sticky;
+    top: 4rem;
+
+    @media (max-width: 1100px) { position: static; order: -1; }
+  }
+
+  &__card { margin: 0; border-radius: 4px; }
+
+  &__hint {
+    margin: 0.125rem 0 0;
+    font-size: 0.75rem;
+    color: $cg-text-secondary;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 1.5rem;
+    align-items: start;
+
+    @media (max-width: 700px) { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  &__placeholder { padding: 2rem 1rem; background: #f4f4f4; }
+}
+
+// Residual-value readout inside the "Purchase & valuation" card.
+.cg-valuation {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background: $cg-accent-light;
+  border-left: 3px solid $cg-accent;
+  border-radius: 0 4px 4px 0;
+
+  &__headline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+
+  &__label {
+    margin: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-text-secondary;
+  }
+
+  &__value {
+    margin: 0.25rem 0 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__breakdown {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 0;
+
+    @media (max-width: 900px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    dt { font-size: 0.75rem; color: $cg-text-secondary; }
+    dd { margin: 0.125rem 0 0; font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; font-variant-numeric: tabular-nums; }
+  }
+
+  &__note,
+  &__empty {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0 0;
+    font-size: 0.75rem;
+    color: $cg-text-secondary;
+    svg { flex: none; fill: $cg-accent; }
+  }
+
+  &__empty { margin: 0; font-size: 0.875rem; }
+}
+
+// Segmented asset-code preview in the register form's sidebar.
+.cg-code-preview {
+  &__code {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 0.375rem;
+    padding: 1rem;
+    background: #161616;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+
+    &--final {
+      justify-content: space-between;
+      color: #ffffff;
+      span { font-family: inherit; overflow-wrap: anywhere; }
+      .cds--copy-btn { background: transparent; svg { fill: #c6c6c6; } }
+    }
+  }
+
+  &__segment-wrap { display: inline-flex; align-items: center; font-family: inherit; }
+
+  &__sep { margin: 0 0.25rem; color: #6f6f6f; font-family: inherit; }
+
+  &__segment {
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    font-family: inherit;
+    transition: opacity 150ms ease;
+
+    &.is-pending { opacity: 0.4; border: 1px dashed currentColor; }
+
+    &--org      { color: #e0e0e0; background: rgba(255, 255, 255, 0.08); }
+    &--category { color: #a6c8ff; background: rgba(69, 137, 255, 0.18); }
+    &--type     { color: #d4bbff; background: rgba(165, 110, 255, 0.18); }
+    &--seq      { color: #9ef0f0; background: rgba(8, 189, 186, 0.15); }
+  }
+
+  &__legend {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
+  }
+
+  &__swatch {
+    flex: none;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 2px;
+
+    &--org      { background: #8d8d8d; }
+    &--category { background: #4589ff; }
+    &--type     { background: #a56eff; }
+    &--seq      { background: #08bdba; }
+  }
+
+  &__legend-label { color: $cg-text-secondary; }
+
+  &__legend-value {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    color: $cg-text-primary;
+  }
+
+  &__note {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid $cg-border;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: $cg-text-secondary;
+    svg { flex: none; fill: $cg-accent; margin-top: 0.0625rem; }
+  }
+}
+
+// ─── Asset QR lookup (web fallback to the Flutter scanner) ───────────────────
+.cg-asset-scan {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 48rem;
+
+  &__card { margin: 0; border-radius: 4px; }
+
+  &__lookup {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1.25rem 1.5rem;
+    align-items: start;
+
+    @media (max-width: 640px) { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 8px;
+    background: $cg-accent-light;
+    svg { fill: $cg-accent; }
+
+    @media (max-width: 640px) { display: none; }
+  }
+
+  &__form {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+
+    .cds--form-item { flex: 1; min-width: 0; }
+    .cds--text-input { font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.02em; }
+    // Line the button up with the input, below the field label.
+    > .cds--btn { margin-top: 1.5rem; flex: none; }
+
+    @media (max-width: 640px) {
+      flex-direction: column;
+      align-items: stretch;
+      > .cds--btn { margin-top: 0; max-width: none; }
+    }
+  }
+
+  &__recent {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid $cg-border;
+  }
+
+  &__recent-label {
+    margin-right: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-text-tertiary;
+  }
+
+  &__chip {
+    padding: 0.25rem 0.625rem;
+    border: 1px solid $cg-border;
+    border-radius: 999px;
+    background: #ffffff;
+    color: $cg-text-primary;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+
+    &:hover { background: $cg-accent-light; border-color: $cg-accent-border; }
+    &:focus-visible { outline: 2px solid $cg-accent; outline-offset: 1px; }
+  }
+
+  &__result { border-left: 3px solid #24a148; }
+
+  &__result-header { align-items: flex-start; gap: 1rem; padding: 1.25rem 1.5rem; }
+
+  &__result-name { margin: 0; font-size: 1.125rem; font-weight: 600; color: $cg-text-primary; }
+
+  &__result-code {
+    margin: 0.25rem 0 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8125rem;
+    color: $cg-text-secondary;
+  }
+
+  &__details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem 1.5rem;
+    margin: 0;
+
+    @media (max-width: 640px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    dt {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: $cg-text-tertiary;
+    }
+
+    dd {
+      margin: 0.25rem 0 0;
+      font-size: 0.875rem;
+      color: $cg-text-primary;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid $cg-border;
+    background: #f4f4f4;
+  }
+}
+
+// ─── Report a fault modal ────────────────────────────────────────────────────
+.cg-fault-modal {
+  &__form { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 0.5rem; }
+
+  &__intro { margin: 0; font-size: 0.875rem; line-height: 1.45; color: $cg-text-secondary; }
+
+  &__field { margin: 0; }
+
+  &__optional { font-weight: 400; color: $cg-text-tertiary; }
+
+  &__error { margin: 0.5rem 0 0; font-size: 0.75rem; color: #da1e28; }
+
+  &__severity {
+    border: 0;
+    padding: 0;
+
+    .cds--tile-group > div,
+    .cds--tile-group fieldset > div {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+
+      @media (max-width: 640px) { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .cds--tile--selectable {
+      height: 100%;
+      min-height: 0;
+      border-radius: 4px;
+      background: #ffffff;
+    }
+
+    .cds--tile--is-selected { border-color: $cg-accent; background: $cg-accent-light; }
+  }
+
+  &__tile {
+    display: flex;
+    gap: 0.75rem;
+    padding-right: 1.5rem; // clear the tile's checkmark
+
+    > svg { flex: none; margin-top: 0.125rem; }
+    &--poor > svg { fill: #b28600; }
+    &--unserviceable > svg { fill: #da1e28; }
+  }
+
+  &__tile-title { display: block; font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; }
+
+  &__tile-text { display: block; margin-top: 0.25rem; font-size: 0.75rem; line-height: 1.4; color: $cg-text-secondary; }
+
+  &__drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 1.25rem 1rem;
+    border: 1px dashed $cg-accent-border;
+    border-radius: 4px;
+    background: #ffffff;
+    text-align: center;
+    transition: background 120ms ease;
+
+    &:hover { background: #fafbfd; }
+    > svg { fill: $cg-accent; }
+    .cds--file__drop-container { border: 0; height: auto; padding: 0; justify-content: center; }
+  }
+
+  &__drop-hint { font-size: 0.75rem; color: $cg-text-tertiary; }
+
+  &__photo {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.75rem;
+    border: 1px solid $cg-border;
+    border-radius: 4px;
+    background: #ffffff;
+
+    img {
+      flex: none;
+      width: 5rem;
+      height: 5rem;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #f4f4f4;
+    }
+  }
+
+  &__photo-meta { flex: 1; min-width: 0; }
+
+  &__photo-name {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__photo-size { margin: 0.125rem 0 0.375rem; font-size: 0.75rem; color: $cg-text-secondary; }
+
+  &__next {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0;
+    padding-top: 1rem;
+    border-top: 1px solid $cg-border;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: $cg-text-secondary;
+
+    svg { flex: none; fill: $cg-accent; margin-top: 0.0625rem; }
+  }
+}
+
+// ─── Asset summary (under an asset picker in forms/modals) ──────────────────
+.cg-asset-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0.875rem 1rem;
+  background: $cg-accent-light;
+  border-left: 3px solid $cg-accent;
+  border-radius: 0 4px 4px 0;
+
+  dt { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: $cg-text-secondary; }
+  dd { margin: 0.25rem 0 0; font-size: 0.8125rem; color: $cg-text-primary; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+}
+
+// ─── Modal form layout (transfer / condemn / disposal modals) ────────────────
+.cg-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 0.5rem;
+
+  &__intro { margin: 0; font-size: 0.875rem; line-height: 1.45; color: $cg-text-secondary; }
+
+  &__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+    align-items: start;
+
+    @media (max-width: 640px) { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  &__inline-action { margin-top: 0.25rem; padding-left: 0; padding-right: 0; min-height: 0; }
+
+  &__callout {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: 4px;
+
+    p { margin: 0; font-size: 0.875rem; line-height: 1.45; color: $cg-text-primary; }
+    svg { flex: none; margin-top: 0.0625rem; }
+
+    &--danger {
+      background: #fff1f1;
+      border-left: 3px solid #da1e28;
+      svg { fill: #da1e28; }
+    }
+  }
+
+  // "From → To" preview of a transfer.
+  &__route {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid $cg-border;
+    border-radius: 4px;
+    background: #fafbfd;
+
+    > svg { fill: $cg-accent; }
+    > div { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+  }
+
+  &__route-label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: $cg-text-tertiary; }
+  &__route-dept { font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; overflow-wrap: anywhere; }
+  &__route-loc { font-size: 0.8125rem; color: $cg-text-secondary; overflow-wrap: anywhere; }
+
+  &__tiles {
+    border: 0;
+    margin: 0;
+    padding: 0;
+
+    .cds--tile-group > div,
+    .cds--tile-group fieldset > div {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+
+      @media (max-width: 640px) { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .cds--tile--selectable { height: 100%; min-height: 0; border-radius: 4px; background: #ffffff; }
+    .cds--tile--is-selected { border-color: $cg-accent; background: $cg-accent-light; }
+  }
+
+  &__tile {
+    display: flex;
+    gap: 0.75rem;
+    padding-right: 1.5rem; // clear the tile's checkmark
+    > svg { flex: none; margin-top: 0.125rem; fill: $cg-accent; }
+  }
+
+  &__tile-title { display: block; font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; }
+  &__tile-text { display: block; margin-top: 0.25rem; font-size: 0.75rem; line-height: 1.4; color: $cg-text-secondary; }
+}
+
+// ─── Transfers & disposals ───────────────────────────────────────────────────
+.cg-table__subtle { font-size: 0.75rem; color: $cg-text-tertiary; }
+.cg-table__note { max-width: 15rem; font-size: 0.8125rem; }
+
+.cg-notes-log {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid $cg-border;
+  background: #ffffff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+}
+
+// Disposal precondition checks (pass/fail list).
+.cg-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  &__items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.625rem;
+      padding: 0.625rem 0.75rem;
+      border: 1px solid $cg-border;
+      border-radius: 4px;
+      background: #ffffff;
+
+      > svg { flex: none; margin-top: 0.125rem; }
+      &.is-passed > svg { fill: #24a148; }
+      &.is-failed { border-color: #ffb3b8; > svg { fill: #da1e28; } }
+    }
+  }
+
+  &__code { margin-right: 0.5rem; font-size: 0.8125rem; font-weight: 600; color: $cg-text-secondary; }
+  &__text { font-size: 0.875rem; color: $cg-text-primary; }
+  &__reason { margin: 0.125rem 0 0; font-size: 0.8125rem; color: #da1e28; }
+}
+
+// ─── Report panels (Reports page) ────────────────────────────────────────────
+.cg-report {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .cg-section { margin: 0; border-radius: 4px; }
+
+  &__intro { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: $cg-text-secondary; }
+
+  &__filters-title { display: flex; align-items: center; gap: 0.5rem; }
+  &__refreshing { width: auto; min-height: 0; }
+
+  &__filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 1rem 1.25rem;
+    align-items: start;
+  }
+
+  &__filter-wide { grid-column: span 2; @media (max-width: 640px) { grid-column: auto; } }
+
+  &__results {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: opacity 150ms ease;
+
+    // Results that no longer match the filters on screen (reloading, or the filters are invalid).
+    &.is-stale { opacity: 0.55; pointer-events: none; }
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1rem;
+  }
+
+  &__stat {
+    padding: 1rem 1.25rem;
+    background: #ffffff;
+    border: 1px solid $cg-border;
+    border-left: 3px solid $cg-accent;
+    border-radius: 4px;
+  }
+
+  &__stat-label {
+    margin: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-text-secondary;
+  }
+
+  &__stat-value {
+    margin: 0.375rem 0 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__export {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    background: $cg-accent-light;
+    border-radius: 4px;
+  }
+
+  &__export-text { margin: 0; font-size: 0.8125rem; color: $cg-text-secondary; }
+  &__export-actions { display: flex; gap: 0.5rem; }
+
+  &__table-subtitle { margin: 0.125rem 0 0; font-size: 0.75rem; color: $cg-text-secondary; }
+}
+
+// Carbon fixes a single date picker's input at 18rem; let DateRangeFilter's
+// pickers fill whatever grid cell or column they're placed in instead of
+// overflowing into the next field.
+// Carbon puts `className` on the outer .cds--form-item wrapper; the
+// --single modifier (which carries the fixed width) is on an inner element,
+// hence the descendant selectors below.
+.cg-date-range__picker {
+  inline-size: 100%;
+  min-inline-size: 0;
+
+  .cds--date-picker,
+  .cds--date-picker-container,
+  .cds--date-picker-input__wrapper,
+  .cds--date-picker-input__wrapper > span { inline-size: 100%; }
+
+  .cds--date-picker.cds--date-picker--single .cds--date-picker__input { inline-size: 100%; max-inline-size: none; }
+}
+
+// In a wrapping flex toolbar (e.g. the audit log's filters) a full-width
+// picker would take a whole row; give it a normal field width instead.
+.cg-toolbar > .cg-date-range__picker { inline-size: 11rem; flex: 0 0 11rem; }
+
+// ─── Users & Roles ───────────────────────────────────────────────────────────
+.cg-users {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  gap: 1.5rem;
+  align-items: start;
+
+  @media (max-width: 1100px) { grid-template-columns: minmax(0, 1fr); }
+
+  .cg-section { margin: 0; border-radius: 4px; }
+
+  &__toolbar { flex-wrap: wrap; gap: 1rem; }
+  &__count { margin: 0.125rem 0 0; font-size: 0.75rem; color: $cg-text-secondary; }
+  &__search { max-width: 20rem; @media (max-width: 640px) { max-width: none; } }
+
+  &__roles {
+    position: sticky;
+    top: 4rem;
+    @media (max-width: 1100px) { position: static; }
+  }
+
+  &__role-list {
+    list-style: none;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    p { margin: 0.375rem 0 0; font-size: 0.8125rem; line-height: 1.45; color: $cg-text-secondary; }
+  }
+
+  .cg-placeholder svg { fill: $cg-accent-mid; }
+}
+
+.cg-user-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+
+  &__avatar {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: $cg-accent-light;
+    color: $cg-accent;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  &__text { display: flex; flex-direction: column; min-width: 0; }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+    .cds--tag { margin: 0; }
+  }
+
+  &__email { font-size: 0.75rem; color: $cg-text-secondary; overflow: hidden; text-overflow: ellipsis; }
+
+  &.is-inactive &__avatar { background: #f4f4f4; color: $cg-text-tertiary; }
+  &.is-inactive &__name { color: $cg-text-secondary; }
+}
+
+// Temporary password field with its Generate / Copy buttons alongside.
+.cg-user-password {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  > .cds--form-item, > .cds--password-input-wrapper { flex: 1; min-width: 0; }
+  &__actions { display: flex; align-items: center; gap: 0.25rem; margin-top: 1.5rem; }
+}
+
+// ─── Header notifications ────────────────────────────────────────────────────
+.cg-header-notifications { position: relative; display: flex; }
+
+.cg-header-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 0.5rem;
+  background: #da1e28;
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.cg-notifications {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 8000;
+  display: flex;
+  flex-direction: column;
+  width: min(24rem, calc(100vw - 1rem));
+  max-height: min(32rem, calc(100vh - 4rem));
+  background: #ffffff;
+  border: 1px solid $cg-border;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  outline: none;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid $cg-border;
+  }
+
+  &__title { margin: 0; font-size: 0.9375rem; font-weight: 600; color: $cg-text-primary; }
+  &__subtitle { margin: 0.125rem 0 0; font-size: 0.75rem; color: $cg-text-secondary; }
+
+  &__body { overflow-y: auto; }
+
+  &__state { padding: 1rem; }
+  &__state--error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    p { margin: 0; font-size: 0.8125rem; color: #da1e28; }
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    svg { fill: $cg-accent-mid; margin-bottom: 0.5rem; }
+    p { margin: 0; font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; }
+    span { font-size: 0.75rem; color: $cg-text-secondary; }
+  }
+
+  &__list { list-style: none; margin: 0; padding: 0; }
+
+  &__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 0;
+    border-bottom: 1px solid #f4f4f4;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background 120ms ease;
+
+    &:hover { background: #f4f4f4; }
+    &:focus-visible { outline: 2px solid $cg-accent; outline-offset: -2px; }
+    &.is-unread { background: $cg-accent-light; }
+    &.is-unread:hover { background: #e1e9f6; }
+  }
+
+  &__dot {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-top: 0.375rem;
+    border-radius: 50%;
+    background: transparent;
+  }
+  &__item.is-unread &__dot { background: $cg-accent; }
+
+  &__content { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 0; }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    .cds--tag { margin: 0; }
+    time { font-size: 0.6875rem; color: $cg-text-tertiary; white-space: nowrap; }
+  }
+
+  &__item-title { font-size: 0.8125rem; font-weight: 600; color: $cg-text-primary; }
+  &__item.is-unread &__item-title { color: $cg-accent-dark; }
+  &__message { font-size: 0.8125rem; line-height: 1.4; color: $cg-text-secondary; }
+  &__chevron { flex: none; margin-top: 0.25rem; fill: $cg-text-tertiary; }
+}
+
+// ─── Organisation Settings lists (departments, locations, policies) ─────────
+.cg-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .cg-section { margin: 0; border-radius: 4px; }
+
+  &__header { align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  &__description { margin: 0.125rem 0 0; font-size: 0.75rem; color: $cg-text-secondary; max-width: 40rem; }
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid $cg-border;
+
+    > .cds--search { flex: 1 1 16rem; max-width: 24rem; }
+    .cds--toggle { flex: none; }
+  }
+
+  &__filter { flex: 0 1 14rem; min-width: 12rem; }
+  &__count { margin: 0 0 0 auto; font-size: 0.75rem; color: $cg-text-secondary; white-space: nowrap; }
+  &__hint { margin: 0; padding: 0.75rem 1.5rem 0; font-size: 0.8125rem; color: $cg-text-secondary; }
+  &__inline-tag { margin-left: 0.5rem; }
+}
+
+.cg-code-chip {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 3px;
+  background: $cg-accent-light;
+  color: $cg-accent-dark;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.cg-table__row--inactive td { opacity: 0.6; }
+.cg-table__row--inactive td:last-child { opacity: 1; }
+
+.cg-department-fields { grid-template-columns: 10rem minmax(0, 1fr); }
+
+// Policies: one collapsible card per policy, fields grouped by area.
+.cg-policy {
+  border: 1px solid $cg-border;
+  border-radius: 4px;
+  background: #ffffff;
+
+  &__list { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 1.5rem 1.5rem; }
+  &__missing-default { margin: 1rem 1.5rem 0; p { display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; } }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    svg { flex: none; fill: $cg-text-secondary; }
+    .cds--tag { margin: 0; }
+    &:hover { background: #f4f4f4; }
+    &:focus-visible { outline: 2px solid $cg-accent; outline-offset: -2px; }
+  }
+
+  &__name { font-size: 0.9375rem; font-weight: 600; color: $cg-text-primary; }
+  &__diff { font-size: 0.75rem; color: $cg-text-secondary; }
+
+  &__group { padding: 0.25rem 1.25rem 0.75rem; border-top: 1px solid $cg-border; }
+
+  &__group-title {
+    margin: 0.75rem 0 0.25rem;
+    padding: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-accent;
+  }
+
+  .cg-policy-row:first-of-type { border-top: 0; }
+}
+
+.cg-policy-form__group { border: 0; margin: 0; padding: 0; .cg-modal-form__row { margin-top: 0.5rem; } }
