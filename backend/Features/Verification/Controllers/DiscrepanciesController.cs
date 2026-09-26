@@ -48,10 +48,13 @@ public class DiscrepanciesController : CoreGridControllerBase
     // Uploads a photo associated with a verification discrepancy.
     [HttpPost("verification-tasks/photos")]
     [Authorize(Roles = RaiseRoles)]
-    [RequestSizeLimit(PhotoUploadValidator.MaxSizeBytes)]
+    [RequestSizeLimit(PhotoUploadValidator.MaxSizeBytes + 64 * 1024)] // multipart overhead around a 5 MB photo
     public async Task<ActionResult<UploadDiscrepancyPhotoResponse>> UploadPhoto(
         IFormFile photo, CancellationToken cancellationToken)
     {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
         var validation = await PhotoUploadValidator.ValidateAsync(photo, cancellationToken);
         if (!validation.IsValid)
         {
@@ -59,8 +62,15 @@ public class DiscrepanciesController : CoreGridControllerBase
         }
 
         await using var stream = photo.OpenReadStream();
-        var url = await _fileStorageService.UploadAsync("verification", photo.FileName, photo.ContentType, stream, cancellationToken);
-        return Ok(new UploadDiscrepancyPhotoResponse { Url = url });
+        // Private, like maintenance photos: the response is an object key the
+        // raise request echoes back; reads get a short-lived signed link.
+        var key = await _fileStorageService.UploadPrivateAsync(
+            PhotoKeys.Folder(PhotoKeys.Verification, currentUser.OrganizationId),
+            PhotoKeys.FileNameFor(photo.ContentType),
+            photo.ContentType,
+            stream,
+            cancellationToken);
+        return Ok(new UploadDiscrepancyPhotoResponse { Url = key });
     }
 
     // Raises a discrepancy for a verification task.

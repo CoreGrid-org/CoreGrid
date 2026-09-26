@@ -3,7 +3,7 @@ name: coregrid
 # Local development infrastructure only — ThunderID (identity) and PostgreSQL
 # (CoreGrid's own application database, SRS §3.6/§8). The backend API — which
 # hosts the whole agent subsystem in-process under the target architecture,
-# SRS §7.2.1/ADR-010 — is not containerised here yet; see doc/setup/ThunderID.md.
+# SRS §7.2.1/ADR-010 — is not containerised here yet; see docs/setup/thunderid.md.
 # The Planner Agent still runs as its own standalone process pending migration
 # in-process (SRS §7.2.1); see planner-agent/README.md to run it separately.
 

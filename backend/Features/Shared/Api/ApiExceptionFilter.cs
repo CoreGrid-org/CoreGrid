@@ -38,6 +38,9 @@ public class ApiExceptionFilter(ILogger<ApiExceptionFilter> logger) : IException
                     Preconditions = ex.Payload
                 }),
 
+            ServiceUnavailableException ex => (StatusCodes.Status503ServiceUnavailable,
+                new ErrorEnvelope { Message = ex.Message, Code = ex.Code ?? "service_unavailable", CorrelationId = correlationId }),
+
             ConflictException ex => (StatusCodes.Status409Conflict,
                 new ErrorEnvelope { Message = ex.Message, Code = ex.Code ?? "conflict", CorrelationId = correlationId }),
 

@@ -20,6 +20,8 @@ import EditAssetTypeModal from "../components/EditAssetTypeModal";
 import CreateAssetAttributeModal from "../components/CreateAssetAttributeModal";
 import EditAssetAttributeModal from "../components/EditAssetAttributeModal";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
+import CategoryDetailModal from "../components/CategoryDetailModal";
+import AssetDetailModal from "../components/AssetDetailModal";
 import type { AssetAttributeDefinition, AssetCategory, AssetType } from "../types/asset";
 
 const DATA_TYPE_COLOR: Record<string, "gray" | "blue" | "purple" | "teal" | "magenta"> = {
@@ -74,6 +76,8 @@ export default function AssetConfigPage() {
   const [attributesRefreshKey, setAttributesRefreshKey] = useState(0);
   const [modalState, setModalState] = useState<ModalState>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewingCategory, setViewingCategory] = useState<AssetCategory | null>(null);
+  const [viewingAssetId, setViewingAssetId] = useState<string | null>(null);
 
   const categories = useAssetCategories();
   const types = useAssetTypes();
@@ -142,8 +146,7 @@ export default function AssetConfigPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Asset Configuration</h1>
           <p className="cg-page__subtitle">
-            Categories, types and the custom attributes each type collects. Changes here reshape the
-            registration form immediately — no deploy.
+            Manage asset categories, types, and custom attribute definitions across the organization.
           </p>
         </div>
         <Button
@@ -183,6 +186,7 @@ export default function AssetConfigPage() {
               onEdit={(category) => setModalState({ kind: "edit-category", category })}
               onDelete={(category) => setModalState({ kind: "delete-category", category })}
               onReactivate={handleReactivateCategory}
+              onViewDetail={(category) => setViewingCategory(category)}
             />
           </TabPanel>
           <TabPanel>
@@ -341,22 +345,41 @@ export default function AssetConfigPage() {
           }}
         />
       )}
+      {viewingCategory && (
+        <CategoryDetailModal
+          category={viewingCategory}
+          onClose={() => setViewingCategory(null)}
+          onSelectAsset={(assetId) => setViewingAssetId(assetId)}
+        />
+      )}
+
+      {viewingAssetId && (
+        <AssetDetailModal
+          assetId={viewingAssetId}
+          onClose={() => setViewingAssetId(null)}
+          onConditionUpdated={() => {
+            categories.refetch();
+            types.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
-
 function CategoriesTab({
   categories,
   searchTerm,
   onEdit,
   onDelete,
   onReactivate,
+  onViewDetail,
 }: {
   categories: ReturnType<typeof useAssetCategories>;
   searchTerm: string;
   onEdit: (category: AssetCategory) => void;
   onDelete: (category: AssetCategory) => void;
   onReactivate: (id: string) => void;
+  onViewDetail: (category: AssetCategory) => void;
 }) {
   const { data, isLoading, isError, error } = categories;
 
@@ -400,21 +423,41 @@ function CategoriesTab({
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" }}>
       {filtered.map((cat) => (
-        <div key={cat.id} className="cg-section" style={{ margin: 0, opacity: cat.is_active ? 1 : 0.65 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
-            <p className="cg-section__title" style={{ margin: 0 }}>{cat.name}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Tag type="blue">{cat.code}</Tag>
-              {!cat.is_active && <Tag type="gray">Inactive</Tag>}
+        <div
+          key={cat.id}
+          className="cg-section"
+          onClick={() => onViewDetail(cat)}
+          style={{
+            margin: 0,
+            padding: "1.25rem 1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "100%",
+            minHeight: "11.5rem",
+            opacity: cat.is_active ? 1 : 0.65,
+            cursor: "pointer",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", marginBottom: "1rem" }}>
+            <p className="cg-section__title" style={{ margin: 0, flex: 1, wordBreak: "break-word", lineHeight: 1.35 }}>
+              {cat.name}
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
+              <Tag type="blue" style={{ margin: 0 }}>{cat.code}</Tag>
+              {!cat.is_active && <Tag type="gray" style={{ margin: 0 }}>Inactive</Tag>}
               <Button
                 kind="ghost"
                 size="sm"
                 renderIcon={Edit}
                 iconDescription="Edit category"
                 hasIconOnly
-                onClick={() => onEdit(cat)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(cat);
+                }}
               />
               <Button
                 kind="ghost"
@@ -422,25 +465,38 @@ function CategoriesTab({
                 renderIcon={TrashCan}
                 iconDescription="Delete category"
                 hasIconOnly
-                onClick={() => onDelete(cat)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(cat);
+                }}
               />
             </div>
           </div>
-          <div className="cg-kv-grid" style={{ marginTop: "1rem" }}>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Asset types</p>
-              <p className="cg-kv-item__value">{cat.type_count}</p>
+          <div style={{ marginTop: "auto", paddingTop: "0.75rem" }}>
+            <div className="cg-kv-grid">
+              <div className="cg-kv-item">
+                <p className="cg-kv-item__label">Asset types</p>
+                <p className="cg-kv-item__value">{cat.type_count}</p>
+              </div>
+              <div className="cg-kv-item">
+                <p className="cg-kv-item__label">Assets</p>
+                <p className="cg-kv-item__value">{cat.asset_count}</p>
+              </div>
             </div>
-            <div className="cg-kv-item">
-              <p className="cg-kv-item__label">Assets</p>
-              <p className="cg-kv-item__value">{cat.asset_count}</p>
-            </div>
+            {!cat.is_active && (
+              <Button
+                kind="tertiary"
+                size="sm"
+                style={{ marginTop: "0.75rem", width: "100%" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReactivate(cat.id);
+                }}
+              >
+                Reactivate
+              </Button>
+            )}
           </div>
-          {!cat.is_active && (
-            <Button kind="tertiary" size="sm" style={{ marginTop: "1rem" }} onClick={() => onReactivate(cat.id)}>
-              Reactivate
-            </Button>
-          )}
         </div>
       ))}
     </div>
@@ -614,7 +670,7 @@ function AttributesTab({
   if (!data || data.length === 0) {
     return (
       <div className="cg-placeholder">
-        <p>No asset types yet — add one on the Types tab first.</p>
+        <p>No asset types yet - add one on the Types tab first.</p>
       </div>
     );
   }
@@ -802,7 +858,7 @@ function AssetTypeAttributesPanel({
                     <Tag type={DATA_TYPE_COLOR[attr.data_type]}>{attr.data_type}</Tag>
                   </td>
                   <td className="cg-table__muted">{attr.is_required ? "Required" : "Optional"}</td>
-                  <td className="cg-table__muted">{attr.select_options?.join(", ") ?? "—"}</td>
+                  <td className="cg-table__muted">{attr.select_options?.join(", ") ?? "-"}</td>
                   <td className="cg-table__muted">{attr.display_order}</td>
                   <td>
                     {attr.is_active ? (
@@ -845,7 +901,7 @@ function AssetTypeAttributesPanel({
             </tbody>
           </table>
           <p style={{ padding: "0.75rem 1rem", fontSize: "0.75rem", color: "#525252", background: "#fafafa", margin: 0 }}>
-            These rows are AssetAttributeDefinitions — the registration form renders exactly this list, in this
+            These rows are AssetAttributeDefinitions - the registration form renders exactly this list, in this
             order.
           </p>
         </>

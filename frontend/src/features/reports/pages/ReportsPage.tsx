@@ -16,14 +16,12 @@ export default function ReportsPage() {
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Reports</h1>
           <p className="cg-page__subtitle">
-            {canSeeAudit
-              ? "Inventory, maintenance, disposal and audit reports."
-              : "Inventory, maintenance and disposal reports."}
+            Generate, filter, and export comprehensive asset inventory, maintenance, disposal, and audit compliance reports.
           </p>
         </div>
       </div>
 
-      <Tabs>
+      <Tabs key={canSeeAudit ? "reports-audit-enabled" : "reports-standard"}>
         <TabList aria-label="Report sections">
           <Tab>Asset Inventory</Tab>
           <Tab>Maintenance</Tab>

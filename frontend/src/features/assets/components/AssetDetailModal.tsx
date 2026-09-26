@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Modal, InlineNotification, Tag, Select, SelectItem, Button, Pagination } from "@carbon/react";
+import { Modal, InlineNotification, Tag, Dropdown, Button, Pagination } from "@carbon/react";
 import { useMe } from "@/features/auth/hooks/useMe";
 import { useAssetDetail, useAssetHistory, useUpdateAssetCondition } from "../hooks/useAssets";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
@@ -152,16 +152,15 @@ export default function AssetDetailModal({ assetId, onClose, onConditionUpdated 
 
               <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", marginBottom: "1.5rem" }}>
                 <div style={{ minWidth: "12rem" }}>
-                  <Select
+                  <Dropdown
                     id="asset-condition"
-                    labelText="Update condition"
-                    value={condition}
-                    onChange={(e) => setCondition(e.target.value as AssetCondition)}
-                  >
-                    {ASSET_CONDITIONS.map((c) => (
-                      <SelectItem key={c} value={c} text={formatStatusLabel(c)} />
-                    ))}
-                  </Select>
+                    titleText="Update condition"
+                    label={condition ? formatStatusLabel(condition) : "Select condition"}
+                    items={ASSET_CONDITIONS}
+                    itemToString={(c) => (c ? formatStatusLabel(c) : "")}
+                    selectedItem={condition}
+                    onChange={({ selectedItem }) => selectedItem && setCondition(selectedItem)}
+                  />
                 </div>
                 <Button
                   size="md"

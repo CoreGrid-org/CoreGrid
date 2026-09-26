@@ -45,8 +45,6 @@ public sealed class BudgetAgentService : IBudgetAgentClient
         "  \"proposed_recommendation\": \"REPAIR\"|\"REPLACE\"|\"TRANSFER\"|\"DISPOSE\"\n" +
         "}";
 
-    private const string DefaultOpenAiEndpoint = "https://api.openai.com/v1/chat/completions";
-    private const string DefaultModel = "gpt-4o-mini";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -113,18 +111,19 @@ public sealed class BudgetAgentService : IBudgetAgentClient
         }
 
         // ── 2. Check API key configuration ────────────────────────────────────────
-        var apiKey = _configuration["Budget:ApiKey"] ?? _configuration["Planner:OpenAiApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey))
+        var llm = LlmSettings.For(_configuration, "Budget", "Planner:OpenAiApiKey");
+        var apiKey = llm.ApiKey;
+        if (!llm.HasApiKey)
         {
             _logger.LogWarning(
-                "BudgetAgent: API key not configured (Budget:ApiKey or Planner:OpenAiApiKey). " +
+                "BudgetAgent: LLM API key not configured (Llm:ApiKey or Budget:ApiKey). " +
                 "Returning deterministic fallback assessment.");
             return BudgetScopeGuard.FallbackAssessment(financials, maintenanceAnalysis, policyThreshold);
         }
 
         // ── 3. Assemble sanitized context with AI-22 / NFR-49 delimiter guards ────
-        var endpoint = _configuration["Budget:Endpoint"] ?? DefaultOpenAiEndpoint;
-        var model = _configuration["Budget:Model"] ?? DefaultModel;
+        var endpoint = llm.Endpoint;
+        var model = llm.Model;
 
         var sanitizedContext = new
         {
@@ -187,7 +186,7 @@ public sealed class BudgetAgentService : IBudgetAgentClient
         // ── 4. Outbound HTTP LLM Call (OpenAI-compatible) ──────────────────────────
         try
         {
-            using var client = _httpClientFactory.CreateClient("Budget");
+            using var client = _httpClientFactory.CreateClient(AgentsModule.LlmHttpClient);
             using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Headers = { { "Authorization", $"Bearer {apiKey}" } },

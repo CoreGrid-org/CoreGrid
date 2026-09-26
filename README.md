@@ -8,14 +8,14 @@
 <h1 align="center">CoreGrid</h1>
 <p align="center">A configurable, agentic-AI-assisted asset lifecycle management platform for government &amp; institutional assets.</p>
 
-CoreGrid registers, identifies, maintains, transfers and disposes of an organisation's physical assets under one role-controlled platform, backed by a four-agent, human-approved agentic AI workflow for repair, transfer and disposal decisions. Full detail is in the [Software Requirements Specification](doc/SRS/00-front-matter.md).
+CoreGrid registers, identifies, maintains, transfers and disposes of an organisation's physical assets under one role-controlled platform, backed by a four-agent, human-approved agentic AI workflow for repair, transfer and disposal decisions. Full detail is in the [Software Requirements Specification](docs/srs/00-front-matter.md).
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
 | `frontend/` | Marketing/landing site (React + Vite) - see [`frontend/README.md`](frontend/README.md) |
-| `doc/SRS/` | Baselined Software Requirements Specification |
+| `docs/srs/` | Baselined Software Requirements Specification |
 | `LICENSE` | Apache License 2.0 |
 
 ## License

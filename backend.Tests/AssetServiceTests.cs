@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace backend.Tests.Features.Assets;
 
 // SRS §9.2 / FR-031: standalone physical verification. No AssetServiceTests
-// existed before this (doc/PROGRESS.md's own Component A section flagged
+// existed before this (docs/progress.md's own Component A section flagged
 // the gap) — scoped here to VerifyAssetAsync only.
 public class AssetServiceTests
 {
@@ -159,5 +159,22 @@ public class AssetServiceTests
             CancellationToken.None);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task CreateAsset_FuturePurchaseDate_ThrowsValidationException()
+    {
+        await using var db = CreateInMemoryDbContext();
+        var service = new AssetService(db);
+
+        var request = new CreateAssetRequest
+        {
+            AssetTypeId = Guid.NewGuid(), DepartmentId = Guid.NewGuid(), LocationId = Guid.NewGuid(),
+            Name = "Laptop", AcquisitionDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)), AcquisitionCost = 1000m,
+        };
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            service.CreateAssetAsync(Guid.NewGuid(), Guid.NewGuid(), request, CancellationToken.None));
+        Assert.Contains("future", ex.Message);
     }
 }

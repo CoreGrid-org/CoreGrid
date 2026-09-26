@@ -69,3 +69,23 @@ env/
 venv/
 
 nunit-*.xml
+
+# ─── Editors & OS ───────────────────────────────────────────────────────────
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# ─── Local tooling & data ───────────────────────────────────────────────────
+# AI-assistant local state and scratch worktrees, database dumps.
+.claude/settings.local.json
+.kilo/
+*.dump
+coverage/
+
+# Local database dumps from 'make db-backup'
+backups/

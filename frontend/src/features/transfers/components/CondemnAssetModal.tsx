@@ -1,89 +1,150 @@
 import { useState } from "react";
-import { Modal, InlineNotification, ComboBox, TextArea, TextInput } from "@carbon/react";
+import { ComposedModal, ModalHeader, ModalBody, ModalFooter, Button, InlineNotification, ComboBox, TextArea, TextInput, Tag } from "@carbon/react";
+import { WarningAltFilled } from "@carbon/icons-react";
 import { useCondemnAsset } from "../hooks/useDisposals";
 import { useAssetsList } from "@/features/assets/hooks/useAssets";
+import type { Asset } from "@/features/assets/types/asset";
+import AssetSummary from "@/features/assets/components/AssetSummary";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
+import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+
+// Matches CondemnAssetRequest's [MaxLength(1000)] on the backend.
+const REASON_MAX = 1000;
+
+function isValidUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 // Provides the asset condemnation form.
 export default function CondemnAssetModal({ onClose, onCondemned }: { onClose: () => void; onCondemned: () => void }) {
   const [assetId, setAssetId] = useState("");
   const [reason, setReason] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
-  const { data: assetsData } = useAssetsList({ pageSize: 100 });
+  const { data: assetsData, isLoading: isLoadingAssets } = useAssetsList({ pageSize: 100 });
   const candidates = (assetsData?.items ?? []).filter((a) => a.status === "ACTIVE" || a.status === "UNDER_MAINTENANCE");
+  const selectedAsset = candidates.find((a) => a.id === assetId) ?? null;
 
   const condemnAsset = useCondemnAsset();
 
+  const errors = {
+    asset: !assetId ? "Choose the asset to condemn." : null,
+    reason: !reason.trim() ? "Explain why the asset can't be repaired or used." : null,
+    evidence: evidenceUrl.trim() && !isValidUrl(evidenceUrl.trim()) ? "Enter a full link starting with http:// or https://." : null,
+  };
+
   const handleSubmit = () => {
-    if (!assetId || !reason.trim()) {
-      setFormError("Please select an asset and specify the condemnation reason.");
-      return;
-    }
-    setFormError(null);
+    setSubmitted(true);
+    if (Object.values(errors).some(Boolean) || condemnAsset.isPending) return;
     condemnAsset.mutate(
       { assetId, payload: { reason: reason.trim(), evidence_url: evidenceUrl.trim() || undefined } },
       { onSuccess: onCondemned },
     );
   };
 
+  const handleClose = () => {
+    if (!condemnAsset.isPending) onClose();
+  };
+
   return (
-    <Modal
-      open
-      modalHeading="Condemn Unserviceable Asset (FR-049)"
-      primaryButtonText="Condemn Asset"
-      secondaryButtonText="Cancel"
-      danger
-      primaryButtonDisabled={condemnAsset.isPending}
-      onRequestClose={onClose}
-      onRequestSubmit={handleSubmit}
-    >
-      <p style={{ marginBottom: "1rem", fontSize: "0.875rem" }}>
-        Condemning transitions the asset condition to <code>UNSERVICEABLE</code> and status to <code>CONDEMNED</code>, releasing it for the disposal workflow.
-      </p>
+    <ComposedModal open size="sm" danger onClose={handleClose} preventCloseOnClickOutside aria-label="Condemn unserviceable asset">
+      <ModalHeader label="Disposals" title="Condemn unserviceable asset" closeModal={handleClose} />
+      <ModalBody hasScrollingContent>
+        <div className="cg-modal-form">
+          <div className="cg-modal-form__callout cg-modal-form__callout--danger">
+            <WarningAltFilled size={20} />
+            <p>
+              The asset will be marked <strong>Unserviceable</strong> and <strong>Condemned</strong>, and taken out of
+              use. It can then be submitted for disposal.
+            </p>
+          </div>
 
-      {formError && (
-        <InlineNotification kind="error" title="Validation error" subtitle={formError} lowContrast hideCloseButton style={{ marginBottom: "1rem" }} />
-      )}
-      {condemnAsset.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not condemn asset"
-          subtitle={getErrorMessage(condemnAsset.error, "Asset condemnation failed.")}
-          lowContrast
-          hideCloseButton
-          style={{ marginBottom: "1rem" }}
-        />
-      )}
+          {condemnAsset.isError && (
+            <InlineNotification
+              kind="error"
+              title="Could not condemn asset"
+              subtitle={getErrorMessage(condemnAsset.error, "Asset condemnation failed.")}
+              lowContrast
+              hideCloseButton
+              style={{ maxWidth: "100%" }}
+            />
+          )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <ComboBox
-          id="condemn-asset-select"
-          titleText="Asset to Condemn *"
-          placeholder="Select asset"
-          items={candidates}
-          itemToString={(item) => (item ? `${item.asset_code} — ${item.name} (${item.condition})` : "")}
-          onChange={({ selectedItem }) => setAssetId(selectedItem?.id ?? "")}
-        />
+          <div>
+            <ComboBox<Asset>
+              id="condemn-asset-select"
+              titleText="Asset to condemn"
+              helperText={selectedAsset ? undefined : "Active assets and assets under maintenance."}
+              placeholder={isLoadingAssets ? "Loading assets…" : "Type to search by code or name…"}
+              disabled={isLoadingAssets}
+              autoAlign
+              items={candidates}
+              itemToString={(item) => (item ? `${item.asset_code} - ${item.name}` : "")}
+              selectedItem={selectedAsset}
+              shouldFilterItem={comboBoxFilter(selectedAsset)}
+              onChange={({ selectedItem }) => setAssetId(selectedItem?.id ?? "")}
+              invalid={submitted && Boolean(errors.asset)}
+              invalidText={errors.asset ?? undefined}
+            />
+            {selectedAsset && (
+              <AssetSummary
+                items={[
+                  { label: "Type", value: selectedAsset.asset_type_name },
+                  { label: "Location", value: selectedAsset.location_name },
+                  {
+                    label: "Status",
+                    value: <Tag type={statusTagColor(selectedAsset.status)} size="sm">{formatStatusLabel(selectedAsset.status)}</Tag>,
+                  },
+                  {
+                    label: "Condition",
+                    value: <Tag type={statusTagColor(selectedAsset.condition)} size="sm">{formatStatusLabel(selectedAsset.condition)}</Tag>,
+                  },
+                ]}
+              />
+            )}
+          </div>
 
-        <TextArea
-          id="condemn-reason"
-          labelText="Condemnation Justification / Reason *"
-          placeholder="Detailed assessment why this asset cannot be repaired or used..."
-          rows={3}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
+          <TextArea
+            id="condemn-reason"
+            labelText="Reason"
+            placeholder="e.g. Motherboard failed; repair quote exceeds replacement cost and parts are no longer made."
+            rows={4}
+            enableCounter
+            maxCount={REASON_MAX}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            invalid={submitted && Boolean(errors.reason)}
+            invalidText={errors.reason ?? undefined}
+          />
 
-        <TextInput
-          id="condemn-evidence"
-          labelText="Evidence Document / Photo URL (Optional)"
-          placeholder="https://..."
-          value={evidenceUrl}
-          onChange={(e) => setEvidenceUrl(e.target.value)}
-        />
-      </div>
-    </Modal>
+          <TextInput
+            id="condemn-evidence"
+            labelText="Evidence link (optional)"
+            helperText="A link to an inspection report, repair quote or photo."
+            placeholder="https://…"
+            type="url"
+            value={evidenceUrl}
+            onChange={(e) => setEvidenceUrl(e.target.value)}
+            invalid={submitted && Boolean(errors.evidence)}
+            invalidText={errors.evidence ?? undefined}
+          />
+        </div>
+      </ModalBody>
+      <ModalFooter danger>
+        <Button kind="secondary" onClick={handleClose} disabled={condemnAsset.isPending}>
+          Cancel
+        </Button>
+        <Button kind="danger" onClick={handleSubmit} disabled={condemnAsset.isPending}>
+          {condemnAsset.isPending ? "Condemning…" : "Condemn asset"}
+        </Button>
+      </ModalFooter>
+    </ComposedModal>
   );
 }

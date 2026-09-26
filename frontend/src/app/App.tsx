@@ -19,14 +19,12 @@ import AssetConfigPage from "@/features/assets/pages/AssetConfigPage";
 import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
 import MaintenanceDetailPage from "@/features/maintenance/pages/MaintenanceDetailPage";
 import CreateMaintenancePage from "@/features/maintenance/pages/CreateMaintenancePage";
-import ReportFaultPage from "@/features/maintenance/pages/ReportFaultPage";
 import TransfersPage from "@/features/transfers/pages/TransfersPage";
-import InventoryTransfersPage from "@/features/transfers/pages/InventoryTransfersPage";
-import AuditorTransfersPage from "@/features/transfers/pages/AuditorTransfersPage";
 import AuditPage from "@/features/audit/pages/AuditPage";
 import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
 import ReportsPage from "@/features/reports/pages/ReportsPage";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
+import ProfilePage from "@/features/profile/pages/ProfilePage";
 import NotFound from "@/shared/pages/NotFound";
 
 export default function App() {
@@ -50,14 +48,14 @@ export default function App() {
         <Route path="assets/config" element={<AssetConfigPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/new" element={<CreateMaintenancePage />} />
-        <Route path="maintenance/report" element={<ReportFaultPage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<TransfersPage />} />
+        <Route path="transfers" element={<TransfersPage role="Administrator" />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route
@@ -76,10 +74,10 @@ export default function App() {
         <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/new" element={<CreateMaintenancePage />} />
-        <Route path="maintenance/report" element={<ReportFaultPage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<InventoryTransfersPage />} />
+        <Route path="transfers" element={<TransfersPage role="InventoryOfficer" />} />
         <Route path="workflows" element={<WorkflowsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route
@@ -96,8 +94,9 @@ export default function App() {
         <Route path="assets" element={<AssetsPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
-        <Route path="transfers" element={<AuditorTransfersPage />} />
+        <Route path="transfers" element={<TransfersPage role="Auditor" />} />
         <Route path="workflows" element={<WorkflowsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="signin" element={<SignIn />} />

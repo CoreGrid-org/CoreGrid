@@ -5,13 +5,14 @@ import {
   TextInput,
   NumberInput,
   ComboBox,
-  Select,
-  SelectItem,
+  Dropdown,
   Checkbox,
   InlineNotification,
-  CodeSnippet,
+  CopyButton,
+  ProgressBar,
   Tag,
 } from "@carbon/react";
+import { Calendar, Information, QrCode as QrCodeIcon } from "@carbon/icons-react";
 import {
   useAssetDetail,
   useAssetTypes,
@@ -32,6 +33,8 @@ import {
   type Location,
 } from "../types/asset";
 import { formatStatusLabel } from "@/shared/lib/statusTag";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
+import { localTodayIso, previewDepreciation } from "../utils/depreciation";
 
 type AttributeValue = string | number | boolean;
 
@@ -75,6 +78,8 @@ export default function AssetRegisterPage() {
   const saveAsset = isEditMode ? updateAsset : createAsset;
 
   const selectedType = assetTypes?.find((t) => t.id === assetTypeId);
+  const selectedDepartment = departments?.find((d) => d.id === departmentId) ?? null;
+  const selectedLocation = locations?.find((l) => l.id === locationId) ?? null;
 
   // Inactive asset types aren't offered when registering a new asset, but an
   // existing asset must keep displaying/keeping its own (possibly since
@@ -144,34 +149,36 @@ export default function AssetRegisterPage() {
     return value !== undefined && value !== "";
   });
 
+  // A purchase can't be in the future; the backend rejects it too.
+  const today = localTodayIso();
+  const isFutureDate = acquisitionDate.length > 0 && acquisitionDate > today;
+
   const canSubmit =
     assetTypeId.length > 0 &&
     name.trim().length > 0 &&
     departmentId.length > 0 &&
     locationId.length > 0 &&
     acquisitionDate.length > 0 &&
+    !isFutureDate &&
     acquisitionCost !== "" &&
     acquisitionCost >= 0 &&
     requiredAttributesFilled;
 
-  const computedResidualValue = useMemo(() => {
-    if (acquisitionCost === "" || acquisitionCost < 0) return 0;
-    if (!acquisitionDate) return acquisitionCost;
-    if (!selectedType || selectedType.useful_life_years <= 0) return acquisitionCost;
+  // Live preview of what the server will store as residual_value on save.
+  // Needs a type (for its useful life), a date and a cost; null until then.
+  const depreciation = useMemo(() => {
+    if (!selectedType || !acquisitionDate || isFutureDate || acquisitionCost === "" || acquisitionCost < 0) return null;
+    return previewDepreciation(acquisitionCost, acquisitionDate, selectedType.useful_life_years);
+  }, [acquisitionCost, acquisitionDate, isFutureDate, selectedType]);
 
-    const acqDate = new Date(acquisitionDate);
-    if (isNaN(acqDate.getTime())) return acquisitionCost;
-
-    const now = new Date();
-    const elapsedDays = (now.getTime() - acqDate.getTime()) / (1000 * 60 * 60 * 24);
-    const elapsedYears = elapsedDays / 365.25;
-
-    if (elapsedYears <= 0) return acquisitionCost;
-
-    const depreciation = (acquisitionCost / selectedType.useful_life_years) * elapsedYears;
-    const residual = acquisitionCost - depreciation;
-    return Math.max(0, residual);
-  }, [acquisitionCost, acquisitionDate, selectedType]);
+  // Mirrors AssetCodeGenerator (org-category-type-NNNN); the sequence is
+  // only known once the server saves the asset.
+  const codeSegments = [
+    { key: "org", label: "Organisation", value: organizationCode?.code ?? "ORG", pending: !organizationCode?.code },
+    { key: "category", label: "Category", value: selectedType?.category_code ?? "CAT", pending: !selectedType },
+    { key: "type", label: "Type", value: selectedType?.code ?? "TYPE", pending: !selectedType },
+    { key: "seq", label: "Sequence", value: "0000", pending: true },
+  ];
 
   const handleSubmit = () => {
     if (!canSubmit || saveAsset.isPending) return;
@@ -263,8 +270,8 @@ export default function AssetRegisterPage() {
           <h1 className="cg-page__title">{isEditMode ? "Update asset" : "Register new asset"}</h1>
           <p className="cg-page__subtitle">
             {isEditMode
-              ? "Change any field and save — the asset code and QR payload stay fixed."
-              : "Attribute fields appear once a type is chosen — the form renders itself from that type's definitions."}
+              ? "Change any field and save - the asset code and QR payload stay fixed."
+              : "Attribute fields appear once a type is chosen - the form renders itself from that type's definitions."}
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -288,18 +295,24 @@ export default function AssetRegisterPage() {
         />
       )}
 
-      <div style={{ display: "flex", gap: "1.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div style={{ flex: "1 1 32rem", minWidth: "24rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          <div className="cg-section" style={{ margin: 0 }}>
-            <p className="cg-section__title">Basic details</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
+      <div className="cg-asset-register">
+        <div className="cg-asset-register__main">
+          <section className="cg-section cg-asset-register__card">
+            <header className="cg-section__header">
+              <div>
+                <p className="cg-section__title">Asset details</p>
+                <p className="cg-asset-register__hint">What the asset is and the state it's in.</p>
+              </div>
+            </header>
+            <div className="cg-section__body cg-asset-register__grid">
               <ComboBox<AssetType>
                 id="register-asset-type"
                 titleText="Asset type"
-                placeholder="Search asset types…"
+                placeholder="Type to search asset types…"
                 items={selectableAssetTypes}
-                itemToString={(item) => (item ? `${item.name}${item.is_active ? "" : " — inactive"}` : "")}
-                selectedItem={selectableAssetTypes.find((t) => t.id === assetTypeId) ?? null}
+                itemToString={(item) => (item ? `${item.name}${item.is_active ? "" : " - inactive"}` : "")}
+                selectedItem={selectedType ?? null}
+                shouldFilterItem={comboBoxFilter(selectedType)}
                 onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
               />
               <TextInput
@@ -309,206 +322,311 @@ export default function AssetRegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
+              {!isEditMode && (
+                <Dropdown
+                  id="register-asset-condition"
+                  titleText="Condition"
+                  label={formatStatusLabel(condition)}
+                  items={ASSET_CONDITIONS}
+                  itemToString={(item) => (item ? formatStatusLabel(item) : "")}
+                  selectedItem={condition}
+                  onChange={({ selectedItem }) => selectedItem && setCondition(selectedItem)}
+                />
+              )}
+            </div>
+          </section>
+
+          <section className="cg-section cg-asset-register__card">
+            <header className="cg-section__header">
+              <div>
+                <p className="cg-section__title">Assignment</p>
+                <p className="cg-asset-register__hint">Which department owns it and where it's kept.</p>
+              </div>
+            </header>
+            <div className="cg-section__body cg-asset-register__grid">
               <ComboBox<Department>
                 id="register-asset-department"
                 titleText="Department"
-                placeholder="Search departments…"
+                placeholder="Type to search departments…"
                 items={departments ?? []}
                 itemToString={(item) => item?.name ?? ""}
-                selectedItem={departments?.find((d) => d.id === departmentId) ?? null}
+                selectedItem={selectedDepartment}
+                shouldFilterItem={comboBoxFilter(selectedDepartment)}
                 onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
               />
               <ComboBox<Location>
                 id="register-asset-location"
                 titleText="Location"
-                placeholder={departmentId ? "Search locations…" : "Choose a department first"}
+                placeholder={departmentId ? "Type to search locations…" : "Choose a department first"}
                 disabled={!departmentId}
                 items={locations ?? []}
                 itemToString={(item) => item?.name ?? ""}
-                selectedItem={locations?.find((l) => l.id === locationId) ?? null}
+                selectedItem={selectedLocation}
+                shouldFilterItem={comboBoxFilter(selectedLocation)}
                 onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
               />
-              {!isEditMode && (
-                <Select
-                  id="register-asset-condition"
-                  labelText="Condition"
-                  value={condition}
-                  onChange={(e) => setCondition(e.target.value as AssetCondition)}
-                >
-                  {ASSET_CONDITIONS.map((c) => (
-                    <SelectItem key={c} value={c} text={formatStatusLabel(c)} />
-                  ))}
-                </Select>
+            </div>
+          </section>
+
+          <section className="cg-section cg-asset-register__card">
+            <header className="cg-section__header">
+              <div>
+                <p className="cg-section__title">Purchase &amp; valuation</p>
+                <p className="cg-asset-register__hint">Residual value is worked out from these and the asset type's useful life.</p>
+              </div>
+            </header>
+            <div className="cg-section__body">
+              <div className="cg-asset-register__grid">
+                <TextInput
+                  id="register-asset-acquisition-date"
+                  labelText="Purchase date"
+                  type="date"
+                  max={today}
+                  value={acquisitionDate}
+                  invalid={isFutureDate}
+                  invalidText="Purchase date can't be in the future."
+                  helperText={isFutureDate ? undefined : "Today or earlier"}
+                  onChange={(e) => setAcquisitionDate(e.target.value)}
+                />
+                <NumberInput
+                  id="register-asset-acquisition-cost"
+                  label="Purchase cost (LKR)"
+                  min={0}
+                  value={acquisitionCost}
+                  allowEmpty
+                  hideSteppers
+                  onChange={(_, { value }) => setAcquisitionCost(value === "" ? "" : Number(value))}
+                />
+              </div>
+
+              <div className="cg-valuation">
+                {depreciation && selectedType ? (
+                  <>
+                    <div className="cg-valuation__headline">
+                      <div>
+                        <p className="cg-valuation__label">Calculated residual value (LKR)</p>
+                        <p className="cg-valuation__value">{formatLkr(depreciation.residualValue)}</p>
+                      </div>
+                      <Tag type={depreciation.residualValue === 0 ? "red" : "green"} size="sm">
+                        {Math.round((1 - depreciation.depreciatedFraction) * 100)}% of cost remaining
+                      </Tag>
+                    </div>
+                    <ProgressBar
+                      label="Depreciated so far"
+                      hideLabel
+                      size="small"
+                      value={Math.round(depreciation.depreciatedFraction * 100)}
+                      max={100}
+                    />
+                    <dl className="cg-valuation__breakdown">
+                      <div>
+                        <dt>Useful life</dt>
+                        <dd>{selectedType.useful_life_years} {selectedType.useful_life_years === 1 ? "year" : "years"}</dd>
+                      </div>
+                      <div>
+                        <dt>Age today</dt>
+                        <dd>{formatAge(depreciation.elapsedYears)}</dd>
+                      </div>
+                      <div>
+                        <dt>Annual depreciation</dt>
+                        <dd>{formatLkr(depreciation.annualDepreciation)}</dd>
+                      </div>
+                      <div>
+                        <dt>Depreciated so far</dt>
+                        <dd>{formatLkr(depreciation.accumulatedDepreciation)}</dd>
+                      </div>
+                    </dl>
+                    <p className="cg-valuation__note">
+                      <Information size={14} />
+                      Straight-line: cost ÷ useful life × years owned. The server recalculates this on save.
+                    </p>
+                  </>
+                ) : (
+                  <p className="cg-valuation__empty">
+                    <Calendar size={16} />
+                    Choose an asset type, purchase date and cost to see the calculated residual value.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="cg-section cg-asset-register__card">
+            <header className="cg-section__header">
+              <div>
+                <p className="cg-section__title">Attribute details</p>
+                <p className="cg-asset-register__hint">Fields configured for the chosen asset type.</p>
+              </div>
+              {selectedType && <Tag type="purple" size="sm">{selectedType.name}</Tag>}
+            </header>
+            <div className="cg-section__body">
+              {!assetTypeId && (
+                <div className="cg-placeholder cg-asset-register__placeholder">
+                  <p>Pick an asset type above and the fields configured for it render here.</p>
+                </div>
               )}
-              <TextInput
-                id="register-asset-acquisition-date"
-                labelText="Purchase date"
-                type="date"
-                value={acquisitionDate}
-                onChange={(e) => setAcquisitionDate(e.target.value)}
-              />
-              <NumberInput
-                id="register-asset-acquisition-cost"
-                label="Purchase cost (LKR)"
-                min={0}
-                value={acquisitionCost}
-                allowEmpty
-                onChange={(_, { value }) => setAcquisitionCost(value === "" ? "" : Number(value))}
-              />
-              <div className="cg-kv-item" style={{ flex: 1, minWidth: "200px" }}>
-                <p className="cg-kv-item__label">Calculated residual value (LKR)</p>
-                <p className="cg-kv-item__value">
-                  {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(computedResidualValue)}
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="cg-section" style={{ margin: 0 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
-              <p className="cg-section__title" style={{ margin: 0 }}>Attribute details</p>
-              {selectedType && <span className="cg-table__muted" style={{ fontSize: "0.75rem" }}>{selectedType.name}</span>}
-            </div>
+              {assetTypeId && attributeDefs && visibleAttributeDefs.length === 0 && (
+                <div className="cg-placeholder cg-asset-register__placeholder">
+                  <p>This type has no custom attributes configured.</p>
+                </div>
+              )}
 
-            {!assetTypeId && (
-              <div className="cg-placeholder" style={{ marginTop: "1rem" }}>
-                <p>Pick an asset type above and the fields configured for it render here.</p>
-              </div>
-            )}
+              {assetTypeId && attributeDefs && visibleAttributeDefs.length > 0 && (
+                <div className="cg-asset-register__grid">
+                  {visibleAttributeDefs.map((def) => {
+                    const value = attributeValues[def.id];
+                    const setValue = (v: AttributeValue) => setAttributeValues((prev) => ({ ...prev, [def.id]: v }));
+                    const label = def.is_required
+                      ? `${def.name} *${def.is_active ? "" : " (inactive)"}`
+                      : `${def.name}${def.is_active ? "" : " (inactive)"}`;
 
-            {assetTypeId && attributeDefs && visibleAttributeDefs.length === 0 && (
-              <div className="cg-placeholder" style={{ marginTop: "1rem" }}>
-                <p>This type has no custom attributes configured.</p>
-              </div>
-            )}
+                    if (def.data_type === "BOOLEAN") {
+                      return (
+                        <Checkbox
+                          key={def.id}
+                          id={`register-attr-${def.id}`}
+                          labelText={label}
+                          checked={Boolean(value)}
+                          onChange={(_, { checked }) => setValue(checked)}
+                        />
+                      );
+                    }
 
-            {assetTypeId && attributeDefs && visibleAttributeDefs.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
-                {visibleAttributeDefs.map((def) => {
-                  const value = attributeValues[def.id];
-                  const setValue = (v: AttributeValue) => setAttributeValues((prev) => ({ ...prev, [def.id]: v }));
-                  const label = def.is_required
-                    ? `${def.name} *${def.is_active ? "" : " (inactive)"}`
-                    : `${def.name}${def.is_active ? "" : " (inactive)"}`;
+                    if (def.data_type === "SELECT") {
+                      const options = def.select_options ?? [];
+                      const currentValue = typeof value === "string" ? value : "";
+                      return (
+                        <Dropdown
+                          key={def.id}
+                          id={`register-attr-${def.id}`}
+                          titleText={label}
+                          label={currentValue || "Choose…"}
+                          items={["", ...options]}
+                          itemToString={(item) => item || "Choose…"}
+                          selectedItem={currentValue}
+                          onChange={({ selectedItem }) => setValue(selectedItem ?? "")}
+                        />
+                      );
+                    }
 
-                  if (def.data_type === "BOOLEAN") {
-                    return (
-                      <Checkbox
-                        key={def.id}
-                        id={`register-attr-${def.id}`}
-                        labelText={label}
-                        checked={Boolean(value)}
-                        onChange={(_, { checked }) => setValue(checked)}
-                      />
-                    );
-                  }
+                    if (def.data_type === "NUMBER") {
+                      return (
+                        <NumberInput
+                          key={def.id}
+                          id={`register-attr-${def.id}`}
+                          label={label}
+                          value={typeof value === "number" ? value : ""}
+                          allowEmpty
+                          hideSteppers
+                          onChange={(_, { value: v }) => setValue(v === "" ? "" : Number(v))}
+                        />
+                      );
+                    }
 
-                  if (def.data_type === "SELECT") {
-                    return (
-                      <Select
-                        key={def.id}
-                        id={`register-attr-${def.id}`}
-                        labelText={label}
-                        value={typeof value === "string" ? value : ""}
-                        onChange={(e) => setValue(e.target.value)}
-                      >
-                        <SelectItem value="" text="Choose…" />
-                        {def.select_options?.map((o) => <SelectItem key={o} value={o} text={o} />)}
-                      </Select>
-                    );
-                  }
+                    if (def.data_type === "DATE") {
+                      return (
+                        <TextInput
+                          key={def.id}
+                          id={`register-attr-${def.id}`}
+                          labelText={label}
+                          type="date"
+                          value={typeof value === "string" ? value : ""}
+                          onChange={(e) => setValue(e.target.value)}
+                        />
+                      );
+                    }
 
-                  if (def.data_type === "NUMBER") {
-                    return (
-                      <NumberInput
-                        key={def.id}
-                        id={`register-attr-${def.id}`}
-                        label={label}
-                        value={typeof value === "number" ? value : ""}
-                        allowEmpty
-                        onChange={(_, { value: v }) => setValue(v === "" ? "" : Number(v))}
-                      />
-                    );
-                  }
-
-                  if (def.data_type === "DATE") {
                     return (
                       <TextInput
                         key={def.id}
                         id={`register-attr-${def.id}`}
                         labelText={label}
-                        type="date"
                         value={typeof value === "string" ? value : ""}
                         onChange={(e) => setValue(e.target.value)}
                       />
                     );
-                  }
-
-                  return (
-                    <TextInput
-                      key={def.id}
-                      id={`register-attr-${def.id}`}
-                      labelText={label}
-                      value={typeof value === "string" ? value : ""}
-                      onChange={(e) => setValue(e.target.value)}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
-        <aside style={{ width: "18rem", flex: "none", display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div className="cg-section" style={{ margin: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span
-                style={{ fontSize: "0.625rem", letterSpacing: "0.05em", color: "#8d8d8d", textTransform: "uppercase", fontWeight: 600 }}
-              >
-                {isEditMode ? "Asset code" : "Code preview"}
-              </span>
-              {!isEditMode && <Tag type="cyan" size="sm">Auto-generated</Tag>}
-            </div>
+        <aside className="cg-asset-register__aside">
+          <section className="cg-section cg-asset-register__card">
+            <header className="cg-section__header">
+              <p className="cg-section__title">{isEditMode ? "Asset code" : "Code preview"}</p>
+              <Tag type={isEditMode ? "gray" : "cyan"} size="sm">{isEditMode ? "Fixed" : "Auto-generated"}</Tag>
+            </header>
+            <div className="cg-section__body">
+              {isEditMode ? (
+                <div className="cg-code-preview__code cg-code-preview__code--final">
+                  <span>{existingAsset?.asset_code ?? "…"}</span>
+                  {existingAsset?.asset_code && (
+                    <CopyButton
+                      iconDescription="Copy asset code"
+                      feedback="Copied"
+                      onClick={() => void navigator.clipboard?.writeText(existingAsset.asset_code)}
+                    />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="cg-code-preview__code" aria-label="Asset code preview">
+                    {codeSegments.map((segment, index) => (
+                      <span key={segment.key} className="cg-code-preview__segment-wrap">
+                        {index > 0 && <span className="cg-code-preview__sep">-</span>}
+                        <span
+                          className={`cg-code-preview__segment cg-code-preview__segment--${segment.key}${segment.pending ? " is-pending" : ""}`}
+                          title={segment.label}
+                        >
+                          {segment.value}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
 
-            <div style={{ marginTop: "0.75rem" }}>
-              <CodeSnippet
-                type="single"
-                hideCopyButton
-                disabled={isEditMode ? !existingAsset?.asset_code : !selectedType}
-              >
+                  <ul className="cg-code-preview__legend">
+                    {codeSegments.map((segment) => (
+                      <li key={segment.key}>
+                        <span className={`cg-code-preview__swatch cg-code-preview__swatch--${segment.key}`} />
+                        <span className="cg-code-preview__legend-label">{segment.label}</span>
+                        <span className="cg-code-preview__legend-value">{segment.pending ? "-" : segment.value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              <p className="cg-code-preview__note">
+                <QrCodeIcon size={16} />
                 {isEditMode
-                  ? (existingAsset?.asset_code ?? "…")
-                  : selectedType
-                    ? `${organizationCode?.code ?? "…"}-${selectedType.category_code}-${selectedType.code}-####`
-                    : `${organizationCode?.code ?? "…"}-••-••-••••`}
-              </CodeSnippet>
+                  ? "The asset code and QR payload were fixed at creation and cannot be changed."
+                  : "The final number and its QR code are assigned when you save."}
+              </p>
             </div>
-
-            {!isEditMode && selectedType && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.75rem" }}>
-                <Tag type="gray" size="sm" title="Organisation code">
-                  Org · {organizationCode?.code ?? "…"}
-                </Tag>
-                <Tag type="blue" size="sm" title="Asset category code">
-                  Category · {selectedType.category_code}
-                </Tag>
-                <Tag type="purple" size="sm" title="Asset type code">
-                  Type · {selectedType.code}
-                </Tag>
-                <Tag type="gray" size="sm" title="Sequential number">
-                  Seq · ####
-                </Tag>
-              </div>
-            )}
-
-            <p style={{ margin: "0.75rem 0 0", fontSize: "0.75rem", color: "#525252", lineHeight: 1.4 }}>
-              {isEditMode
-                ? "The asset code and QR payload were fixed at creation and cannot be changed."
-                : "The full asset code (organisation code + category code + type code + sequence) and its QR code are generated on save."}
-            </p>
-          </div>
+          </section>
         </aside>
       </div>
     </div>
   );
+}
+
+const lkrFormatter = new Intl.NumberFormat("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function formatLkr(value: number): string {
+  return lkrFormatter.format(value);
+}
+
+// 2.37 → "2 yrs 4 mos"; under a month → "Less than a month".
+function formatAge(years: number): string {
+  const totalMonths = Math.floor(years * 12);
+  if (totalMonths < 1) return "Less than a month";
+  const y = Math.floor(totalMonths / 12);
+  const m = totalMonths % 12;
+  const parts = [];
+  if (y > 0) parts.push(`${y} ${y === 1 ? "yr" : "yrs"}`);
+  if (m > 0) parts.push(`${m} ${m === 1 ? "mo" : "mos"}`);
+  return parts.join(" ");
 }

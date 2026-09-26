@@ -5,6 +5,7 @@ using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared;
 using CoreGrid.Api.Features.Shared.Exceptions;
 using CoreGrid.Api.Features.Shared.Paging;
+using CoreGrid.Api.Features.Shared.Storage;
 using CoreGrid.Api.Features.Verification.DTOs;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,10 +37,22 @@ public class DiscrepancyService : IDiscrepancyService
     };
 
     private readonly CoreGridDbContext _context;
+    private readonly IFileStorageService? _storage;
 
-    public DiscrepancyService(CoreGridDbContext context)
+    public DiscrepancyService(CoreGridDbContext context, IFileStorageService? storage = null)
     {
         _context = context;
+        _storage = storage;
+    }
+
+    // Stored photo reference -> a URL the browser can show (fresh signed link
+    // for a private key, older full URLs unchanged), never the raw key.
+    private async Task<DiscrepancyDto> WithDisplayPhotoAsync(DiscrepancyDto dto, CancellationToken cancellationToken)
+    {
+        dto.PhotoUrl = _storage is null
+            ? (dto.PhotoUrl?.StartsWith("http", StringComparison.OrdinalIgnoreCase) == true ? dto.PhotoUrl : null)
+            : await PhotoKeys.ToDisplayUrlAsync(_storage, dto.PhotoUrl, cancellationToken);
+        return dto;
     }
 
     public async Task<PagedResult<DiscrepancyDto>> GetDiscrepanciesAsync(
@@ -62,7 +75,9 @@ public class DiscrepancyService : IDiscrepancyService
         }
 
         var ordered = discrepancies.OrderByDescending(d => d.CreatedAt);
-        return await ordered.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
+        var page = await ordered.ToPagedResultAsync(query, ToDtoExpression, cancellationToken);
+        foreach (var dto in page.Items) await WithDisplayPhotoAsync(dto, cancellationToken);
+        return page;
     }
 
     // FR-061: manual discrepancy raising, for a condition the automatic
@@ -94,7 +109,7 @@ public class DiscrepancyService : IDiscrepancyService
             IsAutomatic = false,
             RaisedByUserId = currentUserId,
             Description = request.Description.Trim(),
-            PhotoUrl = request.PhotoUrl,
+            PhotoUrl = PhotoKeys.RequireOwn(PhotoKeys.Verification, request.PhotoUrl, organizationId, nameof(request.PhotoUrl)),
             Status = DiscrepancyStatus.Open,
             RegisterCorrected = false,
             CreatedAt = DateTimeOffset.UtcNow
@@ -187,11 +202,12 @@ public class DiscrepancyService : IDiscrepancyService
 
     private async Task<DiscrepancyDto?> GetByIdAsync(Guid organizationId, Guid discrepancyId, CancellationToken cancellationToken)
     {
-        return await _context.Discrepancies
+        var dto = await _context.Discrepancies
             .AsNoTracking()
             .Where(d => d.Id == discrepancyId && d.OrganizationId == organizationId)
             .Select(ToDtoExpression)
             .FirstOrDefaultAsync(cancellationToken);
+        return dto is null ? null : await WithDisplayPhotoAsync(dto, cancellationToken);
     }
 
     private void ApplyRegisterCorrection(Discrepancy discrepancy, Guid currentUserId)

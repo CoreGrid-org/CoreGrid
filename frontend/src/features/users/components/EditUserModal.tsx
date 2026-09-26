@@ -1,29 +1,34 @@
 import { useState } from "react";
-import { Modal, Select, SelectItem, InlineNotification } from "@carbon/react";
+import { Modal, ComboBox, InlineNotification } from "@carbon/react";
 import { useUpdateUser } from "../hooks/useUsers";
-import { getRoleLabel, type CoreGridRole } from "@/features/auth/lib/roles";
+import type { CoreGridRole } from "@/features/auth/lib/roles";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
 import type { CoreGridUser } from "../services/users";
 import type { Department } from "@/features/assets/types/asset";
-
-const ASSIGNABLE_ROLES: CoreGridRole[] = ["InventoryOfficer", "Auditor", "Staff", "Administrator"];
+import RolePicker from "./RolePicker";
+import UserIdentity from "./UserIdentity";
 
 interface EditUserModalProps {
   user: CoreGridUser;
   departments: Department[];
+  isSelf: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
 
-// FR-014: change a user's role or department assignment.
-export default function EditUserModal({ user, departments, onClose, onSaved }: EditUserModalProps) {
+// Change a user's role or department assignment.
+export default function EditUserModal({ user, departments, isSelf, onClose, onSaved }: EditUserModalProps) {
   const [role, setRole] = useState<CoreGridRole>(user.role);
   const [departmentId, setDepartmentId] = useState(user.department_id ?? "");
 
   const updateUser = useUpdateUser();
+  const selectedDepartment = departments.find((d) => d.id === departmentId) ?? null;
+  const isUnchanged = role === user.role && departmentId === (user.department_id ?? "");
+  const leavingAdmin = user.role === "Administrator" && role !== "Administrator";
 
   const handleSubmit = () => {
-    if (updateUser.isPending) return;
+    if (updateUser.isPending || isUnchanged) return;
     updateUser.mutate(
       { id: user.id, payload: { role, department_id: departmentId || null } },
       { onSuccess: onSaved },
@@ -33,46 +38,58 @@ export default function EditUserModal({ user, departments, onClose, onSaved }: E
   return (
     <Modal
       open
+      size="md"
       modalLabel="Users & Roles"
-      modalHeading={`Edit ${user.given_name} ${user.family_name}`}
-      primaryButtonText={updateUser.isPending ? "Saving…" : "Save"}
+      modalHeading="Edit user"
+      primaryButtonText={updateUser.isPending ? "Saving…" : "Save changes"}
       secondaryButtonText="Cancel"
-      primaryButtonDisabled={updateUser.isPending}
+      primaryButtonDisabled={updateUser.isPending || isUnchanged}
       onRequestClose={onClose}
       onRequestSubmit={handleSubmit}
     >
-      {updateUser.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not update user"
-          subtitle={getErrorMessage(updateUser.error, "Something went wrong. Please try again.")}
-          hideCloseButton
-          lowContrast
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
-        />
-      )}
-      <div style={{ display: "grid", gap: "1rem" }}>
-        <Select
-          id="edit-user-role"
-          labelText="Role"
-          value={role}
-          onChange={(e) => setRole(e.target.value as CoreGridRole)}
-        >
-          {ASSIGNABLE_ROLES.map((r) => (
-            <SelectItem key={r} value={r} text={getRoleLabel(r)} />
-          ))}
-        </Select>
-        <Select
+      <div className="cg-modal-form">
+        <UserIdentity user={user} isSelf={isSelf} />
+
+        {updateUser.isError && (
+          <InlineNotification
+            kind="error"
+            title="Could not update user"
+            subtitle={getErrorMessage(updateUser.error, "Something went wrong. Please try again.")}
+            hideCloseButton
+            lowContrast
+            style={{ maxWidth: "100%" }}
+          />
+        )}
+
+        {leavingAdmin && (
+          <InlineNotification
+            kind="warning"
+            title={isSelf ? "You're removing your own admin access" : "This removes their admin access"}
+            subtitle={
+              isSelf
+                ? "You'll lose access to Users & Roles and settings as soon as you save. The organisation must keep at least one active Administrator."
+                : "The organisation must keep at least one active Administrator."
+            }
+            hideCloseButton
+            lowContrast
+            style={{ maxWidth: "100%" }}
+          />
+        )}
+
+        <RolePicker name="edit-user-role" value={role} onChange={setRole} />
+
+        <ComboBox<Department>
           id="edit-user-department"
-          labelText="Department"
-          value={departmentId}
-          onChange={(e) => setDepartmentId(e.target.value)}
-        >
-          <SelectItem value="" text="Unassigned" />
-          {departments.map((d) => (
-            <SelectItem key={d.id} value={d.id} text={d.name} />
-          ))}
-        </Select>
+          titleText="Department"
+          helperText="Leave empty for no department."
+          placeholder="Type to search departments…"
+          autoAlign
+          items={departments}
+          itemToString={(d) => d?.name ?? ""}
+          selectedItem={selectedDepartment}
+          shouldFilterItem={comboBoxFilter(selectedDepartment)}
+          onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
+        />
       </div>
     </Modal>
   );

@@ -30,7 +30,7 @@ export async function getSetupStatus(): Promise<SetupStatus> {
 
 // Real endpoint (POST /api/setup/complete) — SetupController calls
 // ThunderIdIdentityDirectory, a real client against ThunderID's management
-// API (see doc/setup/ThunderID.md), so this genuinely provisions a ThunderID
+// API (see docs/setup/thunderid.md), so this genuinely provisions a ThunderID
 // account, not just the local Organization/User rows.
 export async function completeSetup(payload: CompleteSetupRequest): Promise<CompleteSetupResponse> {
   const response = await fetch(`${API_URL}/setup/complete`, {

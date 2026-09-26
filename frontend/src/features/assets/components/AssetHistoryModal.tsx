@@ -23,7 +23,7 @@ export default function AssetHistoryModal({ assetId, assetName, assetCode, onClo
     <Modal
       open
       modalLabel={assetCode}
-      modalHeading={`${assetName} — history`}
+      modalHeading={`${assetName} - history`}
       passiveModal
       onRequestClose={onClose}
       size="md"

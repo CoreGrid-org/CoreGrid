@@ -104,7 +104,7 @@ builder.Services.AddVerificationFeature();
 builder.Services.AddMaintenanceFeature();
 builder.Services.AddAuditFeature();
 builder.Services.AddNotificationsFeature();
-builder.Services.AddScoped<CoreGrid.Api.Features.Shared.Storage.IFileStorageService, CoreGrid.Api.Features.Shared.Storage.CloudflareR2StorageService>();
+builder.Services.AddSingleton<CoreGrid.Api.Features.Shared.Storage.IFileStorageService, CoreGrid.Api.Features.Shared.Storage.CloudflareR2StorageService>();
 builder.Services.AddDisposalsFeature();
 builder.Services.AddTransfersFeature();
 builder.Services.AddAgentToolsFeature();
@@ -117,7 +117,7 @@ builder.Services.AddIdentityFeature(builder.Configuration, builder.Environment);
 // /.well-known/openid-configuration) are checked — no audience validation.
 // This mirrors OpenSchool's confirmed-working ThunderID integration, whose
 // backend never registers a separate protected-resource audience either;
-// see doc/setup/ThunderID.md's note on ThunderID__Audience for the same
+// see docs/setup/thunderid.md's note on ThunderID__Audience for the same
 // finding. The `roles` claim is what CoreGridRole-based
 // [Authorize(Roles = ...)] policies read, via RoleClaimType below — but its
 // value at this point is only ThunderID's, so RoleEnrichmentMiddleware

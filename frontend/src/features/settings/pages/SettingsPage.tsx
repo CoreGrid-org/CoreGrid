@@ -10,7 +10,7 @@ export default function SettingsPage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Organisation Settings</h1>
-          <p className="cg-page__subtitle">Departments, locations and policy thresholds.</p>
+          <p className="cg-page__subtitle">How your organisation is structured and the rules CoreGrid applies to it.</p>
         </div>
       </div>
 

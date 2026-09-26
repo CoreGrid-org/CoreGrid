@@ -1,6 +1,6 @@
 // Mirrors backend/Domain/CoreGridRole.cs. Role comes from GET /api/me
 // (CoreGrid's own database), not from a ThunderID token claim — see
-// backend/Features/Me and doc/setup/ThunderID.md.
+// backend/Features/Me and docs/setup/thunderid.md.
 export type CoreGridRole = "Administrator" | "InventoryOfficer" | "Auditor" | "Staff";
 
 // 2026-09-14 team decision: Staff gets no web portal at all — Flutter only

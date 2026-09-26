@@ -26,6 +26,80 @@ public class MaintenanceServiceTests
     }
 
     [Fact]
+    public async Task ListMyFaultReportsAsync_ReturnsOnlyTheAuthenticatedReportersFaults()
+    {
+        await using var db = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var reporterA = Guid.NewGuid();
+        var reporterB = Guid.NewGuid();
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetTypeId = Guid.NewGuid(), DepartmentId = Guid.NewGuid(), LocationId = Guid.NewGuid(),
+            AssetCode = "AST-OWN-1", Name = "Pump", Status = AssetStatuses.Active, Condition = AssetConditions.Good, QrPayload = "qr",
+        };
+        var reportA = new MaintenanceRecord
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetId = asset.Id, Description = "Leak reported by A", ObservedCondition = AssetConditions.Poor,
+            Type = MaintenanceType.CORRECTIVE, Priority = MaintenancePriority.MEDIUM, Status = MaintenanceStatus.REQUESTED,
+            ReportedByUserId = reporterA, CreatedAt = DateTimeOffset.UtcNow,
+        };
+        var reportB = new MaintenanceRecord
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetId = asset.Id, Description = "Leak reported by B", ObservedCondition = AssetConditions.Poor,
+            Type = MaintenanceType.CORRECTIVE, Priority = MaintenancePriority.MEDIUM, Status = MaintenanceStatus.REQUESTED,
+            ReportedByUserId = reporterB, CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+        };
+        db.AddRange(asset, reportA, reportB);
+        await db.SaveChangesAsync();
+
+        var service = new MaintenanceService(db, new Mock<INotificationService>().Object, new Mock<IFileStorageService>().Object);
+
+        var reportsForA = await service.ListMyFaultReportsAsync(orgId, reporterA, new MaintenanceRecordFilter(), CancellationToken.None);
+        var reportsForB = await service.ListMyFaultReportsAsync(orgId, reporterB, new MaintenanceRecordFilter(), CancellationToken.None);
+
+        Assert.Collection(reportsForA.Items, report => Assert.Equal(reportA.Id, report.Id));
+        Assert.Collection(reportsForB.Items, report => Assert.Equal(reportB.Id, report.Id));
+    }
+
+    [Fact]
+    public async Task ApproveMaintenanceAsync_NotifiesTheOriginalFaultReporterOfTheStatusChange()
+    {
+        await using var db = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var reporterId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+        var assigneeId = Guid.NewGuid();
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetTypeId = Guid.NewGuid(), DepartmentId = Guid.NewGuid(), LocationId = Guid.NewGuid(),
+            AssetCode = "AST-STATUS-1", Name = "Pump", Status = AssetStatuses.Active, Condition = AssetConditions.Good, QrPayload = "qr",
+        };
+        var assignee = new User
+        {
+            Id = assigneeId, OrganizationId = orgId, ExternalSubjectId = "maintenance-assignee", Email = "assignee@example.test",
+            GivenName = "Maintenance", FamilyName = "Officer", Role = CoreGridRole.InventoryOfficer, CreatedAt = DateTimeOffset.UtcNow,
+        };
+        var report = new MaintenanceRecord
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetId = asset.Id, Description = "Pump leak", ObservedCondition = AssetConditions.Poor,
+            Type = MaintenanceType.CORRECTIVE, Priority = MaintenancePriority.MEDIUM, Status = MaintenanceStatus.REQUESTED,
+            ReportedByUserId = reporterId,
+        };
+        db.AddRange(asset, assignee, report);
+        await db.SaveChangesAsync();
+        var notifications = new Mock<INotificationService>();
+        var service = new MaintenanceService(db, notifications.Object, new Mock<IFileStorageService>().Object);
+
+        var result = await service.ApproveMaintenanceAsync(orgId, approverId, report.Id,
+            new ApproveMaintenanceRequest { AssigneeId = assigneeId, EstimatedCost = 100m }, CancellationToken.None);
+
+        Assert.Equal(MaintenanceStatus.APPROVED, result!.Status);
+        notifications.Verify(n => n.NotifyAsync(
+            orgId, reporterId, NotificationTypes.MaintenanceStatusChanged,
+            It.IsAny<string>(), It.IsAny<string>(), "MaintenanceRecord", report.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task CancelMaintenanceAsync_OnAnInProgressRecord_SucceedsAndWritesTheAllowedEventType()
     {
         await using var db = CreateInMemoryDbContext();

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal, Select, SelectItem, TextArea, Checkbox, InlineNotification, Tag } from "@carbon/react";
 import { useResolveDiscrepancy } from "../hooks/useDiscrepancies";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import PhotoThumbnail from "@/shared/components/PhotoThumbnail";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { CORRECTABLE_DISCREPANCY_TYPES } from "../api/discrepancies";
 import type { Discrepancy } from "../api/discrepancies";
@@ -10,6 +11,8 @@ import type { Discrepancy } from "../api/discrepancies";
 // Select displays them through formatStatusLabel for a readable label.
 const RESOLUTION_TYPES = ["REGISTER_CORRECTED", "ASSET_RELOCATED", "CONDITION_UPDATED", "WRITTEN_OFF", "NO_ACTION"];
 const NO_ACTION_MIN_LENGTH = 20;
+// Matches ResolveDiscrepancyRequest's [MaxLength(2000)] on both text fields.
+const TEXT_MAX = 2000;
 
 interface ResolveDiscrepancyModalProps {
   discrepancy: Discrepancy;
@@ -79,6 +82,12 @@ export default function ResolveDiscrepancyModal({ discrepancy, onClose, onResolv
         </span>
       </div>
       <p style={{ margin: "0 0 1rem", fontSize: "0.875rem" }}>{discrepancy.description}</p>
+      {discrepancy.photo_url && (
+        <div style={{ margin: "0 0 1rem" }}>
+          <p className="cds--label">Photo evidence</p>
+          <PhotoThumbnail url={discrepancy.photo_url} alt={discrepancy.description} title={`Discrepancy photo: ${discrepancy.asset_code}`} size="md" />
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: "1rem" }}>
         <Select
@@ -99,6 +108,8 @@ export default function ResolveDiscrepancyModal({ discrepancy, onClose, onResolv
             resolutionType === "NO_ACTION" ? `No Action requires a justification of at least ${NO_ACTION_MIN_LENGTH} characters.` : undefined
           }
           rows={3}
+          enableCounter
+          maxCount={TEXT_MAX}
           value={resolutionExplanation}
           onChange={(e) => setResolutionExplanation(e.target.value)}
           invalid={resolutionExplanation.length > 0 && resolutionExplanation.trim().length < explanationMinLength}
@@ -108,6 +119,8 @@ export default function ResolveDiscrepancyModal({ discrepancy, onClose, onResolv
           id="resolve-corrective-action"
           labelText="Corrective action (optional)"
           rows={2}
+          enableCounter
+          maxCount={TEXT_MAX}
           value={correctiveAction}
           onChange={(e) => setCorrectiveAction(e.target.value)}
         />

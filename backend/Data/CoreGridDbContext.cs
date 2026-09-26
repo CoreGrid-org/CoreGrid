@@ -544,6 +544,7 @@ public class CoreGridDbContext(
             entity.HasIndex(m => m.Priority);
             entity.HasIndex(m => m.Type);
             entity.HasIndex(m => m.AssigneeId);
+            entity.HasIndex(m => m.ReportedByUserId);
 
             entity.Property(m => m.Description).IsRequired();
             entity.Property(m => m.ObservedCondition).HasMaxLength(15).IsRequired();
@@ -581,6 +582,11 @@ public class CoreGridDbContext(
                 .HasForeignKey(m => m.AssigneeId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(m => m.ReportedByUser)
+                .WithMany()
+                .HasForeignKey(m => m.ReportedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.ToTable(tb =>
             {
                 tb.HasCheckConstraint("CK_MaintenanceRecords_Status", "\"Status\" IN ('REQUESTED','APPROVED','IN_PROGRESS','COMPLETED','CANCELLED')");
@@ -606,6 +612,7 @@ public class CoreGridDbContext(
             entity.Property(w => w.AgentOutputs).HasColumnType("jsonb");
             entity.Property(w => w.ToolCalls).HasColumnType("jsonb");
             entity.Property(w => w.ValidationResult).HasColumnType("jsonb");
+            entity.Property(w => w.BudgetAnalysis).HasColumnType("jsonb");
 
             entity.HasOne(w => w.Organization)
                 .WithMany()

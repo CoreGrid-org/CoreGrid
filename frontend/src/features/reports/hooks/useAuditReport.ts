@@ -4,7 +4,8 @@ import { useStubMutation } from "@/shared/hooks/useStubMutation";
 import { downloadAuditReportExport, getAuditReport } from "../api/auditReport";
 import type { AuditReport, AuditReportQuery } from "../api/auditReport";
 
-export function useAuditReport(query: AuditReportQuery) {
+// Pass `enabled: false` to hold off while the filters are invalid.
+export function useAuditReport(query: AuditReportQuery, enabled = true) {
   const { getAccessToken } = useThunderID();
   const [data, setData] = useState<AuditReport>();
   const [error, setError] = useState<unknown>(undefined);
@@ -15,6 +16,7 @@ export function useAuditReport(query: AuditReportQuery) {
   const queryKey = JSON.stringify(query);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     setIsLoading(true);
     setError(undefined);
@@ -38,7 +40,7 @@ export function useAuditReport(query: AuditReportQuery) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey, attempt, getAccessToken]);
+  }, [queryKey, attempt, getAccessToken, enabled]);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 

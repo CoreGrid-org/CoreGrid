@@ -1,371 +1,185 @@
-import { Button, DatePicker, DatePickerInput, InlineNotification, Pagination, Select, SelectItem, SkeletonText, Tag } from "@carbon/react";
-import { DocumentExport, DocumentPdf } from "@carbon/icons-react";
-import { jsPDF } from "jspdf";
-import { useEffect, useState } from "react";
-import { useThunderID } from "@thunderid/react";
-import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useMemo, useState } from "react";
+import { Select, SelectItem, Tag } from "@carbon/react";
 import { formatStatusLabel, statusTagColor } from "@/shared/lib/statusTag";
-import { listDisposals } from "@/features/transfers/services/disposals";
-import type { DisposalMethod, DisposalResponse, DisposalStatus, PagedResult } from "@/features/transfers/types";
+import { formatDate, hasDateRangeErrors, isWithinDayRange, validateDateRange, type DateRange } from "@/shared/lib/dates";
+import DateRangeFilter from "@/shared/components/DateRangeFilter";
+import type { DisposalMethod, DisposalResponse, DisposalStatus } from "@/features/transfers/types";
 import { getDisposalReportRecords } from "../api/disposalReport";
+import { useReportData } from "../hooks/useReportData";
+import { downloadCsv, downloadPdf, exportBlockReason, formatCurrency, type ExportColumn, type ReportExport } from "../lib/export";
+import { ReportExportBar, ReportFilters, ReportStats, ReportStatus, ReportTable, type ReportColumn } from "./ReportParts";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", maximumFractionDigits: 0 }).format(value);
-}
+const STATUSES: DisposalStatus[] = ["PENDING", "APPROVED", "REJECTED", "REVISION_REQUESTED", "DISPOSED"];
+const METHODS: DisposalMethod[] = ["SCRAP", "AUCTION", "DONATION", "DESTROY"];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function csvEscape(value: string | number) {
-  const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
+const EXPORT_COLUMNS: ExportColumn<DisposalResponse>[] = [
+  { header: "Asset code", width: 28, value: (d) => d.asset_code },
+  { header: "Asset name", width: 40, value: (d) => d.asset_name },
+  { header: "Method", width: 26, value: (d) => formatStatusLabel(d.disposal_method) },
+  { header: "Status", width: 28, value: (d) => formatStatusLabel(d.status) },
+  { header: "Residual value", width: 32, value: (d) => formatCurrency(d.estimated_residual_value) },
+  { header: "Requested", width: 26, value: (d) => formatDate(d.requested_at) },
+  { header: "Approved", width: 26, value: (d) => formatDate(d.approved_at) },
+  { header: "Disposed", width: 26, value: (d) => formatDate(d.disposed_at) },
+];
 
-function downloadCsv(records: DisposalResponse[]) {
-  const headers = ["Asset code", "Asset name", "Method", "Status", "Estimated residual value", "Requested", "Approved", "Disposed"];
-  const rows = records.map((d) => [
-    d.asset_code,
-    d.asset_name,
-    formatStatusLabel(d.disposal_method),
-    formatStatusLabel(d.status),
-    d.estimated_residual_value,
-    d.requested_at,
-    d.approved_at ?? "",
-    d.disposed_at ?? "",
-  ]);
-  const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `disposal-report-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
+const DETAIL_COLUMNS: ReportColumn<DisposalResponse>[] = [
+  {
+    header: "Asset",
+    render: (d) => (
+      <>
+        <span className="cg-table__mono">{d.asset_code}</span>
+        <br />
+        <span className="cg-table__muted">{d.asset_name}</span>
+      </>
+    ),
+  },
+  { header: "Method", muted: true, render: (d) => formatStatusLabel(d.disposal_method) },
+  { header: "Status", render: (d) => <Tag type={statusTagColor(d.status)}>{formatStatusLabel(d.status)}</Tag> },
+  { header: "Residual value", muted: true, render: (d) => formatCurrency(d.estimated_residual_value) },
+  { header: "Requested", muted: true, render: (d) => formatDate(d.requested_at) },
+  { header: "Disposed", muted: true, render: (d) => formatDate(d.disposed_at) },
+];
 
-function printPdf(records: DisposalResponse[], totalProceeds: number) {
-  const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const pageHeight = document.internal.pageSize.getHeight();
-  const left = 10;
-  const columnWidths = [28, 38, 26, 24, 32, 24, 24];
-  const headers = ["Asset code", "Asset name", "Method", "Status", "Residual value", "Requested", "Disposed"];
-  let y = 15;
+type Breakdown = { key: DisposalMethod; count: number; proceeds: number };
+const BREAKDOWN_COLUMNS: ReportColumn<Breakdown>[] = [
+  { header: "Method", render: (b) => formatStatusLabel(b.key) },
+  { header: "Disposals", muted: true, render: (b) => b.count },
+  { header: "Proceeds", muted: true, render: (b) => formatCurrency(b.proceeds) },
+];
 
-  const drawHeader = () => {
-    document.setFillColor(224, 224, 224);
-    document.rect(left, y - 5, columnWidths.reduce((sum, width) => sum + width, 0), 8, "F");
-    document.setFont("helvetica", "bold");
-    document.setFontSize(6.5);
-    let x = left + 1;
-    headers.forEach((header, index) => {
-      document.text(header, x, y);
-      x += columnWidths[index];
-    });
-    y += 7;
-    document.setFont("helvetica", "normal");
-  };
-
-  document.setFont("helvetica", "bold");
-  document.setFontSize(16);
-  document.text("Disposal Report", left, y);
-  y += 6;
-  document.setFont("helvetica", "normal");
-  document.setFontSize(8);
-  document.text(`Generated ${new Date().toLocaleString()}`, left, y);
-  y += 8;
-  document.setFontSize(9);
-  document.text(`Disposals in scope: ${records.length.toLocaleString()}`, left, y);
-  document.text(`Total proceeds: ${formatCurrency(totalProceeds)}`, left + 70, y);
-  y += 9;
-  drawHeader();
-
-  records.forEach((d) => {
-    const values = [
-      d.asset_code,
-      d.asset_name,
-      formatStatusLabel(d.disposal_method),
-      formatStatusLabel(d.status),
-      formatCurrency(d.estimated_residual_value),
-      new Date(d.requested_at).toLocaleDateString(),
-      d.disposed_at ? new Date(d.disposed_at).toLocaleDateString() : "—",
-    ];
-    const lines = values.map((value, index) => document.splitTextToSize(String(value), columnWidths[index] - 2));
-    const rowHeight = Math.max(...lines.map((value) => value.length)) * 3.2 + 3;
-    if (y + rowHeight > pageHeight - 10) {
-      document.addPage();
-      y = 15;
-      drawHeader();
-    }
-    let x = left + 1;
-    lines.forEach((value, index) => {
-      document.text(value, x, y, { baseline: "top" });
-      x += columnWidths[index];
-    });
-    document.setDrawColor(210, 210, 210);
-    document.line(left, y + rowHeight - 1, left + columnWidths.reduce((sum, width) => sum + width, 0), y + rowHeight - 1);
-    y += rowHeight;
-  });
-
-  document.save(`disposal-report-${new Date().toISOString().slice(0, 10)}.pdf`);
-}
-
-// FR-084/085/086 (Component C): method/status/date filters, PDF/CSV export.
-// Scoping follows whatever GET /api/disposals itself already applies to the
-// caller's role (same posture as Inventory/Maintenance's own report panels).
+// Status/method/requested-date filters over GET /api/disposals (scoped to
+// the caller's role by the backend), with PDF/CSV export.
 export default function DisposalReportPanel() {
-  const { getAccessToken } = useThunderID();
-  const [records, setRecords] = useState<DisposalResponse[]>([]);
   const [status, setStatus] = useState("");
   const [method, setMethod] = useState("");
-  const [dateFrom, setDateFrom] = useState<string | undefined>();
-  const [dateTo, setDateTo] = useState<string | undefined>();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [error, setError] = useState<unknown>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [range, setRange] = useState<DateRange>({});
 
-  const query: Omit<Parameters<typeof getDisposalReportRecords>[0], never> = {
-    status: status ? (status as DisposalStatus) : undefined,
-    method: method ? (method as DisposalMethod) : undefined,
+  const rangeErrors = validateDateRange(range);
+  const rangeValid = !hasDateRangeErrors(rangeErrors);
+
+  // The endpoint has no date filter, so only status/method go to the server;
+  // the requested-date range is applied to the loaded records below, which
+  // means changing dates never needs a new request.
+  const query = { status: (status || undefined) as DisposalStatus | undefined, method: (method || undefined) as DisposalMethod | undefined };
+  const queryKey = JSON.stringify(query);
+  const report = useReportData(queryKey, true, (token) => getDisposalReportRecords(query, token));
+
+  const records = useMemo(
+    () => (report.data ?? []).filter((d) => !rangeValid || isWithinDayRange(d.requested_at, range.from, range.to)),
+    [report.data, rangeValid, range.from, range.to],
+  );
+
+  const { totalProceeds, averageApprovalDays, byMethod } = useMemo(() => {
+    // Approving a disposal disposes of the asset straight away: the backend
+    // sets disposed_at but leaves the request's status at APPROVED (it never
+    // uses DISPOSED), so "disposed" means "has a disposal date".
+    const disposed = records.filter((d) => d.disposed_at);
+    const durations = disposed
+      .filter((d) => d.disposed_at)
+      .map((d) => (new Date(d.disposed_at!).getTime() - new Date(d.requested_at).getTime()) / DAY_MS);
+    const groups = new Map<DisposalMethod, Breakdown>();
+    for (const d of records) {
+      const current = groups.get(d.disposal_method) ?? { key: d.disposal_method, count: 0, proceeds: 0 };
+      groups.set(d.disposal_method, {
+        key: d.disposal_method,
+        count: current.count + 1,
+        proceeds: current.proceeds + (d.disposed_at ? d.estimated_residual_value : 0),
+      });
+    }
+    return {
+      totalProceeds: disposed.reduce((sum, d) => sum + d.estimated_residual_value, 0),
+      averageApprovalDays: durations.length > 0 ? durations.reduce((sum, days) => sum + days, 0) / durations.length : 0,
+      byMethod: [...groups.values()].sort((a, b) => b.count - a.count),
+    };
+  }, [records]);
+
+  const filterLabels = [
+    status && `Status: ${formatStatusLabel(status)}`,
+    method && `Method: ${formatStatusLabel(method)}`,
+    range.from && `Requested from ${range.from}`,
+    range.to && `Requested to ${range.to}`,
+  ].filter((label): label is string => Boolean(label));
+
+  const exportData: ReportExport<DisposalResponse> = {
+    title: "Disposal Report",
+    fileName: "disposal-report",
+    columns: EXPORT_COLUMNS,
+    rows: records,
+    summary: [`Disposals in scope: ${records.length.toLocaleString()}`, `Total proceeds: ${formatCurrency(totalProceeds)}`],
+    filters: filterLabels,
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(undefined);
-
-    getAccessToken()
-      .then((token) => getDisposalReportRecords(query, token))
-      .then((result) => {
-        if (!cancelled) {
-          // requested_at date-range filtering happens client-side — the
-          // backend endpoint has no date filter of its own (same reasoning
-          // as Inventory's own report panel: the underlying list endpoint
-          // wasn't built with a report's filters in mind).
-          const filtered = result.filter((d) => {
-            const requested = new Date(d.requested_at).getTime();
-            if (dateFrom && requested < new Date(dateFrom).getTime()) return false;
-            if (dateTo && requested > new Date(dateTo).getTime()) return false;
-            return true;
-          });
-          setRecords(filtered);
-          setIsLoading(false);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setError(reason);
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- query is rebuilt every render from the same state below
-  }, [getAccessToken, status, method, dateFrom, dateTo]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [status, method, dateFrom, dateTo]);
-
-  // Real server-side pagination for the detail table, same split as
-  // MaintenanceReportPanel: `records` above stays the full filtered set
-  // (for stats/by-method breakdown/export), this is a separate paged
-  // request purely to drive the detail table.
-  const [detailPage, setDetailPage] = useState<PagedResult<DisposalResponse>>({
-    items: [], total_count: 0, page: 1, page_size: pageSize, total_pages: 0,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    getAccessToken()
-      .then((token) =>
-        listDisposals(
-          { status: status ? (status as DisposalStatus) : undefined, method: method ? (method as DisposalMethod) : undefined, page, pageSize },
-          token,
-        ),
-      )
-      .then((result) => {
-        if (!cancelled) setDetailPage(result);
-      })
-      .catch(() => {
-        // Errors here surface through the aggregate fetch's own error
-        // state above (same filters, same failure mode).
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [getAccessToken, status, method, page, pageSize]);
-
-  if (isLoading) {
-    return <div className="cg-section"><SkeletonText paragraph lineCount={4} /></div>;
-  }
-
-  if (error) {
-    return (
-      <InlineNotification
-        kind="error"
-        title="Could not load the disposal report"
-        subtitle={getErrorMessage(error, "Something went wrong. Please try again.")}
-        hideCloseButton
-      />
-    );
-  }
-
-  const disposed = records.filter((d) => d.status === "DISPOSED");
-  const totalProceeds = disposed.reduce((total, d) => total + d.estimated_residual_value, 0);
-  const approvalDurationsInDays = disposed
-    .filter((d) => d.disposed_at)
-    .map((d) => (new Date(d.disposed_at!).getTime() - new Date(d.requested_at).getTime()) / (24 * 60 * 60 * 1000));
-  const averageApprovalDays =
-    approvalDurationsInDays.length > 0
-      ? approvalDurationsInDays.reduce((total, days) => total + days, 0) / approvalDurationsInDays.length
-      : 0;
-
-  const byMethod = Array.from(
-    records.reduce((groups, d) => {
-      const current = groups.get(d.disposal_method) ?? { count: 0, proceeds: 0 };
-      const proceeds = d.status === "DISPOSED" ? d.estimated_residual_value : 0;
-      groups.set(d.disposal_method, { count: current.count + 1, proceeds: current.proceeds + proceeds });
-      return groups;
-    }, new Map<DisposalMethod, { count: number; proceeds: number }>()),
-  ).sort(([, left], [, right]) => right.count - left.count);
-
   return (
-    <div className="cg-section">
-      <div className="cg-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "end" }}>
+    <div className="cg-report">
+      <ReportFilters
+        activeCount={filterLabels.length}
+        onClear={() => {
+          setStatus("");
+          setMethod("");
+          setRange({});
+        }}
+        isRefreshing={report.isRefreshing}
+      >
         <Select id="disposal-report-status" labelText="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
           <SelectItem value="" text="All statuses" />
-          <SelectItem value="PENDING" text="Pending" />
-          <SelectItem value="APPROVED" text="Approved" />
-          <SelectItem value="REJECTED" text="Rejected" />
-          <SelectItem value="REVISION_REQUESTED" text="Revision requested" />
-          <SelectItem value="DISPOSED" text="Disposed" />
+          {STATUSES.map((s) => (
+            <SelectItem key={s} value={s} text={formatStatusLabel(s)} />
+          ))}
         </Select>
         <Select id="disposal-report-method" labelText="Method" value={method} onChange={(e) => setMethod(e.target.value)}>
           <SelectItem value="" text="All methods" />
-          <SelectItem value="SCRAP" text="Scrap" />
-          <SelectItem value="AUCTION" text="Auction" />
-          <SelectItem value="DONATION" text="Donation" />
-          <SelectItem value="DESTROY" text="Destroy" />
-        </Select>
-        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateFrom(date ? date.toISOString() : undefined)}>
-          <DatePickerInput id="disposal-report-date-from" labelText="Requested from" placeholder="yyyy-mm-dd" />
-        </DatePicker>
-        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateTo(date ? date.toISOString() : undefined)}>
-          <DatePickerInput id="disposal-report-date-to" labelText="Requested to" placeholder="yyyy-mm-dd" />
-        </DatePicker>
-        <Button
-          kind="ghost"
-          size="md"
-          onClick={() => {
-            setStatus("");
-            setMethod("");
-            setDateFrom(undefined);
-            setDateTo(undefined);
-          }}
-        >
-          Clear filters
-        </Button>
-      </div>
-
-      <div className="cg-stat-grid" style={{ padding: "1.5rem", marginBottom: 0, gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Disposals in scope</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{records.length.toLocaleString()}</p>
-        </div>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Total proceeds</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{formatCurrency(totalProceeds)}</p>
-        </div>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Average approval time</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{averageApprovalDays.toFixed(1)} days</p>
-        </div>
-      </div>
-
-      <div className="cg-toolbar" style={{ justifyContent: "flex-end", marginTop: "1rem" }}>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button kind="tertiary" size="sm" renderIcon={DocumentPdf} onClick={() => printPdf(records, totalProceeds)}>
-            Export PDF
-          </Button>
-          <Button kind="tertiary" size="sm" renderIcon={DocumentExport} onClick={() => downloadCsv(records)}>
-            Export CSV
-          </Button>
-        </div>
-      </div>
-
-      <table className="cg-table cg-table--no-hover">
-        <thead>
-          <tr><th>Method</th><th>Disposals</th><th>Proceeds</th></tr>
-        </thead>
-        <tbody>
-          {byMethod.map(([disposalMethod, summary]) => (
-            <tr key={disposalMethod}>
-              <td>{formatStatusLabel(disposalMethod)}</td>
-              <td className="cg-table__muted">{summary.count}</td>
-              <td className="cg-table__muted">{formatCurrency(summary.proceeds)}</td>
-            </tr>
+          {METHODS.map((m) => (
+            <SelectItem key={m} value={m} text={formatStatusLabel(m)} />
           ))}
-          {byMethod.length === 0 && <tr><td colSpan={3} className="cg-table__muted">No disposal requests found.</td></tr>}
-        </tbody>
-      </table>
+        </Select>
+        <DateRangeFilter
+          idPrefix="disposal-report-date"
+          fromLabel="Requested from"
+          toLabel="Requested to"
+          value={range}
+          onChange={setRange}
+          errors={rangeErrors}
+        />
+      </ReportFilters>
 
-      <div style={{ marginTop: "2rem" }}>
-        <div className="cg-section__header">
-          <div>
-            <h2 className="cg-section__title">Disposal details</h2>
-            <p className="cg-section__subtitle">
-              Showing {detailPage.items.length.toLocaleString()} of {detailPage.total_count.toLocaleString()} filtered records
-            </p>
-          </div>
-        </div>
-        <div style={{ overflowX: "auto" }}>
-          <table className="cg-table cg-table--no-hover">
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th>Method</th>
-                <th>Status</th>
-                <th>Residual value</th>
-                <th>Requested</th>
-                <th>Disposed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detailPage.items.map((d) => (
-                <tr key={d.id}>
-                  <td>
-                    <span className="cg-table__mono">{d.asset_code}</span>
-                    <br />
-                    <span className="cg-table__muted">{d.asset_name}</span>
-                  </td>
-                  <td className="cg-table__muted">{formatStatusLabel(d.disposal_method)}</td>
-                  <td><Tag type={statusTagColor(d.status)}>{formatStatusLabel(d.status)}</Tag></td>
-                  <td className="cg-table__muted">{formatCurrency(d.estimated_residual_value)}</td>
-                  <td className="cg-table__muted">{new Date(d.requested_at).toLocaleDateString()}</td>
-                  <td className="cg-table__muted">{d.disposed_at ? new Date(d.disposed_at).toLocaleDateString() : "—"}</td>
-                </tr>
-              ))}
-              {detailPage.items.length === 0 && <tr><td colSpan={6} className="cg-table__muted">No disposal requests found.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        {detailPage.total_count > 0 && (
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            pageSizes={[10, 20, 50, 100]}
-            totalItems={detailPage.total_count}
-            onChange={({ page: nextPage, pageSize: nextPageSize }) => {
-              setPage(nextPage);
-              setPageSize(nextPageSize);
-            }}
+      <ReportStatus title="Could not load the disposal report" error={report.error} isInitialLoading={report.isInitialLoading} />
+
+      {report.data && (
+        <div className={report.isRefreshing || !rangeValid ? "cg-report__results is-stale" : "cg-report__results"}>
+          <ReportStats
+            stats={[
+              { label: "Disposals in scope", value: records.length.toLocaleString() },
+              { label: "Total proceeds", value: formatCurrency(totalProceeds) },
+              { label: "Average approval time", value: `${averageApprovalDays.toFixed(1)} days` },
+            ]}
           />
-        )}
-      </div>
+          <ReportExportBar
+            count={records.length}
+            noun="disposal requests"
+            onPdf={() => downloadPdf(exportData)}
+            onCsv={() => downloadCsv(exportData)}
+            disabledReason={exportBlockReason(rangeValid, report.isRefreshing, records.length)}
+          />
+          <ReportTable
+            title="By method"
+            columns={BREAKDOWN_COLUMNS}
+            rows={byMethod}
+            rowKey={(b) => b.key}
+            emptyText="No disposal requests match these filters."
+            pageable={false}
+          />
+          <ReportTable
+            key={`${queryKey}|${range.from}|${range.to}`}
+            title="Disposal details"
+            columns={DETAIL_COLUMNS}
+            rows={records}
+            rowKey={(d) => d.id}
+            emptyText="No disposal requests match these filters."
+          />
+        </div>
+      )}
     </div>
   );
 }

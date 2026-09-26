@@ -1,591 +1,264 @@
 import { useState } from "react";
-import {
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
-  Tag,
-  Button,
-  InlineNotification,
-  Modal,
-  TextArea,
-  Pagination,
-} from "@carbon/react";
-import { Add, CheckmarkFilled, CloseFilled, DeliveryTruck, Restart, Checkmark, Warning } from "@carbon/icons-react";
-import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import { Tabs, TabList, Tab, TabPanels, TabPanel, Button, InlineNotification } from "@carbon/react";
+import { Add, Checkmark, DeliveryTruck, Restart, View, Warning } from "@carbon/icons-react";
+import type { CoreGridRole } from "@/features/auth/lib/roles";
+import { formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useTransfersList, useApproveTransfer, useConfirmTransferReceipt } from "../hooks/useTransfers";
-import {
-  useDisposalsList,
-  useApproveDisposal,
-  useRequestDisposalRevision,
-} from "../hooks/useDisposals";
+import { useDisposalsList, useApproveDisposal } from "../hooks/useDisposals";
+import { transferCapabilities } from "../lib/capabilities";
+import PagedSection from "../components/PagedSection";
+import TransfersTable from "../components/TransfersTable";
+import DisposalsTable from "../components/DisposalsTable";
+import PreconditionChecklist from "../components/PreconditionChecklist";
 import InitiateTransferModal from "../components/InitiateTransferModal";
 import CondemnAssetModal from "../components/CondemnAssetModal";
 import SubmitDisposalModal from "../components/SubmitDisposalModal";
+import RequestRevisionModal from "../components/RequestRevisionModal";
+import DisposalDetailModal from "../components/DisposalDetailModal";
+import { formatLkr } from "../lib/format";
 import type { DisposalResponse, TransferResponse } from "../types";
 
-// Appendix B / RoleGroups (backend): transfer:request and disposal:request
-// both include Administrator alongside Officer, and confirm-receipt
-// includes Administrator too (the same documented deviation
-// ConfirmReceiptAsync's own guard already allows) — so this page carries
-// every action InventoryTransfersPage has, plus the Administrator-only
-// approval actions neither Officer page ever gets. Previously this page
-// only had the approval half (doc/PROGRESS.md tracked the gap).
-export default function TransfersPage() {
-  const [transferPage, setTransferPage] = useState(1);
-  const [transferPageSize, setTransferPageSize] = useState(20);
-  const [disposalPage, setDisposalPage] = useState(1);
-  const [disposalPageSize, setDisposalPageSize] = useState(20);
+type OpenModal = "transfer" | "condemn" | "disposal" | null;
 
-  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const [isCondemnModalOpen, setIsCondemnModalOpen] = useState(false);
-  const [isDisposalModalOpen, setIsDisposalModalOpen] = useState(false);
+// One Transfers & Disposals page for every role that has it (Administrator,
+// InventoryOfficer, Auditor) — the route passes the role, and
+// transferCapabilities() decides which actions and audit columns show.
+export default function TransfersPage({ role }: { role: CoreGridRole }) {
+  const can = transferCapabilities(role);
 
-  const {
-    data: transfers,
-    isLoading: isLoadingTransfers,
-    isError: isErrorTransfers,
-    error: transfersError,
-    refetch: refetchTransfers,
-  } = useTransfersList({ page: transferPage, pageSize: transferPageSize });
+  const [transferPaging, setTransferPaging] = useState({ page: 1, pageSize: 20 });
+  const [disposalPaging, setDisposalPaging] = useState({ page: 1, pageSize: 20 });
+  const [openModal, setOpenModal] = useState<OpenModal>(null);
+  const [revisionTarget, setRevisionTarget] = useState<DisposalResponse | null>(null);
+  const [detailDisposalId, setDetailDisposalId] = useState<string | null>(null);
 
-  const {
-    data: disposals,
-    isLoading: isLoadingDisposals,
-    isError: isErrorDisposals,
-    error: disposalsError,
-    refetch: refetchDisposals,
-  } = useDisposalsList({ page: disposalPage, pageSize: disposalPageSize });
+  const transfers = useTransfersList(transferPaging);
+  const disposals = useDisposalsList(disposalPaging);
 
   const approveTransfer = useApproveTransfer();
   const confirmReceipt = useConfirmTransferReceipt();
   const approveDisposal = useApproveDisposal();
-  const requestRevision = useRequestDisposalRevision();
 
-  // Selected item for revision modal
-  const [revisionTarget, setRevisionTarget] = useState<DisposalResponse | null>(null);
-  const [revisionComments, setRevisionComments] = useState("");
-  const [revisionError, setRevisionError] = useState<string | null>(null);
+  const mutationErrors = [
+    { failed: approveTransfer.isError, title: "Could not approve transfer", error: approveTransfer.error },
+    { failed: confirmReceipt.isError, title: "Could not confirm receipt", error: confirmReceipt.error },
+    {
+      failed: approveDisposal.isError,
+      title: "Could not approve disposal",
+      error: approveDisposal.error,
+      fallback: "Make sure every precondition passes and the approver isn't the requester.",
+    },
+  ].filter((e) => e.failed);
 
-  const handleApproveTransfer = (transfer: TransferResponse) => {
-    approveTransfer.mutate(transfer.id, {
-      onSuccess: () => refetchTransfers(),
-    });
-  };
-
-  const handleConfirmReceipt = (transfer: TransferResponse) => {
-    confirmReceipt.mutate(transfer.id, {
-      onSuccess: () => refetchTransfers(),
-    });
-  };
-
-  const handleApproveDisposal = (disposal: DisposalResponse) => {
-    approveDisposal.mutate(disposal.id, {
-      onSuccess: () => refetchDisposals(),
-    });
-  };
-
-  const handleOpenRevisionModal = (disposal: DisposalResponse) => {
-    setRevisionTarget(disposal);
-    setRevisionComments("");
-    setRevisionError(null);
-  };
-
-  const handleSubmitRevision = () => {
-    if (!revisionTarget) return;
-    if (!revisionComments.trim()) {
-      setRevisionError("Comments are required to request revision.");
-      return;
+  const renderTransferAction = (t: TransferResponse) => {
+    if (can.canApprove && t.status === "REQUESTED") {
+      return (
+        <Button
+          size="sm"
+          renderIcon={Checkmark}
+          disabled={approveTransfer.isPending}
+          onClick={() => approveTransfer.mutate(t.id, { onSuccess: transfers.refetch })}
+        >
+          Approve
+        </Button>
+      );
     }
-    setRevisionError(null);
-    requestRevision.mutate(
-      { id: revisionTarget.id, payload: { comments: revisionComments.trim() } },
-      {
-        onSuccess: () => {
-          setRevisionTarget(null);
-          refetchDisposals();
-        },
-      }
-    );
+    if (can.canConfirmReceipt && (t.status === "APPROVED" || t.status === "IN_TRANSIT")) {
+      return (
+        <Button
+          size="sm"
+          renderIcon={Checkmark}
+          disabled={confirmReceipt.isPending}
+          onClick={() => confirmReceipt.mutate(t.id, { onSuccess: transfers.refetch })}
+        >
+          Confirm receipt
+        </Button>
+      );
+    }
+    return <span className="cg-table__muted">-</span>;
   };
+
+  const renderDisposalAction = (d: DisposalResponse) => {
+    if (can.isAuditView) {
+      return (
+        <Button
+          size="sm"
+          kind="ghost"
+          renderIcon={View}
+          iconDescription="View compliance details"
+          hasIconOnly
+          onClick={() => setDetailDisposalId(d.id)}
+        />
+      );
+    }
+    if (can.canApprove && d.status === "PENDING") {
+      return (
+        <Button size="sm" kind="ghost" renderIcon={Restart} onClick={() => setRevisionTarget(d)}>
+          Request revision
+        </Button>
+      );
+    }
+    return null;
+  };
+
+  const pendingReviews = can.canApprove
+    ? (disposals.data?.items ?? []).filter((d) => d.status === "PENDING" && d.precondition_evaluation?.checks)
+    : [];
 
   return (
     <div className="cg-page">
       <div className="cg-page__header">
         <div className="cg-page__header-left">
-          <h1 className="cg-page__title">Transfers & Disposals</h1>
+          <h1 className="cg-page__title">{can.isAuditView ? "Transfers & Disposals Audit" : "Transfers & Disposals"}</h1>
           <p className="cg-page__subtitle">
-            Initiate and approve transfers, confirm receipt, condemn assets, and submit or approve disposal requests (FR-043–055).
+            {can.isAuditView
+              ? "Read-only audit trail and compliance verification for transfers and disposals."
+              : can.canApprove
+                ? "Initiate and approve inter-departmental asset transfers, confirm receipts, condemn damaged equipment, and manage disposal requests."
+                : "Initiate inter-departmental transfers, confirm asset arrivals, condemn unserviceable assets, and submit disposal requests."}
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button renderIcon={DeliveryTruck} kind="primary" onClick={() => setIsTransferModalOpen(true)}>
-            Initiate transfer
-          </Button>
-          <Button renderIcon={Warning} kind="secondary" onClick={() => setIsCondemnModalOpen(true)}>
-            Condemn asset
-          </Button>
-          <Button renderIcon={Add} kind="tertiary" onClick={() => setIsDisposalModalOpen(true)}>
-            Submit disposal
-          </Button>
-        </div>
+        {can.canCreate && (
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <Button renderIcon={DeliveryTruck} onClick={() => setOpenModal("transfer")}>
+              Initiate transfer
+            </Button>
+            <Button renderIcon={Warning} kind="secondary" onClick={() => setOpenModal("condemn")}>
+              Condemn asset
+            </Button>
+            <Button renderIcon={Add} kind="tertiary" onClick={() => setOpenModal("disposal")}>
+              Submit disposal
+            </Button>
+          </div>
+        )}
       </div>
 
-      {confirmReceipt.isError && (
+      {mutationErrors.map((e) => (
         <InlineNotification
+          key={e.title}
           kind="error"
-          title="Could not confirm receipt"
-          subtitle={getErrorMessage(confirmReceipt.error, "An error occurred while confirming asset receipt.")}
+          title={e.title}
+          subtitle={getErrorMessage(e.error, e.fallback ?? "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
           style={{ marginBottom: "1rem", maxWidth: "100%" }}
         />
-      )}
-
-      {/* Global Mutation Notifications */}
-      {approveTransfer.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not approve transfer"
-          subtitle={getErrorMessage(
-            approveTransfer.error,
-            "An error occurred while approving the transfer."
-          )}
-          lowContrast
-          hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
-        />
-      )}
-
-      {approveDisposal.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not approve disposal"
-          subtitle={getErrorMessage(
-            approveDisposal.error,
-            "An error occurred while approving the disposal. Ensure all preconditions (P1–P6) pass and separation-of-duties is satisfied."
-          )}
-          lowContrast
-          hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
-        />
-      )}
-
-      {requestRevision.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not request revision"
-          subtitle={getErrorMessage(
-            requestRevision.error,
-            "An error occurred while returning the disposal for revision."
-          )}
-          lowContrast
-          hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
-        />
-      )}
+      ))}
 
       <Tabs>
         <TabList aria-label="Transfer and disposal sections">
-          <Tab>Transfers</Tab>
-          <Tab>Disposals</Tab>
+          <Tab>{can.isAuditView ? "Transfer history" : "Transfers"}</Tab>
+          <Tab>{can.isAuditView ? "Disposal compliance" : "Disposals"}</Tab>
         </TabList>
         <TabPanels>
-          {/* ── Transfers Panel ───────────────────────────────────────────────── */}
           <TabPanel>
-            {isErrorTransfers && (
-              <InlineNotification
-                kind="error"
-                title="Could not load transfers"
-                subtitle={getErrorMessage(
-                  transfersError,
-                  "Something went wrong loading transfers."
-                )}
-                lowContrast
-                hideCloseButton
-                style={{ marginBottom: "1rem", maxWidth: "100%" }}
-              />
-            )}
-
-            <div className="cg-section">
-              {isLoadingTransfers ? (
-                <div className="cg-placeholder">
-                  <p>Loading transfers…</p>
-                </div>
-              ) : transfers && transfers.items.length > 0 ? (
-                <>
-                  <table className="cg-table cg-table--no-hover">
-                    <thead>
-                      <tr>
-                        <th>Asset</th>
-                        <th>From</th>
-                        <th>To</th>
-                        <th>Status</th>
-                        <th>Requested by</th>
-                        <th>Requested</th>
-                        <th style={{ textAlign: "right" }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transfers.items.map((t) => (
-                        <tr key={t.id}>
-                          <td>
-                            <span className="cg-table__mono">{t.asset_code}</span>
-                            <br />
-                            <span className="cg-table__muted">{t.asset_name}</span>
-                          </td>
-                          <td className="cg-table__muted">
-                            {t.from_department_name || "—"}
-                            {t.from_location_name ? ` (${t.from_location_name})` : ""}
-                          </td>
-                          <td className="cg-table__muted">
-                            {t.to_department_name || "—"}
-                            {t.to_location_name ? ` (${t.to_location_name})` : ""}
-                          </td>
-                          <td>
-                            <Tag type={statusTagColor(t.status)}>
-                              {formatStatusLabel(t.status)}
-                            </Tag>
-                          </td>
-                          <td className="cg-table__muted">
-                            {t.initiated_by_user_email || "—"}
-                          </td>
-                          <td className="cg-table__muted">
-                            {new Date(t.requested_at).toLocaleDateString()}
-                          </td>
-                          <td style={{ textAlign: "right" }}>
-                            {t.status === "REQUESTED" ? (
-                              <Button
-                                size="sm"
-                                kind="primary"
-                                renderIcon={Checkmark}
-                                disabled={approveTransfer.isPending}
-                                onClick={() => handleApproveTransfer(t)}
-                              >
-                                Approve
-                              </Button>
-                            ) : t.status === "APPROVED" || t.status === "IN_TRANSIT" ? (
-                              <Button
-                                size="sm"
-                                kind="primary"
-                                renderIcon={Checkmark}
-                                disabled={confirmReceipt.isPending}
-                                onClick={() => handleConfirmReceipt(t)}
-                              >
-                                Confirm receipt
-                              </Button>
-                            ) : (
-                              <span className="cg-table__muted">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <Pagination
-                    page={transfers.page}
-                    pageSize={transfers.page_size}
-                    pageSizes={[10, 20, 50, 100]}
-                    totalItems={transfers.total_count}
-                    onChange={({ page: nextPage, pageSize: nextPageSize }) => {
-                      setTransferPage(nextPage);
-                      setTransferPageSize(nextPageSize);
-                    }}
-                    style={{ marginTop: "1rem" }}
-                  />
-                </>
-              ) : (
-                <div className="cg-placeholder">
-                  <p>No transfer requests found.</p>
-                </div>
+            <PagedSection
+              result={transfers.data}
+              isLoading={transfers.isLoading}
+              isError={transfers.isError}
+              error={transfers.error}
+              noun="transfers"
+              onPageChange={(page, pageSize) => setTransferPaging({ page, pageSize })}
+            >
+              {(items) => (
+                <TransfersTable
+                  transfers={items}
+                  showAuditTrail={can.isAuditView}
+                  renderAction={can.isAuditView ? undefined : renderTransferAction}
+                />
               )}
-            </div>
+            </PagedSection>
           </TabPanel>
 
-          {/* ── Disposals Panel ───────────────────────────────────────────────── */}
           <TabPanel>
-            {isErrorDisposals && (
-              <InlineNotification
-                kind="error"
-                title="Could not load disposals"
-                subtitle={getErrorMessage(
-                  disposalsError,
-                  "Something went wrong loading disposal requests."
-                )}
-                lowContrast
-                hideCloseButton
-                style={{ marginBottom: "1rem", maxWidth: "100%" }}
-              />
-            )}
-
-            <div className="cg-section">
-              {isLoadingDisposals ? (
-                <div className="cg-placeholder">
-                  <p>Loading disposals…</p>
-                </div>
-              ) : disposals && disposals.items.length > 0 ? (
-                <>
-                  <table className="cg-table cg-table--no-hover">
-                    <thead>
-                      <tr>
-                        <th>Asset</th>
-                        <th>Proposed method</th>
-                        <th>Status</th>
-                        <th>Estimated residual value</th>
-                        <th>Requested by</th>
-                        <th>Requested</th>
-                        <th style={{ textAlign: "right" }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {disposals.items.map((d) => (
-                        <tr key={d.id}>
-                          <td>
-                            <span className="cg-table__mono">{d.asset_code}</span>
-                            <br />
-                            <span className="cg-table__muted">{d.asset_name}</span>
-                          </td>
-                          <td className="cg-table__muted">
-                            {formatStatusLabel(d.disposal_method)}
-                          </td>
-                          <td>
-                            <Tag type={statusTagColor(d.status)}>
-                              {formatStatusLabel(d.status)}
-                            </Tag>
-                          </td>
-                          <td className="cg-table__muted">
-                            {d.estimated_residual_value != null
-                              ? `LKR ${Number(d.estimated_residual_value).toLocaleString()}`
-                              : "—"}
-                          </td>
-                          <td className="cg-table__muted">
-                            {d.initiated_by_user_email || "—"}
-                          </td>
-                          <td className="cg-table__muted">
-                            {new Date(d.requested_at).toLocaleDateString()}
-                          </td>
-                          <td style={{ textAlign: "right" }}>
-                            {d.status === "PENDING" && (
-                              <Button
-                                size="sm"
-                                kind="ghost"
-                                renderIcon={Restart}
-                                disabled={requestRevision.isPending}
-                                onClick={() => handleOpenRevisionModal(d)}
-                              >
-                                Request revision
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <Pagination
-                    page={disposals.page}
-                    pageSize={disposals.page_size}
-                    pageSizes={[10, 20, 50, 100]}
-                    totalItems={disposals.total_count}
-                    onChange={({ page: nextPage, pageSize: nextPageSize }) => {
-                      setDisposalPage(nextPage);
-                      setDisposalPageSize(nextPageSize);
-                    }}
-                    style={{ marginTop: "1rem" }}
-                  />
-                </>
-              ) : (
-                <div className="cg-placeholder">
-                  <p>No disposal requests found.</p>
-                </div>
+            <PagedSection
+              result={disposals.data}
+              isLoading={disposals.isLoading}
+              isError={disposals.isError}
+              error={disposals.error}
+              noun="disposal requests"
+              onPageChange={(page, pageSize) => setDisposalPaging({ page, pageSize })}
+            >
+              {(items) => (
+                <DisposalsTable
+                  disposals={items}
+                  showAuditTrail={can.isAuditView}
+                  showNotes={!can.canApprove && !can.isAuditView}
+                  renderAction={can.isAuditView || can.canApprove ? renderDisposalAction : undefined}
+                />
               )}
-            </div>
+            </PagedSection>
 
-            {/* Live Precondition Checklists for PENDING Disposals */}
-            {disposals?.items
-              ?.filter((d) => d.status === "PENDING" && d.precondition_evaluation?.checks)
-              .map((d) => {
-                const evalResult = d.precondition_evaluation;
-                const checks = evalResult?.checks ?? [];
-                const allPassed = Boolean(evalResult?.all_passed);
-                const sodPassed = evalResult?.separation_of_duties_passed ?? true;
-                const canApprove = allPassed && sodPassed;
-
-                return (
-                  <div className="cg-section" key={d.id}>
-                    <div className="cg-section__header">
-                      <div>
-                        <p className="cg-section__title">
-                          Precondition checklist — {d.asset_code} ({formatStatusLabel(d.status)})
-                        </p>
-                        <p className="cg-section__subtitle" style={{ fontSize: "0.8125rem", color: "#525252" }}>
-                          Proposed Method: {formatStatusLabel(d.disposal_method)} | Residual Value: LKR {Number(d.estimated_residual_value).toLocaleString()}
-                        </p>
-                      </div>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <Button
-                          kind="secondary"
-                          size="sm"
-                          renderIcon={Restart}
-                          disabled={requestRevision.isPending}
-                          onClick={() => handleOpenRevisionModal(d)}
-                        >
-                          Request revision
-                        </Button>
-                        <Button
-                          kind="danger"
-                          size="sm"
-                          renderIcon={Checkmark}
-                          disabled={!canApprove || approveDisposal.isPending}
-                          onClick={() => handleApproveDisposal(d)}
-                        >
-                          Approve disposal
-                        </Button>
-                      </div>
+            {pendingReviews.map((d) => {
+              const evaluation = d.precondition_evaluation!;
+              const canApproveThis = evaluation.all_passed && evaluation.separation_of_duties_passed;
+              return (
+                <section className="cg-section" key={d.id}>
+                  <header className="cg-section__header">
+                    <div>
+                      <p className="cg-section__title">Precondition checklist: {d.asset_code}</p>
+                      <p className="cg-table__muted" style={{ margin: "0.125rem 0 0", fontSize: "0.8125rem" }}>
+                        {formatStatusLabel(d.disposal_method)} · {formatLkr(d.estimated_residual_value)}
+                      </p>
                     </div>
-
-                    {!sodPassed && (
-                      <InlineNotification
-                        kind="warning"
-                        title="Separation of Duties"
-                        subtitle={
-                          evalResult?.separation_of_duties_failure_reason ||
-                          "Approver cannot be the requester of the disposal."
-                        }
-                        lowContrast
-                        hideCloseButton
-                        style={{ marginBottom: "0.75rem", maxWidth: "100%" }}
-                      />
-                    )}
-
-                    <div
-                      className="cg-section__body"
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.75rem",
-                      }}
-                    >
-                      {checks.map((p) => (
-                        <div
-                          key={p.code}
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: "0.625rem",
-                          }}
-                        >
-                          {p.passed ? (
-                            <CheckmarkFilled
-                              size={18}
-                              style={{ fill: "#24a148", flexShrink: 0, marginTop: "2px" }}
-                            />
-                          ) : (
-                            <CloseFilled
-                              size={18}
-                              style={{ fill: "#da1e28", flexShrink: 0, marginTop: "2px" }}
-                            />
-                          )}
-                          <div>
-                            <div>
-                              <span
-                                style={{
-                                  fontSize: "0.8125rem",
-                                  color: "#525252",
-                                  fontWeight: 600,
-                                  marginRight: "0.5rem",
-                                }}
-                              >
-                                {p.code}
-                              </span>
-                              <span style={{ fontSize: "0.875rem" }}>
-                                {p.description}
-                              </span>
-                            </div>
-                            {!p.passed && p.failure_reason && (
-                              <p
-                                style={{
-                                  fontSize: "0.8125rem",
-                                  color: "#da1e28",
-                                  marginTop: "0.125rem",
-                                }}
-                              >
-                                {p.failure_reason}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <Button kind="secondary" size="sm" renderIcon={Restart} onClick={() => setRevisionTarget(d)}>
+                        Request revision
+                      </Button>
+                      <Button
+                        kind="danger"
+                        size="sm"
+                        renderIcon={Checkmark}
+                        disabled={!canApproveThis || approveDisposal.isPending}
+                        onClick={() => approveDisposal.mutate(d.id, { onSuccess: disposals.refetch })}
+                      >
+                        Approve disposal
+                      </Button>
                     </div>
+                  </header>
+                  <div className="cg-section__body">
+                    <PreconditionChecklist evaluation={evaluation} />
                   </div>
-                );
-              })}
+                </section>
+              );
+            })}
           </TabPanel>
         </TabPanels>
       </Tabs>
 
-      {/* Revision Modal */}
-      {revisionTarget && (
-        <Modal
-          open={Boolean(revisionTarget)}
-          modalHeading={`Request Revision — ${revisionTarget.asset_code}`}
-          primaryButtonText="Submit Revision Request"
-          secondaryButtonText="Cancel"
-          primaryButtonDisabled={requestRevision.isPending || !revisionComments.trim()}
-          onRequestClose={() => setRevisionTarget(null)}
-          onRequestSubmit={handleSubmitRevision}
-        >
-          <p style={{ marginBottom: "1rem", fontSize: "0.875rem" }}>
-            Return the disposal request for <strong>{revisionTarget.asset_name}</strong> to the requester with comments.
-            The request status will be updated to <code>REVISION_REQUESTED</code>.
-          </p>
-
-          {revisionError && (
-            <InlineNotification
-              kind="error"
-              title="Validation error"
-              subtitle={revisionError}
-              lowContrast
-              hideCloseButton
-              style={{ marginBottom: "1rem" }}
-            />
-          )}
-
-          <TextArea
-            id="revision-comments"
-            labelText="Revision Comments / Requirements *"
-            placeholder="Specify what changes or justifications are needed..."
-            rows={4}
-            value={revisionComments}
-            onChange={(e) => setRevisionComments(e.target.value)}
-          />
-        </Modal>
-      )}
-
-      {isTransferModalOpen && (
+      {openModal === "transfer" && (
         <InitiateTransferModal
-          onClose={() => setIsTransferModalOpen(false)}
+          onClose={() => setOpenModal(null)}
           onInitiated={() => {
-            setIsTransferModalOpen(false);
-            refetchTransfers();
+            setOpenModal(null);
+            transfers.refetch();
           }}
         />
       )}
-
-      {isCondemnModalOpen && (
-        <CondemnAssetModal onClose={() => setIsCondemnModalOpen(false)} onCondemned={() => setIsCondemnModalOpen(false)} />
+      {openModal === "condemn" && (
+        <CondemnAssetModal onClose={() => setOpenModal(null)} onCondemned={() => setOpenModal(null)} />
       )}
-
-      {isDisposalModalOpen && (
+      {openModal === "disposal" && (
         <SubmitDisposalModal
-          onClose={() => setIsDisposalModalOpen(false)}
+          onClose={() => setOpenModal(null)}
           onSubmitted={() => {
-            setIsDisposalModalOpen(false);
-            refetchDisposals();
+            setOpenModal(null);
+            disposals.refetch();
           }}
         />
       )}
+      {revisionTarget && (
+        <RequestRevisionModal
+          disposal={revisionTarget}
+          onClose={() => setRevisionTarget(null)}
+          onRequested={() => {
+            setRevisionTarget(null);
+            disposals.refetch();
+          }}
+        />
+      )}
+      {detailDisposalId && <DisposalDetailModal disposalId={detailDisposalId} onClose={() => setDetailDisposalId(null)} />}
     </div>
   );
 }

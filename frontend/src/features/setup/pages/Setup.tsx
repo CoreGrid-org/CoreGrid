@@ -14,9 +14,8 @@ import { CheckmarkFilled, WarningAltFilled } from "@carbon/icons-react";
 import { useSetupStatus, useCompleteSetup } from "../hooks/useSetup";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { silentProgressStatus } from "@/shared/lib/carbonA11y";
+import { isValidEmail } from "@/shared/lib/validation";
 import StatusView from "@/shared/components/StatusView";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Touched = Partial<Record<"givenName" | "familyName" | "email" | "password" | "confirmPassword" | "orgName", boolean>>;
 
@@ -66,21 +65,24 @@ export default function Setup() {
     return <Navigate to="/signin" replace />;
   }
 
-  const givenNameInvalid = touched.givenName && !givenName.trim();
-  const familyNameInvalid = touched.familyName && !familyName.trim();
-  const emailInvalid = touched.email && !EMAIL_RE.test(email.trim());
-  const passwordInvalid = touched.password && password.length < 8;
+  // Mirrors AdminRequest/OrganisationRequest's [Required]/[MaxLength]/[MinLength]
+  // (backend/Features/Setup/SetupModels.cs).
+  const givenNameValid = givenName.trim().length > 0 && givenName.trim().length <= 100;
+  const familyNameValid = familyName.trim().length > 0 && familyName.trim().length <= 100;
+  const emailValid = isValidEmail(email) && email.trim().length <= 256;
+  const passwordValid = password.length >= 8 && password.length <= 200;
+  const orgNameValid = orgName.trim().length > 0 && orgName.trim().length <= 200;
+
+  const givenNameInvalid = touched.givenName && !givenNameValid;
+  const familyNameInvalid = touched.familyName && !familyNameValid;
+  const emailInvalid = touched.email && !emailValid;
+  const passwordInvalid = touched.password && !passwordValid;
   const confirmPasswordInvalid = touched.confirmPassword && confirmPassword !== password;
-  const orgNameInvalid = touched.orgName && !orgName.trim();
+  const orgNameInvalid = touched.orgName && !orgNameValid;
 
-  const canContinueStep1 =
-    givenName.trim().length > 0 &&
-    familyName.trim().length > 0 &&
-    EMAIL_RE.test(email.trim()) &&
-    password.length >= 8 &&
-    confirmPassword === password;
+  const canContinueStep1 = givenNameValid && familyNameValid && emailValid && passwordValid && confirmPassword === password;
 
-  const canSubmit = canContinueStep1 && orgName.trim().length > 0;
+  const canSubmit = canContinueStep1 && orgNameValid;
 
   const handleContinue = () => {
     setTouched((t) => ({ ...t, givenName: true, familyName: true, email: true, password: true, confirmPassword: true }));
@@ -165,6 +167,7 @@ export default function Setup() {
               <TextInput
                 id="setup-given-name"
                 labelText="First Name"
+                maxLength={100}
                 value={givenName}
                 onChange={(e) => setGivenName(e.target.value)}
                 onBlur={() => markTouched("givenName")}
@@ -174,6 +177,7 @@ export default function Setup() {
               <TextInput
                 id="setup-family-name"
                 labelText="Last Name"
+                maxLength={100}
                 value={familyName}
                 onChange={(e) => setFamilyName(e.target.value)}
                 onBlur={() => markTouched("familyName")}
@@ -186,6 +190,7 @@ export default function Setup() {
               id="setup-email"
               labelText="Email"
               type="email"
+              maxLength={256}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onBlur={() => markTouched("email")}
@@ -196,6 +201,7 @@ export default function Setup() {
             <PasswordInput
               id="setup-password"
               labelText="Password"
+              maxLength={200}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onBlur={() => markTouched("password")}
@@ -223,6 +229,7 @@ export default function Setup() {
               id="setup-org-name"
               labelText="Organisation Name"
               helperText="The organisation this deployment serves, e.g. “Acme Logistics Pte Ltd”."
+              maxLength={200}
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               onBlur={() => markTouched("orgName")}

@@ -48,7 +48,7 @@ export default function ConfirmDeleteModal({
       )}
       <p>
         Delete <strong>{itemName}</strong>? If nothing else in the register references it, it's
-        permanently removed. If it's still in use, it's deactivated instead — hidden from new
+        permanently removed. If it's still in use, it's deactivated instead - hidden from new
         selections but existing records keep working, and it can be reactivated later.
       </p>
     </Modal>

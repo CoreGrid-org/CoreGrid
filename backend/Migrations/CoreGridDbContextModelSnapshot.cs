@@ -117,6 +117,9 @@ namespace CoreGrid.Api.Migrations
                     b.Property<Guid>("AssetId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BudgetAnalysis")
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -964,6 +967,9 @@ namespace CoreGrid.Api.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid?>("ReportedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ResultingCondition")
                         .HasMaxLength(15)
                         .HasColumnType("character varying(15)");
@@ -996,6 +1002,8 @@ namespace CoreGrid.Api.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.HasIndex("Priority");
+
+                    b.HasIndex("ReportedByUserId");
 
                     b.HasIndex("Status");
 
@@ -1721,6 +1729,11 @@ namespace CoreGrid.Api.Migrations
                         .HasForeignKey("AssigneeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("CoreGrid.Api.Domain.User", "ReportedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReportedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
@@ -1730,6 +1743,8 @@ namespace CoreGrid.Api.Migrations
                     b.Navigation("Asset");
 
                     b.Navigation("Assignee");
+
+                    b.Navigation("ReportedByUser");
 
                     b.Navigation("Organization");
                 });

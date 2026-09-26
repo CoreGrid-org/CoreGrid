@@ -1,260 +1,151 @@
-import { Button, ComboBox, InlineNotification, Pagination, Search, Select, SelectItem, SkeletonText, Tag } from "@carbon/react";
-import { DocumentExport, DocumentPdf } from "@carbon/icons-react";
-import { jsPDF } from "jspdf";
-import { useEffect, useState } from "react";
-import { useThunderID } from "@thunderid/react";
-import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useEffect, useMemo, useState } from "react";
+import { ComboBox, Dropdown, Search, Tag } from "@carbon/react";
 import { useAssetCategories, useAssetTypes, useDepartments, useLocations } from "@/features/assets/hooks/useAssets";
-import { listAssets } from "@/features/assets/api/assets";
-import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetCategory, type AssetQueryParameters, type AssetType, type Department, type Location, type PagedResult } from "@/features/assets/types/asset";
+import {
+  ASSET_CONDITIONS,
+  ASSET_STATUSES,
+  type Asset,
+  type AssetCategory,
+  type AssetQueryParameters,
+  type AssetType,
+  type Department,
+  type Location,
+} from "@/features/assets/types/asset";
 import { formatStatusLabel, statusTagColor } from "@/shared/lib/statusTag";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
+import { formatDate } from "@/shared/lib/dates";
 import { getInventoryAssets } from "../api/inventoryReport";
-import type { Asset } from "@/features/assets/types/asset";
+import { useReportData } from "../hooks/useReportData";
+import { downloadCsv, downloadPdf, exportBlockReason, formatCurrency, type ExportColumn, type ReportExport } from "../lib/export";
+import { ReportExportBar, ReportFilters, ReportStats, ReportStatus, ReportTable, type ReportColumn } from "./ReportParts";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", maximumFractionDigits: 0 }).format(value);
-}
+const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
 
-function averageAgeInYears(assets: Asset[]) {
-  if (assets.length === 0) return "0.0 years";
-  const today = Date.now();
-  const ageInYears = assets.reduce((total, asset) => {
-    const acquisitionTime = new Date(asset.acquisition_date).getTime();
-    return total + Math.max(0, today - acquisitionTime) / (365.25 * 24 * 60 * 60 * 1000);
-  }, 0) / assets.length;
-  return `${ageInYears.toFixed(1)} years`;
-}
+const EXPORT_COLUMNS: ExportColumn<Asset>[] = [
+  { header: "Asset code", width: 25, value: (a) => a.asset_code },
+  { header: "Name", width: 34, value: (a) => a.name },
+  { header: "Asset type", width: 31, value: (a) => a.asset_type_name },
+  { header: "Department", width: 29, value: (a) => a.department_name },
+  { header: "Location", width: 28, value: (a) => a.location_name },
+  { header: "Status", width: 25, value: (a) => formatStatusLabel(a.status) },
+  { header: "Condition", width: 25, value: (a) => formatStatusLabel(a.condition) },
+  { header: "Acquired", width: 24, value: (a) => formatDate(a.acquisition_date.slice(0, 10)) },
+  { header: "Cost", width: 27, value: (a) => formatCurrency(a.acquisition_cost) },
+];
 
-function formatDate(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString();
-}
+const DETAIL_COLUMNS: ReportColumn<Asset>[] = [
+  { header: "Asset code", render: (a) => <span className="cg-table__mono">{a.asset_code}</span> },
+  { header: "Name", render: (a) => a.name },
+  { header: "Asset type", muted: true, render: (a) => a.asset_type_name },
+  { header: "Department", muted: true, render: (a) => a.department_name },
+  { header: "Location", muted: true, render: (a) => a.location_name },
+  { header: "Status", render: (a) => <Tag type={statusTagColor(a.status)}>{formatStatusLabel(a.status)}</Tag> },
+  { header: "Condition", render: (a) => <Tag type={statusTagColor(a.condition)}>{formatStatusLabel(a.condition)}</Tag> },
+  { header: "Acquired", muted: true, render: (a) => formatDate(a.acquisition_date.slice(0, 10)) },
+  { header: "Acquisition cost", muted: true, render: (a) => formatCurrency(a.acquisition_cost) },
+];
 
-function csvEscape(value: string | number) {
-  const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
+type Breakdown = { key: string; count: number; value: number };
+const BREAKDOWN_COLUMNS: ReportColumn<Breakdown>[] = [
+  { header: "Department", render: (b) => b.key },
+  { header: "Assets", muted: true, render: (b) => b.count },
+  { header: "Total value", muted: true, render: (b) => formatCurrency(b.value) },
+];
 
-function downloadCsv(assets: Asset[]) {
-  const headers = ["Asset code", "Name", "Asset type", "Department", "Location", "Status", "Condition", "Acquired", "Acquisition cost"];
-  const rows = assets.map((asset) => [
-    asset.asset_code,
-    asset.name,
-    asset.asset_type_name,
-    asset.department_name,
-    asset.location_name,
-    formatStatusLabel(asset.status),
-    formatStatusLabel(asset.condition),
-    asset.acquisition_date,
-    asset.acquisition_cost,
-  ]);
-  const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `asset-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function printPdf(assets: Asset[], totalValue: number) {
-  const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const pageHeight = document.internal.pageSize.getHeight();
-  const left = 10;
-  const columnWidths = [25, 34, 31, 29, 28, 25, 25, 24, 27];
-  const headers = ["Asset code", "Name", "Asset type", "Department", "Location", "Status", "Condition", "Acquired", "Cost"];
-  let y = 15;
-
-  const drawHeader = () => {
-    document.setFillColor(224, 224, 224);
-    document.rect(left, y - 5, columnWidths.reduce((sum, width) => sum + width, 0), 8, "F");
-    document.setFont("helvetica", "bold");
-    document.setFontSize(6.5);
-    let x = left + 1;
-    headers.forEach((header, index) => {
-      document.text(header, x, y);
-      x += columnWidths[index];
-    });
-    y += 7;
-    document.setFont("helvetica", "normal");
-  };
-
-  document.setFont("helvetica", "bold");
-  document.setFontSize(16);
-  document.text("Asset Inventory Report", left, y);
-  y += 6;
-  document.setFont("helvetica", "normal");
-  document.setFontSize(8);
-  document.text(`Generated ${new Date().toLocaleString()}`, left, y);
-  y += 8;
-  document.setFontSize(9);
-  document.text(`Assets in scope: ${assets.length.toLocaleString()}`, left, y);
-  document.text(`Total acquisition value: ${formatCurrency(totalValue)}`, left + 60, y);
-  document.text(`Average age: ${averageAgeInYears(assets)}`, left + 145, y);
-  y += 9;
-  drawHeader();
-
-  assets.forEach((asset) => {
-    const values = [
-      asset.asset_code,
-      asset.name,
-      asset.asset_type_name,
-      asset.department_name,
-      asset.location_name,
-      formatStatusLabel(asset.status),
-      formatStatusLabel(asset.condition),
-      formatDate(asset.acquisition_date),
-      formatCurrency(asset.acquisition_cost),
-    ];
-    const lines = values.map((value, index) => document.splitTextToSize(String(value), columnWidths[index] - 2));
-    const rowHeight = Math.max(...lines.map((value) => value.length)) * 3.2 + 3;
-    if (y + rowHeight > pageHeight - 10) {
-      document.addPage();
-      y = 15;
-      drawHeader();
-    }
-    let x = left + 1;
-    lines.forEach((value, index) => {
-      document.text(value, x, y, { baseline: "top" });
-      x += columnWidths[index];
-    });
-    document.setDrawColor(210, 210, 210);
-    document.line(left, y + rowHeight - 1, left + columnWidths.reduce((sum, width) => sum + width, 0), y + rowHeight - 1);
-    y += rowHeight;
-  });
-
-  document.save(`asset-inventory-${new Date().toISOString().slice(0, 10)}.pdf`);
-}
-
+// Search plus category/type/department/location/status/condition filters over
+// GET /api/assets (scoped to the caller's role by the backend), with PDF/CSV export.
 export default function InventoryReportPanel() {
-  const { getAccessToken } = useThunderID();
-  const [assets, setAssets] = useState<Asset[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [assetTypeId, setAssetTypeId] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [locationId, setLocationId] = useState("");
+  const [category, setCategory] = useState<AssetCategory | null>(null);
+  const [assetType, setAssetType] = useState<AssetType | null>(null);
+  const [department, setDepartment] = useState<Department | null>(null);
+  const [location, setLocation] = useState<Location | null>(null);
   const [status, setStatus] = useState("");
   const [condition, setCondition] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [error, setError] = useState<unknown>();
-  const [isLoading, setIsLoading] = useState(true);
+
   const { data: categories } = useAssetCategories();
   const { data: assetTypes } = useAssetTypes();
   const { data: departments } = useDepartments();
-  const { data: locations } = useLocations(departmentId || undefined);
+  const { data: locations } = useLocations(department?.id);
+  // Only types in the chosen category are offered.
+  const typeOptions = (assetTypes ?? []).filter((t) => !category || t.asset_category_id === category.id);
 
+  // Debounce typing so every keystroke doesn't start a full report reload.
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => {
-    setLocationId("");
-  }, [departmentId]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, categoryId, assetTypeId, departmentId, locationId, status, condition]);
-
   const query: Omit<AssetQueryParameters, "page" | "pageSize"> = {
     search: search || undefined,
-    categoryId: categoryId || undefined,
-    assetTypeId: assetTypeId || undefined,
-    departmentId: departmentId || undefined,
-    locationId: locationId || undefined,
+    categoryId: category?.id,
+    assetTypeId: assetType?.id,
+    departmentId: department?.id,
+    locationId: location?.id,
     status: status || undefined,
     condition: condition || undefined,
   };
+  const queryKey = JSON.stringify(query);
+  const report = useReportData(queryKey, true, (token) => getInventoryAssets(query, token));
+  // Ages are measured from when the page opened, keeping the stats pure.
+  const [now] = useState(() => Date.now());
+  const assets = useMemo(() => report.data ?? [], [report.data]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(undefined);
-
-    getAccessToken()
-      .then((token) => getInventoryAssets(query, token))
-      .then((result) => {
-        if (!cancelled) {
-          setAssets(result);
-          setIsLoading(false);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setError(reason);
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
+  const { totalValue, averageAge, byDepartment } = useMemo(() => {
+    const groups = new Map<string, Breakdown>();
+    let value = 0;
+    let ageYears = 0;
+    for (const a of assets) {
+      value += a.acquisition_cost;
+      ageYears += Math.max(0, now - new Date(a.acquisition_date).getTime()) / YEAR_MS;
+      const current = groups.get(a.department_name) ?? { key: a.department_name, count: 0, value: 0 };
+      groups.set(a.department_name, { key: a.department_name, count: current.count + 1, value: current.value + a.acquisition_cost });
+    }
+    return {
+      totalValue: value,
+      averageAge: `${(assets.length > 0 ? ageYears / assets.length : 0).toFixed(1)} years`,
+      byDepartment: [...groups.values()].sort((a, b) => b.count - a.count),
     };
-  }, [getAccessToken, search, categoryId, assetTypeId, departmentId, locationId, status, condition]);
+  }, [assets, now]);
 
-  // Real server-side pagination for the detail table specifically — a
-  // separate request per page, not a client-side slice of the full
-  // (already-aggregated) `assets` array above, which stays as-is for the
-  // stats/by-department breakdown and for PDF/CSV export (those need every
-  // filtered asset, not just one page of them).
-  const [detailPage, setDetailPage] = useState<PagedResult<Asset>>({
-    items: [], total_count: 0, page: 1, page_size: pageSize, total_pages: 0,
-  });
+  const filterLabels = [
+    search && `Search: "${search}"`,
+    category && `Category: ${category.name}`,
+    assetType && `Type: ${assetType.name}`,
+    department && `Department: ${department.name}`,
+    location && `Location: ${location.name}`,
+    status && `Status: ${formatStatusLabel(status)}`,
+    condition && `Condition: ${formatStatusLabel(condition)}`,
+  ].filter((label): label is string => Boolean(label));
 
-  useEffect(() => {
-    let cancelled = false;
+  const clearFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setCategory(null);
+    setAssetType(null);
+    setDepartment(null);
+    setLocation(null);
+    setStatus("");
+    setCondition("");
+  };
 
-    getAccessToken()
-      .then((token) => listAssets({ ...query, page, pageSize, sortBy: "name", sortDirection: "asc" }, token))
-      .then((result) => {
-        if (!cancelled) setDetailPage(result);
-      })
-      .catch(() => {
-        // Errors here surface through the aggregate fetch's own error
-        // state above (same filters, same failure mode) — no need for a
-        // second error banner for the same underlying request.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- query is rebuilt every render from the same state below
-  }, [getAccessToken, search, categoryId, assetTypeId, departmentId, locationId, status, condition, page, pageSize]);
-
-  if (isLoading) {
-    return <div className="cg-section"><SkeletonText paragraph lineCount={4} /></div>;
-  }
-
-  if (error) {
-    return (
-      <InlineNotification
-        kind="error"
-        title="Could not load the asset inventory"
-        subtitle={getErrorMessage(error, "Something went wrong. Please try again.")}
-        hideCloseButton
-      />
-    );
-  }
-
-  const totalValue = assets.reduce((total, asset) => total + asset.acquisition_cost, 0);
-  const byDepartment = Array.from(
-    assets.reduce((groups, asset) => {
-      const current = groups.get(asset.department_name) ?? { count: 0, value: 0 };
-      groups.set(asset.department_name, {
-        count: current.count + 1,
-        value: current.value + asset.acquisition_cost,
-      });
-      return groups;
-    }, new Map<string, { count: number; value: number }>()),
-  ).sort(([, left], [, right]) => right.count - left.count);
+  const exportData: ReportExport<Asset> = {
+    title: "Asset Inventory Report",
+    fileName: "asset-inventory",
+    columns: EXPORT_COLUMNS,
+    rows: assets,
+    summary: [
+      `Assets in scope: ${assets.length.toLocaleString()}`,
+      `Total acquisition value: ${formatCurrency(totalValue)}`,
+      `Average age: ${averageAge}`,
+    ],
+    filters: filterLabels,
+  };
 
   return (
-    <div className="cg-section">
-      <div className="cg-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "end" }}>
+    <div className="cg-report">
+      <ReportFilters activeCount={filterLabels.length} onClear={clearFilters} isRefreshing={report.isRefreshing}>
         <Search
           id="inventory-report-search"
           labelText="Search assets"
@@ -262,7 +153,7 @@ export default function InventoryReportPanel() {
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
           size="md"
-          style={{ minWidth: "18rem" }}
+          className="cg-report__filter-wide"
         />
         <ComboBox<AssetCategory>
           id="inventory-report-category"
@@ -270,17 +161,22 @@ export default function InventoryReportPanel() {
           placeholder="All categories"
           items={categories ?? []}
           itemToString={(item) => item?.name ?? ""}
-          selectedItem={categories?.find((category) => category.id === categoryId) ?? null}
-          onChange={({ selectedItem }) => setCategoryId(selectedItem?.id ?? "")}
+          selectedItem={category}
+          shouldFilterItem={comboBoxFilter(category)}
+          onChange={({ selectedItem }) => {
+            setCategory(selectedItem ?? null);
+            setAssetType(null);
+          }}
         />
         <ComboBox<AssetType>
           id="inventory-report-type"
           titleText="Asset type"
           placeholder="All types"
-          items={assetTypes ?? []}
+          items={typeOptions}
           itemToString={(item) => item?.name ?? ""}
-          selectedItem={assetTypes?.find((type) => type.id === assetTypeId) ?? null}
-          onChange={({ selectedItem }) => setAssetTypeId(selectedItem?.id ?? "")}
+          selectedItem={assetType}
+          shouldFilterItem={comboBoxFilter(assetType)}
+          onChange={({ selectedItem }) => setAssetType(selectedItem ?? null)}
         />
         <ComboBox<Department>
           id="inventory-report-department"
@@ -288,141 +184,80 @@ export default function InventoryReportPanel() {
           placeholder="All departments"
           items={departments ?? []}
           itemToString={(item) => item?.name ?? ""}
-          selectedItem={departments?.find((department) => department.id === departmentId) ?? null}
-          onChange={({ selectedItem }) => setDepartmentId(selectedItem?.id ?? "")}
+          selectedItem={department}
+          shouldFilterItem={comboBoxFilter(department)}
+          onChange={({ selectedItem }) => {
+            setDepartment(selectedItem ?? null);
+            setLocation(null);
+          }}
         />
         <ComboBox<Location>
           id="inventory-report-location"
           titleText="Location"
-          placeholder="All locations"
+          placeholder={department ? "All locations" : "Choose a department first"}
           items={locations ?? []}
           itemToString={(item) => item?.name ?? ""}
-          selectedItem={locations?.find((location) => location.id === locationId) ?? null}
-          onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
-          disabled={!departmentId && locations?.length === 0}
+          selectedItem={location}
+          shouldFilterItem={comboBoxFilter(location)}
+          onChange={({ selectedItem }) => setLocation(selectedItem ?? null)}
+          disabled={!department}
         />
-        <Select id="inventory-report-status" labelText="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
-          <SelectItem value="" text="All statuses" />
-          {ASSET_STATUSES.map((value) => <SelectItem key={value} value={value} text={formatStatusLabel(value)} />)}
-        </Select>
-        <Select id="inventory-report-condition" labelText="Condition" value={condition} onChange={(event) => setCondition(event.target.value)}>
-          <SelectItem value="" text="All conditions" />
-          {ASSET_CONDITIONS.map((value) => <SelectItem key={value} value={value} text={formatStatusLabel(value)} />)}
-        </Select>
-        <Button
-          kind="ghost"
-          size="md"
-          onClick={() => {
-            setSearchInput("");
-            setSearch("");
-            setCategoryId("");
-            setAssetTypeId("");
-            setDepartmentId("");
-            setLocationId("");
-            setStatus("");
-            setCondition("");
-          }}
-        >
-          Clear filters
-        </Button>
-      </div>
-      <div className="cg-stat-grid" style={{ padding: "1.5rem", marginBottom: 0, gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Assets in scope</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{assets.length.toLocaleString()}</p>
-        </div>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Total acquisition value</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{formatCurrency(totalValue)}</p>
-        </div>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Average age</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{averageAgeInYears(assets)}</p>
-        </div>
-      </div>
+        <Dropdown
+          id="inventory-report-status"
+          titleText="Status"
+          label="All statuses"
+          items={["", ...ASSET_STATUSES]}
+          itemToString={(val) => (val ? formatStatusLabel(val) : "All statuses")}
+          selectedItem={status}
+          onChange={({ selectedItem }) => setStatus(selectedItem ?? "")}
+        />
+        <Dropdown
+          id="inventory-report-condition"
+          titleText="Condition"
+          label="All conditions"
+          items={["", ...ASSET_CONDITIONS]}
+          itemToString={(val) => (val ? formatStatusLabel(val) : "All conditions")}
+          selectedItem={condition}
+          onChange={({ selectedItem }) => setCondition(selectedItem ?? "")}
+        />
+      </ReportFilters>
 
-      <div className="cg-toolbar" style={{ justifyContent: "flex-end", marginTop: "1rem" }}>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button kind="tertiary" size="sm" renderIcon={DocumentPdf} onClick={() => printPdf(assets, totalValue)}>
-            Export PDF
-          </Button>
-          <Button kind="tertiary" size="sm" renderIcon={DocumentExport} onClick={() => downloadCsv(assets)}>
-            Export CSV
-          </Button>
-        </div>
-      </div>
+      <ReportStatus title="Could not load the asset inventory" error={report.error} isInitialLoading={report.isInitialLoading} />
 
-      <table className="cg-table cg-table--no-hover">
-        <thead>
-          <tr><th>Department</th><th>Assets</th><th>Total value</th></tr>
-        </thead>
-        <tbody>
-          {byDepartment.map(([department, summary]) => (
-            <tr key={department}>
-              <td>{department}</td>
-              <td className="cg-table__muted">{summary.count}</td>
-              <td className="cg-table__muted">{formatCurrency(summary.value)}</td>
-            </tr>
-          ))}
-          {byDepartment.length === 0 && <tr><td colSpan={3} className="cg-table__muted">No assets found.</td></tr>}
-        </tbody>
-      </table>
-
-      <div style={{ marginTop: "2rem" }}>
-        <div className="cg-section__header">
-          <div>
-            <h2 className="cg-section__title">Asset details</h2>
-            <p className="cg-section__subtitle">
-              Showing {detailPage.items.length.toLocaleString()} of {detailPage.total_count.toLocaleString()} filtered assets
-            </p>
-          </div>
-        </div>
-        <div style={{ overflowX: "auto" }}>
-          <table className="cg-table cg-table--no-hover">
-            <thead>
-              <tr>
-                <th>Asset code</th>
-                <th>Name</th>
-                <th>Asset type</th>
-                <th>Department</th>
-                <th>Location</th>
-                <th>Status</th>
-                <th>Condition</th>
-                <th>Acquired</th>
-                <th>Acquisition cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detailPage.items.map((asset) => (
-                <tr key={asset.id}>
-                  <td>{asset.asset_code}</td>
-                  <td>{asset.name}</td>
-                  <td className="cg-table__muted">{asset.asset_type_name}</td>
-                  <td className="cg-table__muted">{asset.department_name}</td>
-                  <td className="cg-table__muted">{asset.location_name}</td>
-                  <td><Tag type={statusTagColor(asset.status)}>{formatStatusLabel(asset.status)}</Tag></td>
-                  <td><Tag type={statusTagColor(asset.condition)}>{formatStatusLabel(asset.condition)}</Tag></td>
-                  <td className="cg-table__muted">{formatDate(asset.acquisition_date)}</td>
-                  <td className="cg-table__muted">{formatCurrency(asset.acquisition_cost)}</td>
-                </tr>
-              ))}
-              {detailPage.items.length === 0 && <tr><td colSpan={9} className="cg-table__muted">No assets found.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        {detailPage.total_count > 0 && (
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            pageSizes={[10, 20, 50, 100]}
-            totalItems={detailPage.total_count}
-            onChange={({ page: nextPage, pageSize: nextPageSize }) => {
-              setPage(nextPage);
-              setPageSize(nextPageSize);
-            }}
+      {report.data && (
+        <div className={report.isRefreshing ? "cg-report__results is-stale" : "cg-report__results"}>
+          <ReportStats
+            stats={[
+              { label: "Assets in scope", value: assets.length.toLocaleString() },
+              { label: "Total acquisition value", value: formatCurrency(totalValue) },
+              { label: "Average age", value: averageAge },
+            ]}
           />
-        )}
-      </div>
+          <ReportExportBar
+            count={assets.length}
+            noun="assets"
+            onPdf={() => downloadPdf(exportData)}
+            onCsv={() => downloadCsv(exportData)}
+            disabledReason={exportBlockReason(true, report.isRefreshing, assets.length)}
+          />
+          <ReportTable
+            title="By department"
+            columns={BREAKDOWN_COLUMNS}
+            rows={byDepartment}
+            rowKey={(b) => b.key}
+            emptyText="No assets match these filters."
+            pageable={false}
+          />
+          <ReportTable
+            key={queryKey}
+            title="Asset details"
+            columns={DETAIL_COLUMNS}
+            rows={assets}
+            rowKey={(a) => a.id}
+            emptyText="No assets match these filters."
+          />
+        </div>
+      )}
     </div>
   );
 }

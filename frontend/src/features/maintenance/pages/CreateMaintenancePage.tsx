@@ -58,7 +58,9 @@ export default function CreateMaintenancePage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Create Maintenance Record</h1>
-          <p className="cg-page__subtitle">Directly create a corrective or preventive maintenance record (FR-035).</p>
+          <p className="cg-page__subtitle">
+            Schedule preventive maintenance tasks or create direct corrective repair work orders for registered assets.
+          </p>
         </div>
       </div>
 

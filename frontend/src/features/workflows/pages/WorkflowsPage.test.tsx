@@ -33,7 +33,7 @@ vi.mock("../components/DecideWorkflowModal", () => ({ default: () => null }));
 
 import WorkflowsPage from "./WorkflowsPage";
 
-const ADMIN: MeResponse = { id: "u1", email: "admin@mohsl.gov.lk", given_name: "A", family_name: "B", role: "Administrator", is_active: true };
+const ADMIN: MeResponse = { id: "u1", email: "admin@mohsl.gov.lk", given_name: "A", family_name: "B", role: "Administrator", is_active: true, organization_name: "Test Organisation" };
 const AUDITOR: MeResponse = { ...ADMIN, id: "u2", email: "auditor@mohsl.gov.lk", role: "Auditor" };
 
 const AWAITING: AgentWorkflow = {
@@ -48,7 +48,6 @@ const AWAITING: AgentWorkflow = {
   approval_status: "PENDING",
   revision_count: 0,
   failure_reason: null,
-  plan: null,
   maintenance_analysis: null,
   validation_result: {
     verdict: "PASS",
@@ -65,17 +64,18 @@ const AWAITING: AgentWorkflow = {
 };
 
 describe("WorkflowsPage", () => {
-  it("shows the 'no agents built' banner and the awaiting-approval recommendation with its policy checks", async () => {
+  it("shows the page subtitle and the awaiting-approval recommendation with its policy checks", async () => {
     getMeMock.mockResolvedValue(ADMIN);
     listWorkflowsMock.mockResolvedValue([AWAITING]);
     render(<WorkflowsPage />);
 
-    expect(screen.getByText("The Planner, Maintenance Analysis and Budget Analysis agents aren't built yet")).toBeInTheDocument();
+    expect(screen.getByText("Review and approve agent-recommended actions.")).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(await screen.findByRole("tab", { name: "Awaiting Approval" }));
 
-    expect(await screen.findByText("MOHSL-ICT-SRV-0002: recommends Dispose")).toBeInTheDocument();
+    expect(await screen.findByText("MOHSL-ICT-SRV-0002")).toBeInTheDocument();
+    expect(screen.getByText("Dispose")).toBeInTheDocument();
     expect(screen.getByText("High impact")).toBeInTheDocument();
     expect(screen.getByText("PR-01")).toBeInTheDocument();
     expect(screen.getByText("CONDEMNED → CONDEMNED")).toBeInTheDocument();

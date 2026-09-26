@@ -1,6 +1,6 @@
 // All mock — Component A (Asset Registry & QR Identification) has no backend
-// yet (PROGRESS.md). Shapes follow doc/SRS/08-data-requirements.md §8.2 and
-// the physical design in doc/SRS/system.md (Appendix F).
+// yet (progress.md). Shapes follow docs/srs/08-data-requirements.md §8.2 and
+// the physical design in docs/srs/appendix-f-physical-database-schema.md (Appendix F).
 
 export interface MockAsset {
   code: string;

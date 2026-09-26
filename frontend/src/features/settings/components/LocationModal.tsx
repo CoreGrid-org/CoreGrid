@@ -1,31 +1,59 @@
 import { useState } from "react";
-import { Modal, TextInput, Select, SelectItem, InlineNotification } from "@carbon/react";
+import { Modal, TextInput, ComboBox, InlineNotification } from "@carbon/react";
 import { useCreateLocation, useUpdateLocation } from "../hooks/useOrgConfig";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
 import type { Department, Location } from "@/features/assets/types/asset";
 
 interface LocationModalProps {
   location?: Location;
+  /** Active departments a location can be placed in. */
   departments: Department[];
+  /** Pre-selected department for a new location (e.g. the list's current filter). */
+  defaultDepartmentId?: string;
+  /** Types other locations already use, offered as suggestions. */
+  knownTypes: string[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (location: Location) => void;
 }
 
-// Create or amend a location "Type" is deliberately free text, not
-// an enum — SRS system.md §F.6 leaves it unconstrained on purpose.
-export default function LocationModal({ location, departments, onClose, onSaved }: LocationModalProps) {
+type Touched = Partial<Record<"name" | "type" | "department", boolean>>;
+
+// Create or amend a location. "Type" is deliberately free text, not an enum
+// (SRS appendix-f-physical-database-schema.md §F.6 leaves it unconstrained); existing types are suggested
+// so the same kind of place gets the same label.
+export default function LocationModal({ location, departments, defaultDepartmentId, knownTypes, onClose, onSaved }: LocationModalProps) {
   const [name, setName] = useState(location?.name ?? "");
   const [type, setType] = useState(location?.type ?? "");
-  const [departmentId, setDepartmentId] = useState(location?.department_id ?? departments[0]?.id ?? "");
+  const [departmentId, setDepartmentId] = useState(location?.department_id ?? defaultDepartmentId ?? "");
+  const [touched, setTouched] = useState<Touched>({});
+
+  const markTouched = (field: keyof Touched) => setTouched((t) => ({ ...t, [field]: true }));
 
   const createLocation = useCreateLocation();
   const updateLocation = useUpdateLocation();
   const mutation = location ? updateLocation : createLocation;
 
-  const canSubmit = name.trim().length > 0 && type.trim().length > 0 && departmentId.length > 0;
+  // A location being edited may sit in a since-deactivated department; keep it selectable.
+  const departmentOptions =
+    location && !departments.some((d) => d.id === location.department_id)
+      ? [{ id: location.department_id, code: "", name: `${location.department_name} (inactive)`, is_active: false }, ...departments]
+      : departments;
+  const selectedDepartment = departmentOptions.find((d) => d.id === departmentId) ?? null;
+
+  // Mirrors Create/UpdateLocationRequest's [Required]/[MaxLength] (backend/Features/OrgConfig/DTOs).
+  const nameError = !name.trim() ? "Name is required." : undefined;
+  const typeError = !type.trim() ? "Type is required." : type.trim().length > 50 ? "Keep it to 50 characters or fewer." : undefined;
+  const departmentError = !departmentId ? "Choose the department it belongs to." : undefined;
+  const isUnchanged =
+    Boolean(location) &&
+    name.trim() === location?.name &&
+    type.trim() === location?.type &&
+    departmentId === location?.department_id;
 
   const handleSubmit = () => {
-    if (!canSubmit || mutation.isPending) return;
+    setTouched({ name: true, type: true, department: true });
+    if (nameError || typeError || departmentError || isUnchanged || mutation.isPending) return;
     const payload = { name: name.trim(), type: type.trim(), department_id: departmentId };
     if (location) {
       updateLocation.mutate({ id: location.id, payload }, { onSuccess: onSaved });
@@ -39,41 +67,70 @@ export default function LocationModal({ location, departments, onClose, onSaved 
       open
       modalLabel="Organisation Settings"
       modalHeading={location ? "Edit location" : "Add location"}
-      primaryButtonText={mutation.isPending ? "Saving…" : "Save"}
+      primaryButtonText={mutation.isPending ? "Saving…" : location ? "Save changes" : "Add location"}
       secondaryButtonText="Cancel"
-      primaryButtonDisabled={!canSubmit || mutation.isPending}
+      primaryButtonDisabled={mutation.isPending || isUnchanged}
       onRequestClose={onClose}
       onRequestSubmit={handleSubmit}
     >
-      {mutation.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not save location"
-          subtitle={getErrorMessage(mutation.error, "Something went wrong. Please try again.")}
-          hideCloseButton
-          lowContrast
-          className="cg-panel-notification"
-        />
-      )}
-      <div style={{ display: "grid", gap: "1rem" }}>
-        <TextInput id="location-name" labelText="Name" value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="cg-modal-form">
+        {mutation.isError && (
+          <InlineNotification
+            kind="error"
+            title="Could not save location"
+            subtitle={getErrorMessage(mutation.error, "Something went wrong. Please try again.")}
+            hideCloseButton
+            lowContrast
+            style={{ maxWidth: "100%" }}
+          />
+        )}
+
         <TextInput
-          id="location-type"
-          labelText="Type"
-          helperText="e.g. store, workshop, office, ward — any label your organisation uses."
-          value={type}
-          onChange={(e) => setType(e.target.value)}
+          id="location-name"
+          labelText="Name"
+          placeholder="e.g. Main Store, Ward 3"
+          maxLength={200}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => markTouched("name")}
+          invalid={Boolean(touched.name && nameError)}
+          invalidText={nameError}
         />
-        <Select
-          id="location-department"
-          labelText="Department"
-          value={departmentId}
-          onChange={(e) => setDepartmentId(e.target.value)}
-        >
-          {departments.map((d) => (
-            <SelectItem key={d.id} value={d.id} text={d.name} />
-          ))}
-        </Select>
+
+        <div className="cg-modal-form__row">
+          <ComboBox<Department>
+            id="location-department"
+            titleText="Department"
+            placeholder="Type to search departments…"
+            autoAlign
+            items={departmentOptions}
+            itemToString={(d) => d?.name ?? ""}
+            selectedItem={selectedDepartment}
+            shouldFilterItem={comboBoxFilter(selectedDepartment)}
+            onChange={({ selectedItem }) => {
+              setDepartmentId(selectedItem?.id ?? "");
+              markTouched("department");
+            }}
+            invalid={Boolean(touched.department && departmentError)}
+            invalidText={departmentError}
+          />
+          <ComboBox<string>
+            id="location-type"
+            titleText="Type"
+            helperText="Pick an existing type or type a new one."
+            placeholder="e.g. store, workshop, ward"
+            autoAlign
+            allowCustomValue
+            items={knownTypes}
+            selectedItem={knownTypes.includes(type) ? type : null}
+            shouldFilterItem={comboBoxFilter(knownTypes.includes(type) ? type : null)}
+            onInputChange={(text) => setType(text ?? "")}
+            onChange={({ selectedItem, inputValue }) => setType(selectedItem ?? inputValue ?? "")}
+            onBlur={() => markTouched("type")}
+            invalid={Boolean(touched.type && typeError)}
+            invalidText={typeError}
+          />
+        </div>
       </div>
     </Modal>
   );

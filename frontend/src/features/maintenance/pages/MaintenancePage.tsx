@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Tabs,
@@ -18,12 +18,15 @@ import {
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import { formatDate } from "@/shared/lib/dates";
+import PhotoThumbnail from "@/shared/components/PhotoThumbnail";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useMe } from "@/features/auth/hooks/useMe";
 import { useDepartments } from "@/features/assets/hooks/useAssets";
 import { useUsersList } from "@/features/users/hooks/useUsers";
 import { MOCK_PREVENTIVE_SCHEDULE } from "../data/mockMaintenance";
 import { useMaintenanceList } from "../hooks/useMaintenance";
+import ReportFaultModal from "../components/ReportFaultModal";
 import type { MaintenanceStatus } from "../types/maintenance";
 
 export default function MaintenancePage() {
@@ -36,6 +39,9 @@ export default function MaintenancePage() {
   // (Staff/Officer/Administrator) and both roles get it here.
   const canCreateDirectly = me?.role === "InventoryOfficer";
   const canReportFault = me?.role === "InventoryOfficer" || me?.role === "Administrator";
+  const [isReportFaultOpen, setReportFaultOpen] = useState(false);
+  const [reportedRecord, setReportedRecord] = useState<{ id: string; asset_code: string } | null>(null);
+  const reportFaultButtonRef = useRef<HTMLButtonElement>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [departmentId, setDepartmentId] = useState<string | undefined>();
   const [assigneeId, setAssigneeId] = useState<string | undefined>();
@@ -51,7 +57,7 @@ export default function MaintenancePage() {
     setPage(1);
   }, [statusFilter, departmentId, assigneeId, dateFrom, dateTo]);
 
-  const { data: pageResult, isLoading, isError, error } = useMaintenanceList({
+  const { data: pageResult, isLoading, isError, error, refetch } = useMaintenanceList({
     status: statusFilter ? (statusFilter as MaintenanceStatus) : undefined,
     departmentId,
     assigneeId,
@@ -67,11 +73,17 @@ export default function MaintenancePage() {
       <div className="cg-page__header">
         <div className="cg-page__header-left">
           <h1 className="cg-page__title">Maintenance</h1>
-          <p className="cg-page__subtitle">Faults, repairs and preventive schedules</p>
+          <p className="cg-page__subtitle">
+            Log asset faults, track work orders, manage repairs, and oversee preventive maintenance schedules across the organization.
+          </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {canReportFault && (
-            <Button kind={canCreateDirectly ? "tertiary" : "primary"} onClick={() => navigate("report")}>
+            <Button
+              ref={reportFaultButtonRef}
+              kind={canCreateDirectly ? "tertiary" : "primary"}
+              onClick={() => setReportFaultOpen(true)}
+            >
               Report fault
             </Button>
           )}
@@ -82,6 +94,33 @@ export default function MaintenancePage() {
           )}
         </div>
       </div>
+
+      {reportedRecord && (
+        <InlineNotification
+          kind="success"
+          title="Fault reported"
+          subtitle={`A maintenance request was created for ${reportedRecord.asset_code}.`}
+          lowContrast
+          onClose={() => setReportedRecord(null)}
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        >
+          <Button kind="ghost" size="sm" onClick={() => navigate(reportedRecord.id)}>
+            View request
+          </Button>
+        </InlineNotification>
+      )}
+
+      {isReportFaultOpen && (
+        <ReportFaultModal
+          launcherButtonRef={reportFaultButtonRef}
+          onClose={() => setReportFaultOpen(false)}
+          onReported={(record) => {
+            setReportFaultOpen(false);
+            setReportedRecord({ id: record.id, asset_code: record.asset_code });
+            refetch();
+          }}
+        />
+      )}
 
       <Tabs>
         <TabList aria-label="Maintenance sections">
@@ -176,6 +215,7 @@ export default function MaintenancePage() {
                       <th>Estimated cost</th>
                       <th>Actual cost</th>
                       <th>Requested</th>
+                      <th>Photo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -194,9 +234,17 @@ export default function MaintenancePage() {
                           <Tag type={statusTagColor(rec.status)}>{formatStatusLabel(rec.status)}</Tag>
                         </td>
                         <td className="cg-table__muted">{rec.assignee_email ?? "Unassigned"}</td>
-                        <td className="cg-table__muted">{rec.estimated_cost ? `LKR ${rec.estimated_cost.toLocaleString()}` : "—"}</td>
-                        <td className="cg-table__muted">{rec.actual_cost ? `LKR ${rec.actual_cost.toLocaleString()}` : "—"}</td>
-                        <td className="cg-table__muted">{new Date(rec.created_at).toLocaleDateString()}</td>
+                        <td className="cg-table__muted">{rec.estimated_cost ? `LKR ${rec.estimated_cost.toLocaleString()}` : "-"}</td>
+                        <td className="cg-table__muted">{rec.actual_cost ? `LKR ${rec.actual_cost.toLocaleString()}` : "-"}</td>
+                        <td className="cg-table__muted">{formatDate(rec.created_at)}</td>
+                        {/* The thumbnail opens its own viewer; don't also open the record. */}
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {rec.photo_url ? (
+                            <PhotoThumbnail url={rec.photo_url} alt={rec.description} title={`Photo: ${rec.asset_code}`} />
+                          ) : (
+                            <span className="cg-table__muted">-</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

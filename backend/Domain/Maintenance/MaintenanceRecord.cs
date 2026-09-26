@@ -31,6 +31,11 @@ public class MaintenanceRecord
     public Guid? AssigneeId { get; set; }
     public User? Assignee { get; set; }
 
+    // Immutable ownership of a fault report. This is distinct from CreatedBy,
+    // which is generic audit metadata and may be absent on legacy records.
+    public Guid? ReportedByUserId { get; set; }
+    public User? ReportedByUser { get; set; }
+
     public string? CancellationReason { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }

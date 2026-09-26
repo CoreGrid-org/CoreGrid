@@ -1,107 +1,148 @@
-import { useState } from "react";
-import { Tag, Button, InlineNotification } from "@carbon/react";
-import { Add, Edit } from "@carbon/icons-react";
-import { useDepartments } from "@/features/assets/hooks/useAssets";
+import { useMemo, useState } from "react";
+import { Tag, OverflowMenu, OverflowMenuItem } from "@carbon/react";
+import { useDepartments, useLocations } from "@/features/assets/hooks/useAssets";
+import type { Department } from "@/features/assets/types/asset";
 import { useSetDepartmentActive } from "../hooks/useOrgConfig";
 import DepartmentModal from "./DepartmentModal";
-import { getErrorMessage } from "@/shared/lib/errorMessage";
-import type { Department } from "@/features/assets/types/asset";
+import SettingsListSection from "./SettingsListSection";
+import StatusConfirmModal from "./StatusConfirmModal";
 
 export default function DepartmentsPanel() {
   const departments = useDepartments();
+  const locations = useLocations(undefined);
   const setDepartmentActive = useSetDepartmentActive();
-  const [departmentModal, setDepartmentModal] = useState<{ department?: Department } | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(true);
+  const [editing, setEditing] = useState<{ department?: Department } | null>(null);
+  const [statusTarget, setStatusTarget] = useState<Department | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const all = useMemo(() => departments.data ?? [], [departments.data]);
+  const locationCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of locations.data ?? []) {
+      if (l.is_active) counts.set(l.department_id, (counts.get(l.department_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [locations.data]);
+
+  const query = search.trim().toLowerCase();
+  const visible = all
+    .filter((d) => showInactive || d.is_active)
+    .filter((d) => !query || d.name.toLowerCase().includes(query) || d.code.toLowerCase().includes(query))
+    .sort((a, b) => Number(b.is_active) - Number(a.is_active) || a.name.localeCompare(b.name));
+
+  const confirmStatus = () => {
+    if (!statusTarget || setDepartmentActive.isPending) return;
+    const target = statusTarget;
+    setDepartmentActive.mutate(
+      { id: target.id, isActive: !target.is_active },
+      {
+        onSuccess: () => {
+          setStatusTarget(null);
+          setNotice(`${target.name} was ${target.is_active ? "deactivated" : "reactivated"}.`);
+          departments.refetch();
+        },
+      },
+    );
+  };
 
   return (
     <>
-      <div className="cg-section">
-        <div className="cg-section__header">
-          <p className="cg-section__title">Departments</p>
-          <Button kind="ghost" size="sm" renderIcon={Add} onClick={() => setDepartmentModal({})}>
-            Add department
-          </Button>
-        </div>
-
-        {departments.isError && (
-          <InlineNotification
-            kind="error"
-            title="Could not load departments"
-            subtitle={getErrorMessage(departments.error, "Something went wrong. Please try again.")}
-            lowContrast
-            hideCloseButton
-            className="cg-panel-notification cg-panel-notification--inset"
-          />
-        )}
-
-        {departments.isLoading ? (
-          <div className="cg-placeholder">
-            <p>Loading departments…</p>
-          </div>
-        ) : departments.data && departments.data.length > 0 ? (
-          <table className="cg-table cg-table--no-hover">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {departments.data.map((d) => (
-                <tr key={d.id}>
-                  <td className="cg-table__mono">{d.code}</td>
+      <SettingsListSection
+        title="Departments"
+        description="Every asset belongs to a department. The code is used in reports and exports."
+        noun="department"
+        activeCount={all.filter((d) => d.is_active).length}
+        totalCount={all.length}
+        search={search}
+        onSearchChange={setSearch}
+        showInactive={showInactive}
+        onShowInactiveChange={setShowInactive}
+        addLabel="Add department"
+        onAdd={() => setEditing({})}
+        isLoading={departments.isLoading}
+        error={departments.error}
+        isEmpty={visible.length === 0}
+        emptyText={all.length === 0 ? "No departments yet. Add the first one to get started." : "No departments match your search."}
+        notice={notice}
+        onDismissNotice={() => setNotice(null)}
+      >
+        <table className="cg-table cg-table--no-hover">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Active locations</th>
+              <th>Status</th>
+              <th aria-label="Actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((d) => {
+              const count = locationCounts.get(d.id) ?? 0;
+              return (
+                <tr key={d.id} className={d.is_active ? undefined : "cg-table__row--inactive"}>
+                  <td>
+                    <span className="cg-code-chip">{d.code}</span>
+                  </td>
                   <td>{d.name}</td>
+                  <td className="cg-table__muted">
+                    {count}
+                    {count === 0 && d.is_active && (
+                      <Tag type="warm-gray" size="sm" className="cg-settings-list__inline-tag">
+                        No locations yet
+                      </Tag>
+                    )}
+                  </td>
                   <td>
                     <Tag type={d.is_active ? "green" : "gray"}>{d.is_active ? "Active" : "Inactive"}</Tag>
                   </td>
-                  <td className="cg-row-actions">
-                    <Button kind="ghost" size="sm" onClick={() => setDepartmentModal({ department: d })}>
-                      <Edit size={16} />
-                    </Button>
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      disabled={setDepartmentActive.isPending}
-                      onClick={() =>
-                        setDepartmentActive.mutate(
-                          { id: d.id, isActive: !d.is_active },
-                          { onSuccess: () => departments.refetch() },
-                        )
-                      }
-                    >
-                      {d.is_active ? "Deactivate" : "Activate"}
-                    </Button>
+                  <td style={{ textAlign: "right" }}>
+                    <OverflowMenu aria-label={`Actions for ${d.name}`} flipped size="sm">
+                      <OverflowMenuItem itemText="Edit" onClick={() => setEditing({ department: d })} />
+                      <OverflowMenuItem
+                        itemText={d.is_active ? "Deactivate" : "Reactivate"}
+                        isDelete={d.is_active}
+                        hasDivider
+                        onClick={() => {
+                          setDepartmentActive.reset();
+                          setStatusTarget(d);
+                        }}
+                      />
+                    </OverflowMenu>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="cg-placeholder">
-            <p>No departments yet. Add the first one to get started.</p>
-          </div>
-        )}
-      </div>
-      {setDepartmentActive.isError && (
-        <InlineNotification
-          kind="error"
-          title="Could not update department"
-          subtitle={getErrorMessage(setDepartmentActive.error, "It may still have active assets assigned to it.")}
-          lowContrast
-          hideCloseButton
-          className="cg-panel-notification"
+              );
+            })}
+          </tbody>
+        </table>
+      </SettingsListSection>
+
+      {editing && (
+        <DepartmentModal
+          department={editing.department}
+          existingCodes={all.filter((d) => d.id !== editing.department?.id).map((d) => d.code)}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => {
+            setEditing(null);
+            setNotice(`${saved.name} was ${editing.department ? "updated" : "added"}.`);
+            departments.refetch();
+          }}
         />
       )}
 
-      {departmentModal && (
-        <DepartmentModal
-          department={departmentModal.department}
-          onClose={() => setDepartmentModal(null)}
-          onSaved={() => {
-            setDepartmentModal(null);
-            departments.refetch();
-          }}
+      {statusTarget && (
+        <StatusConfirmModal
+          noun="department"
+          name={statusTarget.name}
+          isActive={statusTarget.is_active}
+          consequence="will no longer be offered when registering or transferring assets. Existing records keep it."
+          isPending={setDepartmentActive.isPending}
+          error={setDepartmentActive.isError ? setDepartmentActive.error : undefined}
+          onConfirm={confirmStatus}
+          onClose={() => setStatusTarget(null)}
         />
       )}
     </>

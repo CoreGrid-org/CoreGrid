@@ -30,5 +30,9 @@ export function useStubMutation<TRequest, TData>(mutationFn: (payload: TRequest)
     [mutationFn]
   );
 
-  return { ...state, mutate };
+  const reset = useCallback(() => {
+    setState({ data: undefined, error: undefined, isPending: false, isError: false });
+  }, []);
+
+  return { ...state, mutate, reset };
 }

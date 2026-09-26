@@ -220,6 +220,8 @@ public class AssetService : IAssetService
         var acquisitionDate = request.AcquisitionDate!.Value;
         var acquisitionCost = request.AcquisitionCost!.Value;
 
+        ValidateAcquisitionDate(acquisitionDate);
+
         var assetType = await _context.AssetTypes
             .AsNoTracking()
             .Include(at => at.AssetCategory)
@@ -361,6 +363,8 @@ public class AssetService : IAssetService
         var locationId = request.LocationId!.Value;
         var acquisitionDate = request.AcquisitionDate!.Value;
         var acquisitionCost = request.AcquisitionCost!.Value;
+
+        ValidateAcquisitionDate(acquisitionDate);
 
         var assetType = await _context.AssetTypes
             .AsNoTracking()
@@ -823,6 +827,20 @@ public class AssetService : IAssetService
         }
 
         return normalized;
+    }
+
+    // A purchase can't have happened in the future. The client sends a
+    // calendar date in the user's own timezone, so compare against the
+    // latest "today" anywhere on Earth (UTC+14) rather than UTC's today —
+    // otherwise a Sri Lanka user registering an asset just after local
+    // midnight (still yesterday in UTC) would be wrongly rejected.
+    private static void ValidateAcquisitionDate(DateOnly acquisitionDate)
+    {
+        var latestToday = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(14));
+        if (acquisitionDate > latestToday)
+        {
+            throw new ValidationException(nameof(CreateAssetRequest.AcquisitionDate), "Purchase date cannot be in the future.");
+        }
     }
 
     private static void ValidateAttributes(

@@ -11,6 +11,8 @@ import { useMe } from "@/features/auth/hooks/useMe";
 import ApproveMaintenanceModal from "../components/ApproveMaintenanceModal";
 import CompleteMaintenanceModal from "../components/CompleteMaintenanceModal";
 import CancelMaintenanceModal from "../components/CancelMaintenanceModal";
+import PhotoThumbnail from "@/shared/components/PhotoThumbnail";
+import { formatDate } from "@/shared/lib/dates";
 
 export default function MaintenanceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -145,12 +147,18 @@ export default function MaintenanceDetailPage() {
           )}
           <div className="cg-kv-item">
             <p className="cg-kv-item__label">Date Created</p>
-            <p className="cg-kv-item__value">{new Date(record.created_at).toLocaleDateString()}</p>
+            <p className="cg-kv-item__value">{formatDate(record.created_at)}</p>
           </div>
           <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
             <p className="cg-kv-item__label">Description</p>
             <p className="cg-kv-item__value" style={{ whiteSpace: "pre-wrap" }}>{record.description}</p>
           </div>
+          {record.photo_url && (
+            <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
+              <p className="cg-kv-item__label">Photo</p>
+              <PhotoThumbnail url={record.photo_url} alt={record.description} title={`Photo: ${record.asset_code}`} size="md" />
+            </div>
+          )}
           {record.work_performed && (
             <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
               <p className="cg-kv-item__label">Work Performed</p>

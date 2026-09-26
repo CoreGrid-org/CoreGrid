@@ -38,10 +38,16 @@ public class MaintenanceController : CoreGridControllerBase
     [HttpPost("photos")]
     [Authorize(Policy = Policies.CanRequestMaintenance)]
     [EnableRateLimiting(RateLimitPolicies.PhotoUpload)]
-    [RequestSizeLimit(PhotoUploadValidator.MaxSizeBytes)]
+    // The limit covers the whole multipart body, so leave room for the form
+    // boundaries and headers around a photo that is itself right at 5 MB;
+    // PhotoUploadValidator enforces the 5 MB on the file itself.
+    [RequestSizeLimit(PhotoUploadValidator.MaxSizeBytes + 64 * 1024)]
     public async Task<ActionResult<UploadPhotoResponse>> UploadPhoto(
         IFormFile photo, CancellationToken cancellationToken)
     {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
         var validation = await PhotoUploadValidator.ValidateAsync(photo, cancellationToken);
         if (!validation.IsValid)
         {
@@ -49,7 +55,12 @@ public class MaintenanceController : CoreGridControllerBase
         }
 
         await using var stream = photo.OpenReadStream();
-        var key = await _fileStorageService.UploadPrivateAsync("maintenance", photo.FileName, photo.ContentType, stream, cancellationToken);
+        var key = await _fileStorageService.UploadPrivateAsync(
+            PhotoKeys.MaintenanceFolder(currentUser.OrganizationId),
+            PhotoKeys.FileNameFor(photo.ContentType),
+            photo.ContentType,
+            stream,
+            cancellationToken);
         return Ok(new UploadPhotoResponse { Url = key });
     }
 
@@ -80,6 +91,20 @@ public class MaintenanceController : CoreGridControllerBase
         return record is null
             ? throw NotFoundException.For(nameof(MaintenanceRecord), id)
             : Ok(record);
+    }
+
+    // Mobile dashboard feed. Ownership is enforced by the authenticated user
+    // context; no reporter identifier is accepted from the client.
+    [HttpGet("my-reports")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Staff)},{nameof(CoreGridRole.InventoryOfficer)}")]
+    public async Task<ActionResult<PagedResult<MaintenanceRecordDto>>> GetMyReports(
+        [FromQuery] MaintenanceRecordFilter filter, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        return Ok(await _maintenanceService.ListMyFaultReportsAsync(
+            currentUser.OrganizationId, currentUser.Id, filter, cancellationToken));
     }
 
     // PUT /api/maintenance/{id} amend classification, priority, description.

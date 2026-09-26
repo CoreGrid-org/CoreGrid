@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Tag, Dropdown, DatePicker, DatePickerInput, Pagination, InlineNotification } from "@carbon/react";
+import { Tag, Dropdown, Pagination, InlineNotification, Button } from "@carbon/react";
+import { FilterReset } from "@carbon/icons-react";
+import DateRangeFilter from "@/shared/components/DateRangeFilter";
+import { endOfDayIso, formatDateTime, hasDateRangeErrors, startOfDayIso, validateDateRange, type DateRange } from "@/shared/lib/dates";
 import { useAuditLog } from "../hooks/useAuditLog";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 
@@ -21,12 +24,26 @@ const OPERATION_TAG: Record<string, "green" | "blue" | "red"> = { Create: "green
 export default function AuditLogPanel() {
   const [entityType, setEntityType] = useState<string | undefined>();
   const [operation, setOperation] = useState<string | undefined>();
-  const [from, setFrom] = useState<string | undefined>();
-  const [to, setTo] = useState<string | undefined>();
+  const [range, setRange] = useState<DateRange>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
-  const auditLog = useAuditLog({ entityType, operation, from, to, page, pageSize });
+  const rangeErrors = validateDateRange(range);
+  const rangeValid = !hasDateRangeErrors(rangeErrors);
+  // The endpoint filters on exact timestamps: send the whole local day on
+  // both ends so "to 2026-09-10" includes everything logged on the 10th.
+  const auditLog = useAuditLog(
+    {
+      entityType,
+      operation,
+      from: range.from ? startOfDayIso(range.from) : undefined,
+      to: range.to ? endOfDayIso(range.to) : undefined,
+      page,
+      pageSize,
+    },
+    rangeValid,
+  );
+  const hasFilters = Boolean(entityType || operation || range.from || range.to);
 
   return (
     <>
@@ -63,26 +80,29 @@ export default function AuditLogPanel() {
             }}
             style={{ minWidth: "10rem" }}
           />
-          <DatePicker
-            datePickerType="single"
-            dateFormat="Y-m-d"
-            onChange={([date]) => {
-              setFrom(date ? date.toISOString() : undefined);
+          <DateRangeFilter
+            idPrefix="audit"
+            value={range}
+            onChange={(r) => {
+              setRange(r);
+              setPage(1);
+            }}
+            errors={rangeErrors}
+          />
+          <Button
+            kind="ghost"
+            size="md"
+            renderIcon={FilterReset}
+            disabled={!hasFilters}
+            onClick={() => {
+              setEntityType(undefined);
+              setOperation(undefined);
+              setRange({});
               setPage(1);
             }}
           >
-            <DatePickerInput id="audit-from" labelText="From" placeholder="yyyy-mm-dd" />
-          </DatePicker>
-          <DatePicker
-            datePickerType="single"
-            dateFormat="Y-m-d"
-            onChange={([date]) => {
-              setTo(date ? date.toISOString() : undefined);
-              setPage(1);
-            }}
-          >
-            <DatePickerInput id="audit-to" labelText="To" placeholder="yyyy-mm-dd" />
-          </DatePicker>
+            Clear filters
+          </Button>
         </div>
       </div>
 
@@ -116,7 +136,7 @@ export default function AuditLogPanel() {
             <tbody>
               {auditLog.data.items.map((e) => (
                 <tr key={e.id}>
-                  <td className="cg-table__mono">{new Date(e.created_at).toLocaleString()}</td>
+                  <td className="cg-table__mono">{formatDateTime(e.created_at)}</td>
                   <td>{e.actor_email ?? "System"}</td>
                   <td className="cg-table__muted">
                     {e.entity_type}

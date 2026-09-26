@@ -3,8 +3,7 @@ import {
   Modal,
   TextInput,
   NumberInput,
-  Select,
-  SelectItem,
+  Dropdown,
   Checkbox,
   InlineNotification,
   Button,
@@ -155,16 +154,14 @@ export default function CreateAssetAttributeModal({
         />
 
         {/* ── Data type ── */}
-        <Select
+        <Dropdown
           id="create-attribute-data-type"
-          labelText="Data type"
-          value={dataType}
-          onChange={(e) => handleDataTypeChange(e.target.value as AssetAttributeDataType)}
-        >
-          {ASSET_ATTRIBUTE_DATA_TYPES.map((t) => (
-            <SelectItem key={t} value={t} text={t} />
-          ))}
-        </Select>
+          titleText="Data type"
+          label={dataType}
+          items={ASSET_ATTRIBUTE_DATA_TYPES}
+          selectedItem={dataType}
+          onChange={({ selectedItem }) => selectedItem && handleDataTypeChange(selectedItem as AssetAttributeDataType)}
+        />
 
         {/* ── SELECT — options builder ── */}
         {dataType === "SELECT" && (
@@ -274,14 +271,14 @@ export default function CreateAssetAttributeModal({
             <TextInput
               id="create-attribute-rule-minlength"
               labelText="Minimum length"
-              helperText="Optional — characters"
+              helperText="Optional - characters"
               value={ruleFields.minLength}
               onChange={(e) => setRule("minLength", e.target.value)}
             />
             <TextInput
               id="create-attribute-rule-maxlength"
               labelText="Maximum length"
-              helperText="Optional — characters"
+              helperText="Optional - characters"
               value={ruleFields.maxLength}
               onChange={(e) => setRule("maxLength", e.target.value)}
             />
@@ -294,14 +291,14 @@ export default function CreateAssetAttributeModal({
             <TextInput
               id="create-attribute-rule-mindate"
               labelText="Minimum date"
-              helperText="Optional — YYYY-MM-DD"
+              helperText="Optional - YYYY-MM-DD"
               value={ruleFields.minDate}
               onChange={(e) => setRule("minDate", e.target.value)}
             />
             <TextInput
               id="create-attribute-rule-maxdate"
               labelText="Maximum date"
-              helperText="Optional — YYYY-MM-DD"
+              helperText="Optional - YYYY-MM-DD"
               value={ruleFields.maxDate}
               onChange={(e) => setRule("maxDate", e.target.value)}
             />
@@ -312,7 +309,7 @@ export default function CreateAssetAttributeModal({
         <NumberInput
           id="create-attribute-display-order"
           label="Display order"
-          helperText="Optional — defaults to the end of the list"
+          helperText="Optional - defaults to the end of the list"
           min={1}
           value={displayOrder}
           allowEmpty

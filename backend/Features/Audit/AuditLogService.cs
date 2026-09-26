@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared;
+using CoreGrid.Api.Features.Shared.Exceptions;
 using CoreGrid.Api.Features.Shared.Paging;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,6 +41,11 @@ public class AuditLogService : IAuditLogService
     public async Task<PagedResult<AuditLogEntryDto>> GetEntriesAsync(
         Guid organizationId, AuditLogQueryParameters parameters, CancellationToken cancellationToken)
     {
+        if (parameters.From.HasValue && parameters.To.HasValue && parameters.From.Value > parameters.To.Value)
+        {
+            throw new ValidationException(nameof(parameters.To), "The 'to' date must be on or after the 'from' date.");
+        }
+
         var query = _db.AuditLogEntries
             .AsNoTracking()
             .Where(a => a.OrganizationId == organizationId);

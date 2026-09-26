@@ -1,414 +1,221 @@
-import { Button, Dropdown, DatePicker, DatePickerInput, InlineNotification, Pagination, Select, SelectItem, SkeletonText, Tag } from "@carbon/react";
-import { DocumentExport, DocumentPdf } from "@carbon/icons-react";
-import { jsPDF } from "jspdf";
-import { useEffect, useState } from "react";
-import { useThunderID } from "@thunderid/react";
-import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { useMemo, useState } from "react";
+import { ComboBox, Select, SelectItem, Tag } from "@carbon/react";
 import { useDepartments } from "@/features/assets/hooks/useAssets";
+import type { Department } from "@/features/assets/types/asset";
 import { useUsersList } from "@/features/users/hooks/useUsers";
+import type { MaintenanceQueryParameters, MaintenanceRecord, MaintenanceStatus } from "@/features/maintenance/types/maintenance";
 import { formatStatusLabel, statusTagColor } from "@/shared/lib/statusTag";
-import { listMaintenanceRecords } from "@/features/maintenance/api/maintenance";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
+import { formatDate, hasDateRangeErrors, validateDateRange, type DateRange } from "@/shared/lib/dates";
+import DateRangeFilter from "@/shared/components/DateRangeFilter";
 import { getMaintenanceReportRecords } from "../api/maintenanceReport";
-import type {
-  MaintenanceQueryParameters,
-  MaintenanceRecord,
-  MaintenanceStatus,
-  PagedMaintenanceRecords,
-} from "@/features/maintenance/types/maintenance";
+import { useReportData } from "../hooks/useReportData";
+import { downloadCsv, downloadPdf, exportBlockReason, formatCurrency, type ExportColumn, type ReportExport } from "../lib/export";
+import { ReportExportBar, ReportFilters, ReportStats, ReportStatus, ReportTable, type ReportColumn } from "./ReportParts";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", maximumFractionDigits: 0 }).format(value);
-}
+type User = NonNullable<ReturnType<typeof useUsersList>["data"]>[number];
+const userName = (u: User | null) => (u ? `${u.given_name} ${u.family_name}` : "");
 
-function csvEscape(value: string | number) {
-  const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
+const EXPORT_COLUMNS: ExportColumn<MaintenanceRecord>[] = [
+  { header: "Asset code", width: 26, value: (r) => r.asset_code },
+  { header: "Asset name", width: 34, value: (r) => r.asset_name },
+  { header: "Asset type", width: 28, value: (r) => r.asset_type_name },
+  { header: "Type", width: 22, value: (r) => formatStatusLabel(r.type) },
+  { header: "Priority", width: 20, value: (r) => formatStatusLabel(r.priority) },
+  { header: "Status", width: 24, value: (r) => formatStatusLabel(r.status) },
+  { header: "Assignee", width: 34, value: (r) => r.assignee_email ?? "Unassigned" },
+  { header: "Actual cost", width: 24, value: (r) => (r.actual_cost != null ? formatCurrency(r.actual_cost) : "-") },
+  { header: "Requested", width: 24, value: (r) => formatDate(r.created_at) },
+];
 
-function downloadCsv(records: MaintenanceRecord[]) {
-  const headers = ["Asset code", "Asset name", "Asset type", "Type", "Priority", "Status", "Assignee", "Estimated cost", "Actual cost", "Completion date", "Requested"];
-  const rows = records.map((r) => [
-    r.asset_code,
-    r.asset_name,
-    r.asset_type_name,
-    formatStatusLabel(r.type),
-    formatStatusLabel(r.priority),
-    formatStatusLabel(r.status),
-    r.assignee_email ?? "Unassigned",
-    r.estimated_cost ?? "",
-    r.actual_cost ?? "",
-    r.completion_date ?? "",
-    r.created_at,
-  ]);
-  const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `maintenance-report-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
+const DETAIL_COLUMNS: ReportColumn<MaintenanceRecord>[] = [
+  {
+    header: "Asset",
+    render: (r) => (
+      <>
+        <span className="cg-table__mono">{r.asset_code}</span>
+        <br />
+        <span className="cg-table__muted">{r.asset_name}</span>
+      </>
+    ),
+  },
+  { header: "Type", muted: true, render: (r) => formatStatusLabel(r.type) },
+  { header: "Priority", render: (r) => <Tag type={statusTagColor(r.priority)}>{formatStatusLabel(r.priority)}</Tag> },
+  { header: "Status", render: (r) => <Tag type={statusTagColor(r.status)}>{formatStatusLabel(r.status)}</Tag> },
+  { header: "Assignee", muted: true, render: (r) => r.assignee_email ?? "Unassigned" },
+  { header: "Estimated cost", muted: true, render: (r) => (r.estimated_cost != null ? formatCurrency(r.estimated_cost) : "-") },
+  { header: "Actual cost", muted: true, render: (r) => (r.actual_cost != null ? formatCurrency(r.actual_cost) : "-") },
+  { header: "Requested", muted: true, render: (r) => formatDate(r.created_at) },
+];
 
-function printPdf(records: MaintenanceRecord[], totalCost: number) {
-  const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const pageHeight = document.internal.pageSize.getHeight();
-  const left = 10;
-  const columnWidths = [26, 34, 28, 22, 20, 24, 34, 24, 24];
-  const headers = ["Asset code", "Asset name", "Asset type", "Type", "Priority", "Status", "Assignee", "Actual cost", "Completed"];
-  let y = 15;
+type Breakdown = { key: string; count: number; cost: number };
+const BREAKDOWN_COLUMNS: ReportColumn<Breakdown>[] = [
+  { header: "Asset type", render: (b) => b.key },
+  { header: "Repairs", muted: true, render: (b) => b.count },
+  { header: "Total cost", muted: true, render: (b) => formatCurrency(b.cost) },
+];
 
-  const drawHeader = () => {
-    document.setFillColor(224, 224, 224);
-    document.rect(left, y - 5, columnWidths.reduce((sum, width) => sum + width, 0), 8, "F");
-    document.setFont("helvetica", "bold");
-    document.setFontSize(6.5);
-    let x = left + 1;
-    headers.forEach((header, index) => {
-      document.text(header, x, y);
-      x += columnWidths[index];
-    });
-    y += 7;
-    document.setFont("helvetica", "normal");
-  };
-
-  document.setFont("helvetica", "bold");
-  document.setFontSize(16);
-  document.text("Maintenance Report", left, y);
-  y += 6;
-  document.setFont("helvetica", "normal");
-  document.setFontSize(8);
-  document.text(`Generated ${new Date().toLocaleString()}`, left, y);
-  y += 8;
-  document.setFontSize(9);
-  document.text(`Records in scope: ${records.length.toLocaleString()}`, left, y);
-  document.text(`Total cost: ${formatCurrency(totalCost)}`, left + 70, y);
-  y += 9;
-  drawHeader();
-
-  records.forEach((r) => {
-    const values = [
-      r.asset_code,
-      r.asset_name,
-      r.asset_type_name,
-      formatStatusLabel(r.type),
-      formatStatusLabel(r.priority),
-      formatStatusLabel(r.status),
-      r.assignee_email ?? "Unassigned",
-      r.actual_cost ? formatCurrency(r.actual_cost) : "—",
-      r.completion_date ?? "—",
-    ];
-    const lines = values.map((value, index) => document.splitTextToSize(String(value), columnWidths[index] - 2));
-    const rowHeight = Math.max(...lines.map((value) => value.length)) * 3.2 + 3;
-    if (y + rowHeight > pageHeight - 10) {
-      document.addPage();
-      y = 15;
-      drawHeader();
-    }
-    let x = left + 1;
-    lines.forEach((value, index) => {
-      document.text(value, x, y, { baseline: "top" });
-      x += columnWidths[index];
-    });
-    document.setDrawColor(210, 210, 210);
-    document.line(left, y + rowHeight - 1, left + columnWidths.reduce((sum, width) => sum + width, 0), y + rowHeight - 1);
-    y += rowHeight;
-  });
-
-  document.save(`maintenance-report-${new Date().toISOString().slice(0, 10)}.pdf`);
-}
-
-// FR-084/085/086: date/department/category/status/condition filters, PDF/CSV
-// export, org/department scoping. "Category" here is asset type (the closest
-// equivalent Maintenance has — MaintenanceRecord has no asset category of its
-// own); scoping follows whatever GET /api/maintenance itself already applies
-// to the caller's role (same posture as Asset Inventory's own panel).
+// Date/department/assignee/status/priority/type filters over GET
+// /api/maintenance (scoped to the caller's role by the backend), with PDF/CSV
+// export of exactly what's filtered.
 export default function MaintenanceReportPanel() {
-  const { getAccessToken } = useThunderID();
-  const [records, setRecords] = useState<MaintenanceRecord[]>([]);
-  const [departmentId, setDepartmentId] = useState<string | undefined>();
-  const [assigneeId, setAssigneeId] = useState<string | undefined>();
+  const [department, setDepartment] = useState<Department | null>(null);
+  const [assignee, setAssignee] = useState<User | null>(null);
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
   const [type, setType] = useState("");
-  const [dateFrom, setDateFrom] = useState<string | undefined>();
-  const [dateTo, setDateTo] = useState<string | undefined>();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [error, setError] = useState<unknown>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [range, setRange] = useState<DateRange>({});
 
   const { data: departments } = useDepartments();
   const { data: users } = useUsersList();
 
+  const rangeErrors = validateDateRange(range);
+  const rangeValid = !hasDateRangeErrors(rangeErrors);
+
   const query: Omit<MaintenanceQueryParameters, "page" | "pageSize"> = {
-    departmentId,
-    assigneeId,
-    status: status ? (status as MaintenanceStatus) : undefined,
-    priority: priority ? (priority as MaintenanceQueryParameters["priority"]) : undefined,
-    type: type ? (type as MaintenanceQueryParameters["type"]) : undefined,
-    dateFrom,
-    dateTo,
+    departmentId: department?.id,
+    assigneeId: assignee?.id,
+    status: (status || undefined) as MaintenanceStatus | undefined,
+    priority: (priority || undefined) as MaintenanceQueryParameters["priority"],
+    type: (type || undefined) as MaintenanceQueryParameters["type"],
+    // The backend takes plain calendar dates (DateOnly), inclusive of both ends.
+    dateFrom: range.from,
+    dateTo: range.to,
+  };
+  const queryKey = JSON.stringify(query);
+  const report = useReportData(queryKey, rangeValid, (token) => getMaintenanceReportRecords(query, token));
+  const records = useMemo(() => report.data ?? [], [report.data]);
+
+  const { totalCost, averageCost, byAssetType } = useMemo(() => {
+    const withCost = records.filter((r) => r.actual_cost != null);
+    const total = withCost.reduce((sum, r) => sum + (r.actual_cost ?? 0), 0);
+    const groups = new Map<string, Breakdown>();
+    for (const r of records) {
+      const key = r.asset_type_name || "Unspecified";
+      const current = groups.get(key) ?? { key, count: 0, cost: 0 };
+      groups.set(key, { key, count: current.count + 1, cost: current.cost + (r.actual_cost ?? 0) });
+    }
+    return {
+      totalCost: total,
+      averageCost: withCost.length > 0 ? total / withCost.length : 0,
+      byAssetType: [...groups.values()].sort((a, b) => b.count - a.count),
+    };
+  }, [records]);
+
+  const filterLabels = [
+    department && `Department: ${department.name}`,
+    assignee && `Assignee: ${userName(assignee)}`,
+    status && `Status: ${formatStatusLabel(status)}`,
+    priority && `Priority: ${formatStatusLabel(priority)}`,
+    type && `Type: ${formatStatusLabel(type)}`,
+    range.from && `Requested from ${range.from}`,
+    range.to && `Requested to ${range.to}`,
+  ].filter((label): label is string => Boolean(label));
+
+  const clearFilters = () => {
+    setDepartment(null);
+    setAssignee(null);
+    setStatus("");
+    setPriority("");
+    setType("");
+    setRange({});
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(undefined);
-
-    getAccessToken()
-      .then((token) => getMaintenanceReportRecords(query, token))
-      .then((result) => {
-        if (!cancelled) {
-          setRecords(result);
-          setIsLoading(false);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setError(reason);
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- query is rebuilt every render from the same state below
-  }, [getAccessToken, departmentId, assigneeId, status, priority, type, dateFrom, dateTo]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [departmentId, assigneeId, status, priority, type, dateFrom, dateTo]);
-
-  // Real server-side pagination for the detail table — a separate request
-  // per page against GET /api/maintenance directly, not a client-side slice
-  // of `records` above (which stays as the full filtered set, fetched page
-  // by page in the background, purely to drive the stats/by-asset-type
-  // breakdown and PDF/CSV export — those need every matching record).
-  const [detailPage, setDetailPage] = useState<PagedMaintenanceRecords>({
-    items: [], total_count: 0, page: 1, page_size: pageSize, total_pages: 0,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    getAccessToken()
-      .then((token) => listMaintenanceRecords({ ...query, page, pageSize, sortBy: "createdat", sortDirection: "desc" }, token))
-      .then((result) => {
-        if (!cancelled) setDetailPage(result);
-      })
-      .catch(() => {
-        // Errors here surface through the aggregate fetch's own error
-        // state above (same filters, same failure mode) — no need for a
-        // second error banner for the same underlying request.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- query is rebuilt every render from the same state below
-  }, [getAccessToken, departmentId, assigneeId, status, priority, type, dateFrom, dateTo, page, pageSize]);
-
-  if (isLoading) {
-    return <div className="cg-section"><SkeletonText paragraph lineCount={4} /></div>;
-  }
-
-  if (error) {
-    return (
-      <InlineNotification
-        kind="error"
-        title="Could not load the maintenance report"
-        subtitle={getErrorMessage(error, "Something went wrong. Please try again.")}
-        hideCloseButton
-      />
-    );
-  }
-
-  const completedWithCost = records.filter((r) => r.actual_cost != null);
-  const totalCost = completedWithCost.reduce((total, r) => total + (r.actual_cost ?? 0), 0);
-  const averageCostPerRepair = completedWithCost.length > 0 ? totalCost / completedWithCost.length : 0;
-
-  const byAssetType = Array.from(
-    records.reduce((groups, r) => {
-      const key = r.asset_type_name || "Unspecified";
-      const current = groups.get(key) ?? { count: 0, cost: 0 };
-      groups.set(key, { count: current.count + 1, cost: current.cost + (r.actual_cost ?? 0) });
-      return groups;
-    }, new Map<string, { count: number; cost: number }>()),
-  ).sort(([, left], [, right]) => right.count - left.count);
+  const exportData: ReportExport<MaintenanceRecord> = {
+    title: "Maintenance Report",
+    fileName: "maintenance-report",
+    columns: EXPORT_COLUMNS,
+    rows: records,
+    summary: [`Records in scope: ${records.length.toLocaleString()}`, `Total cost: ${formatCurrency(totalCost)}`],
+    filters: filterLabels,
+  };
 
   return (
-    <div className="cg-section">
-      <div className="cg-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "end" }}>
-        <Dropdown
+    <div className="cg-report">
+      <ReportFilters activeCount={filterLabels.length} onClear={clearFilters} isRefreshing={report.isRefreshing}>
+        <ComboBox<Department>
           id="maintenance-report-department"
           titleText="Department"
-          label="All departments"
-          items={["", ...(departments ?? []).map((d) => d.id)]}
-          itemToString={(id) => (!id ? "All departments" : (departments ?? []).find((d) => d.id === id)?.name ?? id)}
-          selectedItem={departmentId ?? ""}
-          onChange={({ selectedItem }) => setDepartmentId(selectedItem || undefined)}
-          style={{ minWidth: "12rem" }}
+          placeholder="All departments"
+          items={departments ?? []}
+          itemToString={(d) => d?.name ?? ""}
+          selectedItem={department}
+          shouldFilterItem={comboBoxFilter(department)}
+          onChange={({ selectedItem }) => setDepartment(selectedItem ?? null)}
         />
-        <Dropdown
+        <ComboBox<User>
           id="maintenance-report-assignee"
           titleText="Assignee"
-          label="All assignees"
-          items={["", ...(users ?? []).map((u) => u.id)]}
-          itemToString={(id) => {
-            if (!id) return "All assignees";
-            const u = (users ?? []).find((u) => u.id === id);
-            return u ? `${u.given_name} ${u.family_name}` : id;
-          }}
-          selectedItem={assigneeId ?? ""}
-          onChange={({ selectedItem }) => setAssigneeId(selectedItem || undefined)}
-          style={{ minWidth: "12rem" }}
+          placeholder="All assignees"
+          items={users ?? []}
+          itemToString={userName}
+          selectedItem={assignee}
+          shouldFilterItem={comboBoxFilter(assignee)}
+          onChange={({ selectedItem }) => setAssignee(selectedItem ?? null)}
         />
         <Select id="maintenance-report-status" labelText="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
           <SelectItem value="" text="All statuses" />
-          <SelectItem value="REQUESTED" text="Requested" />
-          <SelectItem value="APPROVED" text="Approved" />
-          <SelectItem value="IN_PROGRESS" text="In Progress" />
-          <SelectItem value="COMPLETED" text="Completed" />
-          <SelectItem value="CANCELLED" text="Cancelled" />
+          {["REQUESTED", "APPROVED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map((s) => (
+            <SelectItem key={s} value={s} text={formatStatusLabel(s)} />
+          ))}
         </Select>
         <Select id="maintenance-report-priority" labelText="Priority" value={priority} onChange={(e) => setPriority(e.target.value)}>
           <SelectItem value="" text="All priorities" />
-          <SelectItem value="LOW" text="Low" />
-          <SelectItem value="MEDIUM" text="Medium" />
-          <SelectItem value="HIGH" text="High" />
-          <SelectItem value="CRITICAL" text="Critical" />
+          {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => (
+            <SelectItem key={p} value={p} text={formatStatusLabel(p)} />
+          ))}
         </Select>
         <Select id="maintenance-report-type" labelText="Type" value={type} onChange={(e) => setType(e.target.value)}>
           <SelectItem value="" text="All types" />
           <SelectItem value="CORRECTIVE" text="Corrective" />
           <SelectItem value="PREVENTIVE" text="Preventive" />
         </Select>
-        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateFrom(date ? date.toISOString() : undefined)}>
-          <DatePickerInput id="maintenance-report-date-from" labelText="Requested from" placeholder="yyyy-mm-dd" />
-        </DatePicker>
-        <DatePicker datePickerType="single" dateFormat="Y-m-d" onChange={([date]) => setDateTo(date ? date.toISOString() : undefined)}>
-          <DatePickerInput id="maintenance-report-date-to" labelText="Requested to" placeholder="yyyy-mm-dd" />
-        </DatePicker>
-        <Button
-          kind="ghost"
-          size="md"
-          onClick={() => {
-            setDepartmentId(undefined);
-            setAssigneeId(undefined);
-            setStatus("");
-            setPriority("");
-            setType("");
-            setDateFrom(undefined);
-            setDateTo(undefined);
-          }}
-        >
-          Clear filters
-        </Button>
-      </div>
+        <DateRangeFilter
+          idPrefix="maintenance-report-date"
+          fromLabel="Requested from"
+          toLabel="Requested to"
+          value={range}
+          onChange={setRange}
+          errors={rangeErrors}
+        />
+      </ReportFilters>
 
-      <div className="cg-stat-grid" style={{ padding: "1.5rem", marginBottom: 0, gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Records in scope</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{records.length.toLocaleString()}</p>
-        </div>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Total cost</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{formatCurrency(totalCost)}</p>
-        </div>
-        <div className="cg-stat-card">
-          <p className="cg-stat-card__label">Average cost per repair</p>
-          <p className="cg-stat-card__value" style={{ fontSize: "1.5rem" }}>{formatCurrency(averageCostPerRepair)}</p>
-        </div>
-      </div>
+      <ReportStatus title="Could not load the maintenance report" error={report.error} isInitialLoading={report.isInitialLoading} />
 
-      <div className="cg-toolbar" style={{ justifyContent: "flex-end", marginTop: "1rem" }}>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button kind="tertiary" size="sm" renderIcon={DocumentPdf} onClick={() => printPdf(records, totalCost)}>
-            Export PDF
-          </Button>
-          <Button kind="tertiary" size="sm" renderIcon={DocumentExport} onClick={() => downloadCsv(records)}>
-            Export CSV
-          </Button>
-        </div>
-      </div>
-
-      <table className="cg-table cg-table--no-hover">
-        <thead>
-          <tr><th>Asset type</th><th>Repairs</th><th>Total cost</th></tr>
-        </thead>
-        <tbody>
-          {byAssetType.map(([assetType, summary]) => (
-            <tr key={assetType}>
-              <td>{assetType}</td>
-              <td className="cg-table__muted">{summary.count}</td>
-              <td className="cg-table__muted">{formatCurrency(summary.cost)}</td>
-            </tr>
-          ))}
-          {byAssetType.length === 0 && <tr><td colSpan={3} className="cg-table__muted">No maintenance records found.</td></tr>}
-        </tbody>
-      </table>
-
-      <div style={{ marginTop: "2rem" }}>
-        <div className="cg-section__header">
-          <div>
-            <h2 className="cg-section__title">Maintenance details</h2>
-            <p className="cg-section__subtitle">
-              Showing {detailPage.items.length.toLocaleString()} of {detailPage.total_count.toLocaleString()} filtered records
-            </p>
-          </div>
-        </div>
-        <div style={{ overflowX: "auto" }}>
-          <table className="cg-table cg-table--no-hover">
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th>Type</th>
-                <th>Priority</th>
-                <th>Status</th>
-                <th>Assignee</th>
-                <th>Estimated cost</th>
-                <th>Actual cost</th>
-                <th>Requested</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detailPage.items.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <span className="cg-table__mono">{r.asset_code}</span>
-                    <br />
-                    <span className="cg-table__muted">{r.asset_name}</span>
-                  </td>
-                  <td className="cg-table__muted">{formatStatusLabel(r.type)}</td>
-                  <td><Tag type={statusTagColor(r.priority)}>{formatStatusLabel(r.priority)}</Tag></td>
-                  <td><Tag type={statusTagColor(r.status)}>{formatStatusLabel(r.status)}</Tag></td>
-                  <td className="cg-table__muted">{r.assignee_email ?? "Unassigned"}</td>
-                  <td className="cg-table__muted">{r.estimated_cost != null ? formatCurrency(r.estimated_cost) : "—"}</td>
-                  <td className="cg-table__muted">{r.actual_cost != null ? formatCurrency(r.actual_cost) : "—"}</td>
-                  <td className="cg-table__muted">{new Date(r.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-              {detailPage.items.length === 0 && <tr><td colSpan={8} className="cg-table__muted">No maintenance records found.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        {detailPage.total_count > 0 && (
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            pageSizes={[10, 20, 50, 100]}
-            totalItems={detailPage.total_count}
-            onChange={({ page: nextPage, pageSize: nextPageSize }) => {
-              setPage(nextPage);
-              setPageSize(nextPageSize);
-            }}
+      {report.data && (
+        <div className={report.isRefreshing || !rangeValid ? "cg-report__results is-stale" : "cg-report__results"}>
+          <ReportStats
+            stats={[
+              { label: "Records in scope", value: records.length.toLocaleString() },
+              { label: "Total cost", value: formatCurrency(totalCost) },
+              { label: "Average cost per repair", value: formatCurrency(averageCost) },
+            ]}
           />
-        )}
-      </div>
+          <ReportExportBar
+            count={records.length}
+            noun="maintenance records"
+            onPdf={() => downloadPdf(exportData)}
+            onCsv={() => downloadCsv(exportData)}
+            disabledReason={exportBlockReason(rangeValid, report.isRefreshing, records.length)}
+          />
+          <ReportTable
+            title="By asset type"
+            columns={BREAKDOWN_COLUMNS}
+            rows={byAssetType}
+            rowKey={(b) => b.key}
+            emptyText="No maintenance records match these filters."
+            pageable={false}
+          />
+          <ReportTable
+            key={queryKey}
+            title="Maintenance details"
+            columns={DETAIL_COLUMNS}
+            rows={records}
+            rowKey={(r) => r.id}
+            emptyText="No maintenance records match these filters."
+          />
+        </div>
+      )}
     </div>
   );
 }

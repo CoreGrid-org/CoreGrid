@@ -89,15 +89,6 @@ export default function WorkflowsPage() {
         )}
       </div>
 
-      <InlineNotification
-        kind="info"
-        lowContrast
-        hideCloseButton
-        title="Planner and Maintenance Analysis Agents are connected"
-        subtitle="New evaluations now call the Planner Agent, persist its typed execution plan, move to analysis, and automatically run the Maintenance Analysis Agent (repair count, MTBF, cost trend, 12-month projection) for the asset. The Budget agent still needs to be connected; Policy Compliance remains available through the existing action."
-        style={{ marginBottom: "1rem", maxWidth: "100%" }}
-      />
-
       {runAgent.isError && (
         <InlineNotification
           kind="error"

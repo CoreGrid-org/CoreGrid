@@ -3,7 +3,8 @@ import { useThunderID } from "@thunderid/react";
 import { listAuditLog } from "../api/auditLog";
 import type { AuditLogEntry, AuditLogQuery, PagedResult } from "../api/auditLog";
 
-export function useAuditLog(query: AuditLogQuery) {
+// Pass `enabled: false` to hold off while the filters are invalid.
+export function useAuditLog(query: AuditLogQuery, enabled = true) {
   const { getAccessToken } = useThunderID();
   const [data, setData] = useState<PagedResult<AuditLogEntry>>();
   const [error, setError] = useState<unknown>(undefined);
@@ -14,6 +15,7 @@ export function useAuditLog(query: AuditLogQuery) {
   const queryKey = JSON.stringify(query);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     setIsLoading(true);
     setError(undefined);
@@ -37,7 +39,7 @@ export function useAuditLog(query: AuditLogQuery) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey, attempt, getAccessToken]);
+  }, [queryKey, attempt, getAccessToken, enabled]);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 
