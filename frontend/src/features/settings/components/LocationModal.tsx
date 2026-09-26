@@ -20,7 +20,7 @@ interface LocationModalProps {
 type Touched = Partial<Record<"name" | "type" | "department", boolean>>;
 
 // Create or amend a location. "Type" is deliberately free text, not an enum
-// (SRS system.md §F.6 leaves it unconstrained); existing types are suggested
+// (SRS appendix-f-physical-database-schema.md §F.6 leaves it unconstrained); existing types are suggested
 // so the same kind of place gets the same label.
 export default function LocationModal({ location, departments, defaultDepartmentId, knownTypes, onClose, onSaved }: LocationModalProps) {
   const [name, setName] = useState(location?.name ?? "");

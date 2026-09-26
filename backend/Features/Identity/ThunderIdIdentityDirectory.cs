@@ -123,7 +123,7 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
     {
         var value = configuration[key];
         return string.IsNullOrWhiteSpace(value)
-            ? throw new InvalidOperationException($"Missing required configuration '{key}' — see doc/setup/ThunderID.md.")
+            ? throw new InvalidOperationException($"Missing required configuration '{key}' — see docs/setup/thunderid.md.")
             : value;
     }
 

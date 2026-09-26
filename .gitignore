@@ -86,3 +86,6 @@ Thumbs.db
 .kilo/
 *.dump
 coverage/
+
+# Local database dumps from 'make db-backup'
+backups/

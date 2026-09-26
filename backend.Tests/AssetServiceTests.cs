@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace backend.Tests.Features.Assets;
 
 // SRS §9.2 / FR-031: standalone physical verification. No AssetServiceTests
-// existed before this (doc/PROGRESS.md's own Component A section flagged
+// existed before this (docs/progress.md's own Component A section flagged
 // the gap) — scoped here to VerifyAssetAsync only.
 public class AssetServiceTests
 {
