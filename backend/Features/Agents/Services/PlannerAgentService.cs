@@ -73,16 +73,16 @@ public sealed class PlannerAgentService : IPlannerAgentClient
         }
 
         // ── 3. LLM call ───────────────────────────────────────────────────────
-        var apiKey = _configuration["Planner:OpenAiApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey))
+        // Planner:OpenAiApiKey is the pre-Gemini key name, still honoured.
+        var llm = LlmSettings.For(_configuration, "Planner", "Planner:OpenAiApiKey");
+        if (!llm.HasApiKey)
         {
             _logger.LogWarning(
-                "Planner: OpenAI API key not configured (Planner:OpenAiApiKey). " +
-                "Returning deterministic fallback plan.");
+                "Planner: LLM API key not configured (Llm:ApiKey). Returning deterministic fallback plan.");
             return PlannerScopeGuard.FallbackPlan();
         }
 
-        var model = _configuration["Planner:Model"] ?? "gpt-4o-mini";
+        var model = llm.Model;
         var userMessage =
             $"Objective: {objective}\n" +
             $"Asset summary: {JsonSerializer.Serialize(summary, JsonOptions)}\n" +
@@ -102,10 +102,10 @@ public sealed class PlannerAgentService : IPlannerAgentClient
 
         try
         {
-            using var client = _httpClientFactory.CreateClient("OpenAI");
-            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions")
+            using var client = _httpClientFactory.CreateClient(AgentsModule.LlmHttpClient);
+            using var request = new HttpRequestMessage(HttpMethod.Post, llm.Endpoint)
             {
-                Headers = { { "Authorization", $"Bearer {apiKey}" } },
+                Headers = { { "Authorization", $"Bearer {llm.ApiKey}" } },
                 Content = new StringContent(
                     JsonSerializer.Serialize(requestBody, JsonOptions),
                     Encoding.UTF8,
@@ -117,8 +117,8 @@ public sealed class PlannerAgentService : IPlannerAgentClient
             {
                 var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogError(
-                    "Planner: OpenAI returned {Status}: {Body}. Using fallback plan.",
-                    (int)response.StatusCode, errorBody);
+                    "Planner: {Model} returned {Status}: {Body}. Using fallback plan.",
+                    model, (int)response.StatusCode, errorBody);
                 return PlannerScopeGuard.FallbackPlan();
             }
 

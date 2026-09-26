@@ -5,6 +5,9 @@ namespace CoreGrid.Api.Features.Shared.Storage;
 // need to know which object-storage provider is behind it.
 public interface IFileStorageService
 {
+    // Whether the credentials needed to store files are present at all.
+    bool IsConfigured { get; }
+
     // Uploads content under a key prefixed by `folder` (e.g. "maintenance")
     // and returns the publicly reachable URL to store on the owning record.
     Task<string> UploadAsync(

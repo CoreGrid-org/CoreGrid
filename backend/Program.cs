@@ -104,7 +104,7 @@ builder.Services.AddVerificationFeature();
 builder.Services.AddMaintenanceFeature();
 builder.Services.AddAuditFeature();
 builder.Services.AddNotificationsFeature();
-builder.Services.AddScoped<CoreGrid.Api.Features.Shared.Storage.IFileStorageService, CoreGrid.Api.Features.Shared.Storage.CloudflareR2StorageService>();
+builder.Services.AddSingleton<CoreGrid.Api.Features.Shared.Storage.IFileStorageService, CoreGrid.Api.Features.Shared.Storage.CloudflareR2StorageService>();
 builder.Services.AddDisposalsFeature();
 builder.Services.AddTransfersFeature();
 builder.Services.AddAgentToolsFeature();

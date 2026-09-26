@@ -4,6 +4,9 @@ namespace CoreGrid.Api.Features.Agents;
 
 public static class AgentsModule
 {
+    // Shared by every agent that calls the configured LLM (see LlmSettings).
+    public const string LlmHttpClient = "Llm";
+
     public static IServiceCollection AddAgentsFeature(this IServiceCollection services)
     {
         services.AddScoped<IPolicyRuleEngine, PolicyRuleEngine>();
@@ -14,16 +17,11 @@ public static class AgentsModule
         services.AddScoped<IMaintenanceAnalysisAgentService, MaintenanceAnalysisAgentService>();
         services.AddScoped<IBudgetAgentClient, BudgetAgentService>();
 
-        // Configures the HTTP client used by the Planner Agent.
-        services.AddHttpClient("OpenAI", client =>
+        // Gemini's "thinking" models can take longer than 30s on a full
+        // plan/assessment; the agents fall back deterministically on timeout.
+        services.AddHttpClient(LlmHttpClient, client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(30);
-        });
-
-        // Configures the HTTP client used by the Budget Agent.
-        services.AddHttpClient("Budget", client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(30);
+            client.Timeout = TimeSpan.FromSeconds(60);
         });
 
         return services;

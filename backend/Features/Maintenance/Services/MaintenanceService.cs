@@ -16,7 +16,6 @@ namespace CoreGrid.Api.Features.Maintenance.Services;
 public class MaintenanceService : IMaintenanceService
 {
    // Defines the lifetime of generated photo URLs.
-    private static readonly TimeSpan PhotoUrlExpiry = TimeSpan.FromMinutes(15);
 
     private static readonly string[] ValidConditions = AssetConditions.All;
 
@@ -71,23 +70,9 @@ public class MaintenanceService : IMaintenanceService
     }
 
    
-    private async Task ResolvePhotoUrlAsync(MaintenanceRecordDto dto, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(dto.PhotoUrl))
-        {
-            return;
-        }
-
-        try
-        {
-            dto.PhotoUrl = await _fileStorageService.GetPresignedUrlAsync(dto.PhotoUrl, PhotoUrlExpiry, cancellationToken);
-        }
-        catch
-        {
-            // If storage service fails to generate a presigned URL (e.g. unconfigured in dev),
-            // retain the existing PhotoUrl string so maintenance queries do not crash.
-        }
-    }
+    // Stored object key -> a fresh signed link (or null), never the raw key.
+    private async Task ResolvePhotoUrlAsync(MaintenanceRecordDto dto, CancellationToken cancellationToken) =>
+        dto.PhotoUrl = await PhotoKeys.ToDisplayUrlAsync(_fileStorageService, dto.PhotoUrl, cancellationToken);
 
     public async Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(
         Guid organizationId, DepartmentScope scope, Guid id, CancellationToken cancellationToken)
@@ -153,7 +138,7 @@ public class MaintenanceService : IMaintenanceService
             AssetId = assetId,
             Description = request.Description.Trim(),
             ObservedCondition = conditionUpper,
-            PhotoObjectKey = request.PhotoUrl,
+            PhotoObjectKey = PhotoKeys.RequireOwnMaintenancePhoto(request.PhotoUrl, organizationId, nameof(request.PhotoUrl)),
             Type = MaintenanceType.CORRECTIVE,
             Priority = MaintenancePriority.MEDIUM, // Default priority for reported faults
             Status = MaintenanceStatus.REQUESTED,
@@ -239,7 +224,7 @@ public class MaintenanceService : IMaintenanceService
             AssetId = assetId,
             Description = request.Description.Trim(),
             ObservedCondition = conditionUpper,
-            PhotoObjectKey = request.PhotoUrl,
+            PhotoObjectKey = PhotoKeys.RequireOwnMaintenancePhoto(request.PhotoUrl, organizationId, nameof(request.PhotoUrl)),
             Type = type,
             Priority = priority,
             Status = MaintenanceStatus.REQUESTED,

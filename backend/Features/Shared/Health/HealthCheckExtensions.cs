@@ -26,7 +26,8 @@ public static class HealthCheckExtensions
 
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("postgresql")
-            .AddCheck<ThunderIdHealthCheck>("thunderid");
+            .AddCheck<ThunderIdHealthCheck>("thunderid")
+            .AddCheck<PhotoStorageHealthCheck>("photo-storage");
 
         return services;
     }
