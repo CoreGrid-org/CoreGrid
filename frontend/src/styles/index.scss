@@ -2264,3 +2264,154 @@ html, body, #root {
 }
 
 .cg-policy-form__group { border: 0; margin: 0; padding: 0; .cg-modal-form__row { margin-top: 0.5rem; } }
+
+// ─── Photo thumbnails and viewer ─────────────────────────────────────────────
+.cg-photo-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid $cg-border;
+  border-radius: 4px;
+  background: #f4f4f4;
+  cursor: zoom-in;
+  vertical-align: middle;
+
+  img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  &--sm { width: 2.5rem; height: 2.5rem; }
+  &--md { width: 12rem; height: 9rem; }
+
+  &:hover { border-color: $cg-accent; }
+  &:focus-visible { outline: 2px solid $cg-accent; outline-offset: 1px; }
+
+  &.is-failed {
+    cursor: default;
+    padding: 0 0.5rem;
+    color: $cg-text-tertiary;
+    font-size: 0.75rem;
+    svg { fill: $cg-text-tertiary; flex: none; }
+  }
+  &--md.is-failed { width: auto; height: auto; min-height: 2.5rem; }
+}
+
+.cg-photo-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+
+  img { max-width: 100%; max-height: 70vh; border-radius: 4px; object-fit: contain; background: #f4f4f4; }
+
+  &__open {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+    color: $cg-accent;
+    svg { fill: currentColor; }
+  }
+}
+
+// ─── Campaign report (Audit & Compliance) ────────────────────────────────────
+.cg-campaign-report-modal .cds--modal-container { max-width: 72rem; width: 96vw; }
+
+.cg-campaign-report {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 1rem;
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.875rem 1rem;
+    background: #f7f9fc;
+    border: 1px solid $cg-border;
+    border-radius: 4px;
+  }
+
+  &__meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.5rem 1.5rem;
+    flex: 1;
+    margin: 0;
+
+    dt { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: $cg-text-tertiary; }
+    dd { margin: 0.125rem 0 0; font-size: 0.8125rem; color: $cg-text-primary; }
+  }
+
+  &__export { display: flex; gap: 0.5rem; flex: none; }
+
+  &__section-title {
+    margin: 0.25rem 0 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $cg-accent-dark;
+  }
+
+  &__stat-caption { margin: 0.125rem 0 0; font-size: 0.75rem; color: $cg-text-secondary; }
+
+  &__panel { padding: 1rem 0 0; }
+
+  &__overview { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  &__split {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 1.25rem;
+    @media (max-width: 800px) { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  &__bar {
+    display: inline-block;
+    width: calc(100% - 3rem);
+    height: 0.375rem;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    border-radius: 3px;
+    background: $cg-border;
+    overflow: hidden;
+    span { display: block; height: 100%; background: $cg-accent; }
+  }
+
+  &__filters {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    > .cds--search { flex: 1 1 16rem; max-width: 24rem; }
+    .cds--select { width: 12rem; }
+  }
+
+  &__alert { color: #da1e28 !important; font-weight: 600; }
+  &__warn { color: #8e6a00 !important; font-weight: 600; }
+
+  &__overdue {
+    display: block;
+    margin-top: 0.125rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #da1e28;
+  }
+
+  &__resolution { margin: 0.25rem 0 0; font-size: 0.75rem; line-height: 1.4; }
+
+  &__footnote { margin: 0; font-size: 0.75rem; color: $cg-text-tertiary; }
+
+  &__progress .cds--progress-bar__label { font-size: 0.75rem; }
+}
+
+// Tone accents on report stat tiles.
+.cg-report__stat {
+  &.is-good { border-left-color: #24a148; }
+  &.is-warn { border-left-color: #f1c21b; }
+  &.is-bad { border-left-color: #da1e28; }
+}

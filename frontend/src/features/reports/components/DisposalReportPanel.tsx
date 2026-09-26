@@ -72,7 +72,10 @@ export default function DisposalReportPanel() {
   );
 
   const { totalProceeds, averageApprovalDays, byMethod } = useMemo(() => {
-    const disposed = records.filter((d) => d.status === "DISPOSED");
+    // Approving a disposal disposes of the asset straight away: the backend
+    // sets disposed_at but leaves the request's status at APPROVED (it never
+    // uses DISPOSED), so "disposed" means "has a disposal date".
+    const disposed = records.filter((d) => d.disposed_at);
     const durations = disposed
       .filter((d) => d.disposed_at)
       .map((d) => (new Date(d.disposed_at!).getTime() - new Date(d.requested_at).getTime()) / DAY_MS);
@@ -82,7 +85,7 @@ export default function DisposalReportPanel() {
       groups.set(d.disposal_method, {
         key: d.disposal_method,
         count: current.count + 1,
-        proceeds: current.proceeds + (d.status === "DISPOSED" ? d.estimated_residual_value : 0),
+        proceeds: current.proceeds + (d.disposed_at ? d.estimated_residual_value : 0),
       });
     }
     return {

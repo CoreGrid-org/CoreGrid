@@ -18,6 +18,8 @@ import {
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import { formatDate } from "@/shared/lib/dates";
+import PhotoThumbnail from "@/shared/components/PhotoThumbnail";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useMe } from "@/features/auth/hooks/useMe";
 import { useDepartments } from "@/features/assets/hooks/useAssets";
@@ -213,6 +215,7 @@ export default function MaintenancePage() {
                       <th>Estimated cost</th>
                       <th>Actual cost</th>
                       <th>Requested</th>
+                      <th>Photo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -233,7 +236,15 @@ export default function MaintenancePage() {
                         <td className="cg-table__muted">{rec.assignee_email ?? "Unassigned"}</td>
                         <td className="cg-table__muted">{rec.estimated_cost ? `LKR ${rec.estimated_cost.toLocaleString()}` : "-"}</td>
                         <td className="cg-table__muted">{rec.actual_cost ? `LKR ${rec.actual_cost.toLocaleString()}` : "-"}</td>
-                        <td className="cg-table__muted">{new Date(rec.created_at).toLocaleDateString()}</td>
+                        <td className="cg-table__muted">{formatDate(rec.created_at)}</td>
+                        {/* The thumbnail opens its own viewer; don't also open the record. */}
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {rec.photo_url ? (
+                            <PhotoThumbnail url={rec.photo_url} alt={rec.description} title={`Photo: ${rec.asset_code}`} />
+                          ) : (
+                            <span className="cg-table__muted">-</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

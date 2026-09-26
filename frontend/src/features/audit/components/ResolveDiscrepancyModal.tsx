@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal, Select, SelectItem, TextArea, Checkbox, InlineNotification, Tag } from "@carbon/react";
 import { useResolveDiscrepancy } from "../hooks/useDiscrepancies";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
+import PhotoThumbnail from "@/shared/components/PhotoThumbnail";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { CORRECTABLE_DISCREPANCY_TYPES } from "../api/discrepancies";
 import type { Discrepancy } from "../api/discrepancies";
@@ -81,6 +82,12 @@ export default function ResolveDiscrepancyModal({ discrepancy, onClose, onResolv
         </span>
       </div>
       <p style={{ margin: "0 0 1rem", fontSize: "0.875rem" }}>{discrepancy.description}</p>
+      {discrepancy.photo_url && (
+        <div style={{ margin: "0 0 1rem" }}>
+          <p className="cds--label">Photo evidence</p>
+          <PhotoThumbnail url={discrepancy.photo_url} alt={discrepancy.description} title={`Discrepancy photo: ${discrepancy.asset_code}`} size="md" />
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: "1rem" }}>
         <Select
