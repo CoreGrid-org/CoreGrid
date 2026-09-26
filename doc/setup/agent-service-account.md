@@ -105,18 +105,23 @@ THUNDERID_AGENT_CLIENT_SECRET=<secret_from_thunderid_console>
 
 With the migration of agents into the ASP.NET Core process (PlannerAgentService and BudgetAgentService), external M2M tokens and standalone Python runtimes are no longer needed for these nodes. Their LLM outbound endpoints are configured via standard .NET `IConfiguration` (via `appsettings.json`, `appsettings.Development.json`, User Secrets, or environment variables).
 
-### Planner Agent (`PlannerAgentService`)
-- **`Planner:OpenAiApiKey`** (Env: `Planner__OpenAiApiKey`): OpenAI API key. If empty or unconfigured, gracefully falls back to deterministic `PlannerScopeGuard.FallbackPlan()`.
-- **`Planner:Model`** (Env: `Planner__Model`): OpenAI model identifier (default: `gpt-4o-mini`).
+All in-process agents that call an LLM share one **`Llm`** section. The team standard is **Google Gemini 3.5 Flash** through Gemini's OpenAI-compatible endpoint:
 
-### Budget Analysis Agent (`BudgetAgentService`)
-- **`Budget:ApiKey`** (Env: `Budget__ApiKey`): API key for LLM inference (supports either OpenAI API key or Google Gemini API key). If not set, falls back to checking `Planner:OpenAiApiKey`, or returns deterministic `BudgetScopeGuard.FallbackAssessment()`.
-- **`Budget:Endpoint`** (Env: `Budget__Endpoint`): OpenAI-compatible chat completions endpoint URL.
-  - **Recommended Cost-Conscious Default (Google Gemini)**:
-    `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`
-  - **Direct OpenAI Default**:
-    `https://api.openai.com/v1/chat/completions`
-- **`Budget:Model`** (Env: `Budget__Model`): Target model name.
-  - For Gemini: `gemini-2.0-flash` or `gemini-2.5-flash`
-  - For OpenAI: `gpt-4o-mini`
+| Key | Env var | Default | Notes |
+|---|---|---|---|
+| `Llm:Endpoint` | `Llm__Endpoint` | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | Any OpenAI-compatible chat-completions URL |
+| `Llm:Model` | `Llm__Model` | `gemini-3.5-flash` | |
+| `Llm:ApiKey` | `Llm__ApiKey` | *(none)* | A Google AI Studio (Gemini) API key. **Never put it in appsettings**; use user-secrets or an env var |
 
+Set the key once for local development:
+
+```bash
+cd backend
+dotnet user-secrets set "Llm:ApiKey" "<your Gemini API key>"
+```
+
+An agent's own section overrides any single shared value, e.g. `Budget:Model` to try a different model for the Budget agent only. Blank values count as unset, so an empty placeholder never hides a real key.
+
+Without a key, each agent logs a warning and uses its deterministic fallback (`PlannerScopeGuard.FallbackPlan()`, `BudgetScopeGuard.FallbackAssessment()`), so workflows still complete. Older key names (`Planner:OpenAiApiKey`, `Budget:ApiKey`) are still read for backwards compatibility, but prefer `Llm:ApiKey`.
+
+Implementation: `backend/Features/Agents/LlmSettings.cs`; both agents use the shared `"Llm"` named `HttpClient` (60 s timeout).
