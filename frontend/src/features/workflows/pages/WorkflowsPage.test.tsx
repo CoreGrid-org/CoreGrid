@@ -64,12 +64,12 @@ const AWAITING: AgentWorkflow = {
 };
 
 describe("WorkflowsPage", () => {
-  it("shows the connected-agents subtitle and the awaiting-approval recommendation with its policy checks", async () => {
+  it("shows the page subtitle and the awaiting-approval recommendation with its policy checks", async () => {
     getMeMock.mockResolvedValue(ADMIN);
     listWorkflowsMock.mockResolvedValue([AWAITING]);
     render(<WorkflowsPage />);
 
-    expect(screen.getByText("Planner, Maintenance Analysis, and Budget Analysis Agents are connected.")).toBeInTheDocument();
+    expect(screen.getByText("Review and approve agent-recommended actions.")).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(await screen.findByRole("tab", { name: "Awaiting Approval" }));

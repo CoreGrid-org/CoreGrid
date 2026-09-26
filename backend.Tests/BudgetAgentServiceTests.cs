@@ -134,7 +134,7 @@ public class BudgetAgentServiceTests
             });
 
         var httpClient = new HttpClient(mockHandler.Object);
-        _mockHttpClientFactory.Setup(f => f.CreateClient("Budget")).Returns(httpClient);
+        _mockHttpClientFactory.Setup(f => f.CreateClient(CoreGrid.Api.Features.Agents.AgentsModule.LlmHttpClient)).Returns(httpClient);
 
         var config = CreateConfiguration(new Dictionary<string, string?>
         {
@@ -213,7 +213,7 @@ public class BudgetAgentServiceTests
             });
 
         var httpClient = new HttpClient(mockHandler.Object);
-        _mockHttpClientFactory.Setup(f => f.CreateClient("Budget")).Returns(httpClient);
+        _mockHttpClientFactory.Setup(f => f.CreateClient(CoreGrid.Api.Features.Agents.AgentsModule.LlmHttpClient)).Returns(httpClient);
 
         var config = CreateConfiguration(new Dictionary<string, string?>
         {
