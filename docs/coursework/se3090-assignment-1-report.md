@@ -403,7 +403,7 @@ The SRS requires CI, but no CI workflow/run, deployed endpoint, or evaluator-acc
 
 ADR-004 (Flutter/Riverpod) is intentionally omitted from this report's detailed scope. ADR-005, the original LangGraph decision, has been superseded by ADR-010.
 
-The full submission-ready records, using the required seven-part ADR format, are in [SE3090-Assignment-1-ADRs.md](SE3090-Assignment-1-ADRs.md).
+The full submission-ready records, using the required seven-part ADR format, are in [Architecture Decision Records](../architecture/decision-records.md).
 
 ---
 
@@ -455,7 +455,7 @@ CoreGrid specifies and partially evidences a configurable asset-lifecycle platfo
 
 ### 2.21 References
 
-- CoreGrid Software Requirements Specification, `doc/SRS/` (including architecture, requirements, data, API, validation, deployment, traceability, ADR, and AI-disclosure documents).
+- CoreGrid Software Requirements Specification, `docs/srs/` (including architecture, requirements, data, API, validation, deployment, traceability, ADR, and AI-disclosure documents).
 - CoreGrid repository source, migrations, backend tests, and React tests.
 
 ### 2.22 Appendices
@@ -496,4 +496,4 @@ Before creating the final PDF, attach or link the following evidence:
 
 ## 3. Source Traceability
 
-This report is derived from the CoreGrid SRS in `doc/SRS/`, especially the architecture, functional requirements, agentic-AI requirements, data requirements, API specification, non-functional requirements, third-party integration, verification/validation, deployment/operations, traceability, and ADR index documents. Implementation evidence was cross-checked against the repository's ASP.NET Core source, EF Core migrations, React source, and test projects.
+This report is derived from the CoreGrid SRS in `docs/srs/`, especially the architecture, functional requirements, agentic-AI requirements, data requirements, API specification, non-functional requirements, third-party integration, verification/validation, deployment/operations, traceability, and ADR index documents. Implementation evidence was cross-checked against the repository's ASP.NET Core source, EF Core migrations, React source, and test projects.

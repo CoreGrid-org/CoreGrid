@@ -228,7 +228,7 @@ closes the gap:
 
 | Requirement | Current state | Implication for this plan |
 |---|---|---|
-| Organisation scoping (relevant to FR-006) | Every entity carries an `OrganizationId`, but it is enforced manually per query rather than via an EF Core global query filter (tracked ❌ in `doc/PROGRESS.md` for exactly this reason) | Safe for Phase 1–2, where each deployment serves exactly one organisation. **Must be hardened to a global filter before Phase 3** — a missed manual filter in a shared multi-tenant database is a cross-tenant data leak, not a cosmetic bug. This is a Phase-3 entry criterion, not a nice-to-have. |
+| Organisation scoping (relevant to FR-006) | Every entity carries an `OrganizationId`, but it is enforced manually per query rather than via an EF Core global query filter (tracked ❌ in `docs/progress.md` for exactly this reason) | Safe for Phase 1–2, where each deployment serves exactly one organisation. **Must be hardened to a global filter before Phase 3** — a missed manual filter in a shared multi-tenant database is a cross-tenant data leak, not a cosmetic bug. This is a Phase-3 entry criterion, not a nice-to-have. |
 | M1 lift described in §17 | "Lifting `SetupController`'s restriction to exactly one `Organizations` row... and adding per-tenant billing" | Confirms Phase 3 is bounded, additive engineering work, not a rewrite — supports the cost shape in §19.9 |
 
 ## 19.11 Risk Register
@@ -250,5 +250,5 @@ This chapter does not introduce FR/NFR identifiers; it depends on and extends th
 | §2.3 (User Classes) | Defines the operators; §19.2 defines the buyer, a distinct role |
 | §3.2, §3.5 | Five cooperating services and the configurable platform model — what Managed and SaaS editions actually operate |
 | §17 (Future Enhancements) | Source of the M0/M1 staging this chapter turns into Phase 1–3, and the direct source of every SaaS-exclusive addition listed in §19.4.1 |
-| FR-006 / `doc/PROGRESS.md` | Source of the Phase-3 entry criterion in §19.10 |
+| FR-006 / `docs/progress.md` | Source of the Phase-3 entry criterion in §19.10 |
 | `LICENSE`, `NOTICE` | The Apache 2.0 licensing decision underwriting §19.4 |

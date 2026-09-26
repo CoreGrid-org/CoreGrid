@@ -48,7 +48,7 @@
         OrganizationPolicies (thresholds consumed by rules and the Policy Agent)
 ```
 
-Figure 9 — Conceptual entity relationships. The full physical design — every table, column, type, constraint and index for every entity below — is [Appendix F](system.md).
+Figure 9 — Conceptual entity relationships. The full physical design — every table, column, type, constraint and index for every entity below — is [Appendix F](appendix-f-physical-database-schema.md).
 
 ## 8.2 Entity Inventory
 

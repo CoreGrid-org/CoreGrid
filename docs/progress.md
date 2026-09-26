@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Tracks what's actually built, against the ownership in [SRS §12](SRS/12-individual-contribution-and-work-allocation.md) and [SRS §18](SRS/18-team-roster-and-work-allocation.md). Each section lists items as Completed, In Progress, or Not Started — tick an item only once it's actually in the repo, and update this file in the same PR that lands the work it describes.
+Tracks what's actually built, against the ownership in [SRS §12](srs/12-individual-contribution-and-work-allocation.md) and [SRS §18](srs/18-team-roster-and-work-allocation.md). Each section lists items as Completed, In Progress, or Not Started — tick an item only once it's actually in the repo, and update this file in the same PR that lands the work it describes.
 
 **Legend:** ✅ done and in the repo · 🟡 partially done · ❌ not started
 

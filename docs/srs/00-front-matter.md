@@ -98,4 +98,4 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 - [Appendix C — ThunderID Configuration Checklist](appendix-c-thunderid-configuration-checklist.md)
 - [Appendix D — Architecture Decision Record Index](appendix-d-architecture-decision-record-index.md)
 - [Appendix E — AI Usage Disclosure](appendix-e-ai-usage-disclosure.md)
-- [Appendix F — Full Physical Database Schema (Reference Design)](system.md)
+- [Appendix F — Full Physical Database Schema (Reference Design)](appendix-f-physical-database-schema.md)

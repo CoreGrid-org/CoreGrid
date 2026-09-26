@@ -4,7 +4,7 @@
 
 ## Related SRS requirement(s)
 
-<!-- e.g. FR-013, NFR-26, SRS §4.7 — see doc/SRS/16-traceability.md. Leave blank for pure chores/tooling. -->
+<!-- e.g. FR-013, NFR-26, SRS §4.7 — see docs/srs/16-traceability.md. Leave blank for pure chores/tooling. -->
 
 ## Type of change
 
@@ -37,7 +37,7 @@
 
 - [ ] This PR targets `development`
 - [ ] No secrets, tokens, or credentials are included in the diff
-- [ ] Docs (`CONTRIBUTING.md`, `doc/setup/ThunderID.md`, or the SRS) are updated if this changes setup steps or a documented requirement
+- [ ] Docs (`CONTRIBUTING.md`, `docs/setup/thunderid.md`, or the SRS) are updated if this changes setup steps or a documented requirement
 - [ ] I've noted any known limitations or follow-up work below
 
 ## Notes / follow-up

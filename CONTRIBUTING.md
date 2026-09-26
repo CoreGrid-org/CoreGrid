@@ -47,15 +47,15 @@ Then, from the repo root, bring up CoreGrid's own database alongside it:
 docker compose up -d
 ```
 
-Together these give you two running containers: `coregrid-thunderid-1` (identity, `https://localhost:8090`) and `coregrid-postgres` (CoreGrid's own application database, host port `5433` — not the Postgres default `5432`, to avoid colliding with another local project's Postgres). See [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md#start-thunderid-and-postgresql) for why it's two commands the first time, not one.
+Together these give you two running containers: `coregrid-thunderid-1` (identity, `https://localhost:8090`) and `coregrid-postgres` (CoreGrid's own application database, host port `5433` — not the Postgres default `5432`, to avoid colliding with another local project's Postgres). See [`docs/setup/thunderid.md`](./docs/setup/thunderid.md#start-thunderid-and-postgresql) for why it's two commands the first time, not one.
 
-**The first `docker compose -f oci://...` run pulls the ThunderID image, which is large and can take several minutes** — this is normal, not a hang. After that first bootstrap, everything is local: to stop without losing data, `docker compose stop`; to restart, `docker compose start` (don't re-run either `up -d` command against an existing volume unless you mean to — see the troubleshooting table in [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md)).
+**The first `docker compose -f oci://...` run pulls the ThunderID image, which is large and can take several minutes** — this is normal, not a hang. After that first bootstrap, everything is local: to stop without losing data, `docker compose stop`; to restart, `docker compose start` (don't re-run either `up -d` command against an existing volume unless you mean to — see the troubleshooting table in [`docs/setup/thunderid.md`](./docs/setup/thunderid.md)).
 
 ---
 
 ## 3. Set Up ThunderID
 
-Follow [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md) for the full one-time console setup — creating the `CoreGridUser` type and the four CoreGrid roles, registering the frontend application, allowing the frontend's CORS origin, and creating the backend's service credential. Come back here once that's done.
+Follow [`docs/setup/thunderid.md`](./docs/setup/thunderid.md) for the full one-time console setup — creating the `CoreGridUser` type and the four CoreGrid roles, registering the frontend application, allowing the frontend's CORS origin, and creating the backend's service credential. Come back here once that's done.
 
 ---
 
@@ -80,10 +80,10 @@ Schema is managed exclusively by these EF Core migrations (SRS §2.3, C-02) — 
 
 ```bash
 cd backend
-dotnet user-secrets set "ThunderID:ScimClientSecret" "<Backend Service Client Secret from doc/setup/ThunderID.md>"
+dotnet user-secrets set "ThunderID:ScimClientSecret" "<Backend Service Client Secret from docs/setup/thunderid.md>"
 ```
 
-See [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md) for what each of these values is and where it comes from in the console — including the `username` attribute `CoreGridUser` needs for sign-in to resolve at all, a common first-time gotcha.
+See [`docs/setup/thunderid.md`](./docs/setup/thunderid.md) for what each of these values is and where it comes from in the console — including the `username` attribute `CoreGridUser` needs for sign-in to resolve at all, a common first-time gotcha.
 
 ### Start the Backend
 
@@ -103,7 +103,7 @@ npm install
 cp .env.example .env
 ```
 
-Fill in `.env` with the values from your ThunderID frontend application (see [`doc/setup/ThunderID.md`](./doc/setup/ThunderID.md)) — `VITE_API_URL` is already correct as-is for a default local backend:
+Fill in `.env` with the values from your ThunderID frontend application (see [`docs/setup/thunderid.md`](./docs/setup/thunderid.md)) — `VITE_API_URL` is already correct as-is for a default local backend:
 
 ```env
 VITE_API_URL=http://localhost:5083/api
@@ -143,7 +143,7 @@ The frontend runs on `http://localhost:5173`.
 1. Go to `http://localhost:5173`.
 2. On a fresh database, you'll be redirected through sign-in straight to `/setup` — `GET /api/setup/status` genuinely checks whether any organisation exists yet.
 3. Fill in the admin account and organisation details and submit. This provisions a real ThunderID account (`Identity/ThunderIdIdentityDirectory.cs`) and creates the matching `Organizations`/`Users` rows locally.
-4. Sign in with that account. `/` resolves your role from the `roles` claim and sends you to the matching dashboard — an Administrator lands on `/admin`. Other roles aren't provisionable through the UI yet (see [`doc/PROGRESS.md`](./doc/PROGRESS.md)), so `/admin` is the only one worth exercising today.
+4. Sign in with that account. `/` resolves your role from the `roles` claim and sends you to the matching dashboard — an Administrator lands on `/admin`. Other roles aren't provisionable through the UI yet (see [`docs/progress.md`](./docs/progress.md)), so `/admin` is the only one worth exercising today.
 5. From `/admin` → **Users & Roles**, an Administrator can invite further users by email and role (FR-013) — everything else on the Admin Dashboard is a mock/placeholder page; see [Project Structure](#project-structure) below for which parts are real.
 
 ---
@@ -152,7 +152,7 @@ The frontend runs on `http://localhost:5173`.
 
 ### Backend (`backend/`)
 
-Modular monolith: one `Features/<Name>/` folder per SRS component/owner (a component and its owner in [SRS §18](./doc/SRS/18-team-roster-and-work-allocation.md)), not per technically-related entity group — that's why `Departments`/`Locations`/`OrganizationPolicies` live in `Features/OrgConfig/` (Component D) rather than `Features/Assets/` (Component A), even though Assets needs Department/Location as reference data. Every feature registers itself with one `AddXxxFeature()` extension method (its `Module.cs`), so `Program.cs` reads as a manifest — platform setup (JSON, Swagger, auth, rate limiting, health, CORS, DB), one `Add…Feature()` call per module, then the middleware pipeline — instead of a 30-line block of fully-qualified `AddScoped<>()` calls.
+Modular monolith: one `Features/<Name>/` folder per SRS component/owner (a component and its owner in [SRS §18](./docs/srs/18-team-roster-and-work-allocation.md)), not per technically-related entity group — that's why `Departments`/`Locations`/`OrganizationPolicies` live in `Features/OrgConfig/` (Component D) rather than `Features/Assets/` (Component A), even though Assets needs Department/Location as reference data. Every feature registers itself with one `AddXxxFeature()` extension method (its `Module.cs`), so `Program.cs` reads as a manifest — platform setup (JSON, Swagger, auth, rate limiting, health, CORS, DB), one `Add…Feature()` call per module, then the middleware pipeline — instead of a 30-line block of fully-qualified `AddScoped<>()` calls.
 
 ```
 backend/
@@ -288,8 +288,8 @@ All of these should pass before you open or update a PR — none of them are opt
 2. `npx tsc -b --force` from `frontend/` — zero errors.
 3. `npm run build` from `frontend/` — the production build has to actually succeed, not just type-check.
 4. **Exercise the change in a real browser** against a running backend + ThunderID. A green build proves the code compiles, not that the feature works — click through the actual flow you changed.
-5. If your change completes or advances an item in [`doc/PROGRESS.md`](./doc/PROGRESS.md), tick it in the same PR.
-6. Reference the requirement ID (e.g. `FR-013`) your change implements in the commit message or PR description, per [SRS §12.1](./doc/SRS/12-individual-contribution-and-work-allocation.md#121-contribution-evidence-requirements) — that's what lets a requirement be traced to code, tests and a reviewer.
+5. If your change completes or advances an item in [`docs/progress.md`](./docs/progress.md), tick it in the same PR.
+6. Reference the requirement ID (e.g. `FR-013`) your change implements in the commit message or PR description, per [SRS §12.1](./docs/srs/12-individual-contribution-and-work-allocation.md#121-contribution-evidence-requirements) — that's what lets a requirement be traced to code, tests and a reviewer.
 
 ### Branch and PR conventions
 
@@ -303,5 +303,5 @@ All of these should pass before you open or update a PR — none of them are opt
 ## Need Help?
 
 - Open an [issue](https://github.com/CoreGrid-org/CoreGrid/issues)
-- See the full [SRS](./doc/SRS/00-front-matter.md) for the system's requirements and architecture
-- See [`doc/PROGRESS.md`](./doc/PROGRESS.md) for what's actually built versus still planned
+- See the full [SRS](./docs/srs/00-front-matter.md) for the system's requirements and architecture
+- See [`docs/progress.md`](./docs/progress.md) for what's actually built versus still planned

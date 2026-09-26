@@ -1,6 +1,6 @@
 # ThunderID Integration
 
-CoreGrid delegates authentication and identity storage to [ThunderID](https://github.com/thunder-id), an external OIDC provider. This document is a practical setup guide; the architecture and rationale behind it live in [SRS §4](../SRS/04-identity-and-access-management.md).
+CoreGrid delegates authentication and identity storage to [ThunderID](https://github.com/thunder-id), an external OIDC provider. This document is a practical setup guide; the architecture and rationale behind it live in [SRS §4](../srs/04-identity-and-access-management.md).
 
 > **Deployment model:** CoreGrid's M0 is self-hosted, one full stack per customer organisation — its own frontend/backend, own Postgres, own ThunderID instance, with a single ThunderID organisation unit and exactly one CoreGrid `Organization` row (SRS §4.2). M1 turns this into a multi-tenant hosted SaaS (SRS §17) without any change on ThunderID's side — only the "one `Organizations` row" restriction lifts.
 
@@ -38,7 +38,7 @@ Console: `https://localhost:8090/console`.
 
 ### 1. Create the CoreGridUser Type
 
-**User Types** → create one type covering all four CoreGrid roles (the claim contract is uniform across them — [SRS §4.4](../SRS/04-identity-and-access-management.md#44-token-model-and-claim-contract)):
+**User Types** → create one type covering all four CoreGrid roles (the claim contract is uniform across them — [SRS §4.4](../srs/04-identity-and-access-management.md#44-token-model-and-claim-contract)):
 
 | Field | Value |
 |---|---|
@@ -132,7 +132,7 @@ The frontend application itself never gets a role — only the users who sign in
 
 ### The Agent Service Doesn't Register With ThunderID
 
-It authenticates via a shared secret instead — `AgentService__SharedSecret` ([SRS §14.2](../SRS/14-deployment-and-operations.md)). ThunderID plays no part in it.
+It authenticates via a shared secret instead — `AgentService__SharedSecret` ([SRS §14.2](../srs/14-deployment-and-operations.md)). ThunderID plays no part in it.
 
 ## Environment Variables
 
