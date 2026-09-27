@@ -51,6 +51,69 @@ Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named stude
 | 1.5 | 2026-08-18 | Hasitha Erandika | Scope change: restricted the Flutter client's per-role reach to match Section 3.4's own stated design principle (React is the management/control interface, Flutter is the field operations interface). Auditor and Administrator are now web-console-only; Inventory Officer uses both clients; Staff remains mobile-only. Corrected FR-059 (dropped Auditor's Flutter scan-to-complete), FR-067 and FR-069 (Administrator's and Auditor's workflow-initiation/monitoring access is React only; Officer keeps both) and Section 3.4. No backend authorisation change — Appendix B's role-permission grants are unaffected, since they describe API authorisation, not client UI surface. | Draft |
 | 1.6 | 2026-08-18 | Hasitha Erandika | Added Section 3.4.1, Users by Role and Platform: a consolidated table and integration diagram (Figure 10) showing which platform each role uses and why, and how both clients share one ThunderID identity provider, claim contract and API. Documentation consolidation of the v1.5 scope change — no new requirement introduced. | Draft |
 
+### Individual Contribution Log — Jayashan Guruge
+
+This log groups related work attributed to Jayashan Guruge into task areas. The summaries are based on repository commit history; abbreviated commit IDs provide evidence to review against the associated changes. Add requirement references and verification results in the individual report.
+
+| Date | Task area | Contribution summary | Commit evidence |
+|---|---|---|---|
+| 2026-08-15–2026-08-17 | Asset Registry and configuration | Implemented Component A asset registry and QR identification work, including registration and update flows, LKR display, QR payload, searchable asset configuration, safe soft deletion, and asset history/timeline. | `d15d89b`, `01e214a`, `f14e6b9`, `5b39b92`, `f942d6c`, `257db73`, `d3ac751`, `32a7644`, `0f68605`, `156b292`, `e4e88b2`, `25f2f6d`, `37007c4`, `31ecaa4`, `608bade`, `b1e5b2b` |
+| 2026-08-17–2026-09-27 | Project and assignment documentation | Updated progress records, documented role/platform scenarios, added the assignment report structure, and revised project documentation. | `222aa15`, `549e58f`, `ba95423`, `187ed97`, `885168d` |
+| 2026-09-10 | Asset inventory reporting | Connected the asset inventory report to the backend and added filters and exports. | `bc168d7`, `699b96b` |
+| 2026-09-14–2026-09-16 | Planner Agent and verification | Integrated and migrated the Planner Agent workflow, added asset-attribute validation, and generated campaign verification tasks. | `6812cc5`, `fb94a30`, `426c9eb`, `8496892` |
+| 2026-09-17 | Asset lifecycle features | Implemented server-side asset depreciation and printable QR label downloads. | `4ad9977`, `ae49c1a` |
+| 2026-09-22–2026-09-25 | Interface, maintenance and quality fixes | Refined asset filters and category UI, added the user profile page and reporter attribution, implemented current-user fault-report retrieval, and addressed CI, view, issue and code-comment fixes. | `2d50677`, `ae9f8c6`, `61ed61e`, `d3c1f0f`, `6cdc2f7`, `7f258ee`, `1433467`, `ff0ed19`, `9143da2`, `603b827`, `ff78bff` |
+
+**Evidence basis:** The task summaries group non-merge commits attributed to Jayashan in `git log --all`. Commit IDs identify the underlying records; review the associated code or documentation changes and test results when preparing assessed evidence.
+
+#### Mobile — `CoreGrid-org/coregrid-mobile`
+
+The following mobile work is evidenced by the supplied commit and pull-request links for the separate mobile repository.
+
+##### Individual Contribution Log — Mobile (Jayashan)
+
+| Date | Task / area | Contribution summary | Commit | Evidence |
+|---|---|---|---|---|
+| 2026-09-09 | Asset registry, search, condition, verification | Implemented FR-020, FR-028, FR-029 and FR-031 asset-registry functionality. | `ee8003f` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/ee8003f) |
+| 2026-09-09 | Progress documentation | Updated mobile progress tracking. | `3efcf76` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/3efcf76) |
+| 2026-09-15 | Asset search | Connected asset search to the backend. | `6f300b4` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/6f300b4) |
+| 2026-09-15 | Asset UI/UX | Improved asset-related interface and experience. | `dc792b6` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/dc792b6) |
+| 2026-09-16 | Asset verification and discrepancy | Implemented the mobile asset-verification workflow and improved asset/discrepancy UI. | `0bd5ae8` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/0bd5ae8) |
+| 2026-09-16 | QR asset scanning | Added the QR asset-scanning flow. | `878282c` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/878282c) |
+| 2026-09-25 | Dashboard UI | Fixed staff-dashboard UI/UX. | `0608a65` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/0608a65) |
+| 2026-09-25 | Fault reporting | Added the report-fault feature and related UI improvements. | `a607e9c` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/a607e9c) |
+| 2026-09-25 | Code comments | Added explanatory comments to the relevant implementation. | `abb6ad0` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/abb6ad0) |
+| 2026-09-25 | Ad-hoc verification | Enabled asset verification when no pending campaign task exists. | `6fafa96` | [Commit](https://github.com/CoreGrid-org/coregrid-mobile/commit/6fafa96) |
+
+##### Merged mobile pull requests
+
+| Merged date | PR | Source branch | Merge commit | Link |
+|---|---|---|---|---|
+| 2026-09-09 | #1 — asset registry QR | `feature/asset-registry-qr` | `52d91b1` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/1) |
+| 2026-09-16 | #3 — asset feature | `feature/asset` | `9a4c2ba` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/3) |
+| 2026-09-16 | #4 — asset feature | `feature/asset` | `9bff166` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/4) |
+| 2026-09-25 | #6 — frontend issues | `fix/frontend-issues` | `7d649da` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/6) |
+| 2026-09-25 | #7 — asset feature fixes | `fix/asset_feature` | `2eb218d` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/7) |
+
+### Pull Requests Submitted — Jayashan Guruge
+
+The following submitted PRs are recorded as merged in repository history.
+
+| Merged date | PR | Source branch | Merge commit | Link |
+|---|---:|---|---|---|
+| 2026-09-15 | #16 | `feature/component-a-enhancements` | `074df98` | [PR #16](https://github.com/CoreGrid-org/CoreGrid/pull/16) |
+| 2026-09-16 | #18 | `feature/campaign-verification-task-generation` | `3d05787` | [PR #18](https://github.com/CoreGrid-org/CoreGrid/pull/18) |
+| 2026-09-17 | #21 | `feature/component-a-enhancements` | `3e3c2c4` | [PR #21](https://github.com/CoreGrid-org/CoreGrid/pull/21) |
+| 2026-09-18 | #23 | `feature/component-a-enhancements` | `a9b16c6` | [PR #23](https://github.com/CoreGrid-org/CoreGrid/pull/23) |
+| 2026-09-22 | #25 | `fixComments` | `2508fc0` | [PR #25](https://github.com/CoreGrid-org/CoreGrid/pull/25) |
+| 2026-09-22 | #26 | `fixComments` | `24e8f07` | [PR #26](https://github.com/CoreGrid-org/CoreGrid/pull/26) |
+| 2026-09-24 | #27 | `feature/component-a-enhancements` | `e6ce874` | [PR #27](https://github.com/CoreGrid-org/CoreGrid/pull/27) |
+| 2026-09-24 | #28 | `feature/component-a-enhancements` | `63e9ba2` | [PR #28](https://github.com/CoreGrid-org/CoreGrid/pull/28) |
+| 2026-09-25 | #30 | `feature/component-a-enhancements` | `7e833cb` | [PR #30](https://github.com/CoreGrid-org/CoreGrid/pull/30) |
+| 2026-09-25 | #31 | `feature/component-a-enhancements` | `2fa96ff` | [PR #31](https://github.com/CoreGrid-org/CoreGrid/pull/31) |
+
+**Commit and PR summary:** The repository history attributes 40 non-merge commits to Jayashan Guruge. Together, they document work on asset registration and QR identification, asset lifecycle and inventory reporting, Planner Agent integration and campaign verification, plus project documentation and interface/maintenance fixes. The history records 10 merged PRs: #16, #18, #21, #23, #25, #26, #27, #28, #30 and #31. Two additional merge commits synchronize development branches and are not counted as PRs.
+
 ### Approval
 
 | Role | Name | Responsibility | Signature / Date |
