@@ -51,6 +51,185 @@ Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named stude
 | 1.5 | 2026-08-18 | Hasitha Erandika | Scope change: restricted the Flutter client's per-role reach to match Section 3.4's own stated design principle (React is the management/control interface, Flutter is the field operations interface). Auditor and Administrator are now web-console-only; Inventory Officer uses both clients; Staff remains mobile-only. Corrected FR-059 (dropped Auditor's Flutter scan-to-complete), FR-067 and FR-069 (Administrator's and Auditor's workflow-initiation/monitoring access is React only; Officer keeps both) and Section 3.4. No backend authorisation change — Appendix B's role-permission grants are unaffected, since they describe API authorisation, not client UI surface. | Draft |
 | 1.6 | 2026-08-18 | Hasitha Erandika | Added Section 3.4.1, Users by Role and Platform: a consolidated table and integration diagram (Figure 10) showing which platform each role uses and why, and how both clients share one ThunderID identity provider, claim contract and API. Documentation consolidation of the v1.5 scope change — no new requirement introduced. | Draft |
 
+### Individual Contribution Log — Hasitha Erandika
+
+This log groups the work attributed to Hasitha Erandika in the repository history and the Component D progress record. The abbreviated commit IDs provide evidence for review against the corresponding implementation, tests and documentation.
+
+| Date | Task area | Contribution summary | Commit evidence |
+|---|---|---|---|
+| 2026-08-08–2026-08-12 | Project foundation and identity | Established the repository and SRS baseline, structured the backend and frontend, implemented the initial login/authentication flow, and set up organisation-scoped identity and user provisioning. | `1177d28`, `bd03623`, `88d7d03`, `eff5ef2`, `27fa3a8`, `5702ca1`, `9822fdd`, `eb16174` |
+| 2026-08-13–2026-08-15 | Component D foundation | Implemented the initial Audit & Compliance, organisation configuration and user-administration work, including role dashboards, user management and backend restructuring. | `1c16300`, `1a19900`, `a708373`, `6658b1b`, `87b2fd3` |
+| 2026-08-17–2026-08-21 | Architecture, business plan and CI | Updated the licence and business plan, documented deployment and identity decisions, added CI workflow ownership, implemented policy management and connected audit workflows. | `023c7e8`, `b98966c`, `a726f62`, `bad3d62`, `31130c6` |
+| 2026-09-12 | Tenant isolation and authorisation | Enforced the organisation query filter, added automatic user provisioning and tightened endpoint authorisation. | `aa00c9f` |
+| 2026-09-14–2026-09-15 | Component D completion and authentication verification | Completed the main Component D progress record, added tests, verified authentication behaviour and updated the agent plan. | `4ca2f62`, `8141231`, `0040165`, `31957b2` |
+| 2026-09-18–2026-09-19 | Backend quality and RBAC | Planned and executed backend modularisation, completed the constants/dead-code sweep, wired RBAC and selected SRS gap items, repaired test-project references and cleaned up CI. | `f67370a`, `8048b50`, `6495e9c`, `9cca43e`, `3fe85bd`, `4dda6bb`, `e46e777` |
+| 2026-09-18–2026-09-25 | Documentation, validation and UI improvements | Maintained progress and assessment documentation, added frontend validation, improved reusable UI components and corrected frontend/backend issues. | `a217918`, `9745e9c`, `93d2b6e`, `583671e`, `1bc5e40` |
+| 2026-09-26 | Integration, testing and deployment support | Added photo and LLM fetching endpoints, expanded tests for photos, LLMs and campaign reports, improved campaign/disposal/maintenance models, updated setup documentation, and added Docker components and CI corrections. | `2bfcb66`, `3ea91f0`, `242682c`, `81ba176`, `d6b9358`, `fdfa755` |
+| 2026-09-27 | Mobile authentication and role authorisation | Added mobile ThunderID configuration/authentication support and corrected role-authorisation behaviour. | `29dd490`, `cf7b274` |
+
+**Current status:** The Component D implementation covers organisation setup, department/location management, user administration, policies, verification campaigns, discrepancies, append-only audit logging, reporting, dashboards, the Policy Compliance Agent checkpoint, and the related React interfaces and tests. Remaining documented work is the runtime split between migration-owner and restricted database connections for full append-only enforcement, completion of the Policy Compliance Agent's business-action execution, and the planned shared-style/component sweep.
+
+#### Complete Git-history contribution index — Hasitha Erandika
+
+The following index contains every commit authored by Hasitha Erandika/HasithaErandika returned by `git log --all --author=Hasitha` at the time of this revision, including merge and branch-integration commits. Merge commits are included as integration work; they do not claim authorship of the merged member's original implementation.
+
+| Date | Commit | Recorded contribution |
+|---|---|---|
+| 2026-09-27 | `29dd490` | Mobile ThunderID configuration and authentication. |
+| 2026-09-27 | `cf7b274` | Role-authorisation correction. |
+| 2026-09-26 | `fdfa755` | Added Docker components and corrected CI workflow issues. |
+| 2026-09-26 | `d6b9358` | Structured documentation and updated tasks. |
+| 2026-09-26 | `242682c` | Improved campaign-report models, disposals and maintenance frontend work. |
+| 2026-09-26 | `2bfcb66` | Added backend endpoints for LLM and photo fetching. |
+| 2026-09-26 | `3ea91f0` | Added tests for photos, LLMs and campaign reports. |
+| 2026-09-26 | `81ba176` | Updated setup documentation. |
+| 2026-09-26 | `a5d3cd7` | Updated settings and `.gitignore`. |
+| 2026-09-26 | `583671e` | UI/UX improvements, bug fixes and reusable shared components. |
+| 2026-09-25 | `1bc5e40` | Removed the banner and refactored the backend update. |
+| 2026-09-25 | `93d2b6e` | Added frontend validations. |
+| 2026-09-25 | `e60471e` | Merged the budget-agent orchestration pull request. |
+| 2026-09-23 | `fa23104` | Merged the development branch. |
+| 2026-09-19 | `7323a57` | Updated packages. |
+| 2026-09-19 | `e46e777` | Implemented opt-in SRS gaps, RBAC wiring and CI cleanup. |
+| 2026-09-19 | `4dda6bb` | Completed backend Phase 4 constants and dead-code sweep. |
+| 2026-09-19 | `3fe85bd` | Completed backend modularisation Phases 1–3. |
+| 2026-09-18 | `a217918` | Added the 0–100 system-marks rubric before and after each phase. |
+| 2026-09-18 | `9cca43e` | Made mandatory value-type request fields non-defaultable. |
+| 2026-09-18 | `332f2c7` | Deduplicated the `ProjectReference` after the merge. |
+| 2026-09-18 | `0edfb21` | Merged the remote development branch. |
+| 2026-09-18 | `6495e9c` | Continued the Phase 1 request-field correction. |
+| 2026-09-18 | `8048b50` | Fixed backend test compilation by restoring the API project reference. |
+| 2026-09-18 | `f67370a` | Added the backend refactor plan. |
+| 2026-09-18 | `b844cdb` | Merged development pull request #19. |
+| 2026-09-18 | `d225c6a` | Merged transfer/disposal pull request #22. |
+| 2026-09-18 | `9747b4a` | Updated project progress. |
+| 2026-09-18 | `4e5b756` | Merged maintenance pull request #20. |
+| 2026-09-17 | `a53aa7c` | Merged Planner Agent pull request #17. |
+| 2026-09-15 | `0040165` | Verified authentication. |
+| 2026-09-15 | `655ed98` | Updated the agent plan and removed the budget agent. |
+| 2026-09-14 | `31957b2` | Merged development pull request #15. |
+| 2026-09-14 | `9853919` | Merged Planner Agent pull request #14. |
+| 2026-09-14 | `8141231` | Added tests. |
+| 2026-09-14 | `4ca2f62` | Recorded Component D completion progress. |
+| 2026-09-14 | `a8248be` | Reverted transfer/disposal changes because of the pull-request error. |
+| 2026-09-14 | `36ab263` | Merged maintenance/notification pull request #13. |
+| 2026-09-14 | `2f59a37` | Merged transfer/disposal pull request #12. |
+| 2026-09-12 | `aa00c9f` | Enforced the organisation query filter, automatic user provisioning and endpoint authorisation. |
+| 2026-09-12 | `9f6786a` | Merged the asset-inventory-report pull request. |
+| 2026-08-21 | `ab59901` | Merged development pull request #10. |
+| 2026-08-21 | `a726f62` | Added CI workflow, policy management and audit agent workflows. |
+| 2026-08-21 | `e02e572` | Merged transfer/disposal pull request #9. |
+| 2026-08-18 | `79cd45e` | Merged maintenance-record pull request #8. |
+| 2026-08-18 | `31130c6` | Updated role IDs and the SCIM client ID in settings. |
+| 2026-08-18 | `bad3d62` | Updated documentation with specific role values. |
+| 2026-08-17 | `b98966c` | Updated the business plan. |
+| 2026-08-17 | `023c7e8` | Updated the licence and business plan. |
+| 2026-08-17 | `f92e5e1` | Merged asset-history timeline pull request #7. |
+| 2026-08-17 | `e43f81d` | Merged asset-history timeline pull request #6. |
+| 2026-08-17 | `b923872` | Merged the asset-component improvement pull request #5. |
+| 2026-08-15 | `87b2fd3` | Updated user management and role-dashboard configuration. |
+| 2026-08-15 | `6658b1b` | Merged development pull request #2. |
+| 2026-08-15 | `a708373` | Completed the Component D baseline, fixed pull-request issues and improved sidebar UI/features. |
+| 2026-08-15 | `1a19900` | Restructured backend files. |
+| 2026-08-15 | `d77c04c` | Merged asset pull request #4. |
+| 2026-08-15 | `97a1440` | Merged development into the asset feature branch. |
+| 2026-08-15 | `0cd342c` | Merged transfer/disposal pull request #3. |
+| 2026-08-13 | `1c16300` | Updated the admin features dashboard with mock data. |
+| 2026-08-12 | `eb16174` | Completed user provisioning/auth setup and mock-data dashboards. |
+| 2026-08-12 | `9822fdd` | Added identity work. |
+| 2026-08-12 | `ef39d19` | Restructured the frontend. |
+| 2026-08-10 | `add01a4` | Added authentication work. |
+| 2026-08-10 | `713e7d8` | Updated the single-tenant baseline. |
+| 2026-08-09 | `5702ca1` | Added single-tenant organisation configuration. |
+| 2026-08-09 | `cf43d93` | Added the initial login flow. |
+| 2026-08-09 | `eff5ef2` | Revamped and separated the web frontend. |
+| 2026-08-09 | `88d7d03` | Initialised the backend. |
+| 2026-08-09 | `27fa3a8` | Migrated plans and identity-provider documentation to ThunderID and .NET 10. |
+| 2026-08-08 | `deb1587` | Merged development pull request #1. |
+| 2026-08-08 | `46dbddd` | Updated the project baseline. |
+| 2026-08-08 | `d0a914a` | Initialised the frontend. |
+| 2026-08-08 | `19f1b72` | Updated the team documentation. |
+| 2026-08-08 | `bd03623` | Initialised the SRS. |
+| 2026-08-08 | `1177d28` | Created the initial repository commit. |
+
+### Individual Contribution Log — Seneja Thehansi
+
+Seneja Thehansi's work covers Component B — Maintenance Management and the Maintenance Analysis Agent. The Git history uses the author name `seneja`.
+
+| Date | Task area | Contribution summary | Commit evidence |
+|---|---|---|---|
+| 2026-08-17–2026-08-18 | Maintenance foundation | Implemented fault reporting, maintenance creation/approval, start/complete/cancel flows, maintenance records, DTOs, background processing, modals, hooks, seeding, LKR cost labels, error handling and maintenance-page details. | `29e2505`, `9b3f8c3`, `dd59ebb`, `de01012`, `d4b0e22`, `4f4b681`, `50de0ea`, `69ba1fc`, `8c7cccd`, `95d5e2a` |
+| 2026-09-14 | Notifications and supporting integration | Implemented notification storage/service integration, the in-app notification centre and unread-count display; updated the maintenance API, fault-report page and transfer/disposal services; removed legacy transfer modules; cleaned test references. | `dac9e48`, `2f4e94e`, `58f4b58`, `db5e30d`, `a37fdd4`, `52a1169`, `99a0201`, `77abbe6`, `8c63993` |
+| 2026-09-17 | Maintenance reporting and storage | Implemented preventive-maintenance logic and scheduling, maintenance reports, storage/EF migration/schema configuration, audit-report and users-controller updates, and maintenance photo/filter improvements. | `fb77167`, `65885df`, `fd7ddca`, `dc21ff8`, `b2d0260`, `1167953` |
+| 2026-09-17 | Report pagination and data model | Updated the maintenance-record type and added server-side pagination for inventory and maintenance reports. | `4c1c2e4`, `f8b1bc9` |
+| 2026-09-25 | Maintenance validation | Allowed future completion dates and validated them against the requested date in maintenance forms. | `8defc60` |
+
+#### Complete Git-history contribution index — Seneja Thehansi
+
+| Date | Commit | Recorded contribution |
+|---|---|---|
+| 2026-09-25 | `8defc60` | Allowed future completion dates and validated them against the requested date in maintenance forms. |
+| 2026-09-17 | `f8b1bc9` | Implemented server-side pagination for inventory and maintenance reports. |
+| 2026-09-17 | `4c1c2e4` | Updated the `MaintenanceRecord` type and added pagination parameters. |
+| 2026-09-17 | `1167953` | Enhanced maintenance photo-upload handling and filtering. |
+| 2026-09-17 | `b2d0260` | Integrated maintenance and workflow-management features. |
+| 2026-09-17 | `dc21ff8` | Implemented audit reporting and updated the users controller. |
+| 2026-09-17 | `fd7ddca` | Configured storage, EF migrations and database schema updates. |
+| 2026-09-17 | `fb77167` | Implemented maintenance logic and preventive-maintenance scheduling. |
+| 2026-09-17 | `65885df` | Added the maintenance report panel and integrated it with the Reports page. |
+| 2026-09-14 | `8c63993` | Implemented the in-app notification system with CRUD operations. |
+| 2026-09-14 | `77abbe6` | Removed an unused project reference from `backend.Tests.csproj`. |
+| 2026-09-14 | `99a0201` | Removed legacy transfer modules and consolidated the UI. |
+| 2026-09-14 | `52a1169` | Updated the maintenance API, hook and report-fault page. |
+| 2026-09-14 | `a37fdd4` | Integrated the notification centre into `RoleLayout` with unread-count display. |
+| 2026-09-14 | `db5e30d` | Updated disposal and transfer services and controllers. |
+| 2026-09-14 | `58f4b58` | Added maintenance analysis tools and notification integration. |
+| 2026-09-14 | `2f4e94e` | Implemented the Notifications table/schema and service integration. |
+| 2026-09-14 | `dac9e48` | Added the Notifications table and related migrations. |
+| 2026-08-18 | `95d5e2a` | Added the `MaintenanceRecords` table, indexes and migration history. |
+| 2026-08-18 | `8c7cccd` | Enhanced error-message handling and maintenance-page details. |
+| 2026-08-18 | `69ba1fc` | Added maintenance-record seeding and updated cost labels to LKR. |
+| 2026-08-18 | `50de0ea` | Added maintenance-management modals and hooks. |
+| 2026-08-18 | `4f4b681` | Added maintenance cancellation and listing with DTOs and background service. |
+| 2026-08-18 | `d4b0e22` | Added maintenance start and completion with DTOs. |
+| 2026-08-17 | `de01012` | Cleaned comments and formatting in `MaintenanceService`. |
+| 2026-08-17 | `dd59ebb` | Implemented maintenance creation and approval endpoints. |
+| 2026-08-17 | `9b3f8c3` | Implemented the fault-reporting API. |
+| 2026-08-17 | `29e2505` | Added the `MaintenanceRecords` table and EF Core mappings. |
+
+### Individual Contribution Log — Nipuna Bhanuka (Bhanuka)
+
+Nipuna Bhanuka's work covers Component C — Transfer & Disposal and the Budget Analysis Agent. The Git history uses the author name `NipunaBhanuka18`.
+
+| Date | Task area | Contribution summary | Commit evidence |
+|---|---|---|---|
+| 2026-08-14–2026-08-20 | Transfer and disposal foundation | Implemented transfer-state-machine endpoints, condemnation/disposal workflows, disposal preconditions, agent tool endpoints and the P4 maintenance precondition check. | `697c58f`, `dfded6c`, `3da7010`, `f7c3a19`, `3b7023f` |
+| 2026-09-12–2026-09-13 | Component C workflow and agent | Implemented the P6 workflow precondition, standalone Budget Analysis Agent, transfer history, disposal revision, real backend wiring and the Auditor read-only view with enum corrections. | `9ce601f`, `ba4cc3e`, `8368e14`, `e600cf0`, `65c64ac` |
+| 2026-09-18 | Transfer/disposal quality | Added pagination to transfers/disposals, fixed test compilation and merged development into the feature branch; migrated the Budget Analysis Agent to in-process C#. | `c92a52f`, `6be2a49`, `b6fbf83` |
+| 2026-09-24 | Agent orchestration and frontend quality | Wired the Budget Analysis Agent into the multi-agent pipeline and fixed a frontend build-breaking duplicate property and stale test assertion. | `d44a11b`, `4793dc0` |
+
+#### Complete Git-history contribution index — Nipuna Bhanuka (Bhanuka)
+
+| Date | Commit | Recorded contribution |
+|---|---|---|
+| 2026-09-24 | `4793dc0` | Wired the Budget Analysis Agent into the multi-agent orchestration pipeline (Node 3). |
+| 2026-09-24 | `d44a11b` | Fixed a duplicate frontend property and stale `WorkflowsPage` test assertion. |
+| 2026-09-18 | `b6fbf83` | Migrated the Budget Analysis Agent to in-process C#. |
+| 2026-09-18 | `6be2a49` | Merged the development branch into the transfer/disposal feature branch. |
+| 2026-09-18 | `c92a52f` | Fixed test compilation and added transfer/disposal pagination. |
+| 2026-09-13 | `65c64ac` | Added the Auditor read-only view and corrected enumeration behaviour. |
+| 2026-09-13 | `e600cf0` | Wired the transfers/disposals frontend to the real backend. |
+| 2026-09-12 | `8368e14` | Implemented disposal revision and transfer history. |
+| 2026-09-12 | `ba4cc3e` | Added the standalone Budget Analysis Agent using Python/LangGraph. |
+| 2026-09-12 | `9ce601f` | Implemented the P6 agent-workflow precondition. |
+| 2026-08-20 | `3b7023f` | Completed the P4 maintenance-precondition check. |
+| 2026-08-19 | `aed2ad0` | Merged development into the transfer/disposal feature branch. |
+| 2026-08-19 | `f7c3a19` | Added agent-tool endpoints for the Budget Analysis Agent. |
+| 2026-08-18 | `3da7010` | Implemented the condemnation and disposal workflow. |
+| 2026-08-18 | `dfded6c` | Implemented transfer state-machine endpoints. |
+| 2026-08-18 | `1cc6433` | Implemented the disposal precondition engine. |
+| 2026-08-14 | `697c58f` | Added `AssetTransfer` and `DisposalRequest` entities and migration. |
+
 ### Individual Contribution Log — Jayashan Guruge
 
 This log groups related work attributed to Jayashan Guruge into task areas. The summaries are based on repository commit history; abbreviated commit IDs provide evidence to review against the associated changes. Add requirement references and verification results in the individual report.

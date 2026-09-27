@@ -18,6 +18,114 @@ AI proposes → the owner reviews the diff → the owner tests it → the owner 
 Each student maintains this log individually in their section of the consolidated report, together with a one-page reflection on what the tools did well, what they got wrong, what was changed or rejected and why, and what the student learned about their own understanding. The group submits one consolidated declaration confirming that all AI use has been disclosed and that every member can explain, test and modify the work submitted under their name. No external AI assistant, chatbot, IDE copilot or agentic coding tool is used during the demonstration or viva; the only AI executed during the evaluation is CoreGrid's own agentic subsystem.
 
 
+## Individual AI Usage Record — Hasitha Erandika
+
+**Assigned Areas:**
+Component D — Audit & Compliance, organisation configuration, user administration, group integration, CI ownership and final documentation.
+
+### AI Usage Declaration
+
+During the development of CoreGrid, I used **Claude Code** for coding. I used the **Sonnet 5** model for the earlier coding work and the **Opus 5.5** model for my last five coding commits: `242682c`, `d6b9358`, `fdfa755`, `cf7b274` and `29dd490`. I used **Codex Luna only for the documentation changes recorded in this current update**, namely the front-matter contribution index and this AI-usage disclosure.
+
+AI suggestions were treated as proposals only. I reviewed them against the existing CoreGrid architecture, requirements, source code, database design and actual runtime behaviour. Suggestions that did not fit the project were changed or rejected before implementation.
+
+### Individual AI Usage Log
+
+| Date / period | Tool and model | Task and section | What the tool produced | What was changed or rejected | How it was verified |
+|---|---|---|---|---|---|
+| 2026-08-08–2026-09-25 | Claude Code — Sonnet 5 | Backend/frontend foundation, authentication, Component D, organisation administration, tenant isolation, authorisation, testing and documentation | Coding assistance, technical explanations, debugging guidance and test interpretation. | Adapted or rejected suggestions to match the actual CoreGrid architecture, requirements and environment. | Verified with builds, API requests, database checks, frontend/backend tests, CI and manual testing. |
+| 2026-09-26–2026-09-27 | Claude Code — Opus 5.5 | Last five coding commits: campaign/report and maintenance improvements, documentation/task updates, Docker/CI corrections, role authorisation and mobile ThunderID authentication | Coding assistance, debugging guidance and implementation suggestions for the final five commits. | Reviewed the generated suggestions and changed only code that matched the project requirements and actual runtime behaviour. | Verified with tests, API requests, logs, Docker/CI checks, mobile login and role-specific authorisation checks. |
+| Current documentation update | Codex Luna | Front-matter contribution index and AI-usage disclosure | Helped audit the complete Git history and organise this disclosure. | Used only for these documentation changes; no application code was changed. | Verified the index against all 76 Hasitha-authored commits and ran documentation checks. |
+
+These AI-usage entries are grouped by task area. The exhaustive commit-by-commit record for all 76 Hasitha-authored commits, including documentation, testing, fixes, merges and integration work, is maintained in the Hasitha contribution index in the front matter.
+
+### Declaration
+
+I confirm that:
+
+- AI-assisted development was disclosed in this record.
+- AI-generated suggestions were reviewed before implementation.
+- The relevant changes were tested after implementation.
+- I understand and remain responsible for the functionality submitted under my name.
+- Unsuitable or incorrect AI suggestions were modified or rejected.
+- No external AI assistant was used during the demonstration or viva.
+
+**Student:** Hasitha Erandika
+**Project:** CoreGrid
+**Module:** SE3090
+**Assigned Areas:** Audit & Compliance, organisation configuration, user administration, CI, integration and documentation.
+
+### Individual Reflection
+
+During development, AI assistance helped me investigate errors, understand unfamiliar framework behaviour, compare implementation options and organise project documentation. It supported work across the ASP.NET Core backend, React frontend, ThunderID authentication, PostgreSQL data access, CI, Docker setup, reporting, audit and compliance workflows, and mobile authentication.
+
+I did not accept generated code without review. I checked suggestions against the SRS, existing interfaces, database constraints, authorisation policies and observed test or runtime output. I modified or rejected suggestions when they conflicted with the project architecture, permissions, security requirements or current environment.
+
+I verified my work using backend builds and tests, frontend tests, API requests, database checks, CI results, application logs, Docker checks, browser testing and authenticated role-specific testing. I remain responsible for the final implementation and can explain, modify, test and debug the work submitted under my name.
+
+## Individual AI Usage Record — Seneja Thehansi
+
+**Assigned Areas:**
+Component B — Maintenance Management and Maintenance Analysis Agent.
+
+### AI Usage Declaration
+
+During the development of CoreGrid, I used **Antigravity 3.6** and **ChatGPT** for coding support. AI assistance was used for implementation guidance, debugging, API and database work, frontend integration, testing and documentation. Suggestions were reviewed against the existing CoreGrid requirements, architecture and source code before being accepted, modified or rejected.
+
+### Individual AI Usage Log
+
+| Date / period | Tool and model | Task and section | What the tool produced | What was changed or rejected | How it was verified |
+|---|---|---|---|---|---|
+| 2026-08-17–2026-08-18 | Antigravity 3.6 and ChatGPT | Maintenance records, fault reporting and maintenance workflows | Coding assistance for maintenance entities, endpoints, DTOs, approval/start/complete/cancel flows, background processing and maintenance UI. | Adapted suggestions to the existing API contracts, database model and frontend structure. | Verified with builds, API requests, database checks and manual workflow testing. |
+| 2026-09-14 | Antigravity 3.6 and ChatGPT | Notifications, maintenance reports and integration | Assistance with notification CRUD, notification-centre integration, maintenance reports, report-fault updates and supporting service/controller changes. | Kept only changes matching the existing role permissions and domain model. | Verified with backend/frontend tests, API requests and browser testing. |
+| 2026-09-17 | Antigravity 3.6 and ChatGPT | Preventive maintenance, storage, photos and pagination | Guidance for preventive-maintenance scheduling, storage configuration, migrations, photo handling, filters and server-side report pagination. | Corrected configuration and implementation details according to the actual environment and requirements. | Verified with builds, migrations, storage/API checks, tests and report testing. |
+| 2026-09-25 | Antigravity 3.6 and ChatGPT | Maintenance date validation | Assistance with validating future completion dates against the requested date. | Applied the validation only to the relevant maintenance forms and business rules. | Verified with frontend validation tests and manual form testing. |
+
+### Individual Reflection
+
+AI assistance supported my work on maintenance management, fault reporting, preventive scheduling, notifications, storage, maintenance photos, reports, pagination and validation. I reviewed suggestions against the SRS, existing interfaces, database constraints and observed test results. Incorrect or incompatible suggestions were changed or rejected. I verified the final work using builds, API requests, database checks, automated tests, browser testing and manual workflow testing.
+
+### Declaration
+
+I confirm that AI-assisted development was disclosed, suggestions were reviewed before implementation, relevant changes were tested, and I understand and remain responsible for the work submitted under my name. No external AI assistant was used during the demonstration or viva.
+
+**Student:** Seneja Thehansi
+**Project:** CoreGrid
+**Module:** SE3090
+**Assigned Areas:** Maintenance Management and Maintenance Analysis Agent
+
+## Individual AI Usage Record — Nipuna Bhanuka (Bhanuka)
+
+**Assigned Areas:**
+Component C — Transfer & Disposal and Budget Analysis Agent.
+
+### AI Usage Declaration
+
+During the development of CoreGrid, I used **Antigravity** for coding support. AI assistance was used for implementation guidance, debugging, agent integration, backend/frontend development and testing. Suggestions were reviewed against the existing CoreGrid requirements, architecture and source code before being accepted, modified or rejected.
+
+### Individual AI Usage Log
+
+| Date / period | Tool and model | Task and section | What the tool produced | What was changed or rejected | How it was verified |
+|---|---|---|---|---|---|
+| 2026-08-14–2026-08-20 | Antigravity — model/version not recorded | Transfer and disposal workflows | Coding assistance for transfer state transitions, condemnation/disposal workflows, precondition checks and agent-tool endpoints. | Adapted suggestions to the Component C state machine, business rules and existing API contracts. | Verified with backend builds, API requests, database checks and workflow tests. |
+| 2026-09-12–2026-09-13 | Antigravity — model/version not recorded | Budget Analysis Agent and Component C frontend | Assistance with the standalone Budget Analysis Agent, P6 precondition, transfer history, disposal revision, backend integration and Auditor read-only view. | Changed or rejected suggestions that did not match the SRS permissions, enums or API behaviour. | Verified with agent/API tests, frontend tests and role-specific browser testing. |
+| 2026-09-18 | Antigravity — model/version not recorded | Agent migration and transfer/disposal pagination | Guidance for migrating the Budget Analysis Agent to in-process C# and adding transfer/disposal pagination and test fixes. | Applied only changes confirmed by compilation and the existing workflow design. | Verified with builds, tests and pagination/API checks. |
+| 2026-09-24 | Antigravity — model/version not recorded | Multi-agent orchestration and frontend quality | Assistance with wiring Budget Analysis Agent Node 3 and correcting a frontend build/test issue. | Retained only fixes supported by the actual orchestration flow and test output. | Verified with builds, tests and orchestration checks. |
+
+### Individual Reflection
+
+AI assistance supported my work on transfer and disposal state machines, business-rule preconditions, the Budget Analysis Agent, agent orchestration, backend integration, frontend views, pagination and tests. I reviewed suggestions against the SRS, existing services, authorisation rules, database model and observed test results. Incorrect or incompatible suggestions were changed or rejected. I verified the final work through builds, automated tests, API checks, agent workflow tests and frontend testing.
+
+### Declaration
+
+I confirm that AI-assisted development was disclosed, suggestions were reviewed before implementation, relevant changes were tested, and I understand and remain responsible for the work submitted under my name. No external AI assistant was used during the demonstration or viva.
+
+**Student:** Nipuna Bhanuka (Bhanuka)
+**Project:** CoreGrid
+**Module:** SE3090
+**Assigned Areas:** Transfer & Disposal and Budget Analysis Agent
+
+
 ## Individual AI Usage Record — Jayashan Guruge
 
 **Assigned Areas:**
@@ -33,7 +141,19 @@ The following record documents individual AI-assisted activities related to my a
 
 ---
 
-### Individual AI Usage Log
+### Individual AI Usage Log — Date Ranges
+
+| Date / period | Tool and model | Task and section | What the tool produced | What was changed or rejected | How it was verified |
+|---|---|---|---|---|---|
+| 2026-08-15–2026-08-31 | ChatGPT — GPT-5.6 Luna and Claude Opus 5 | Backend foundation, API configuration, dependency injection, EF Core, database relationships/migrations, asset services, validation, authentication, authorisation, ThunderID and asset history | Assistance with backend structure, services, entities, API endpoints, database configuration, authentication and asset operations. | Adapted suggestions to the existing CoreGrid architecture, domain model, routes and ThunderID environment; rejected generic fixes that did not address the actual errors. | Verified with `dotnet build`, `dotnet run`, migrations, database checks and authenticated API requests. |
+| 2026-09-01–2026-09-10 | ChatGPT — GPT-5.6 Luna and Claude Opus 5 | Verification API, Planner Agent integration, service authentication, error handling, storage and Cloudflare R2 | Assistance with verification validation, Planner Agent communication, service tokens, HTTP errors, S3-compatible storage and R2 configuration. | Adjusted implementation to the actual agent endpoint, credentials, storage environment and observed failures; did not treat external quota/service errors as code defects. | Verified with API requests, application/service logs, compilation, runtime checks and storage testing. |
+| 2026-09-10–2026-09-18 | ChatGPT — GPT-5.6 Luna and Claude Opus 5 | QR generation/resolution, mobile Flutter setup, API client, ThunderID login, Planner Agent tools and backend testing | Guidance for QR flows, Flutter configuration, mobile API/authentication, FastAPI/agent tools and backend build/test troubleshooting. | Adapted QR, mobile and agent flows to the actual CoreGrid routes, device environment and authentication configuration. | Verified with API requests, FastAPI/Swagger, `flutter run`, mobile login, QR scans, `dotnet build` and tests. |
+| 2026-09-16–2026-09-25 | ChatGPT — GPT-5.6 Luna and Claude Opus 5 | React frontend, asset pages, routing, role-based UI, verification actions, mobile screens, device networking, CI and documentation | Assistance with frontend components, API integration, routing, permissions, Flutter screens, Android setup, ADB networking, CI and technical notes. | Modified suggestions to match existing React/Riverpod conventions, permissions, API responses and actual device state. | Verified with browser testing, frontend tests, Flutter/device testing, `adb devices`, API requests and CI results. |
+| 2026-09-26 | ChatGPT — GPT-5.6 Luna | Mobile local HTTPS and backend final configuration review | Assistance with local certificate warnings and remaining backend configuration issues. | Used development configuration appropriate to the local environment and corrected only confirmed configuration problems. | Verified with local API connectivity, `dotnet build`, `dotnet run`, logs and API testing. |
+
+### Detailed AI Usage Entries — Jayashan Guruge
+
+The detailed entries below preserve the original date-specific evidence behind the date-range summary above.
 
 | Date | Tool and Model | Task and Section | What the Tool Produced | What Was Changed or Rejected | How It Was Verified |
 |---|---|---|---|---|---|
