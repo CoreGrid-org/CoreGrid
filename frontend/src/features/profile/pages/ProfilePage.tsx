@@ -1,9 +1,10 @@
 import { Button, InlineNotification, Tag } from "@carbon/react";
-import { Copy, Email, Locked, UserAvatar } from "@carbon/icons-react";
+import { ArrowRight, Copy, Email, Locked, Password, UserAvatar } from "@carbon/icons-react";
 import { SignOutButton } from "@thunderid/react";
 import { useState } from "react";
 import { useMe } from "@/features/auth/hooks/useMe";
 import { getRoleLabel } from "@/features/auth/lib/roles";
+import { thunderIdRecoveryUrl } from "@/features/auth/lib/recovery";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 
 function initials(givenName: string, familyName: string) {
@@ -39,6 +40,7 @@ export default function ProfilePage() {
   }
 
   const fullName = `${me.given_name} ${me.family_name}`.trim();
+  const recoveryUrl = thunderIdRecoveryUrl();
 
   return (
     <div className="cg-page cg-user-profile">
@@ -85,12 +87,51 @@ export default function ProfilePage() {
             <div className="cg-user-profile__security-icon"><Locked size={24} /></div>
             <div>
               <h3>Account security is managed by ThunderID</h3>
-              <p>Your sign-in method and password are protected by your organisation’s identity provider. Contact an administrator if your name, email or access role needs to change.</p>
+              <p>Your sign-in method and password are protected by your organisation’s identity provider — CoreGrid never sees or stores your password. Contact an administrator if your name, email or access role needs to change.</p>
             </div>
           </div>
           <div className="cg-kv-grid">
             <div className="cg-kv-item"><p className="cg-kv-item__label">Assigned role</p><p className="cg-kv-item__value">{getRoleLabel(me.role)}</p></div>
             <div className="cg-kv-item"><p className="cg-kv-item__label">Account status</p><p className="cg-kv-item__value">{me.is_active ? "Enabled" : "Disabled"}</p></div>
+          </div>
+          <div className="cg-user-profile__password">
+            <div className="cg-user-profile__password-head">
+              <Password size={20} aria-hidden="true" />
+              <div>
+                <h3>Password</h3>
+                <p>
+                  Change your password with a secure, single-use link sent to <strong>{me.email}</strong>. Open it, choose a
+                  new password, and use that next time you sign in. Your current session stays signed in.
+                </p>
+              </div>
+            </div>
+            {recoveryUrl ? (
+              <Button
+                kind="tertiary"
+                size="md"
+                renderIcon={ArrowRight}
+                href={recoveryUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Change password
+              </Button>
+            ) : (
+              <InlineNotification
+                kind="info"
+                title="Password changes aren't set up yet"
+                subtitle="Sign out, then use “Forgot password?” on the sign-in page — or ask an Administrator to reset it."
+                lowContrast
+                hideCloseButton
+                style={{ maxWidth: "100%" }}
+              />
+            )}
+            {me.role === "Administrator" && (
+              <p className="cg-user-profile__password-note">
+                As an Administrator you can also set a new password for any user, yourself included, from{" "}
+                <strong>Users &amp; Roles → ⋯ → Reset password</strong>.
+              </p>
+            )}
           </div>
           <div className="cg-user-profile__actions">
             <SignOutButton>{({ signOut }) => <Button kind="secondary" renderIcon={UserAvatar} onClick={() => signOut()}>Sign out</Button>}</SignOutButton>

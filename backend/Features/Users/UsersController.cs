@@ -163,6 +163,20 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         return Ok(ToResponse(user));
     }
 
+    // Sets a new password for the user in ThunderID. CoreGrid never stores
+    // it — it's forwarded to the identity provider and discarded.
+    [HttpPost("{id:guid}/reset-password")]
+    [Authorize(Policy = Policies.CanManageUsers)]
+    public async Task<IActionResult> ResetPassword(Guid id, ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var user = await Db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken)
+            ?? throw NotFoundException.For(nameof(User), id);
+
+        await identityDirectory.SetPasswordAsync(user.ExternalSubjectId, request.NewPassword, cancellationToken);
+
+        return NoContent();
+    }
+
     // Reactivates a user.
     [HttpPatch("{id:guid}/activate")]
     [Authorize(Policy = Policies.CanManageUsers)]

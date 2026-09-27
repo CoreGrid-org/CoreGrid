@@ -298,6 +298,7 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
             (HttpMethod.Patch, $"/api/users/{id}"),
             (HttpMethod.Patch, $"/api/users/{id}/deactivate"),
             (HttpMethod.Patch, $"/api/users/{id}/activate"),
+            (HttpMethod.Post, $"/api/users/{id}/reset-password"),
             (HttpMethod.Patch, $"/api/notifications/{id}/read"),
             (HttpMethod.Patch, "/api/notifications/read-all"),
         ];
@@ -417,6 +418,10 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
     [InlineData("POST", "/api/users", CoreGridRole.InventoryOfficer, true)]
     [InlineData("POST", "/api/users", CoreGridRole.Staff, true)]
     [InlineData("POST", "/api/users", CoreGridRole.Auditor, true)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.Administrator, false)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.InventoryOfficer, true)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.Auditor, true)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.Staff, true)]
     // CanInitiateWorkflow — Officer, Administrator
     [InlineData("POST", "/api/agent-workflows", CoreGridRole.InventoryOfficer, false)]
     [InlineData("POST", "/api/agent-workflows", CoreGridRole.Administrator, false)]

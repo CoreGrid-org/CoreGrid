@@ -24,6 +24,9 @@ public class RecordRequestValidationTests(CoreGridWebApplicationFactory factory)
     {
         public Task<string> ProvisionUserAsync(string email, string givenName, string familyName, string password, CoreGridRole role, CancellationToken cancellationToken)
             => Task.FromResult($"stub-{Guid.NewGuid():N}");
+
+        public Task SetPasswordAsync(string externalSubjectId, string newPassword, CancellationToken cancellationToken)
+            => Task.CompletedTask;
     }
 
     public async Task InitializeAsync()
@@ -104,6 +107,30 @@ public class RecordRequestValidationTests(CoreGridWebApplicationFactory factory)
         var response = await AdminClient().PatchAsJsonAsync($"/api/users/{_staffUserId}", new { role = "Auditor", department_id = (Guid?)null });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_ValidRequest_IsA204()
+    {
+        var response = await AdminClient().PostAsJsonAsync($"/api/users/{_staffUserId}/reset-password", new { new_password = "Temp#Pass1234" });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_ShortPassword_IsA400()
+    {
+        var response = await AdminClient().PostAsJsonAsync($"/api/users/{_staffUserId}/reset-password", new { new_password = "short" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_UnknownUser_IsA404()
+    {
+        var response = await AdminClient().PostAsJsonAsync($"/api/users/{Guid.NewGuid()}/reset-password", new { new_password = "Temp#Pass1234" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

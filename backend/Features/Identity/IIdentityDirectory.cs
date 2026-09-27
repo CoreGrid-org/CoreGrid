@@ -14,4 +14,8 @@ public interface IIdentityDirectory
         string password,
         CoreGridRole role,
         CancellationToken cancellationToken);
+
+    // Replaces the user's password in the identity provider. The previous
+    // password stops working immediately.
+    Task SetPasswordAsync(string externalSubjectId, string newPassword, CancellationToken cancellationToken);
 }

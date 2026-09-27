@@ -112,6 +112,14 @@ const mockDisposals: PagedResult<DisposalResponse> = {
   total_pages: 1,
 };
 
+// The signed-in user's department. An Inventory Officer may only confirm
+// receipt of transfers into their own department (canConfirmReceiptOf), so
+// this is set to tr-2's destination ("dept-3") unless a test changes it.
+let mockMeDepartmentId: string | null = "dept-3";
+vi.mock("@/features/auth/hooks/useMe", () => ({
+  useMe: () => ({ data: { department_id: mockMeDepartmentId }, isLoading: false, isError: false, error: undefined }),
+}));
+
 const approveTransferMock = vi.fn();
 const confirmReceiptMock = vi.fn();
 const approveDisposalMock = vi.fn();
@@ -253,6 +261,16 @@ describe("TransfersPage - Role boundary enforcement", () => {
       expect(screen.queryByRole("button", { name: /approve disposal/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /request revision/i })).not.toBeInTheDocument();
       expect(screen.queryByText(/precondition checklist:/i)).not.toBeInTheDocument();
+    });
+
+    it("hides receipt confirmation for a transfer into another department", () => {
+      mockMeDepartmentId = "dept-2";
+      try {
+        render(<TransfersPage role="InventoryOfficer" />);
+        expect(screen.queryByRole("button", { name: /confirm receipt/i })).not.toBeInTheDocument();
+      } finally {
+        mockMeDepartmentId = "dept-3";
+      }
     });
   });
 });

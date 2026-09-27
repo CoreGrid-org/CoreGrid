@@ -61,6 +61,34 @@ html, body, #root {
 // Full-width submit button, reused on the sign-in and setup cards
 .cg-full-width-btn { width: 100%; max-width: 100%; }
 
+.cg-signin-card__forgot { margin-top: 1rem; font-size: 0.875rem; text-align: center; }
+
+// ─── Forgot password (hands off to ThunderID's hosted recovery) ──────────────
+.cg-recovery {
+  &__steps { list-style: none; margin: 0 0 2rem; padding: 0; display: grid; gap: 1rem; }
+
+  &__step { display: flex; gap: 0.875rem; align-items: flex-start; }
+
+  &__step-icon {
+    flex: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: $cg-accent-light;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg { fill: $cg-accent; }
+  }
+
+  &__step-title { display: block; font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; }
+  &__step-text { display: block; margin-top: 0.125rem; font-size: 0.8125rem; line-height: 1.4; color: $cg-text-secondary; }
+
+  &__help { margin: 1.5rem 0 0; font-size: 0.8125rem; line-height: 1.45; color: $cg-text-secondary; }
+  &__back { margin: 1.25rem 0 0; font-size: 0.875rem; text-align: center; }
+}
+
 // ─── First-run setup ────────────────────────────────────────────────────────
 .cg-setup-card {
   width: 100%;
@@ -629,6 +657,22 @@ html, body, #root {
   &__security h3 { font-size: 0.9375rem; margin: 0 0 0.375rem; }
   &__security p { color: $cg-text-secondary; font-size: 0.8125rem; line-height: 1.4; margin: 0; }
   &__actions { padding: 1rem 1.5rem; }
+
+  &__password {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.875rem;
+    margin: 0 1.5rem;
+    padding: 1.25rem 0;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  &__password-head { display: flex; gap: 0.75rem; }
+  &__password-head > svg { flex: none; fill: $cg-accent; margin-top: 0.125rem; }
+  &__password h3 { font-size: 0.9375rem; margin: 0 0 0.375rem; }
+  &__password p { color: $cg-text-secondary; font-size: 0.8125rem; line-height: 1.45; margin: 0; }
+  &__password-note { padding-left: 2rem; }
 }
 
 @media (max-width: 768px) {
@@ -772,11 +816,19 @@ html, body, #root {
 // Carbon ListBox / ComboBox / Dropdown menu expansion overrides:
 // Ensure dropdown menus pop over and dynamically expand to show full item names without truncating
 .cds--list-box__menu {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+  z-index: 9000 !important;
+}
+
+// Only in-flow menus grow to fit long labels. An `autoAlign` menu is
+// `position: fixed` with Carbon setting its width to the field's; inside a
+// modal (whose container has a transform) `min-width: 100%` would resolve
+// against the whole modal and blow a half-width field's menu up to full
+// width. Those keep Carbon's width and wrap long labels instead.
+.cds--list-box__menu:not([style*="position: fixed"]) {
   width: max-content !important;
   min-width: 100% !important;
   max-width: min(32rem, 90vw) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-  z-index: 9000 !important;
 }
 
 .cds--list-box__menu-item {

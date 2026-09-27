@@ -11,6 +11,10 @@ public record CreateUserRequest(
     [Required, MinLength(8), MaxLength(200)] string Password,
     [Required] CoreGridRole? Role);
 
+// An Administrator sets a new password for another user (or themselves) in
+// ThunderID; the old password stops working immediately.
+public record ResetPasswordRequest([Required, MinLength(8), MaxLength(200)] string NewPassword);
+
 public record UpdateUserRequest([Required] CoreGridRole? Role, Guid? DepartmentId);
 
 public record UserResponse(

@@ -111,3 +111,20 @@ export async function setUserActive(id: string, isActive: boolean, accessToken: 
   }
   return response.json();
 }
+
+// Sets a new password in ThunderID (the backend forwards it and never stores
+// it). The user's old password stops working immediately.
+export async function resetUserPassword(id: string, newPassword: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${API_URL}/users/${id}/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ new_password: newPassword }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(detail || `Could not reset the password (${response.status}).`);
+  }
+}

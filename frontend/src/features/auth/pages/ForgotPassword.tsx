@@ -1,170 +1,75 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  Button,
-  TextInput,
-  PasswordInput,
-  Select,
-  SelectItem,
-  InlineNotification,
-} from "@carbon/react";
-import { CheckmarkFilled } from "@carbon/icons-react";
-import { useForgotPassword, useResetPassword } from "../hooks/useAuth";
-import type { SelfServiceResetRole } from "../services/auth";
-import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { Button, InlineNotification } from "@carbon/react";
+import { ArrowRight, Email, Password, Locked } from "@carbon/icons-react";
+import { thunderIdRecoveryUrl } from "../lib/recovery";
 
-const ROLES: { value: SelfServiceResetRole; label: string; secretLabel: string; secretHelp: string }[] = [
-  { value: "department-staff", label: "Department Staff", secretLabel: "Employee ID", secretHelp: "Your employee ID, as set when your account was created." },
-  { value: "inventory-officer", label: "Inventory Officer", secretLabel: "Employee ID", secretHelp: "Your employee ID, as set when your account was created." },
-  { value: "auditor", label: "Auditor", secretLabel: "Employee ID", secretHelp: "Your employee ID, as set when your account was created." },
+const STEPS = [
+  { icon: Email, title: "Enter your email", text: "Use the email address you sign in to CoreGrid with." },
+  { icon: Locked, title: "Open the reset link", text: "We'll email you a secure, single-use link." },
+  { icon: Password, title: "Choose a new password", text: "Then sign in again with your new password." },
 ];
 
+// Password recovery is ThunderID's own hosted flow (SRS §4: CoreGrid never
+// handles credentials) — this page explains it and hands off to it. It works
+// the same for every role, Administrators included. Enabled per ThunderID
+// instance by scripts/thunderid/enable-password-recovery.sh.
 export default function ForgotPassword() {
-  const forgotPassword = useForgotPassword();
-  const resetPassword = useResetPassword();
+  const recoveryUrl = thunderIdRecoveryUrl();
 
-  const [role, setRole] = useState<SelfServiceResetRole>("department-staff");
-  const [identifier, setIdentifier] = useState("");
-  const [secret, setSecret] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [done, setDone] = useState(false);
-
-  const roleInfo = ROLES.find((r) => r.value === role)!;
-
-  const canVerify = identifier.trim().length > 0 && secret.trim().length > 0;
-  const canReset = newPassword.length >= 8 && newPassword === confirmPassword;
-
-  const handleVerify = () => {
-    if (!canVerify) return;
-    forgotPassword.mutate({ role, identifier: identifier.trim(), secret: secret.trim() });
-  };
-
-  const handleReset = () => {
-    if (!canReset || !forgotPassword.data) return;
-    resetPassword.mutate(
-      { token: forgotPassword.data.reset_token, new_password: newPassword },
-      { onSuccess: () => setDone(true) },
-    );
-  };
-
-  if (done) {
-    return (
-      <div className="cg-signin-wrapper">
-        <div className="cg-setup-card" style={{ textAlign: "center" }}>
-          <div className="cg-setup-success-icon">
-            <CheckmarkFilled size={28} />
-          </div>
-          <h1 className="cg-setup-card__title">Password updated</h1>
-          <p className="cg-setup-card__subtitle">
-            You can now sign in with your new password.
-          </p>
-          <Button as={Link} to="/signin" className="cg-full-width-btn">
-            Go to Sign In
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    document.title = "Forgot password · CoreGrid";
+    return () => {
+      document.title = "CoreGrid";
+    };
+  }, []);
 
   return (
     <div className="cg-signin-wrapper">
-      <div className="cg-setup-card">
-        <h1 className="cg-setup-card__title">Forgot password</h1>
+      <div className="cg-setup-card cg-recovery">
+        <img src="/CoreGrid.png" alt="CoreGrid" width={40} height={40} className="cg-signin-card__logo" />
+        <h1 className="cg-setup-card__title">Forgot your password?</h1>
         <p className="cg-setup-card__subtitle">
-          {forgotPassword.data
-            ? "Identity verified — choose a new password."
-            : "Verify your identity to reset your password. Administrator accounts should contact another administrator instead."}
+          Reset it securely through CoreGrid's sign-in service. It takes about a minute.
         </p>
 
-        {!forgotPassword.data ? (
-          <>
-            {forgotPassword.isError && (
-              <InlineNotification
-                kind="error"
-                title="Could not verify identity"
-                subtitle={getErrorMessage(forgotPassword.error, "Please check your details and try again.")}
-                lowContrast
-                hideCloseButton
-                style={{ marginBottom: "1rem", maxWidth: "100%" }}
-              />
-            )}
-            <div style={{ display: "grid", gap: "1rem" }}>
-              <Select
-                id="forgot-password-role"
-                labelText="I am a"
-                value={role}
-                onChange={(e) => setRole(e.target.value as SelfServiceResetRole)}
-              >
-                {ROLES.map((r) => (
-                  <SelectItem key={r.value} value={r.value} text={r.label} />
-                ))}
-              </Select>
-              <TextInput
-                id="forgot-password-identifier"
-                labelText="Email Address"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-              />
-              <TextInput
-                id="forgot-password-secret"
-                labelText={roleInfo.secretLabel}
-                helperText={roleInfo.secretHelp}
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-              />
-            </div>
-            <Button
-              className="cg-full-width-btn"
-              style={{ marginTop: "1.5rem" }}
-              onClick={handleVerify}
-              disabled={!canVerify || forgotPassword.isPending}
-            >
-              {forgotPassword.isPending ? "Verifying…" : "Verify identity"}
-            </Button>
-          </>
+        <ol className="cg-recovery__steps">
+          {STEPS.map(({ icon: Icon, title, text }, i) => (
+            <li key={title} className="cg-recovery__step">
+              <span className="cg-recovery__step-icon" aria-hidden="true">
+                <Icon size={20} />
+              </span>
+              <span>
+                <span className="cg-recovery__step-title">
+                  {i + 1}. {title}
+                </span>
+                <span className="cg-recovery__step-text">{text}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        {recoveryUrl ? (
+          <Button as="a" href={recoveryUrl} renderIcon={ArrowRight} className="cg-full-width-btn">
+            Reset my password
+          </Button>
         ) : (
-          <>
-            {resetPassword.isError && (
-              <InlineNotification
-                kind="error"
-                title="Could not reset password"
-                subtitle={getErrorMessage(resetPassword.error, "The verification link expired — start again.")}
-                lowContrast
-                hideCloseButton
-                style={{ marginBottom: "1rem", maxWidth: "100%" }}
-              />
-            )}
-            <div style={{ display: "grid", gap: "1rem" }}>
-              <PasswordInput
-                id="forgot-password-new"
-                labelText="New Password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                invalid={newPassword.length > 0 && newPassword.length < 8}
-                invalidText="Must be at least 8 characters."
-              />
-              <PasswordInput
-                id="forgot-password-confirm"
-                labelText="Confirm New Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                invalid={confirmPassword.length > 0 && confirmPassword !== newPassword}
-                invalidText="Passwords do not match."
-              />
-            </div>
-            <Button
-              className="cg-full-width-btn"
-              style={{ marginTop: "1.5rem" }}
-              onClick={handleReset}
-              disabled={!canReset || resetPassword.isPending}
-            >
-              {resetPassword.isPending ? "Saving…" : "Set new password"}
-            </Button>
-          </>
+          <InlineNotification
+            kind="info"
+            title="Use the sign-in page"
+            subtitle='Select "Sign In", then "Forgot password?" under the password field.'
+            lowContrast
+            hideCloseButton
+            style={{ maxWidth: "100%" }}
+          />
         )}
 
-        <p style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.875rem" }}>
+        <p className="cg-recovery__help">
+          Didn't get an email, or no longer have access to it? Ask a CoreGrid Administrator to reset your password from{" "}
+          <strong>Users &amp; Roles</strong>.
+        </p>
+
+        <p className="cg-recovery__back">
           <Link to="/signin">Back to sign in</Link>
         </p>
       </div>
