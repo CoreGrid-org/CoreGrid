@@ -108,7 +108,7 @@ The following record documents individual AI-assisted activities related to my a
 | 2026-09-24 | ChatGPT — GPT-5.6 Luna | Documentation — Technical explanations | Assisted with explaining technical implementation details for project documentation. | Reviewed and simplified explanations to accurately represent my implementation. | Compared the documentation against the actual code. |
 | 2026-09-25 | ChatGPT — GPT-5.6 Luna | Documentation — Development notes | Assisted with organising development notes and troubleshooting records. | Kept only information relevant to the actual development work. | Cross-checked against project files and development results. |
 | 2026-09-26 | ChatGPT — GPT-5.6 Luna | Backend — Final configuration review | Assisted with reviewing remaining backend configuration issues. | Corrected only confirmed configuration problems. | Verified using `dotnet build`, `dotnet run`, logs and API testing. |
-| 2026-09-27 | ChatGPT — GPT-5.6 Luna | Appendix E — AI usage disclosure | Assisted with structuring and professionally wording this disclosure. | Reviewed the wording and retained only information that can be explained and verified. | Compared the document with the Appendix E requirements. |
+
 
 ---
 
