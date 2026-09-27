@@ -27,9 +27,11 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
             ["createdAt"] = u => u.CreatedAt,
         };
 
-  // Returns users with search and pagination.
+    // Returns users with search and pagination. Read-only directory: Officer
+    // picks maintenance assignees from it, Auditor filters maintenance
+    // records/reports by assignee. Writes below stay CanManageUsers.
     [HttpGet]
-    [Authorize(Roles = $"{nameof(CoreGridRole.Administrator)},{nameof(CoreGridRole.InventoryOfficer)}")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Administrator)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)}")]
     public async Task<ActionResult<PagedResult<UserResponse>>> List(
         [FromQuery] PagedQuery query,
         CancellationToken cancellationToken)

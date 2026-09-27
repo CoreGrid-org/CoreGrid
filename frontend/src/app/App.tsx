@@ -92,6 +92,7 @@ export default function App() {
         <Route path="audit" element={<AuditPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="assets" element={<AssetsPage />} />
+        <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<TransfersPage role="Auditor" />} />

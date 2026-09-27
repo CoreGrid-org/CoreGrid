@@ -10,6 +10,7 @@ export interface MeResponse {
   role: CoreGridRole;
   is_active: boolean;
   organization_name: string;
+  department_id: string | null;
 }
 
 // Backend-authoritative role resolution (backend/Features/Me/MeController.cs)

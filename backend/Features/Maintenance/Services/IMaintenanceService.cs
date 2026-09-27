@@ -8,7 +8,7 @@ public interface IMaintenanceService
 {
     Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(Guid organizationId, DepartmentScope scope, Guid id, CancellationToken cancellationToken);
 
-    Task<MaintenanceRecordDto?> ReportFaultAsync(Guid organizationId, Guid currentUserId, ReportFaultRequest request, CancellationToken cancellationToken);
+    Task<MaintenanceRecordDto?> ReportFaultAsync(Guid organizationId, DepartmentScope scope, Guid currentUserId, ReportFaultRequest request, CancellationToken cancellationToken);
 
     /// Officer creates a maintenance record directly, specifying type and priority.
     Task<MaintenanceRecordDto?> CreateMaintenanceAsync(Guid organizationId, Guid currentUserId, CreateMaintenanceRequest request, CancellationToken cancellationToken);

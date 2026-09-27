@@ -12,7 +12,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace CoreGrid.Api.Features.Verification.Controllers;
 
 // campaign creation is Auditor/Administrator only (CanManageCampaigns);
-// read access is open to any authenticated org member (an assigned officer
+// reads (CanReadCampaigns) also cover the Inventory Officers the campaign's
+// tasks are assigned to — Staff have no verification role.
 
 [ApiController]
 [Route("api/verification-campaigns")]
@@ -32,6 +33,7 @@ public class VerificationCampaignsController : CoreGridControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = Policies.CanReadCampaigns)]
     public async Task<ActionResult<PagedResult<CampaignDto>>> GetCampaigns(
         [FromQuery] CampaignQueryParameters query,
         CancellationToken cancellationToken)
@@ -43,6 +45,7 @@ public class VerificationCampaignsController : CoreGridControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.CanReadCampaigns)]
     public async Task<ActionResult<CampaignDto>> GetCampaignById(Guid id, CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);

@@ -4,7 +4,7 @@ import { Add, CheckmarkFilled, WarningAltFilled, CloseFilled } from "@carbon/ico
 import { formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useClientPagination } from "@/shared/hooks/useClientPagination";
-import { useMe } from "@/features/auth/hooks/useMe";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useRunMaintenanceAgent, useRunPolicyAgent, useWorkflowsList } from "../hooks/useWorkflows";
 import CreateWorkflowModal from "../components/CreateWorkflowModal";
 import EvaluatePolicyModal from "../components/EvaluatePolicyModal";
@@ -38,9 +38,9 @@ function WorkflowCardPagination({ pagination }: { pagination: ReturnType<typeof 
 }
 
 export default function WorkflowsPage() {
-  const { data: me } = useMe();
-  const canInitiate = me?.role === "InventoryOfficer" || me?.role === "Administrator";
-  const canDecide = me?.role === "Administrator";
+  const { can } = usePermissions();
+  const canInitiate = can("workflow:initiate");
+  const canDecide = can("workflow:approve");
 
   const workflows = useWorkflowsList();
   const runAgent = useRunPolicyAgent();

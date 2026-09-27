@@ -2,8 +2,14 @@ using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Assets.DTOs;
 using CoreGrid.Api.Features.Assets.Services;
+using CoreGrid.Api.Features.Maintenance.DTOs;
+using CoreGrid.Api.Features.Maintenance.Services;
+using CoreGrid.Api.Features.Notifications.Services;
+using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Storage;
 using CoreGrid.Api.Features.Shared.Scoping;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace backend.Tests.Features.Shared;
 
@@ -36,13 +42,23 @@ public class DepartmentScopeTests
         Assert.False(scope.IsRestricted);
     }
 
-    [Theory]
-    [InlineData(CoreGridRole.Staff)]
-    [InlineData(CoreGridRole.InventoryOfficer)]
-    public void For_StaffOrOfficer_IsRestrictedToTheirOwnDepartment(CoreGridRole role)
+    // SRS §4.6: asset:read (organisation-wide) — Officer Yes. Restricting
+    // Officer hid inbound transfers from the officer who must confirm them.
+    [Fact]
+    public void For_InventoryOfficer_IsUnrestricted()
+    {
+        var user = new User { Id = Guid.NewGuid(), OrganizationId = Guid.NewGuid(), ExternalSubjectId = "s", Email = "a@b.com", GivenName = "A", FamilyName = "B", Role = CoreGridRole.InventoryOfficer, DepartmentId = Guid.NewGuid() };
+
+        var scope = DepartmentScope.For(user);
+
+        Assert.False(scope.IsRestricted);
+    }
+
+    [Fact]
+    public void For_Staff_IsRestrictedToTheirOwnDepartment()
     {
         var departmentId = Guid.NewGuid();
-        var user = new User { Id = Guid.NewGuid(), OrganizationId = Guid.NewGuid(), ExternalSubjectId = "s", Email = "a@b.com", GivenName = "A", FamilyName = "B", Role = role, DepartmentId = departmentId };
+        var user = new User { Id = Guid.NewGuid(), OrganizationId = Guid.NewGuid(), ExternalSubjectId = "s", Email = "a@b.com", GivenName = "A", FamilyName = "B", Role = CoreGridRole.Staff, DepartmentId = departmentId };
 
         var scope = DepartmentScope.For(user);
 
@@ -120,5 +136,30 @@ public class DepartmentScopeTests
 
         var asset = Assert.Single(result.Items);
         Assert.Equal("AST-OWN", asset.AssetCode);
+    }
+
+    // Staff can only read their own department's assets, so they can only
+    // report a fault against one too — otherwise POST /api/maintenance/faults
+    // would hand back another department's asset details.
+    [Fact]
+    public async Task MaintenanceService_ReportFaultAsync_StaffScope_RejectsAnotherDepartmentsAsset()
+    {
+        var options = new DbContextOptionsBuilder<CoreGridDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        await using var db = new CoreGridDbContext(options, new NullCurrentOrganizationProvider());
+
+        var orgId = Guid.NewGuid();
+        var ownDepartment = Guid.NewGuid();
+        var otherAsset = new Asset { Id = Guid.NewGuid(), OrganizationId = orgId, AssetTypeId = Guid.NewGuid(), DepartmentId = Guid.NewGuid(), LocationId = Guid.NewGuid(), AssetCode = "AST-OTHER", Name = "Other-department asset", Status = AssetStatuses.Active, Condition = AssetConditions.Good, QrPayload = "qr-2" };
+        db.Assets.Add(otherAsset);
+        await db.SaveChangesAsync();
+
+        var service = new MaintenanceService(db, new Mock<INotificationService>().Object, new Mock<IFileStorageService>().Object);
+        var request = new ReportFaultRequest { AssetId = otherAsset.Id, Description = "Screen cracked", ObservedCondition = "POOR" };
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.ReportFaultAsync(orgId, DepartmentScope.Restricted(ownDepartment), Guid.NewGuid(), request, CancellationToken.None));
+        Assert.Empty(db.MaintenanceRecords);
     }
 }

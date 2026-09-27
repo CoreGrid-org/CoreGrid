@@ -1,12 +1,12 @@
-import { Asset, ToolBox, ArrowsHorizontal, Bot, Report } from "@carbon/icons-react";
+import { Asset, QrCode, ToolBox, ArrowsHorizontal, Bot, Report } from "@carbon/icons-react";
 import RoleLayout from "./RoleLayout";
 
-// Every destination below is wired to its real page (App.tsx) — Assets,
-// Maintenance and Transfers & Disposals are Staff-department-scoped
-// server-side (B14/DepartmentScope) the same way Officer's own list
-// queries already are.
+// Every destination below is wired to its real page (App.tsx). Officer
+// reads organisation-wide (SRS §4.6); what they can act on is decided by
+// features/auth/lib/permissions.ts.
 const NAV_ITEMS = [
   { to: "/inventory/assets", label: "Asset Registry", icon: Asset },
+  { to: "/inventory/assets/scan", label: "Scan QR", icon: QrCode },
   { to: "/inventory/maintenance", label: "Maintenance", icon: ToolBox },
   { to: "/inventory/transfers", label: "Transfers & Disposals", icon: ArrowsHorizontal },
   { to: "/inventory/workflows", label: "Workflows", icon: Bot },

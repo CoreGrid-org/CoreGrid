@@ -91,6 +91,7 @@ public class TransfersController : CoreGridControllerBase
 
     // GET /api/transfers — authenticated + org-scoped list with status/department filters
     [HttpGet]
+    [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<PagedResult<TransferResponse>>> GetTransfers(
         [FromQuery] TransferQueryParameters parameters,
         CancellationToken cancellationToken)
@@ -106,6 +107,7 @@ public class TransfersController : CoreGridControllerBase
 
     // GET /api/transfers/{id} — detail, authenticated + org-scoped
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<TransferResponse>> GetTransferById(
         Guid id,
         CancellationToken cancellationToken)
@@ -123,6 +125,7 @@ public class TransfersController : CoreGridControllerBase
 
     // GET /api/assets/{assetId}/transfers — Complete transfer history for an asset
     [HttpGet("/api/assets/{assetId:guid}/transfers")]
+    [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<PagedResult<TransferResponse>>> GetTransferHistoryForAsset(
         Guid assetId,
         [FromQuery] PagedQuery query,

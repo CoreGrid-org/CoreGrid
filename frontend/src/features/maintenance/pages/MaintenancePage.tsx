@@ -21,7 +21,7 @@ import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { formatDate } from "@/shared/lib/dates";
 import PhotoThumbnail from "@/shared/components/PhotoThumbnail";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { useMe } from "@/features/auth/hooks/useMe";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useDepartments } from "@/features/assets/hooks/useAssets";
 import { useUsersList } from "@/features/users/hooks/useUsers";
 import { MOCK_PREVENTIVE_SCHEDULE } from "../data/mockMaintenance";
@@ -31,14 +31,11 @@ import type { MaintenanceStatus } from "../types/maintenance";
 
 export default function MaintenancePage() {
   const navigate = useNavigate();
-  const { data: me } = useMe();
-  // POST /api/maintenance (direct record creation) is InventoryOfficer-only
-  // on the backend — stricter than the general maintenance:request policy
-  // on purpose (plan §5.4), so Administrator doesn't get this button.
-  // Reporting a fault (POST /api/maintenance/faults) is broader
-  // (Staff/Officer/Administrator) and both roles get it here.
-  const canCreateDirectly = me?.role === "InventoryOfficer";
-  const canReportFault = me?.role === "InventoryOfficer" || me?.role === "Administrator";
+  // Direct record creation is Officer-only (plan §5.4); reporting a fault
+  // is broader. Auditor gets neither — Maintenance is read-only for them.
+  const { can } = usePermissions();
+  const canCreateDirectly = can("maintenance:create-direct");
+  const canReportFault = can("maintenance:report-fault");
   const [isReportFaultOpen, setReportFaultOpen] = useState(false);
   const [reportedRecord, setReportedRecord] = useState<{ id: string; asset_code: string } | null>(null);
   const reportFaultButtonRef = useRef<HTMLButtonElement>(null);

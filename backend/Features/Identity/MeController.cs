@@ -35,6 +35,7 @@ public class MeController(CoreGridDbContext db, CurrentUserContext currentUser) 
             user.Role,
             user.IsActive,
             user.OrganizationId,
-            user.Organization?.Name ?? "organisation"));
+            user.Organization?.Name ?? "organisation",
+            user.DepartmentId));
     }
 }

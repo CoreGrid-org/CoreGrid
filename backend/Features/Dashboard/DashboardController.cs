@@ -2,6 +2,7 @@ using CoreGrid.Api.Data;
 using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.Shared;
 using CoreGrid.Api.Features.Shared.Scoping;
+using CoreGrid.Api.Features.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,9 @@ public class DashboardController : CoreGridControllerBase
     {
     }
 
+    // FR-081: every role's indicators, department-scoped for Staff (FR-086).
     [HttpGet("summary")]
+    [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<DashboardSummary>> GetSummary(CancellationToken cancellationToken)
     {
         var currentUser = await GetCurrentUserAsync(cancellationToken);

@@ -1,4 +1,4 @@
-import { Asset, ToolBox, ArrowsHorizontal, Bot, Search, Report } from "@carbon/icons-react";
+import { Asset, QrCode, ToolBox, ArrowsHorizontal, Bot, Search, Report } from "@carbon/icons-react";
 import RoleLayout from "./RoleLayout";
 
 // Every destination below is wired to its real page (App.tsx) — Auditor is
@@ -6,6 +6,7 @@ import RoleLayout from "./RoleLayout";
 // policies never grant Auditor a write action on any of them).
 const NAV_ITEMS = [
   { to: "/audit/assets", label: "Asset Registry", icon: Asset },
+  { to: "/audit/assets/scan", label: "Scan QR", icon: QrCode },
   { to: "/audit/maintenance", label: "Maintenance", icon: ToolBox },
   { to: "/audit/transfers", label: "Transfers & Disposals", icon: ArrowsHorizontal },
   { to: "/audit/workflows", label: "Workflows", icon: Bot },

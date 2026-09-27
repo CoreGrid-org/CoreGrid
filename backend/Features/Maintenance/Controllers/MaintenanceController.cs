@@ -73,7 +73,7 @@ public class MaintenanceController : CoreGridControllerBase
         if (currentUser is null) return Unauthorized();
 
         var record = await _maintenanceService.ReportFaultAsync(
-            currentUser.OrganizationId, currentUser.Id, request, cancellationToken);
+            currentUser.OrganizationId, DepartmentScope.For(currentUser), currentUser.Id, request, cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = record!.Id }, record);
     }

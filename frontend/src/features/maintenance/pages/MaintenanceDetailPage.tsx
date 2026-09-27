@@ -6,7 +6,7 @@ import { useMaintenanceDetail, useStartMaintenance } from "../hooks/useMaintenan
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useRolePrefix } from "@/shared/hooks/useRolePrefix";
-import { useMe } from "@/features/auth/hooks/useMe";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 
 import ApproveMaintenanceModal from "../components/ApproveMaintenanceModal";
 import CompleteMaintenanceModal from "../components/CompleteMaintenanceModal";
@@ -24,9 +24,9 @@ export default function MaintenanceDetailPage() {
   const startMaintenance = useStartMaintenance();
 
  // Determines the maintenance actions available to the current user.
-  const { data: me } = useMe();
-  const canManage = me?.role === "InventoryOfficer" || me?.role === "Administrator";
-  const canComplete = me?.role === "InventoryOfficer";
+  const { can } = usePermissions();
+  const canManage = can("maintenance:manage");
+  const canComplete = can("maintenance:complete");
 
   const [isApproveOpen, setApproveOpen] = useState(false);
   const [isCompleteOpen, setCompleteOpen] = useState(false);
