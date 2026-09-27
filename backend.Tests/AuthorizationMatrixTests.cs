@@ -451,9 +451,9 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
     [InlineData("GET", "/api/users", CoreGridRole.Auditor, false)]
     [InlineData("GET", "/api/users", CoreGridRole.InventoryOfficer, false)]
     [InlineData("GET", "/api/users", CoreGridRole.Staff, true)]
-    // Direct maintenance creation and completion — Officer only (plan §5.4)
+    // Direct maintenance creation — Officer and Administrator; completion — Officer only (plan §5.4)
     [InlineData("POST", "/api/maintenance", CoreGridRole.InventoryOfficer, false)]
-    [InlineData("POST", "/api/maintenance", CoreGridRole.Administrator, true)]
+    [InlineData("POST", "/api/maintenance", CoreGridRole.Administrator, false)]
     [InlineData("POST", "/api/maintenance", CoreGridRole.Auditor, true)]
     [InlineData("POST", "/api/maintenance", CoreGridRole.Staff, true)]
     // Configuration reads stay open to every role (Flutter pickers); writes are CanManageConfiguration

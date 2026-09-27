@@ -8,7 +8,7 @@ import type { CoreGridRole } from "./roles";
 export type Permission =
   | "asset:manage" // create, amend, record condition (CanManageAssets)
   | "maintenance:report-fault" // CanRequestMaintenance
-  | "maintenance:create-direct" // POST /api/maintenance — Officer only (plan §5.4)
+  | "maintenance:create-direct" // POST /api/maintenance — Officer and Administrator
   | "maintenance:manage" // approve, start, cancel, amend (CanManageMaintenance)
   | "maintenance:complete" // POST /api/maintenance/{id}/complete — Officer only
   | "transfer:request" // initiate transfer, condemn, submit disposal (CanRequestTransfer/CanRequestDisposal)
@@ -22,7 +22,7 @@ export type Permission =
 const GRANTS: Record<Permission, readonly CoreGridRole[]> = {
   "asset:manage": ["InventoryOfficer", "Administrator"],
   "maintenance:report-fault": ["Staff", "InventoryOfficer", "Administrator"],
-  "maintenance:create-direct": ["InventoryOfficer"],
+  "maintenance:create-direct": ["InventoryOfficer", "Administrator"],
   "maintenance:manage": ["InventoryOfficer", "Administrator"],
   "maintenance:complete": ["InventoryOfficer"],
   "transfer:request": ["InventoryOfficer", "Administrator"],

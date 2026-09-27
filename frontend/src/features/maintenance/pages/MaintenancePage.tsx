@@ -27,11 +27,12 @@ import { useUsersList } from "@/features/users/hooks/useUsers";
 import { MOCK_PREVENTIVE_SCHEDULE } from "../data/mockMaintenance";
 import { useMaintenanceList } from "../hooks/useMaintenance";
 import ReportFaultModal from "../components/ReportFaultModal";
+import CreateMaintenanceModal from "../components/CreateMaintenanceModal";
 import type { MaintenanceStatus } from "../types/maintenance";
 
 export default function MaintenancePage() {
   const navigate = useNavigate();
-  // Direct record creation is Officer-only (plan §5.4); reporting a fault
+  // Direct record creation is Officer/Administrator; reporting a fault
   // is broader. Auditor gets neither — Maintenance is read-only for them.
   const { can } = usePermissions();
   const canCreateDirectly = can("maintenance:create-direct");
@@ -39,6 +40,9 @@ export default function MaintenancePage() {
   const [isReportFaultOpen, setReportFaultOpen] = useState(false);
   const [reportedRecord, setReportedRecord] = useState<{ id: string; asset_code: string } | null>(null);
   const reportFaultButtonRef = useRef<HTMLButtonElement>(null);
+  const [isCreateOpen, setCreateOpen] = useState(false);
+  const [createdRecord, setCreatedRecord] = useState<{ id: string; asset_code: string } | null>(null);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [departmentId, setDepartmentId] = useState<string | undefined>();
   const [assigneeId, setAssigneeId] = useState<string | undefined>();
@@ -85,7 +89,7 @@ export default function MaintenancePage() {
             </Button>
           )}
           {canCreateDirectly && (
-            <Button renderIcon={Add} onClick={() => navigate("new")}>
+            <Button ref={createButtonRef} renderIcon={Add} onClick={() => setCreateOpen(true)}>
               New maintenance record
             </Button>
           )}
@@ -105,6 +109,33 @@ export default function MaintenancePage() {
             View request
           </Button>
         </InlineNotification>
+      )}
+
+      {createdRecord && (
+        <InlineNotification
+          kind="success"
+          title="Maintenance record created"
+          subtitle={`A work order was created for ${createdRecord.asset_code}.`}
+          lowContrast
+          onClose={() => setCreatedRecord(null)}
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        >
+          <Button kind="ghost" size="sm" onClick={() => navigate(createdRecord.id)}>
+            View record
+          </Button>
+        </InlineNotification>
+      )}
+
+      {isCreateOpen && (
+        <CreateMaintenanceModal
+          launcherButtonRef={createButtonRef}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(record) => {
+            setCreateOpen(false);
+            setCreatedRecord({ id: record.id, asset_code: record.asset_code });
+            refetch();
+          }}
+        />
       )}
 
       {isReportFaultOpen && (

@@ -24,6 +24,7 @@ describe("hasPermission", () => {
   it("gives Inventory Officer operations but no approvals or audit report", () => {
     expect(hasPermission("InventoryOfficer", "asset:manage")).toBe(true);
     expect(hasPermission("InventoryOfficer", "maintenance:create-direct")).toBe(true);
+    expect(hasPermission("Administrator", "maintenance:create-direct")).toBe(true);
     expect(hasPermission("InventoryOfficer", "maintenance:complete")).toBe(true);
     expect(hasPermission("InventoryOfficer", "transfer:request")).toBe(true);
     expect(hasPermission("InventoryOfficer", "workflow:initiate")).toBe(true);

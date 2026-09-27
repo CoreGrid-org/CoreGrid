@@ -128,7 +128,7 @@ public class MaintenanceController : CoreGridControllerBase
     // report); the caller specifies type (CORRECTIVE / PREVENTIVE) and
     // priority.
     [HttpPost]
-    [Authorize(Roles = nameof(CoreGridRole.InventoryOfficer))]
+    [Authorize(Roles = $"{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Administrator)}")]
     public async Task<ActionResult<MaintenanceRecordDto>> CreateMaintenance(
         [FromBody] CreateMaintenanceRequest request, CancellationToken cancellationToken)
     {
