@@ -14,6 +14,7 @@ public static class Policies
     public const string CanRequestDisposal = nameof(CanRequestDisposal);
     public const string CanApproveDisposal = nameof(CanApproveDisposal);
     public const string CanManageCampaigns = nameof(CanManageCampaigns);
+    public const string CanReadCampaigns = nameof(CanReadCampaigns);
     public const string CanResolveDiscrepancy = nameof(CanResolveDiscrepancy);
     public const string CanReadAuditLog = nameof(CanReadAuditLog);
     public const string CanManageConfiguration = nameof(CanManageConfiguration);

@@ -4,7 +4,7 @@ import { Tag, Button, ComboBox, Dropdown, Pagination, InlineNotification } from 
 import { Add, Edit, Search, Time } from "@carbon/icons-react";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { useMe } from "@/features/auth/hooks/useMe";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useAssetCategories, useAssetTypes, useAssetsList, useDepartments, useLocations } from "../hooks/useAssets";
 import AssetDetailModal from "../components/AssetDetailModal";
 import AssetHistoryModal from "../components/AssetHistoryModal";
@@ -26,8 +26,8 @@ export default function AssetsPage() {
   const location = useLocation();
 
  // Determines whether the current user can manage assets.
-  const { data: me } = useMe();
-  const canManageAssets = me?.role === "InventoryOfficer" || me?.role === "Administrator";
+  const { can } = usePermissions();
+  const canManageAssets = can("asset:manage");
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

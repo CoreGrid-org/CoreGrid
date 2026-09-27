@@ -3,6 +3,7 @@ using CoreGrid.Api.Features.Notifications.DTOs;
 using CoreGrid.Api.Features.Notifications.Services;
 using CoreGrid.Api.Features.Shared;
 using CoreGrid.Api.Features.Shared.Exceptions;
+using CoreGrid.Api.Features.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +14,7 @@ namespace CoreGrid.Api.Features.Notifications.Controllers;
 // is identity-scoped (the caller's own inbox), not a shared resource.
 [ApiController]
 [Route("api/notifications")]
-[Authorize]
+[Authorize(Policy = Policies.CanReadNotifications)]
 public class NotificationsController(INotificationService notificationService, CoreGridDbContext db) : CoreGridControllerBase(db)
 {
     [HttpGet]

@@ -18,7 +18,6 @@ import AssetScanPage from "@/features/assets/pages/AssetScanPage";
 import AssetConfigPage from "@/features/assets/pages/AssetConfigPage";
 import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
 import MaintenanceDetailPage from "@/features/maintenance/pages/MaintenanceDetailPage";
-import CreateMaintenancePage from "@/features/maintenance/pages/CreateMaintenancePage";
 import TransfersPage from "@/features/transfers/pages/TransfersPage";
 import AuditPage from "@/features/audit/pages/AuditPage";
 import WorkflowsPage from "@/features/workflows/pages/WorkflowsPage";
@@ -47,7 +46,6 @@ export default function App() {
         <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="assets/config" element={<AssetConfigPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
-        <Route path="maintenance/new" element={<CreateMaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<TransfersPage role="Administrator" />} />
         <Route path="audit" element={<AuditPage />} />
@@ -73,7 +71,6 @@ export default function App() {
         <Route path="assets/:id/edit" element={<AssetRegisterPage />} />
         <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
-        <Route path="maintenance/new" element={<CreateMaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<TransfersPage role="InventoryOfficer" />} />
         <Route path="workflows" element={<WorkflowsPage />} />
@@ -92,6 +89,7 @@ export default function App() {
         <Route path="audit" element={<AuditPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="assets" element={<AssetsPage />} />
+        <Route path="assets/scan" element={<AssetScanPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="maintenance/:id" element={<MaintenanceDetailPage />} />
         <Route path="transfers" element={<TransfersPage role="Auditor" />} />

@@ -1,13 +1,29 @@
 name: CI
 
 on:
+  push:
+    branches: [main, development]
   pull_request:
     branches: [main, development]
+
+# A newer push to the same branch/PR supersedes a run still in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   backend:
     name: Backend (build, test)
     runs-on: ubuntu-latest
+    env:
+      # Same credentials/port as the local docker-compose Postgres, so the
+      # tests' defaults (backend.Tests/AppendOnlyTests.cs) work unchanged.
+      TEST_DB_CONNECTION: Host=localhost;Port=5433;Database=coregrid;Username=coregrid;Password=coregrid
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
     services:
       postgres:
         image: postgres:16
@@ -16,7 +32,7 @@ jobs:
           POSTGRES_USER: coregrid
           POSTGRES_PASSWORD: coregrid
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U coregrid -d coregrid"
           --health-interval 5s
@@ -30,17 +46,22 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version "10.*"
+
+      # Restoring the test project restores the API too (ProjectReference).
       - name: Restore
-        run: dotnet restore
-        working-directory: backend
+        run: dotnet restore backend.Tests
 
       - name: Build (zero warnings expected)
-        run: dotnet build --no-restore
-        working-directory: backend
+        run: dotnet build backend.Tests --no-restore -warnaserror
 
-      - name: Test (backend.Tests — InMemory service-layer tests + real-Postgres append-only/authorization checks)
-        run: dotnet test --no-restore
-        working-directory: backend.Tests
+      # The real-Postgres tests (append-only grants) need the schema in place.
+      - name: Apply migrations
+        run: dotnet ef database update --no-build --project backend --connection "$TEST_DB_CONNECTION"
+
+      - name: Test (InMemory service-layer tests + real-Postgres append-only/authorization checks)
+        run: dotnet test backend.Tests --no-build
 
   frontend:
     name: Frontend (test, typecheck, build)

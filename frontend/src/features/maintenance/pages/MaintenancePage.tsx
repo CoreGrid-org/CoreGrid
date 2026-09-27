@@ -21,27 +21,28 @@ import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { formatDate } from "@/shared/lib/dates";
 import PhotoThumbnail from "@/shared/components/PhotoThumbnail";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import { useMe } from "@/features/auth/hooks/useMe";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useDepartments } from "@/features/assets/hooks/useAssets";
 import { useUsersList } from "@/features/users/hooks/useUsers";
 import { MOCK_PREVENTIVE_SCHEDULE } from "../data/mockMaintenance";
 import { useMaintenanceList } from "../hooks/useMaintenance";
 import ReportFaultModal from "../components/ReportFaultModal";
+import CreateMaintenanceModal from "../components/CreateMaintenanceModal";
 import type { MaintenanceStatus } from "../types/maintenance";
 
 export default function MaintenancePage() {
   const navigate = useNavigate();
-  const { data: me } = useMe();
-  // POST /api/maintenance (direct record creation) is InventoryOfficer-only
-  // on the backend — stricter than the general maintenance:request policy
-  // on purpose (plan §5.4), so Administrator doesn't get this button.
-  // Reporting a fault (POST /api/maintenance/faults) is broader
-  // (Staff/Officer/Administrator) and both roles get it here.
-  const canCreateDirectly = me?.role === "InventoryOfficer";
-  const canReportFault = me?.role === "InventoryOfficer" || me?.role === "Administrator";
+  // Direct record creation is Officer/Administrator; reporting a fault
+  // is broader. Auditor gets neither — Maintenance is read-only for them.
+  const { can } = usePermissions();
+  const canCreateDirectly = can("maintenance:create-direct");
+  const canReportFault = can("maintenance:report-fault");
   const [isReportFaultOpen, setReportFaultOpen] = useState(false);
   const [reportedRecord, setReportedRecord] = useState<{ id: string; asset_code: string } | null>(null);
   const reportFaultButtonRef = useRef<HTMLButtonElement>(null);
+  const [isCreateOpen, setCreateOpen] = useState(false);
+  const [createdRecord, setCreatedRecord] = useState<{ id: string; asset_code: string } | null>(null);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [departmentId, setDepartmentId] = useState<string | undefined>();
   const [assigneeId, setAssigneeId] = useState<string | undefined>();
@@ -88,7 +89,7 @@ export default function MaintenancePage() {
             </Button>
           )}
           {canCreateDirectly && (
-            <Button renderIcon={Add} onClick={() => navigate("new")}>
+            <Button ref={createButtonRef} renderIcon={Add} onClick={() => setCreateOpen(true)}>
               New maintenance record
             </Button>
           )}
@@ -108,6 +109,33 @@ export default function MaintenancePage() {
             View request
           </Button>
         </InlineNotification>
+      )}
+
+      {createdRecord && (
+        <InlineNotification
+          kind="success"
+          title="Maintenance record created"
+          subtitle={`A work order was created for ${createdRecord.asset_code}.`}
+          lowContrast
+          onClose={() => setCreatedRecord(null)}
+          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+        >
+          <Button kind="ghost" size="sm" onClick={() => navigate(createdRecord.id)}>
+            View record
+          </Button>
+        </InlineNotification>
+      )}
+
+      {isCreateOpen && (
+        <CreateMaintenanceModal
+          launcherButtonRef={createButtonRef}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(record) => {
+            setCreateOpen(false);
+            setCreatedRecord({ id: record.id, asset_code: record.asset_code });
+            refetch();
+          }}
+        />
       )}
 
       {isReportFaultOpen && (

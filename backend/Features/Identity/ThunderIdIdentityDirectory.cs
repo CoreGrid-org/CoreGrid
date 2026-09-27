@@ -30,6 +30,30 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
         return userId;
     }
 
+    public async Task SetPasswordAsync(string externalSubjectId, string newPassword, CancellationToken cancellationToken)
+    {
+        var accessToken = await GetAccessTokenAsync(cancellationToken);
+
+        // Same call ThunderID's own console makes for "Reset password".
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post, $"/users/{Uri.EscapeDataString(externalSubjectId)}/update-credentials")
+        {
+            Content = JsonBody(new UpdateCredentialsRequest(new Dictionary<string, string> { ["password"] = newPassword })),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new NotFoundException("The user's identity-provider account was not found.");
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException($"ThunderID credential update failed ({(int)response.StatusCode}): {body}");
+        }
+    }
+
     // Obtains an access token for ThunderID management operations.
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
     {
@@ -135,6 +159,7 @@ public class ThunderIdIdentityDirectory(HttpClient httpClient, IConfiguration co
     private record TokenResponse([property: JsonPropertyName("access_token")] string AccessToken);
     private record ThunderIdUser(string Id);
     private record CreateUserRequest(string OuId, string Type, Dictionary<string, string> Attributes);
+    private record UpdateCredentialsRequest(Dictionary<string, string> Credentials);
     private record AssignmentsRequest(IReadOnlyList<Assignment> Assignments);
     private record Assignment(string Type, string Id);
 }

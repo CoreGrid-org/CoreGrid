@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Modal, TextInput, Select, SelectItem, InlineNotification } from "@carbon/react";
+import { Modal, TextInput, ComboBox, InlineNotification } from "@carbon/react";
 import { useCreateCampaign } from "../hooks/useCampaigns";
 import { useDepartments, useLocations, useAssetCategories, useAssetTypes } from "@/features/assets/hooks/useAssets";
+import type { AssetCategory, AssetType, Department, Location } from "@/features/assets/types/asset";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { comboBoxFilter } from "@/shared/lib/comboBoxFilter";
 import type { Campaign } from "../api/campaigns";
 import DateRangeFilter from "@/shared/components/DateRangeFilter";
 import { CAMPAIGN_NAME_MAX, hasCampaignErrors, validateCampaign } from "../lib/campaignValidation";
@@ -30,6 +32,12 @@ export default function CreateCampaignModal({ onClose, onCreated }: CreateCampai
   const { data: locations } = useLocations(departmentId || undefined);
   const { data: categories } = useAssetCategories();
   const { data: types } = useAssetTypes();
+
+  const selectedDepartment = departments?.find((d) => d.id === departmentId) ?? null;
+  const selectedLocation = locations?.find((l) => l.id === locationId) ?? null;
+  const selectedCategory = categories?.find((c) => c.id === categoryId) ?? null;
+  const typeOptions = (types ?? []).filter((t) => !categoryId || t.asset_category_id === categoryId);
+  const selectedType = typeOptions.find((t) => t.id === typeId) ?? null;
 
   const [submitted, setSubmitted] = useState(false);
 
@@ -110,49 +118,60 @@ export default function CreateCampaignModal({ onClose, onCreated }: CreateCampai
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-          <Select
+          <ComboBox<Department>
             id="campaign-department"
-            labelText="Department"
-            value={departmentId}
-            onChange={(e) => {
-              setDepartmentId(e.target.value);
+            titleText="Department"
+            placeholder="Any department"
+            autoAlign
+            items={departments ?? []}
+            itemToString={(item) => item?.name ?? ""}
+            selectedItem={selectedDepartment}
+            shouldFilterItem={comboBoxFilter(selectedDepartment)}
+            onChange={({ selectedItem }) => {
+              setDepartmentId(selectedItem?.id ?? "");
               setLocationId("");
             }}
-          >
-            <SelectItem value="" text="Any department" />
-            {departments?.map((d) => <SelectItem key={d.id} value={d.id} text={d.name} />)}
-          </Select>
-          <Select
+          />
+          <ComboBox<Location>
             id="campaign-location"
-            labelText="Location"
-            value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
+            titleText="Location"
+            placeholder={departmentId ? "Any location" : "Choose a department first"}
             disabled={!departmentId}
-          >
-            <SelectItem value="" text={departmentId ? "Any location" : "Choose a department first"} />
-            {locations?.map((l) => <SelectItem key={l.id} value={l.id} text={l.name} />)}
-          </Select>
+            autoAlign
+            items={locations ?? []}
+            itemToString={(item) => item?.name ?? ""}
+            selectedItem={selectedLocation}
+            shouldFilterItem={comboBoxFilter(selectedLocation)}
+            onChange={({ selectedItem }) => setLocationId(selectedItem?.id ?? "")}
+          />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-          <Select
+          <ComboBox<AssetCategory>
             id="campaign-category"
-            labelText="Asset category"
-            value={categoryId}
-            onChange={(e) => {
-              setCategoryId(e.target.value);
+            titleText="Asset category"
+            placeholder="Any category"
+            autoAlign
+            items={categories ?? []}
+            itemToString={(item) => item?.name ?? ""}
+            selectedItem={selectedCategory}
+            shouldFilterItem={comboBoxFilter(selectedCategory)}
+            onChange={({ selectedItem }) => {
+              setCategoryId(selectedItem?.id ?? "");
               setTypeId("");
             }}
-          >
-            <SelectItem value="" text="Any category" />
-            {categories?.map((c) => <SelectItem key={c.id} value={c.id} text={c.name} />)}
-          </Select>
-          <Select id="campaign-type" labelText="Asset type" value={typeId} onChange={(e) => setTypeId(e.target.value)}>
-            <SelectItem value="" text="Any type" />
-            {types
-              ?.filter((t) => !categoryId || t.asset_category_id === categoryId)
-              .map((t) => <SelectItem key={t.id} value={t.id} text={t.name} />)}
-          </Select>
+          />
+          <ComboBox<AssetType>
+            id="campaign-type"
+            titleText="Asset type"
+            placeholder="Any type"
+            autoAlign
+            items={typeOptions}
+            itemToString={(item) => item?.name ?? ""}
+            selectedItem={selectedType}
+            shouldFilterItem={comboBoxFilter(selectedType)}
+            onChange={({ selectedItem }) => setTypeId(selectedItem?.id ?? "")}
+          />
         </div>
       </div>
     </Modal>

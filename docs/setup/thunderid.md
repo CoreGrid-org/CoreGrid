@@ -6,8 +6,9 @@ CoreGrid delegates authentication and identity storage to [ThunderID](https://gi
 
 ## How It Works
 
-- **Signing in.** The React frontend redirects to ThunderID's hosted login (authorization code + PKCE) and gets back a JWT. The backend validates that token on every API request; it never sees a password.
-- **Creating accounts.** The only account CoreGrid creates today is the first Administrator, during Setup. The backend calls ThunderID's management API as its own registered application (`client_credentials`), via `ThunderIdIdentityDirectory` (`backend/Identity/ThunderIdIdentityDirectory.cs`).
+- **Signing in.** The React frontend redirects to ThunderID's hosted login (authorization code + PKCE) and gets back a JWT. The backend validates that token on every API request; it never sees a sign-in password.
+- **Creating accounts.** Setup creates the first Administrator; after that, Administrators create users of any role from **Users & Roles** (`POST /api/users`). Both go through `ThunderIdIdentityDirectory` (`backend/Features/Identity/ThunderIdIdentityDirectory.cs`), which calls ThunderID's management API as the backend's own registered application (`client_credentials`): `POST /users`, then `POST /roles/{roleId}/assignments/add` for the chosen role.
+- **Passwords.** CoreGrid stores no password. A user who forgot theirs — or wants to change it from **My Profile** — goes through ThunderID's hosted recovery flow (step 8). An Administrator can also set a new password for any user; the backend forwards it to ThunderID's `POST /users/{id}/update-credentials` and discards it.
 
 ## One-Time Console Setup
 
@@ -55,7 +56,7 @@ Attributes:
 | family_name | Last Name | String | Yes | No | No |
 | password | Password | String | Yes | No | Yes |
 
-**`username` is required even though `email` is the real identifier.** ThunderID's built-in "Username & Password" sign-in method doesn't dynamically pick whichever attribute is marked Unique — its default flow looks up the literal attribute key `username` (ThunderID's own Go source, `internal/flow/executor/constants.go` / `credentials_auth_executor.go` / `internal/authnprovider/defaultprovider/default_authn_provider.go`). Without a `username` attribute present, that lookup never matches and sign-in fails as "user not found" even for a user that genuinely exists. Its Display Name stays "Username" — the sign-in form's "Username" field is where the user types their email address, since CoreGrid has no separate username of its own. Leave its pattern/regex constraint blank; a restrictive default (e.g. alphanumeric-only) will reject email-shaped values with a schema validation error. `ThunderIdIdentityDirectory` mirrors `email` into `username` on every user it creates (`backend/Identity/ThunderIdIdentityDirectory.cs`); if you create a user by hand in the console instead, set `username` to the same value as `email` yourself.
+**`username` is required even though `email` is the real identifier.** ThunderID's built-in "Username & Password" sign-in method doesn't dynamically pick whichever attribute is marked Unique — its default flow looks up the literal attribute key `username` (ThunderID's own Go source, `internal/flow/executor/constants.go` / `credentials_auth_executor.go` / `internal/authnprovider/defaultprovider/default_authn_provider.go`). Without a `username` attribute present, that lookup never matches and sign-in fails as "user not found" even for a user that genuinely exists. Its Display Name stays "Username" — the sign-in form's "Username" field is where the user types their email address, since CoreGrid has no separate username of its own. Leave its pattern/regex constraint blank; a restrictive default (e.g. alphanumeric-only) will reject email-shaped values with a schema validation error. `ThunderIdIdentityDirectory` mirrors `email` into `username` on every user it creates (`backend/Features/Identity/ThunderIdIdentityDirectory.cs`); if you create a user by hand in the console instead, set `username` to the same value as `email` yourself.
 
 Don't reuse the built-in `Person` type — it can't be added to an application's Allowed User Types and never picks up app roles.
 
@@ -69,7 +70,7 @@ Don't reuse the built-in `Person` type — it can't be added to an application's
 
 **First, rename ThunderID's built-in `Administrator` role to `Admin`**: **Roles** → built-in **Administrator** → **Edit**. Purely cosmetic — assignments are keyed by ID, not name — but it stops you confusing it with the CoreGrid role of the same name you're about to create. (If you'd rather not rename it, tell them apart by description instead: the built-in one has one, "System administrator role with full permissions"; the CoreGrid one below doesn't.)
 
-**Roles** → create: `Administrator`, `InventoryOfficer`, `Auditor`, `Staff`. The names must exactly match `CoreGridRole` (`backend/Domain/CoreGridRole.cs`) — a literal string comparison. **Note down each role's ID** — `ThunderID:RoleIds:*` needs them; only `Administrator` is consumed today.
+**Roles** → create: `Administrator`, `InventoryOfficer`, `Auditor`, `Staff`. The names must exactly match `CoreGridRole` (`backend/Domain/CoreGridRole.cs`) — a literal string comparison. **Note down each role's ID** — `ThunderID:RoleIds:*` needs all four; creating a user assigns the role chosen for them.
 
 These are CoreGrid's own roles, assigned to **users**. They're a separate object from the built-in role you just renamed, which instead gets assigned to the *backend application* in step 6 (see [Role Assignments](#role-assignments-users-vs-applications) below).
 
@@ -108,7 +109,7 @@ Takes effect immediately.
 - Name: **CoreGrid Backend** — paired with **CoreGrid Frontend** (step 4). Grant Type: `client_credentials`.
 - **Token Endpoint Auth Method: `client_secret_post`**, and *saved* as such, not just selected — left on `client_secret_basic`, every request fails with `unauthorized_client`.
 - Note the Client ID and Client Secret.
-- **No scopes to configure here.** This application type has no per-app scope list in the console — don't go looking for a `system` scope to create or activate. `ThunderIdIdentityDirectory` sends `scope=system` on the token request regardless (`backend/Identity/ThunderIdIdentityDirectory.cs`), but what actually authorizes the token is the resource/audience it's issued against (step 7) plus the role assignment below.
+- **No scopes to configure here.** This application type has no per-app scope list in the console — don't go looking for a `system` scope to create or activate. `ThunderIdIdentityDirectory` sends `scope=system` on the token request regardless (`backend/Features/Identity/ThunderIdIdentityDirectory.cs`), but what actually authorizes the token is the resource/audience it's issued against (step 7) plus the role assignment below.
 - **Roles** → built-in **Administrator** (`Admin`, if renamed in step 3) → **Assignments** → add this application. Without this, every management call fails with `403 Forbidden`.
 
 ### Role Assignments: Users vs. Applications
@@ -120,7 +121,7 @@ Two unrelated, same-named concepts — keep them apart:
 | **CoreGrid roles** (`Administrator`, `InventoryOfficer`, `Auditor`, `Staff` — step 3) | **Users** (frontend sign-ins) | **Roles** → role → **Assignments** → add the user | Lands in the `roles` claim, read by the backend's `[Authorize(Roles = ...)]` checks. The frontend does **not** read this claim — see step 4's note on `GET /api/me` |
 | ThunderID's built-in **Administrator** role | **Applications** (the backend service app, step 6, only) | **Roles** → built-in Administrator → **Assignments** → add the application | Grants the backend's `client_credentials` token its `system` permission |
 
-The frontend application itself never gets a role — only the users who sign into it do. Today only the first Administrator is provisioned with one, during Setup (`POST /users` then `POST /roles/{roleId}/assignments/add`, see `ThunderIdIdentityDirectory.cs`); assigning `InventoryOfficer`/`Auditor`/`Staff` to a user is manual for now (see Known Gaps).
+The frontend application itself never gets a role — only the users who sign into it do. Every user CoreGrid creates — the first Administrator during Setup, and any role from **Users & Roles** — is assigned its role automatically (`POST /users` then `POST /roles/{roleId}/assignments/add`, see `ThunderIdIdentityDirectory.cs`). **Changing** a user's role in CoreGrid updates only CoreGrid's `Users.Role`, which is what the frontend reads; the ThunderID role assignment (and so the `roles` claim the backend checks) isn't moved with it — update it in the console too.
 
 ### 7. The Resource: Built-In `System` Resource Server, or a Custom One
 
@@ -133,6 +134,35 @@ The frontend application itself never gets a role — only the users who sign in
 ### The Agent Service Doesn't Register With ThunderID
 
 It authenticates via a shared secret instead — `AgentService__SharedSecret` ([SRS §14.2](../srs/14-deployment-and-operations.md)). ThunderID plays no part in it.
+
+### 8. Enable Password Recovery ("Forgot password?" and "Change password")
+
+Password recovery is ThunderID's own hosted RECOVERY flow — CoreGrid never sees the password. Run once per ThunderID instance; it's idempotent, so re-running is safe:
+
+```bash
+make thunderid-recovery   # runs scripts/thunderid/enable-password-recovery.sh
+```
+
+It reads the backend app's credentials from `backend/appsettings.Development.json` and `dotnet user-secrets` (or `THUNDERID_CLIENT_ID` / `THUNDERID_CLIENT_SECRET`), then:
+
+1. creates a **CoreGrid Recovery Flow** — a copy of ThunderID's default recovery flow whose "Back to sign in" returns to the CoreGrid Frontend sign-in flow instead of ThunderID's generic one;
+2. adds a **Forgot password?** link, just above the Sign In button, to the CoreGrid Frontend sign-in flow;
+3. sets the application's `recoveryFlowId` and `isRecoveryFlowEnabled: true`. Until this is set, ThunderID refuses with `FES-1009 Recovery not allowed`.
+
+Put the **Application ID** it prints (not the Client ID) into `VITE_THUNDERID_APPLICATION_ID` in `frontend/.env`, and restart Vite. CoreGrid then links straight to `https://<thunderid>/gate/recovery?applicationId=…` from two places:
+
+| Where | Who | Notes |
+|---|---|---|
+| `/forgot-password` (linked from CoreGrid's sign-in card) | Anyone signed out | |
+| **My Profile → Password → Change password** | Every signed-in web user — Administrator, Inventory Officer, Auditor | Opens in a new tab; the current CoreGrid session stays signed in |
+
+Without `VITE_THUNDERID_APPLICATION_ID`, both places tell the user to use **Forgot password?** on ThunderID's own sign-in page instead, which step 2 added.
+
+The flow is the same for every role: enter the sign-in email → receive a single-use link → choose a new password. ThunderID identifies the user by `username`, which CoreGrid sets to the email (step 1). For an unknown email it still shows "check your email", so it doesn't reveal which addresses have accounts.
+
+**Email delivery — not configured yet.** The link is sent by ThunderID's own SMTP client, configured in the `email.smtp` block of its `/opt/thunderid/deployment.yaml`. The image default points at `127.0.0.1:2525`, where nothing listens, so today the flow runs end to end but no email arrives. Configuring a real SMTP relay is part of deploying ThunderID and is deferred until then; until it's done, use the Administrator reset below.
+
+**Administrator reset.** An Administrator can also set a new password for any user, themselves included, from **Users & Roles → ⋯ → Reset password**. This is `POST /api/users/{id}/reset-password` (`CanManageUsers`, 8–200 characters), which calls ThunderID's `POST /users/{id}/update-credentials`; the old password stops working immediately. Use it when the user can't receive the recovery email.
 
 ## Environment Variables
 
@@ -157,10 +187,11 @@ ThunderID__ScimClientSecret=<Backend Client Secret, step 6>
 - `ThunderID__ScimClientSecret` goes in `dotnet user-secrets`, never in `appsettings.Development.json` (committed to git).
 - Relax TLS verification for the self-signed cert only in Development — `Program.cs` already gates this on `IsDevelopment()`.
 
-**Frontend** (`frontend/.env.local`, copy from `.env.example`):
+**Frontend** (`frontend/.env` — `make env` copies it from `.env.example`):
 
 ```dotenv
 VITE_THUNDERID_CLIENT_ID=<frontend Client ID, step 4>
+VITE_THUNDERID_APPLICATION_ID=<frontend Application ID, printed by step 8>
 VITE_THUNDERID_BASE_URL=https://localhost:8090
 VITE_THUNDERID_AFTER_SIGN_IN_URL=http://localhost:5173
 VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
@@ -171,7 +202,10 @@ VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 ## Known Gaps
 
 - **Local-identity fallback** (SRS §4.10) isn't built — `IIdentityDirectory` exists as the seam for it, but only `ThunderIdIdentityDirectory` exists today.
-- **Only Administrator provisioning is wired up.** Creating InventoryOfficer/Auditor/Staff accounts isn't built yet.
+- **No "current password + new password" form.** Changing a password from My Profile goes through the emailed recovery link. Checking the current password inside CoreGrid would need ThunderID's Direct API (`POST /auth/credentials/authenticate`, gated by its `Direct-Auth-Secret`), which isn't wired up; ThunderID's own `POST /users/me/update-credentials` doesn't check the current password, so it isn't used.
+- **Recovery emails aren't delivered yet.** ThunderID's SMTP is still the image default; set it up when ThunderID is deployed (see step 8).
+- **Mobile app recovery isn't enabled.** Step 8 only changes the **CoreGrid Frontend** application and its sign-in flow; the **CoreGrid Mobile** app's flow is untouched.
+- **Role changes aren't pushed to ThunderID.** See [Role Assignments](#role-assignments-users-vs-applications).
 
 ## Troubleshooting Quick Reference
 
@@ -190,6 +224,8 @@ VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 | `key not found` / endless JWKS retries | Issuer is `http://` instead of `https://` |
 | `certificate signed by unknown authority` | Relax TLS verification for local dev against the self-signed cert |
 | `token has invalid issuer` | Issuer value includes a path; should be the bare server URL |
+| "Forgot password?" says recovery isn't allowed (`FES-1009`) | Recovery isn't enabled on the application — run step 8 |
+| Recovery says the email was sent but nothing arrives | ThunderID's SMTP isn't configured (its image default points at `127.0.0.1:2525`) — expected until deployment; reset the password from Users & Roles instead |
 | CORS errors on `/oauth2/token` or `/flow/meta` | Frontend origin isn't in `cors` server-config's `allowedOrigins` — step 5 |
 | Signing out doesn't return to the app | Post-logout redirect URI isn't set — step 4 |
 | All data disappeared after a restart | `docker compose down -v` was used instead of `docker compose start` |

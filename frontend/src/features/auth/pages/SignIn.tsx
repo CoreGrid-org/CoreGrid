@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { SignInButton, useThunderID } from "@thunderid/react";
 import { Button } from "@carbon/react";
 import { WarningAltFilled } from "@carbon/icons-react";
@@ -48,6 +48,9 @@ export default function SignIn() {
             </Button>
           )}
         </SignInButton>
+        <p className="cg-signin-card__forgot">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
       </div>
     </div>
   );

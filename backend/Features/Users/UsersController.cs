@@ -27,9 +27,11 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
             ["createdAt"] = u => u.CreatedAt,
         };
 
-  // Returns users with search and pagination.
+    // Returns users with search and pagination. Read-only directory: Officer
+    // picks maintenance assignees from it, Auditor filters maintenance
+    // records/reports by assignee. Writes below stay CanManageUsers.
     [HttpGet]
-    [Authorize(Roles = $"{nameof(CoreGridRole.Administrator)},{nameof(CoreGridRole.InventoryOfficer)}")]
+    [Authorize(Roles = $"{nameof(CoreGridRole.Administrator)},{nameof(CoreGridRole.InventoryOfficer)},{nameof(CoreGridRole.Auditor)}")]
     public async Task<ActionResult<PagedResult<UserResponse>>> List(
         [FromQuery] PagedQuery query,
         CancellationToken cancellationToken)
@@ -159,6 +161,20 @@ public class UsersController(CoreGridDbContext db, IIdentityDirectory identityDi
         await Db.SaveChangesAsync(cancellationToken);
 
         return Ok(ToResponse(user));
+    }
+
+    // Sets a new password for the user in ThunderID. CoreGrid never stores
+    // it — it's forwarded to the identity provider and discarded.
+    [HttpPost("{id:guid}/reset-password")]
+    [Authorize(Policy = Policies.CanManageUsers)]
+    public async Task<IActionResult> ResetPassword(Guid id, ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var user = await Db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken)
+            ?? throw NotFoundException.For(nameof(User), id);
+
+        await identityDirectory.SetPasswordAsync(user.ExternalSubjectId, request.NewPassword, cancellationToken);
+
+        return NoContent();
     }
 
     // Reactivates a user.

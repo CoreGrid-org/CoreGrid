@@ -79,6 +79,10 @@ infra-status: ## Show container status
 infra-logs: ## Follow container logs
 	$(COMPOSE) logs -f --tail=100
 
+.PHONY: thunderid-recovery
+thunderid-recovery: ## Enable ThunderID password recovery for the web app (idempotent; docs/setup/thunderid.md step 8)
+	scripts/thunderid/enable-password-recovery.sh
+
 ##@ Database
 
 .PHONY: db-update

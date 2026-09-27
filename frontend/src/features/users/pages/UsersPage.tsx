@@ -6,6 +6,7 @@ import { useDepartments } from "@/features/assets/hooks/useAssets";
 import { useMe } from "@/features/auth/hooks/useMe";
 import CreateUserModal from "../components/CreateUserModal";
 import EditUserModal from "../components/EditUserModal";
+import ResetPasswordModal from "../components/ResetPasswordModal";
 import UserIdentity from "../components/UserIdentity";
 import { getRoleLabel } from "@/features/auth/lib/roles";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
@@ -38,6 +39,7 @@ export default function UsersPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<CoreGridUser | null>(null);
   const [statusTarget, setStatusTarget] = useState<CoreGridUser | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<CoreGridUser | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const departmentName = (id: string | null) => departments.data?.find((d) => d.id === id)?.name ?? "-";
@@ -145,6 +147,7 @@ export default function UsersPage() {
                       <td style={{ textAlign: "right" }}>
                         <OverflowMenu aria-label={`Actions for ${u.given_name} ${u.family_name}`} flipped size="sm">
                           <OverflowMenuItem itemText="Edit role & department" onClick={() => setEditingUser(u)} />
+                          <OverflowMenuItem itemText="Reset password" onClick={() => setPasswordTarget(u)} />
                           {!isSelf(u) && (
                             <OverflowMenuItem
                               itemText={u.is_active ? "Deactivate" : "Reactivate"}
@@ -219,6 +222,18 @@ export default function UsersPage() {
             setNotice(`${editingUser.given_name} ${editingUser.family_name} was updated.`);
             setEditingUser(null);
             refetch();
+          }}
+        />
+      )}
+
+      {passwordTarget && (
+        <ResetPasswordModal
+          user={passwordTarget}
+          isSelf={isSelf(passwordTarget)}
+          onClose={() => setPasswordTarget(null)}
+          onReset={() => {
+            setNotice(`Password reset for ${passwordTarget.given_name} ${passwordTarget.family_name}.`);
+            setPasswordTarget(null);
           }}
         />
       )}

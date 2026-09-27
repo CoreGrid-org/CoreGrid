@@ -112,6 +112,7 @@ public class DisposalsController : CoreGridControllerBase
 
     // GET /api/disposals — list with filters, Staff scoped to own department (B14)
     [HttpGet("api/disposals")]
+    [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<PagedResult<DisposalResponse>>> GetDisposals(
         [FromQuery] DisposalQueryParameters parameters,
         CancellationToken cancellationToken)
@@ -127,6 +128,7 @@ public class DisposalsController : CoreGridControllerBase
 
     // GET /api/disposals/{id} — detail with live precondition checklist
     [HttpGet("api/disposals/{id:guid}")]
+    [Authorize(Policy = Policies.CanReadAssets)]
     public async Task<ActionResult<DisposalResponse>> GetDisposalById(
         Guid id,
         CancellationToken cancellationToken)

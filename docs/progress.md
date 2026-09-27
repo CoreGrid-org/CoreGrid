@@ -29,11 +29,16 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 | First-Administrator provisioning via Setup | Creates ThunderID account + CoreGrid role |
 | FR-013: Admin invites a user by email + role | |
 | FR-014: Change a user's role/department, deactivate/reactivate | Guards against deactivating the org's last active Administrator |
-| Staff department scoping | `Features/Shared/Scoping/DepartmentScope` — applied to the Assets/Maintenance/Transfers/Disposals list and detail endpoints (Appendix B: "Staff are restricted to their own department by a service-layer filter") |
+| Self-service password recovery ("Forgot password?") | ThunderID's hosted RECOVERY flow, enabled by `scripts/thunderid/enable-password-recovery.sh`; every role, Administrators included. CoreGrid's `/forgot-password` hands off to `/gate/recovery`. Emails need ThunderID's SMTP configured, deferred to deployment — see `docs/setup/thunderid.md` step 8 |
+| My Profile: change password | Every signed-in web user; same emailed-link recovery flow, no current-password form (Known Gaps in `docs/setup/thunderid.md`) |
+| Administrator password reset for any user | `POST /api/users/{id}/reset-password` (`CanManageUsers`) → ThunderID `update-credentials`; Users & Roles → ⋯ → Reset password. Like user creation, it's an admin-entered password field in CoreGrid — a documented deviation from FR-001's "never present a password entry field"; CoreGrid still stores none |
+| Staff department scoping | `Features/Shared/Scoping/DepartmentScope` — applied to the Assets/Maintenance/Transfers/Disposals list and detail endpoints and to fault reporting (Appendix B: "Staff are restricted to their own department by a service-layer filter"). **Staff only** — Inventory Officer reads organisation-wide per SRS §4.6 (previously also restricted, which hid inbound transfers from the destination officer who must confirm receipt) |
+| Every read endpoint declares a policy | Transfer/disposal/dashboard-summary reads → `CanReadAssets`; notifications → `CanReadNotifications`; campaign reads → new `CanReadCampaigns` (Officer/Auditor/Administrator — Staff no longer read campaigns); `GET /api/users` adds Auditor (maintenance assignee filters) |
+| Web permission map | `frontend/src/features/auth/lib/permissions.ts` + `usePermissions()` — one mirror of the backend grants that every page's action buttons read, instead of per-page `role ===` checks. Officer's "Confirm receipt" only shows for transfers into their own department (`/api/me` now returns `department_id`) |
 | EF Core migrations + generated `db/schema.sql` export | |
-| CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` — backend and frontend jobs only; no secret-scanning job |
-| Backend test project | `backend.Tests`, xUnit — InMemory suite + a real-Postgres suite for append-only checks; compiles and runs in CI (376 backend tests, 100% passing) |
-| Frontend test project | Vitest + React Testing Library (51 frontend tests, 100% passing) |
+| CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` — backend and frontend jobs only; no secret-scanning job. Backend job restores/builds `backend.Tests` (warnings as errors), applies migrations to its Postgres service (port 5433, matching local) before running the real-Postgres tests |
+| Backend test project | `backend.Tests`, xUnit — InMemory suite + a real-Postgres suite for append-only checks; compiles and runs in CI (437 backend tests, 100% passing) |
+| Frontend test project | Vitest + React Testing Library (86 frontend tests, 100% passing) |
 | Multi-agent orchestration pipeline | Full Planner -> Maintenance -> Budget -> Policy pipeline is genuinely connected end-to-end for the first time in the project; new `BudgetAnalysis` jsonb column on `AgentWorkflows` table |
 
 **❌ Not Started**
@@ -161,7 +166,7 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 | FR-062: Discrepancy resolution | |
 | FR-063/064: Append-only audit log | Generic `AuditSaveChangesInterceptor` covers every entity automatically |
 | FR-065/084/085: Campaign report + PDF/CSV export | Single-campaign report plus the org-wide Reports > Audit tab |
-| FR-081/082/086: Dashboard indicators + visualisations | Org-wide for Administrator/Auditor, department-scoped for Staff/Inventory Officer |
+| FR-081/082/086: Dashboard indicators + visualisations | Org-wide for Administrator/Auditor/Inventory Officer, department-scoped for Staff |
 | Reports > Audit tab: real server-side pagination | Discrepancy list is paginated server-side; export still returns every row |
 | Reports page: Audit tab hidden from Inventory Officer | Matches the backend's own Auditor/Administrator-only authorisation |
 | React (org structure/users/policy admin, audit dashboard, campaigns, discrepancy resolution, Reports > Asset Inventory) | |

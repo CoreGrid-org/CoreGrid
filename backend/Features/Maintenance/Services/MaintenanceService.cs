@@ -115,14 +115,19 @@ public class MaintenanceService : IMaintenanceService
     }
 
     public async Task<MaintenanceRecordDto?> ReportFaultAsync(
-        Guid organizationId, Guid currentUserId, ReportFaultRequest request, CancellationToken cancellationToken)
+        Guid organizationId, DepartmentScope scope, Guid currentUserId, ReportFaultRequest request, CancellationToken cancellationToken)
     {
         // [Required] on the DTO makes a missing value 400 for a
         // model-bound HTTP caller before this method ever runs.
         var assetId = request.AssetId!.Value;
 
+        // Staff may only report against an asset they can read (their own
+        // department) — same answer as a nonexistent asset, so the call
+        // can't be used to probe other departments' asset ids.
         var asset = await _context.Assets
-            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken);
+            .Where(a => a.Id == assetId && a.OrganizationId == organizationId)
+            .ApplyScope(scope, a => (Guid?)a.DepartmentId)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (asset is null)
         {

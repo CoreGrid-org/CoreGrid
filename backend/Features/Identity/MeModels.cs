@@ -10,4 +10,5 @@ public record MeResponse(
     CoreGridRole Role,
     bool IsActive,
     Guid OrganizationId,
-    string OrganizationName);
+    string OrganizationName,
+    Guid? DepartmentId);

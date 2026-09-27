@@ -26,6 +26,7 @@ public static class AuthorizationExtensions
             .AddPolicy(Policies.CanRequestDisposal, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.RequestDisposal, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanApproveDisposal, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ApproveDisposal, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanManageCampaigns, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ManageCampaigns, allowServicePrincipal: false)))
+            .AddPolicy(Policies.CanReadCampaigns, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ReadCampaigns, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanResolveDiscrepancy, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ResolveDiscrepancy, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanReadAuditLog, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ReadAuditLog, allowServicePrincipal: false)))
             .AddPolicy(Policies.CanManageConfiguration, p => p.Requirements.Add(new CoreGridPolicyRequirement(RoleGroups.ManageConfiguration, allowServicePrincipal: false)))

@@ -298,6 +298,7 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
             (HttpMethod.Patch, $"/api/users/{id}"),
             (HttpMethod.Patch, $"/api/users/{id}/deactivate"),
             (HttpMethod.Patch, $"/api/users/{id}/activate"),
+            (HttpMethod.Post, $"/api/users/{id}/reset-password"),
             (HttpMethod.Patch, $"/api/notifications/{id}/read"),
             (HttpMethod.Patch, "/api/notifications/read-all"),
         ];
@@ -417,6 +418,10 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
     [InlineData("POST", "/api/users", CoreGridRole.InventoryOfficer, true)]
     [InlineData("POST", "/api/users", CoreGridRole.Staff, true)]
     [InlineData("POST", "/api/users", CoreGridRole.Auditor, true)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.Administrator, false)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.InventoryOfficer, true)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.Auditor, true)]
+    [InlineData("POST", "/api/users/00000000-0000-0000-0000-000000000001/reset-password", CoreGridRole.Staff, true)]
     // CanInitiateWorkflow — Officer, Administrator
     [InlineData("POST", "/api/agent-workflows", CoreGridRole.InventoryOfficer, false)]
     [InlineData("POST", "/api/agent-workflows", CoreGridRole.Administrator, false)]
@@ -432,6 +437,34 @@ public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFact
     // Staff excluded (§5.9's documented deviation, stricter than Appendix B)
     [InlineData("GET", "/api/agent-workflows/00000000-0000-0000-0000-000000000001/execution-summary", CoreGridRole.InventoryOfficer, false)] // 404, not 403 — passes the role gate
     [InlineData("GET", "/api/agent-workflows/00000000-0000-0000-0000-000000000001/execution-summary", CoreGridRole.Staff, true)]
+    // CanReadCampaigns — Officer (assigned verifier), Auditor, Administrator; Staff have no verification role
+    [InlineData("GET", "/api/verification-campaigns", CoreGridRole.InventoryOfficer, false)]
+    [InlineData("GET", "/api/verification-campaigns", CoreGridRole.Auditor, false)]
+    [InlineData("GET", "/api/verification-campaigns", CoreGridRole.Administrator, false)]
+    [InlineData("GET", "/api/verification-campaigns", CoreGridRole.Staff, true)]
+    [InlineData("GET", "/api/verification-campaigns/00000000-0000-0000-0000-000000000001", CoreGridRole.Staff, true)]
+    // Discrepancy list — Auditor, Administrator only
+    [InlineData("GET", "/api/discrepancies", CoreGridRole.Auditor, false)]
+    [InlineData("GET", "/api/discrepancies", CoreGridRole.Staff, true)]
+    [InlineData("GET", "/api/discrepancies", CoreGridRole.InventoryOfficer, true)]
+    // CanReadAssets on transfer/disposal reads — every human role, Staff department-scoped
+    [InlineData("GET", "/api/transfers", CoreGridRole.Staff, false)]
+    [InlineData("GET", "/api/transfers", CoreGridRole.Auditor, false)]
+    [InlineData("GET", "/api/disposals", CoreGridRole.Staff, false)]
+    [InlineData("GET", "/api/disposals", CoreGridRole.Auditor, false)]
+    // User directory read — Administrator, Officer, Auditor (Auditor filters maintenance by assignee); Staff denied
+    [InlineData("GET", "/api/users", CoreGridRole.Auditor, false)]
+    [InlineData("GET", "/api/users", CoreGridRole.InventoryOfficer, false)]
+    [InlineData("GET", "/api/users", CoreGridRole.Staff, true)]
+    // Direct maintenance creation — Officer and Administrator; completion — Officer only (plan §5.4)
+    [InlineData("POST", "/api/maintenance", CoreGridRole.InventoryOfficer, false)]
+    [InlineData("POST", "/api/maintenance", CoreGridRole.Administrator, false)]
+    [InlineData("POST", "/api/maintenance", CoreGridRole.Auditor, true)]
+    [InlineData("POST", "/api/maintenance", CoreGridRole.Staff, true)]
+    // Configuration reads stay open to every role (Flutter pickers); writes are CanManageConfiguration
+    [InlineData("GET", "/api/departments", CoreGridRole.Staff, false)]
+    [InlineData("POST", "/api/departments", CoreGridRole.InventoryOfficer, true)]
+    [InlineData("POST", "/api/departments", CoreGridRole.Auditor, true)]
     public async Task NamedPolicy_MatchesAppendixB(string method, string path, CoreGridRole role, bool expectForbidden)
     {
         var client = ClientAs(role);

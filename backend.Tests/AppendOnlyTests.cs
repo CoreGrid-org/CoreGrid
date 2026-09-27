@@ -30,8 +30,9 @@ public class AppendOnlyTests : IAsyncLifetime
         Environment.GetEnvironmentVariable("TEST_DB_CONNECTION")
         ?? "Host=localhost;Port=5433;Database=coregrid;Username=coregrid;Password=coregrid";
 
-    private const string AppRoleConnectionString =
-        "Host=localhost;Port=5433;Database=coregrid;Username=coregrid_app;Password=coregrid_app";
+    // Same server and database as the owner connection, as the restricted role.
+    private static string AppRoleConnectionString =>
+        new NpgsqlConnectionStringBuilder(OwnerConnectionString) { Username = "coregrid_app", Password = "coregrid_app" }.ConnectionString;
 
     public async Task InitializeAsync()
     {

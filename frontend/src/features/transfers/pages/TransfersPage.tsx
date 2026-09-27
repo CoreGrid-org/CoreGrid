@@ -6,7 +6,8 @@ import { formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useTransfersList, useApproveTransfer, useConfirmTransferReceipt } from "../hooks/useTransfers";
 import { useDisposalsList, useApproveDisposal } from "../hooks/useDisposals";
-import { transferCapabilities } from "../lib/capabilities";
+import { canConfirmReceiptOf, transferCapabilities } from "../lib/capabilities";
+import { useMe } from "@/features/auth/hooks/useMe";
 import PagedSection from "../components/PagedSection";
 import TransfersTable from "../components/TransfersTable";
 import DisposalsTable from "../components/DisposalsTable";
@@ -26,6 +27,7 @@ type OpenModal = "transfer" | "condemn" | "disposal" | null;
 // transferCapabilities() decides which actions and audit columns show.
 export default function TransfersPage({ role }: { role: CoreGridRole }) {
   const can = transferCapabilities(role);
+  const { data: me } = useMe();
 
   const [transferPaging, setTransferPaging] = useState({ page: 1, pageSize: 20 });
   const [disposalPaging, setDisposalPaging] = useState({ page: 1, pageSize: 20 });
@@ -64,7 +66,10 @@ export default function TransfersPage({ role }: { role: CoreGridRole }) {
         </Button>
       );
     }
-    if (can.canConfirmReceipt && (t.status === "APPROVED" || t.status === "IN_TRANSIT")) {
+    if (
+      canConfirmReceiptOf(role, me?.department_id, t.to_department_id) &&
+      (t.status === "APPROVED" || t.status === "IN_TRANSIT")
+    ) {
       return (
         <Button
           size="sm"

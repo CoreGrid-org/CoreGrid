@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal, InlineNotification, Tag, Dropdown, Button, Pagination } from "@carbon/react";
-import { useMe } from "@/features/auth/hooks/useMe";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import { useAssetDetail, useAssetHistory, useUpdateAssetCondition } from "../hooks/useAssets";
 import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
@@ -23,8 +23,8 @@ export default function AssetDetailModal({ assetId, onClose, onConditionUpdated 
   const updateCondition = useUpdateAssetCondition();
   // asset:update — Appendix B: Officer, Administrator only. Auditor reads
   // this same modal (CanReadAssets covers Auditor too) but can't act on it.
-  const { data: me } = useMe();
-  const canManageAssets = me?.role === "InventoryOfficer" || me?.role === "Administrator";
+  const { can } = usePermissions();
+  const canManageAssets = can("asset:manage");
   const [condition, setCondition] = useState<AssetCondition | undefined>(undefined);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(5);

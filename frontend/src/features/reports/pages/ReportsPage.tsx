@@ -1,5 +1,5 @@
 import { Tabs, TabList, Tab, TabPanels, TabPanel } from "@carbon/react";
-import { useMe } from "@/features/auth/hooks/useMe";
+import { usePermissions } from "@/features/auth/hooks/usePermissions";
 import AuditReportPanel from "../components/AuditReportPanel";
 import InventoryReportPanel from "../components/InventoryReportPanel";
 import MaintenanceReportPanel from "../components/MaintenanceReportPanel";
@@ -7,8 +7,8 @@ import DisposalReportPanel from "../components/DisposalReportPanel";
 
 // Controls report visibility based on the current user's role.
 export default function ReportsPage() {
-  const { data: me } = useMe();
-  const canSeeAudit = me?.role === "Auditor" || me?.role === "Administrator";
+  const { can } = usePermissions();
+  const canSeeAudit = can("report:audit");
 
   return (
     <div className="cg-page">

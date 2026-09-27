@@ -28,6 +28,10 @@ public static class RoleGroups
     public static readonly CoreGridRole[] ApproveDisposal = [CoreGridRole.Administrator];
 
     public static readonly CoreGridRole[] ManageCampaigns = [CoreGridRole.Auditor, CoreGridRole.Administrator];
+
+    // Campaign reads: the managers plus the officers the campaign's tasks
+    // are assigned to. Staff have no verification role (FR-056–FR-061).
+    public static readonly CoreGridRole[] ReadCampaigns = [CoreGridRole.InventoryOfficer, CoreGridRole.Auditor, CoreGridRole.Administrator];
     public static readonly CoreGridRole[] ResolveDiscrepancy = [CoreGridRole.Auditor, CoreGridRole.Administrator];
     public static readonly CoreGridRole[] ReadAuditLog = [CoreGridRole.Auditor, CoreGridRole.Administrator];
 
