@@ -69,37 +69,38 @@ export default function ApproveMaintenanceModal({
       primaryButtonDisabled={approveMaintenance.isPending}
       danger={false}
     >
-      <p style={{ marginBottom: "1rem" }}>
+      <p className="cg-modal-intro">
         Approving this record will transition it from REQUESTED to APPROVED.
       </p>
       {(error || approveMaintenance.isError) && (
-        <p style={{ color: "#da1e28", marginBottom: "1rem" }}>
+        <p className="cg-text-error">
           {error || getErrorMessage(approveMaintenance.error, "Failed to approve maintenance.")}
         </p>
       )}
       
       <FormGroup legendText="">
-        <ComboBox
-          id="assignee"
-          titleText="Assign to Officer"
-          placeholder={isLoadingUsers ? "Loading users..." : "Select an officer"}
-          items={users ?? []}
-          itemToString={(item) => (item ? `${item.given_name} ${item.family_name} (${item.email})` : "")}
-          selectedItem={users?.find((o) => o.id === assigneeId) ?? null}
-          onChange={({ selectedItem }) => setAssigneeId(selectedItem?.id ?? "")}
-          style={{ marginBottom: "1rem" }}
-        />
+        <div className="cg-stack">
+          <ComboBox
+            id="assignee"
+            titleText="Assign to Officer"
+            placeholder={isLoadingUsers ? "Loading users..." : "Select an officer"}
+            items={users ?? []}
+            itemToString={(item) => (item ? `${item.given_name} ${item.family_name} (${item.email})` : "")}
+            selectedItem={users?.find((o) => o.id === assigneeId) ?? null}
+            onChange={({ selectedItem }) => setAssigneeId(selectedItem?.id ?? "")}
+          />
         
-        <TextInput
-          id="estimatedCost"
-          labelText="Estimated Cost (LKR)"
-          placeholder="0.00"
-          value={estimatedCost}
-          onChange={(e) => setEstimatedCost(e.target.value)}
-          type="number"
-          min="0"
-          step="0.01"
-        />
+          <TextInput
+            id="estimatedCost"
+            labelText="Estimated Cost (LKR)"
+            placeholder="0.00"
+            value={estimatedCost}
+            onChange={(e) => setEstimatedCost(e.target.value)}
+            type="number"
+            min="0"
+            step="0.01"
+          />
+        </div>
       </FormGroup>
     </Modal>
   );

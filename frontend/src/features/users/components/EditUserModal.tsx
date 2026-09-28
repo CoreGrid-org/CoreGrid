@@ -57,7 +57,6 @@ export default function EditUserModal({ user, departments, isSelf, onClose, onSa
             subtitle={getErrorMessage(updateUser.error, "Something went wrong. Please try again.")}
             hideCloseButton
             lowContrast
-            style={{ maxWidth: "100%" }}
           />
         )}
 
@@ -72,7 +71,6 @@ export default function EditUserModal({ user, departments, isSelf, onClose, onSa
             }
             hideCloseButton
             lowContrast
-            style={{ maxWidth: "100%" }}
           />
         )}
 

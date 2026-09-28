@@ -47,10 +47,10 @@ export default function CreateWorkflowModal({ onClose, onCreated }: CreateWorkfl
           subtitle={getErrorMessage(createWorkflow.error, "Something went wrong. Please try again.")}
           hideCloseButton
           lowContrast
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
-      <div style={{ display: "grid", gap: "1rem" }}>
+      <div className="cg-stack">
         <ComboBox
           id="workflow-asset"
           titleText="Asset"

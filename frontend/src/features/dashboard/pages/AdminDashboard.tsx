@@ -10,10 +10,6 @@ import { useDashboardSummary } from "../hooks/useDashboardSummary";
 import { useDashboardCharts } from "../hooks/useDashboardCharts";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 
-// "assets by condition" is always New→Unserviceable, positionally
-// zero-filled by the backend, so this ramp lines up with the response order.
-const CONDITION_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"];
-
 const FEATURE_CARDS = [
   { to: "/admin/assets", icon: Asset, title: "Asset Registry", description: "Register, search and track assets by QR code." },
   { to: "/admin/maintenance", icon: ToolBox, title: "Maintenance", description: "Faults, repairs and preventive schedules." },
@@ -36,7 +32,9 @@ export default function AdminDashboard() {
   const assetsByCondition = charts.data?.assets_by_condition.map((d, i) => ({
     label: formatStatusLabel(d.label),
     value: d.value,
-    color: CONDITION_COLORS[i],
+    // Always New→Unserviceable, positionally zero-filled by the backend, so
+    // the index lines up with the chart's ordinal ramp.
+    rampStep: i,
   })) ?? [];
   const maintenanceCostByMonth = charts.data?.maintenance_cost_by_month.map((d) => ({ label: d.label, value: d.value })) ?? [];
 
@@ -71,7 +69,7 @@ export default function AdminDashboard() {
           subtitle={getErrorMessage(summary.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -98,7 +96,7 @@ export default function AdminDashboard() {
           subtitle={getErrorMessage(charts.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -135,7 +133,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="cg-quick-grid" style={{ marginTop: "1.5rem" }}>
+      <div className="cg-quick-grid cg-quick-grid--spaced">
         {FEATURE_CARDS.map((card) => (
           <FeatureCard key={card.to} {...card} />
         ))}

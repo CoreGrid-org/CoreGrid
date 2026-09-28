@@ -9,7 +9,6 @@ export interface LinePoint {
 interface LineChartProps {
   data: LinePoint[];
   valueFormatter?: (value: number) => string;
-  color?: string;
 }
 
 const WIDTH = 480;
@@ -31,7 +30,7 @@ function niceCeil(value: number): number {
 // Single-series trend line (dataviz skill: "trend over time" → line, one
 // hue). Crosshair + tooltip snaps to the nearest point; the last point also
 // carries a direct label per "lines → value at the end".
-export default function LineChart({ data, valueFormatter = (v) => v.toLocaleString(), color = "#2a78d6" }: LineChartProps) {
+export default function LineChart({ data, valueFormatter = (v) => v.toLocaleString() }: LineChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
 
@@ -89,7 +88,7 @@ export default function LineChart({ data, valueFormatter = (v) => v.toLocaleStri
           </tbody>
         </table>
       ) : (
-        <div style={{ position: "relative" }}>
+        <div className="cg-chart__plot">
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             width="100%"
@@ -103,8 +102,8 @@ export default function LineChart({ data, valueFormatter = (v) => v.toLocaleStri
               const y = PADDING_TOP + plotHeight - (tick / niceMax) * plotHeight;
               return (
                 <g key={tick}>
-                  <line x1={PADDING_LEFT} y1={y} x2={WIDTH - PADDING_RIGHT} y2={y} stroke="#e1e0d9" strokeWidth={1} />
-                  <text x={PADDING_LEFT - 8} y={y} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="#898781">
+                  <line x1={PADDING_LEFT} y1={y} x2={WIDTH - PADDING_RIGHT} y2={y} className="cg-chart__gridline" strokeWidth={1} />
+                  <text x={PADDING_LEFT - 8} y={y} textAnchor="end" dominantBaseline="middle" fontSize="10" className="cg-chart__axis-label">
                     {valueFormatter(tick)}
                   </text>
                 </g>
@@ -116,7 +115,7 @@ export default function LineChart({ data, valueFormatter = (v) => v.toLocaleStri
               y1={PADDING_TOP + plotHeight}
               x2={WIDTH - PADDING_RIGHT}
               y2={PADDING_TOP + plotHeight}
-              stroke="#c3c2b7"
+              className="cg-chart__axis"
               strokeWidth={1}
             />
 
@@ -127,7 +126,7 @@ export default function LineChart({ data, valueFormatter = (v) => v.toLocaleStri
                 y={HEIGHT - 6}
                 textAnchor="middle"
                 fontSize="9"
-                fill="#898781"
+                className="cg-chart__axis-label"
                 opacity={i % 2 === 0 || data.length <= 6 ? 1 : 0}
               >
                 {p.label}
@@ -140,12 +139,12 @@ export default function LineChart({ data, valueFormatter = (v) => v.toLocaleStri
                 y1={PADDING_TOP}
                 x2={points[hoverIndex].x}
                 y2={PADDING_TOP + plotHeight}
-                stroke="#c3c2b7"
+                className="cg-chart__axis"
                 strokeWidth={1}
               />
             )}
 
-            <path d={path} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={path} fill="none" className="cg-chart__line" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
             {points.map((p, i) => (
               <circle
@@ -153,13 +152,12 @@ export default function LineChart({ data, valueFormatter = (v) => v.toLocaleStri
                 cx={p.x}
                 cy={p.y}
                 r={hoverIndex === i ? 5 : 4}
-                fill={color}
-                stroke="#fcfcfb"
+                className="cg-chart__series cg-chart__point"
                 strokeWidth={2}
               />
             ))}
 
-            <text x={last.x} y={last.y - 10} textAnchor="end" fontSize="11" fontWeight={600} fill="#0b0b0b">
+            <text x={last.x} y={last.y - 10} textAnchor="end" fontSize="11" fontWeight={600} className="cg-chart__value">
               {valueFormatter(last.value)}
             </text>
           </svg>

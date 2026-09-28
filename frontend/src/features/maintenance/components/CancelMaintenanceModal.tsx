@@ -54,11 +54,11 @@ export default function CancelMaintenanceModal({
       primaryButtonDisabled={cancelMaintenance.isPending}
       danger={true}
     >
-      <p style={{ marginBottom: "1rem" }}>
+      <p className="cg-modal-intro">
         Are you sure you want to cancel this maintenance record? This action cannot be undone.
       </p>
       {(error || cancelMaintenance.isError) && (
-        <p style={{ color: "#da1e28", marginBottom: "1rem" }}>
+        <p className="cg-text-error">
           {error || getErrorMessage(cancelMaintenance.error, "Failed to cancel maintenance.")}
         </p>
       )}

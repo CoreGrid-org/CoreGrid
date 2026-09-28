@@ -162,7 +162,6 @@ export default function ReportFaultModal({ onClose, onReported, launcherButtonRe
               subtitle={getErrorMessage(reportFault.error, "Something went wrong. Please try again.")}
               lowContrast
               hideCloseButton
-              style={{ maxWidth: "100%" }}
             />
           )}
 

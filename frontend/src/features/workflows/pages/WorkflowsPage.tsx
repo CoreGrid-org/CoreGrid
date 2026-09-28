@@ -19,7 +19,6 @@ const OUTCOME_ICON: Record<string, typeof CheckmarkFilled> = {
   FAIL: CloseFilled,
   NEEDS_REVISION: WarningAltFilled,
 };
-const OUTCOME_COLOR: Record<string, string> = { PASS: "#24a148", FAIL: "#da1e28", NEEDS_REVISION: "#f1c21b" };
 
 function WorkflowCardPagination({ pagination }: { pagination: ReturnType<typeof useClientPagination<AgentWorkflow>> }) {
   if (pagination.total === 0) return null;
@@ -96,7 +95,7 @@ export default function WorkflowsPage() {
           subtitle={getErrorMessage(runAgent.error, "Something went wrong. Please try again.")}
           lowContrast
           onCloseButtonClick={() => setRunningId(null)}
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -107,7 +106,7 @@ export default function WorkflowsPage() {
           subtitle={getErrorMessage(runMaintenanceAgent.error, "Something went wrong. Please try again.")}
           lowContrast
           onCloseButtonClick={() => setRunningMaintenanceId(null)}
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -118,7 +117,7 @@ export default function WorkflowsPage() {
           subtitle={getErrorMessage(workflows.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -234,7 +233,7 @@ export default function WorkflowsPage() {
                           const Icon = OUTCOME_ICON[r.outcome];
                           return (
                             <div key={r.rule_id} className="cg-workflow-card__rule">
-                              {Icon && <Icon size={16} style={{ fill: OUTCOME_COLOR[r.outcome], flexShrink: 0 }} />}
+                              {Icon && <Icon size={16} className={`cg-workflow-card__rule-icon cg-workflow-card__rule-icon--${r.outcome.toLowerCase()}`} />}
                               <span className="cg-workflow-card__rule-id">{r.rule_id}</span>
                               <span className="cg-workflow-card__rule-values">
                                 {r.expected} → {r.actual}
@@ -260,7 +259,7 @@ export default function WorkflowsPage() {
                           </Button>
                         </div>
                       ) : (
-                        <p className="cg-table__muted" style={{ fontSize: "0.8125rem" }}>
+                        <p className="cg-table__muted cg-text-small">
                           Awaiting an Administrator's decision.
                         </p>
                       )}

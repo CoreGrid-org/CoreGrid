@@ -62,7 +62,6 @@ export default function ResetPasswordModal({ user, isSelf, onClose, onReset }: R
             subtitle={getErrorMessage(resetPassword.error, "Something went wrong. Please try again.")}
             lowContrast
             hideCloseButton
-            style={{ maxWidth: "100%" }}
           />
         )}
 

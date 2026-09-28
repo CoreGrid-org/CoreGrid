@@ -10,8 +10,6 @@ import { useDashboardSummary } from "../hooks/useDashboardSummary";
 import { useDashboardCharts } from "../hooks/useDashboardCharts";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 // Defines colors for asset condition chart segments.
-const CONDITION_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"];
-
 const FEATURE_CARDS = [
   { to: "/audit/audit", icon: Search, title: "Audit & Compliance", description: "Verification campaigns, discrepancies and the audit log." },
   { to: "/audit/reports", icon: Report, title: "Reports", description: "Audit, inventory and disposal reports." },
@@ -32,7 +30,9 @@ export default function AuditDashboard() {
   const assetsByCondition = charts.data?.assets_by_condition.map((d, i) => ({
     label: formatStatusLabel(d.label),
     value: d.value,
-    color: CONDITION_COLORS[i],
+    // Always New→Unserviceable, positionally zero-filled by the backend, so
+    // the index lines up with the chart's ordinal ramp.
+    rampStep: i,
   })) ?? [];
   const maintenanceCostByMonth = charts.data?.maintenance_cost_by_month.map((d) => ({ label: d.label, value: d.value })) ?? [];
 
@@ -64,7 +64,7 @@ export default function AuditDashboard() {
           subtitle={getErrorMessage(summary.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -91,7 +91,7 @@ export default function AuditDashboard() {
           subtitle={getErrorMessage(charts.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -128,7 +128,7 @@ export default function AuditDashboard() {
         </div>
       </div>
 
-      <div className="cg-quick-grid" style={{ marginTop: "1.5rem" }}>
+      <div className="cg-quick-grid cg-quick-grid--spaced">
         {FEATURE_CARDS.map((card) => (
           <FeatureCard key={card.to} {...card} />
         ))}

@@ -107,7 +107,6 @@ export default function AuditReportPanel() {
           subtitle={getErrorMessage(report.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ maxWidth: "100%" }}
         />
       )}
       {exportReport.isError && (
@@ -117,7 +116,6 @@ export default function AuditReportPanel() {
           subtitle={getErrorMessage(exportReport.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ maxWidth: "100%" }}
         />
       )}
 
@@ -185,7 +183,7 @@ export default function AuditReportPanel() {
                 </p>
               </div>
             </header>
-            <div style={{ overflowX: "auto" }}>
+            <div className="cg-scroll-x">
               <table className="cg-table cg-table--no-hover">
                 <thead>
                   <tr>

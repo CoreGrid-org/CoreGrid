@@ -14,7 +14,6 @@ export default function PreconditionChecklist({ evaluation }: { evaluation: Disp
           subtitle={evaluation.separation_of_duties_failure_reason || "Approver cannot be the requester of the disposal."}
           lowContrast
           hideCloseButton
-          style={{ maxWidth: "100%" }}
         />
       )}
 

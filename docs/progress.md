@@ -146,20 +146,10 @@ An item is complete only when the artefact is linked or attached, not merely whe
 | Database (`AssetCategories`, `AssetTypes`, `AssetAttributeDefinitions`, `AssetAttributeValues`, `Assets`, `AssetHistory`) | |
 | React (asset list/detail/register/update, dynamic attribute forms, category/type/attribute config, searchable pickers) | |
 | Planner Agent | Rejects out-of-scope objectives, produces a typed execution plan; wired into workflow creation |
-
-**✅ Completed**
-
-| Task | Notes |
-|---|---|
 | FR-023: QR label | QR image is generated and shown in-app; printable-label download is implemented in the frontend. |
 | FR-027: Immutable, ordered per-asset lifecycle history | Asset history is append-only and ordered; verification, maintenance, transfer, disposal, and agent entries are written by their owning services. |
 | FR-032: Assets exit only via disposal | No asset delete endpoint exists; the Component C disposal flow provides the terminal exit path. |
 | Planner Agent: in-process implementation | `PlannerAgentService` is registered under `backend/Features/Agents/` and is wired into workflow creation. |
-
-**✅ Completed**
-
-| Task | Notes |
-|---|---|
 | FR-030: Computed residual value | Server-side residual value, frontend straight-line preview, and depreciation edge-case tests are present. |
 | Tests | `backend.Tests/AssetServiceTests.cs`, frontend depreciation tests, and mobile asset tests are present. Full execution evidence remains in the shared evidence checklist. |
 
@@ -190,6 +180,7 @@ An item is complete only when the artefact is linked or attached, not merely whe
 | Maintenance Analysis Agent | Runs automatically after Planner on every new workflow (repair count, MTBF, cost trend, 12-month projection); manual re-run action; rendered on the Workflows page |
 | Backend test coverage | Maintenance service, preventive scheduler, failure-statistics engine, and the Maintenance Analysis Agent node |
 | Copy cleanup | No rendered `(FR-0XX ...)` references or em-dashes remain in `MaintenancePage.tsx`, `CreateMaintenanceModal.tsx`, `ReportFaultModal.tsx` (the create/report-fault pages became modals); em-dashes left only in code comments |
+| Hardcoded colors / shared components sweep | No hex colours or inline styles left in `features/maintenance/`; error copy, field stacks, filter widths and the detail page's key-value grid use shared classes in `styles/index.scss` |
 
 **❌ Not Started**
 
@@ -197,7 +188,6 @@ An item is complete only when the artefact is linked or attached, not merely whe
 |---|---|
 | FR-077–079: Email/SMS delivery | Deliberately out of scope for this phase — no email code exists |
 | AC4: Notification failure isolation | Blocked on FR-077–079 |
-| Hardcoded colors / shared components sweep | `ApproveMaintenanceModal.tsx`, `CancelMaintenanceModal.tsx`, `CompleteMaintenanceModal.tsx` still hardcode the error colour `#da1e28` inline; ~30 inline layout styles remain across `features/maintenance/` (mostly `MaintenancePage.tsx`, `MaintenanceDetailPage.tsx`) |
 
 ## Component C — Transfer & Disposal (Nipuna Bhanuka / Bhanuka)
 
@@ -219,12 +209,7 @@ An item is complete only when the artefact is linked or attached, not merely whe
 | Agent tool endpoints for Budget Analysis Agent | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
 | Budget Analysis Agent | Migrated to the in-process C# `BudgetAgentService`, with deterministic tools, configurable model access, scope guard, fallback, Node 3 orchestration, graceful degradation, and independent re-run endpoint. |
 | Tests | Transfer, disposal, precondition, Budget Agent, authorization, and frontend role-boundary test files are present. The repository's CI is passing; exact suite counts should be taken from the CI run rather than this hand-maintained tracker. |
-
-**❌ Not Started**
-
-| Task | Notes |
-|---|---|
-| Hardcoded colors / shared components sweep | No hardcoded colours in `features/transfers/`; ~16 inline layout styles remain (`maxWidth`/`textAlign`/flex gaps in the modals, tables and `TransfersPage.tsx`) |
+| Hardcoded colors / shared components sweep | No hex colours or inline styles left in `features/transfers/`; actions columns, button rows and pagination spacing use shared classes |
 
 ## Component D — Audit & Compliance + Org Configuration + User Administration (Hasitha Erandika)
 
@@ -251,6 +236,7 @@ An item is complete only when the artefact is linked or attached, not merely whe
 | Policy Compliance Agent + human-approval checkpoint | Deterministic rule engine, node-4 recommendation step, approval workflow — no LLM call, by team decision. Fixed incorrect AgentExecutionStep sequence (was hardcoded 3, now correctly 4). Now consumes real FinancialAssessmentResultDto from Node 3 instead of always evaluating null financial facts. |
 | CI pipeline ownership | Backend/frontend jobs |
 | Tests (append-only, discrepancy resolution, authorisation matrix) | |
+| Hardcoded colors / shared components sweep | No hex colours left in `features/workflows/`, `features/users/`, `features/reports/`, `features/dashboard/`: rule-outcome icons and the chart palette (series colour, condition ramp, axis/grid/label colours) are SCSS tokens in `styles/index.scss`, and the duplicated `CONDITION_COLORS` array is gone. The one inline style left is `LineChart`'s tooltip position, which is computed per hover |
 
 **🟡 In Progress**
 
@@ -263,13 +249,13 @@ An item is complete only when the artefact is linked or attached, not merely whe
 
 | Task | Notes |
 |---|---|
-| Hardcoded colors / shared components sweep | Hardcoded hex colours in `WorkflowsPage.tsx` (`OUTCOME_COLOR`), `AdminDashboard.tsx`/`AuditDashboard.tsx` (`CONDITION_COLORS`), `BarChart.tsx`, `LineChart.tsx`; inline layout styles across `features/workflows/`, `features/users/`, `features/reports/`, `features/dashboard/` |
 | MSW for frontend tests | Considered, not adopted |
 
 ## Program-wide
 
-**❌ Not Started**
+**✅ Completed**
 
 | Task | Notes |
 |---|---|
-| Sidebar nav grouping for Inventory Officer / Auditor | Admin layout already grouped into sections (`RoleLayout` supports `navGroups`); `InventoryLayout.tsx`/`AuditLayout.tsx` still pass a flat `NAV_ITEMS` list, each owner's call |
+| Sidebar nav grouping for Inventory Officer / Auditor | `InventoryLayout.tsx` and `AuditLayout.tsx` use `navGroups` with the same Assets / Operations / Compliance sections as `AdminLayout.tsx` (no Administration section, since neither role has users/settings access) |
+| Shared inline-notification width | `.cds--inline-notification { max-inline-size: 100% }` in `styles/index.scss` replaces the per-call `style={{ maxWidth: "100%" }}`; removed from Components B, C and D. `features/assets/`, `features/audit/`, `features/settings/` etc. still carry the now-redundant inline prop |

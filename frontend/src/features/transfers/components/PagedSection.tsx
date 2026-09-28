@@ -28,7 +28,7 @@ export default function PagedSection<T>({ result, isLoading, isError, error, nou
           subtitle={getErrorMessage(error, `Something went wrong loading ${noun}.`)}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -46,7 +46,7 @@ export default function PagedSection<T>({ result, isLoading, isError, error, nou
               pageSizes={PAGE_SIZES}
               totalItems={result.total_count}
               onChange={({ page, pageSize }) => onPageChange(page, pageSize)}
-              style={{ marginTop: "1rem" }}
+              className="cg-pagination--spaced"
             />
           </>
         ) : (

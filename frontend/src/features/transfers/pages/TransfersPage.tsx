@@ -125,7 +125,7 @@ export default function TransfersPage({ role }: { role: CoreGridRole }) {
           </p>
         </div>
         {can.canCreate && (
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div className="cg-actions">
             <Button renderIcon={DeliveryTruck} onClick={() => setOpenModal("transfer")}>
               Initiate transfer
             </Button>
@@ -147,7 +147,7 @@ export default function TransfersPage({ role }: { role: CoreGridRole }) {
           subtitle={getErrorMessage(e.error, e.fallback ?? "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       ))}
 
@@ -203,11 +203,11 @@ export default function TransfersPage({ role }: { role: CoreGridRole }) {
                   <header className="cg-section__header">
                     <div>
                       <p className="cg-section__title">Precondition checklist: {d.asset_code}</p>
-                      <p className="cg-table__muted" style={{ margin: "0.125rem 0 0", fontSize: "0.8125rem" }}>
+                      <p className="cg-table__muted cg-section__subtitle">
                         {formatStatusLabel(d.disposal_method)} · {formatLkr(d.estimated_residual_value)}
                       </p>
                     </div>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <div className="cg-actions">
                       <Button kind="secondary" size="sm" renderIcon={Restart} onClick={() => setRevisionTarget(d)}>
                         Request revision
                       </Button>

@@ -49,7 +49,6 @@ export default function RequestRevisionModal({
             subtitle={getErrorMessage(requestRevision.error, "An error occurred while returning the disposal for revision.")}
             lowContrast
             hideCloseButton
-            style={{ maxWidth: "100%" }}
           />
         )}
 

@@ -79,7 +79,6 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             subtitle={getErrorMessage(createUser.error, "Something went wrong. Please try again.")}
             hideCloseButton
             lowContrast
-            style={{ maxWidth: "100%" }}
           />
         )}
 

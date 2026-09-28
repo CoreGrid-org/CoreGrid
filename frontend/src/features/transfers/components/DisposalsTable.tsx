@@ -27,7 +27,7 @@ export default function DisposalsTable({ disposals, showAuditTrail = false, show
           {showAuditTrail && <th>Approved by</th>}
           {showNotes && <th>Notes / revision</th>}
           <th>Requested</th>
-          {renderAction && <th style={{ textAlign: "right" }}>Actions</th>}
+          {renderAction && <th className="cg-cell-actions">Actions</th>}
         </tr>
       </thead>
       <tbody>
@@ -41,7 +41,7 @@ export default function DisposalsTable({ disposals, showAuditTrail = false, show
             {showAuditTrail && <ActorCell email={d.approved_by_user_email} at={d.approved_at} />}
             {showNotes && <td className="cg-table__muted cg-table__note">{d.notes || "-"}</td>}
             <td className="cg-table__muted">{formatDate(d.requested_at)}</td>
-            {renderAction && <td style={{ textAlign: "right" }}>{renderAction(d)}</td>}
+            {renderAction && <td className="cg-cell-actions">{renderAction(d)}</td>}
           </tr>
         ))}
       </tbody>

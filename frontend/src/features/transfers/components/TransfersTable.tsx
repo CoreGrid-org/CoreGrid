@@ -28,7 +28,7 @@ export default function TransfersTable({ transfers, showAuditTrail = false, rend
           {showAuditTrail && <th>Confirmed by</th>}
           <th>Requested</th>
           {showAuditTrail && <th>Reason</th>}
-          {renderAction && <th style={{ textAlign: "right" }}>Action</th>}
+          {renderAction && <th className="cg-cell-actions">Action</th>}
         </tr>
       </thead>
       <tbody>
@@ -43,7 +43,7 @@ export default function TransfersTable({ transfers, showAuditTrail = false, rend
             {showAuditTrail && <ActorCell email={t.confirmed_by_user_email} at={t.confirmed_at} />}
             <td className="cg-table__muted">{formatDate(t.requested_at)}</td>
             {showAuditTrail && <td className="cg-table__muted cg-table__note">{t.rejection_reason || "-"}</td>}
-            {renderAction && <td style={{ textAlign: "right" }}>{renderAction(t)}</td>}
+            {renderAction && <td className="cg-cell-actions">{renderAction(t)}</td>}
           </tr>
         ))}
       </tbody>
