@@ -13,6 +13,7 @@ the backend and web-client documentation in this repository.
 | [Team allocation](team-allocation.md) | Feature ownership, requirement ranges, branch conventions, and review responsibilities. |
 | [Setup and operations](setup.md) | Local networking, TLS, Flutter configuration, and ThunderID mobile-client setup. |
 | [Asset detail feature](features/asset-detail.md) | Asset lookup, QR resolution, dynamic attributes, condition updates, and verification behaviour. |
+| [Contribution and PR history](../contribution-history.md) | Mobile and web pull-request evidence, member allocation, and evidence reconciliation. |
 
 The mobile repository also contains the original working notes under its `doc/` directory, including the full
 mobile SRS and dated progress history. This `docs/mobile/` section is the main-repository copy of the current,
@@ -29,7 +30,9 @@ React console and then sign in through ThunderID.
 
 ## Current snapshot
 
-As of 2026-09-27, authentication, dashboards, asset scanning and search, asset detail, verification,
-maintenance, transfers, workflows, notifications, and password-recovery entry points are implemented in the
-mobile repository. `flutter analyze` reports zero issues and the latest recorded test run has 68 passing tests.
-The remaining items and evidence limitations are listed in [Implementation progress](progress.md).
+As of 2026-09-28, authentication, dashboards, asset scanning and search, asset detail, verification,
+maintenance, transfers, workflows, notifications, and password-recovery entry points are present in the mobile
+repository. The latest recorded documentation run reported `flutter analyze` with zero issues and 68 passing
+tests. FR-049 condemnation is reported in the PR list but is not present in the checked mobile tree and remains
+open until its branch/commit is reconciled. The remaining evidence limitations are listed in
+[Implementation progress](progress.md).

@@ -1,8 +1,11 @@
 # CoreGrid Mobile — Implementation Progress
 
-Status recorded from the mobile repository's progress log on 2026-09-27. This file describes what is built,
+Status audited against the mobile repository and supplied PR list on 2026-09-28. This file describes what is built,
 what is still limited, and what must be checked before release. The main platform progress tracker remains the
 source for backend and React status.
+
+For the evidence still required to fully satisfy each member's SRS allocation, see the
+[individual allocation evidence checklist](../progress.md#individual-allocation-evidence--remaining-work).
 
 ## Requirement status
 
@@ -27,7 +30,7 @@ source for backend and React status.
 | FR-076 | ✅ Done | Workflow recommendation, approval status, high-impact flag, and failure reason display. |
 | FR-080 | ✅ Done | Notification inbox, unread count, mark-read actions, and navigation to related records. |
 | FR-083 | ✅ Done | Role-branched task dashboard with live verification, maintenance, transfer, workflow, and fault sections. |
-| FR-049 | ✅ Done | Field condemnation has Flutter implementation. |
+| FR-049 | ❌ Not verified in current tree | A closed PR is reported for condemnation, but the checked `lib/` and `test/` trees contain no condemnation screen, route, API call, or FR-049 test. Keep open until the PR's final commit is restored or its implementation is found. |
 
 ## Completed work
 
@@ -56,12 +59,15 @@ source for backend and React status.
 4. Add `Reason` to the transfer request backend contract before exposing the SRS-required reason field.
 5. Enable password recovery on the mobile ThunderID application and provide `THUNDERID_APPLICATION_ID`.
 6. Add the staging and production ThunderID client registrations before release signing.
-7. Implement FR-049 condemnation if it remains in the mobile delivery scope.
+7. Reconcile the reported mobile FR-049 PR with the checked branch; implement or restore the condemnation
+   screen, route, API call, authorization gate, evidence capture, and tests if it was reverted.
+8. Reconcile supplied mobile PR numbers/titles with local merge commits before final assessment submission.
 
 ## Verification evidence
 
 - `flutter analyze`: 0 issues in the latest recorded run.
 - `flutter test`: 68 passing in the latest recorded run.
+- Mobile CI is confirmed passing; `.github/workflows/ci.yml` runs analysis, tests, and a release APK build.
 - Widget tests cover authentication states, asset detail and lookup, verification, maintenance, transfers,
   notifications, and workflow behaviour.
 - Device-level end-to-end testing is still required for camera, TLS, photo upload, and live API flows.
