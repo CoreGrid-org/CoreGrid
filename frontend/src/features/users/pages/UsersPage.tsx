@@ -78,7 +78,7 @@ export default function UsersPage() {
           title={notice}
           lowContrast
           onClose={() => setNotice(null)}
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -89,7 +89,7 @@ export default function UsersPage() {
           subtitle={getErrorMessage(error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -118,7 +118,7 @@ export default function UsersPage() {
               <p>Loading users…</p>
             </div>
           ) : users.length > 0 ? (
-            <div style={{ overflowX: "auto" }}>
+            <div className="cg-scroll-x">
               <table className="cg-table cg-table--no-hover">
                 <thead>
                   <tr>
@@ -144,7 +144,7 @@ export default function UsersPage() {
                         <Tag type={u.is_active ? "green" : "gray"}>{u.is_active ? "Active" : "Inactive"}</Tag>
                       </td>
                       <td className="cg-table__muted">{formatDate(u.created_at)}</td>
-                      <td style={{ textAlign: "right" }}>
+                      <td className="cg-cell-actions">
                         <OverflowMenu aria-label={`Actions for ${u.given_name} ${u.family_name}`} flipped size="sm">
                           <OverflowMenuItem itemText="Edit role & department" onClick={() => setEditingUser(u)} />
                           <OverflowMenuItem itemText="Reset password" onClick={() => setPasswordTarget(u)} />
@@ -267,7 +267,6 @@ export default function UsersPage() {
                 subtitle={getErrorMessage(setUserActive.error, "It may be the organisation's last active Administrator.")}
                 lowContrast
                 hideCloseButton
-                style={{ maxWidth: "100%" }}
               />
             )}
           </div>

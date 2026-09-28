@@ -52,7 +52,7 @@ export default function EvaluatePolicyModal({ workflow, onClose, onEvaluated }: 
       onRequestClose={onClose}
       onRequestSubmit={handleSubmit}
     >
-      <p className="cg-table__muted" style={{ margin: "0 0 1rem", fontSize: "0.8125rem" }}>
+      <p className="cg-table__muted cg-text-small cg-modal-intro">
         Runs the deterministic rule engine (PR-01 to PR-09) against this asset's compliance state and the
         figures below, then either completes advisory, pauses for approval, or sends the workflow back to
         analysis — exactly what the Policy Compliance Agent's node does once the rest of the graph exists.
@@ -65,11 +65,11 @@ export default function EvaluatePolicyModal({ workflow, onClose, onEvaluated }: 
           subtitle={getErrorMessage(evaluatePolicy.error, "Something went wrong. Please try again.")}
           hideCloseButton
           lowContrast
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
-      <div style={{ display: "grid", gap: "1rem" }}>
+      <div className="cg-stack">
         <Select
           id="evaluate-recommendation"
           labelText="Proposed recommendation"
@@ -81,10 +81,10 @@ export default function EvaluatePolicyModal({ workflow, onClose, onEvaluated }: 
           ))}
         </Select>
 
-        <p className="cg-table__muted" style={{ margin: 0, fontSize: "0.8125rem" }}>
+        <p className="cg-table__muted cg-text-small cg-m-0">
           Financial facts (optional — only REPLACE/REPAIR rules and the confidence check use these)
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <div className="cg-grid-2">
           <NumberInput
             id="evaluate-ratio"
             label="Repair-to-replace ratio"

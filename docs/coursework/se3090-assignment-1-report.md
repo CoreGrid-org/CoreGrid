@@ -202,7 +202,12 @@ Asset and report interfaces use server-side filtering/pagination where supported
 
 #### 2.7.1 Evidence Availability
 
-The SRS specifies a Flutter field-operations client with QR scanning, physical verification, fault reporting, and transfer receipt. However, the supplied repository contains no Flutter/Dart project, mobile source, APK, test suite, screenshots, or deployment evidence. Therefore no implementation claim, feature description, test result, or distribution detail can be made in this report. This is a material gap against the assignment requirement and against the SRS cross-platform workflow; the missing artefacts must be added and verified before submission.
+The Flutter field-operations client is maintained in the sibling `coregrid-mobile` repository rather than this
+web/API repository. The supplied mobile PR history and checked mobile tree document QR scanning, physical
+verification, fault reporting, maintenance, notifications, transfers, workflows, and authentication. The
+mobile documentation records `flutter analyze` with zero issues and 68 passing tests in its latest run, but no
+device-run, APK, screenshot, or live-backend evidence is attached here yet. FR-049 mobile condemnation is
+reported by PR title but is not present in the checked mobile tree and remains open pending reconciliation.
 
 ### 2.8 Agentic AI
 
@@ -287,7 +292,10 @@ The SRS specifies real PostgreSQL for database integration, a seeded demonstrati
 
 #### 2.10.6 Flutter Testing
 
-No Flutter/Dart source, tests, APK, or screenshots are supplied. Consequently, no genuine Flutter test case can be reported. This is **Missing** evidence, not a passing result. Required evidence includes the mobile project, scanner/device test results, API-integration tests, and an APK build record.
+Mobile unit/widget tests are present in the sibling `coregrid-mobile` repository and are documented in
+[`docs/mobile/progress.md`](../mobile/progress.md). The latest recorded run reports 68 passing tests and zero
+analysis issues. Device-level scanner, TLS, photo-upload, live-backend, APK-build, and screenshot evidence is
+still **Not verified** and must be attached before submission.
 
 #### 2.10.7 Integration and End-to-End Testing
 
@@ -373,7 +381,9 @@ Values must be supplied by deployment configuration and never committed. Before 
 
 #### 2.13.2 CI/CD and Access Evidence
 
-The SRS requires CI, but no CI workflow/run, deployed endpoint, or evaluator-access record is supplied. Flutter distribution is also missing because no Flutter artefact is supplied.
+The SRS requires CI, but no CI run, deployed endpoint, or evaluator-access record is attached to this report.
+Flutter distribution is also not yet evidenced here: the client is maintained in the sibling mobile repository,
+but no APK or device demonstration record is attached.
 
 ### 2.15 Security
 

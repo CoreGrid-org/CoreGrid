@@ -44,7 +44,6 @@ export function ReportStatus({ title, error, isInitialLoading }: { title: string
         subtitle={getErrorMessage(error, "Something went wrong. Please try again.")}
         lowContrast
         hideCloseButton
-        style={{ maxWidth: "100%" }}
       />
     );
   }
@@ -144,7 +143,7 @@ export function ReportTable<T>({
           )}
         </div>
       </header>
-      <div style={{ overflowX: "auto" }}>
+      <div className="cg-scroll-x">
         <table className="cg-table cg-table--no-hover">
           <thead>
             <tr>

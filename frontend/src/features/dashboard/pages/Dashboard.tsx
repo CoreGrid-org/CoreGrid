@@ -10,9 +10,9 @@ export default function Dashboard() {
   const { isSignedIn, isLoading: isAuthLoading } = useThunderID();
   const { data: me, isLoading: isMeLoading } = useMe();
 
-  if (isAuthLoading) return <div style={{ minHeight: "100vh" }} />;
+  if (isAuthLoading) return <div className="cg-fill-viewport" />;
   if (!isSignedIn) return <Navigate to="/signin" replace />;
-  if (isMeLoading) return <div style={{ minHeight: "100vh" }} />;
+  if (isMeLoading) return <div className="cg-fill-viewport" />;
 
   return <Navigate to={getRoleLandingRoute(me?.role)} replace />;
 }

@@ -97,7 +97,7 @@ export default function ExecutionTrace({ workflowId }: { workflowId: string }) {
               {summary.steps.length > 0 ? (
                 summary.steps.map((step) => <StepRow key={step.id} step={step} />)
               ) : (
-                <p className="cg-table__muted" style={{ fontSize: "0.8125rem" }}>
+                <p className="cg-table__muted cg-text-small">
                   No agent has run for this workflow yet.
                 </p>
               )}

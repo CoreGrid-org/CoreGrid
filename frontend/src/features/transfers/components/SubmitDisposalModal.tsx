@@ -97,7 +97,6 @@ export default function SubmitDisposalModal({ onClose, onSubmitted }: { onClose:
               subtitle="Only condemned assets can be disposed of. Condemn an asset first, then come back here."
               lowContrast
               hideCloseButton
-              style={{ maxWidth: "100%" }}
             />
           )}
 
@@ -108,7 +107,6 @@ export default function SubmitDisposalModal({ onClose, onSubmitted }: { onClose:
               subtitle={getErrorMessage(submitDisposal.error, "Disposal submission failed.")}
               lowContrast
               hideCloseButton
-              style={{ maxWidth: "100%" }}
             />
           )}
 

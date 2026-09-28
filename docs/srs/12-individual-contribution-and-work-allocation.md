@@ -20,3 +20,8 @@ The assignment requires that each student take primary ownership of one business
 - Each owner is individually accountable for explaining, modifying and debugging their contribution at the viva; work that an owner cannot explain will be treated as not delivered, consistent with SE3090 §3.
 - Each owner maintains an individual AI usage log recording date, tool and model, the task, what the tool produced, what was changed or rejected, and how the result was verified.
 - No member holds a project-management-only, testing-only or documentation-only role; every member delivers backend, database, web, mobile, test and agentic work.
+
+The current member handles, PR evidence, and the distinction between submitted work and code retained in the
+checked trees are recorded in [`docs/contribution-history.md`](../contribution-history.md). In particular,
+Nipuna Bhanuka (`NipunaBhanuka18`) is the GitHub identity used for Component C; the mobile FR-049 condemnation
+PR is reported but is not yet verified in the checked mobile tree.

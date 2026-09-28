@@ -23,10 +23,10 @@ The single-line team-members field above names who is on the group; this table i
 
 | Student # | Name | Student ID | GitHub username | Email | Component owned | Group role |
 |---|---|---|---|---|---|---|
-| Student 1 | Jayashan Guruge | `<ID>` | `<github-handle>` | `<email>` | A — Asset Registry & QR Identification | Member |
-| Student 2 | Seneja Ramanayaka | `<ID>` | `<github-handle>` | `<email>` | B — Maintenance Management | Member |
-| Student 3 | Bhanuka Samarasinghe | `<ID>` | `<github-handle>` | `<email>` | C — Transfer & Disposal | Member |
-| Student 4 | Hasitha Erandika | `<ID>` | `<github-handle>` | `<email>` | D — Audit & Compliance, org configuration, user administration | Group Leader |
+| Student 1 | Jayashan Guruge | `<ID>` | `jguruge` | `<email>` | A — Asset Registry & QR Identification | Member |
+| Student 2 | Seneja Ramanayaka | `<ID>` | `seneja` | `<email>` | B — Maintenance Management | Member |
+| Student 3 | Nipuna Bhanuka (Bhanuka) | `<ID>` | `NipunaBhanuka18` | `<email>` | C — Transfer & Disposal | Member |
+| Student 4 | Hasitha Erandika | `<ID>` | `HasithaErandika` | `<email>` | D — Audit & Compliance, org configuration, user administration | Group Leader |
 
 Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named student to fill in — they are not invented here. See [§18.2](18-team-roster-and-work-allocation.md#182-roster) for what a complete roster row must capture and why each field is required, and [§18.11](18-team-roster-and-work-allocation.md#1811-keeping-the-roster-current) for how this table is kept in sync as the project proceeds.
 | Identity provider | ThunderID (OIDC / OAuth 2.0); organisation scoping is done in CoreGrid's own database, not ThunderID (Section 4.2) |
@@ -50,6 +50,7 @@ Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named stude
 | 1.4 | 2026-08-17 | Hasitha Erandika | Added Section 19.4.1, What SaaS Adds: the multi-tenant SaaS edition differentiates by genuinely new, infrastructure-native capability drawn from Section 17 (cross-organisation analytics, additional agents, offline sync, managed operations), not by withholding any functional requirement from the Community edition — preserves the Section 19.2 rationale that self-hosting must remain feature-complete for the government/institutional buyer it targets. | Draft |
 | 1.5 | 2026-08-18 | Hasitha Erandika | Scope change: restricted the Flutter client's per-role reach to match Section 3.4's own stated design principle (React is the management/control interface, Flutter is the field operations interface). Auditor and Administrator are now web-console-only; Inventory Officer uses both clients; Staff remains mobile-only. Corrected FR-059 (dropped Auditor's Flutter scan-to-complete), FR-067 and FR-069 (Administrator's and Auditor's workflow-initiation/monitoring access is React only; Officer keeps both) and Section 3.4. No backend authorisation change — Appendix B's role-permission grants are unaffected, since they describe API authorisation, not client UI surface. | Draft |
 | 1.6 | 2026-08-18 | Hasitha Erandika | Added Section 3.4.1, Users by Role and Platform: a consolidated table and integration diagram (Figure 10) showing which platform each role uses and why, and how both clients share one ThunderID identity provider, claim contract and API. Documentation consolidation of the v1.5 scope change — no new requirement introduced. | Draft |
+| 1.7 | 2026-09-28 | Hasitha Erandika | Reconciled current implementation status, member GitHub handles, supplied mobile PR history, and supplied CoreGrid PR history. Recorded FR-049 mobile condemnation as unverified in the checked tree pending branch/commit reconciliation. | Draft |
 
 ### Individual Contribution Log — Hasitha Erandika
 
@@ -273,6 +274,11 @@ The following mobile work is evidenced by the supplied commit and pull-request l
 | 2026-09-16 | #4 — asset feature | `feature/asset` | `9bff166` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/4) |
 | 2026-09-25 | #6 — frontend issues | `fix/frontend-issues` | `7d649da` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/6) |
 | 2026-09-25 | #7 — asset feature fixes | `fix/asset_feature` | `2eb218d` | [Pull request](https://github.com/CoreGrid-org/coregrid-mobile/pull/7) |
+
+The complete supplied mobile PR list, including reported PRs #8–#11 and its reconciliation with the checked
+local Git history, is maintained in [`docs/contribution-history.md`](../contribution-history.md). The supplied
+list reports #9 as transfer/receipt, #10 as FR-049 condemnation, and #11 as maintenance/notification; local
+merge-commit numbering differs for some of these entries. Use the GitHub PR pages as the final PR evidence.
 
 ### Pull Requests Submitted — Jayashan Guruge
 

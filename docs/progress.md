@@ -4,6 +4,84 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 
 **Legend:** ✅ done and in the repo · 🟡 partially done · ❌ not started
 
+**Documentation audit — 2026-09-28.** This tracker has been reconciled with the current repository tree and
+the supplied web/mobile PR history. Pull-request titles and member attribution are recorded in
+[`docs/contribution-history.md`](contribution-history.md). A closed PR is treated as delivery evidence only
+when its implementation is present in the checked tree; mobile FR-049 is the current exception and remains
+unverified because no condemnation screen, route, API call, or test is present in the checked mobile tree.
+
+## Individual allocation evidence — remaining work
+
+The implementation sections below show what is built. This checklist tracks the additional evidence required
+to fully satisfy the individual contribution requirements in [SRS §18.3–§18.6](srs/18-team-roster-and-work-allocation.md).
+An item is complete only when the artefact is linked or attached, not merely when the feature exists in code.
+
+### Student 1 — Jayashan Guruge — Component A
+
+**Current assessment:** 🟡 Implementation mostly present; individual evidence package incomplete.
+
+- [ ] Add the Flutter scanner widget test covering camera success, permission refusal, unknown code, offline
+  recovery, and manual-entry fallback.
+- [ ] Link the Component A issues and reviewed PRs for FR-016–FR-032, including reviewer names and dates.
+- [ ] Attach the final React asset-form/component test output and the mobile asset test output.
+- [ ] Link the Component A README/design note and ADR-006 input for attribute-value storage.
+- [ ] Complete Jayashan's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
+- [ ] Attach a device or emulator record for QR scan, asset lookup, condition update, and verification.
+
+### Student 2 — Seneja Ramanayaka — Component B
+
+**Current assessment:** 🟡 Implementation mostly present; notification and contribution evidence incomplete.
+
+- [ ] Add or link the notification failure-isolation test proving delivery failure does not roll back maintenance
+  completion.
+- [ ] Add an explicit storage-provider integration test or recorded verification for maintenance-photo upload and
+  retrieval through the configured object storage.
+- [ ] Add the Component B notification-provider design note referenced by SRS §18.4.
+- [ ] Link the maintenance/notification issues and reviewed PRs for FR-033–FR-042 and FR-077–FR-080, including
+  reviewer names and dates.
+- [ ] Attach backend, React, and mobile test output for maintenance, notification, photo, and status-transition
+  flows.
+- [ ] Complete Seneja's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
+
+### Student 3 — Nipuna Bhanuka (Bhanuka) — Component C
+
+**Current assessment:** 🟡 Web/API and Budget Agent implementation present; mobile FR-049 and formal evidence incomplete.
+
+- [ ] Reconcile the reported mobile FR-049 PR with the checked `coregrid-mobile` branch. Restore or implement the
+  condemnation screen, route, API call, authorization gate, evidence capture, and tests.
+- [ ] Add the dedicated concurrency-conflict test for DR-11 using PostgreSQL/EF Core optimistic concurrency.
+- [ ] Link negative tests for all disposal preconditions P1–P6 and the separation-of-duties test to FR-051.
+- [ ] Add a documented merge-conflict-resolution record for Component C integration work.
+- [ ] Add/link Flutter tests for transfer creation, asset identity matching, receipt confirmation, and FR-049.
+- [ ] Add the Component C concurrency-control design note and Budget Agent evidence.
+- [ ] Link the transfer/disposal issues and reviewed PRs for FR-043–FR-055, including reviewer names and dates.
+- [ ] Complete Nipuna's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
+
+### Student 4 — Hasitha Erandika — Component D and group integration
+
+**Current assessment:** 🟡 Implementation and documentation coordination mostly present; release/evidence verification incomplete.
+
+- [x] CI is passing for the main CoreGrid repository and the sibling mobile repository, including backend,
+  frontend, PostgreSQL integration, Flutter analysis/tests, and mobile APK build. Attach the final run links and
+  secret-scanning record to the submission evidence package.
+- [ ] Run and record the golden cases required by SRS §13.4, especially approval authorisation, rejection,
+  checkpoint resume, and disposal execution.
+- [ ] Attach live end-to-end evidence for the four-agent workflow and the human-approval checkpoint.
+- [ ] Link Hasitha's reviewed PRs/issues for Component D, authentication, CI, documentation, and integration work.
+- [ ] Confirm the authorisation matrix, append-only database checks, and organisation-isolation tests with a
+  reproducible test command and output.
+- [ ] Attach the mobile authentication, role-gate, dashboard, verification, workflow, and device-run evidence.
+- [ ] Complete the consolidated README/report, demonstration script, submission links, and final Appendix E AI
+  record for all members.
+
+### Shared completion gate
+
+- [ ] Replace every placeholder student ID and email in the SRS roster.
+- [ ] Confirm every PR has a real GitHub link, reviewer, review date, requirement IDs, and final merge status.
+- [ ] Reconcile the supplied PR list with local merge commits using the GitHub PR pages as the authority.
+- [ ] Store final backend, frontend, and mobile test outputs under the submission evidence location.
+- [ ] Update this tracker and SRS §18 only after the evidence links have been checked by the group leader.
+
 ## Cross-cutting (Identity, Access, Admin Shell)
 
 **✅ Completed**
@@ -36,16 +114,17 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 | Every read endpoint declares a policy | Transfer/disposal/dashboard-summary reads → `CanReadAssets`; notifications → `CanReadNotifications`; campaign reads → new `CanReadCampaigns` (Officer/Auditor/Administrator — Staff no longer read campaigns); `GET /api/users` adds Auditor (maintenance assignee filters) |
 | Web permission map | `frontend/src/features/auth/lib/permissions.ts` + `usePermissions()` — one mirror of the backend grants that every page's action buttons read, instead of per-page `role ===` checks. Officer's "Confirm receipt" only shows for transfers into their own department (`/api/me` now returns `department_id`) |
 | EF Core migrations + generated `db/schema.sql` export | |
-| CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` — backend and frontend jobs only; no secret-scanning job. Backend job restores/builds `backend.Tests` (warnings as errors), applies migrations to its Postgres service (port 5433, matching local) before running the real-Postgres tests |
-| Backend test project | `backend.Tests`, xUnit — InMemory suite + a real-Postgres suite for append-only checks; compiles and runs in CI (437 backend tests, 100% passing) |
+| CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` has backend and frontend jobs. Backend restores/builds `backend.Tests` with warnings as errors, sets `TEST_DB_CONNECTION` to port 5433, applies EF migrations, and runs the real-Postgres tests. The sibling mobile workflow runs Flutter analysis/tests and a release APK build. |
+| Mobile CI | `coregrid-mobile/.github/workflows/ci.yml` runs `flutter analyze`, `flutter test`, and `flutter build apk --release`; team status is passing. |
+| Backend test project | `backend.Tests`, xUnit — InMemory suite plus real-Postgres append-only checks. CI is confirmed passing; the current repository contains 25 test classes. |
 | Frontend test project | Vitest + React Testing Library (86 frontend tests, 100% passing) |
 | Multi-agent orchestration pipeline | Full Planner -> Maintenance -> Budget -> Policy pipeline is genuinely connected end-to-end for the first time in the project; new `BudgetAnalysis` jsonb column on `AgentWorkflows` table |
 
-**❌ Not Started**
+**🟡 Evidence / follow-up**
 
 | Task | Notes |
 |---|---|
-| CI: real-Postgres test suite (`AppendOnlyTests`) isn't reliably exercised in CI | The CI Postgres service isn't migrated before `dotnet test` runs, and the suite's own default connection string (`localhost:5433`) doesn't match the service's mapped port (`5432`) unless `TEST_DB_CONNECTION` is set — neither is currently wired up |
+| CI and submission evidence | CI passes. Attach the main and mobile run links, APK artifact link, and the secret-scanning result to the final submission package. |
 
 ## Component A — Asset Registry & QR Identification (Jayashan Guruge)
 
@@ -67,22 +146,12 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 | Database (`AssetCategories`, `AssetTypes`, `AssetAttributeDefinitions`, `AssetAttributeValues`, `Assets`, `AssetHistory`) | |
 | React (asset list/detail/register/update, dynamic attribute forms, category/type/attribute config, searchable pickers) | |
 | Planner Agent | Rejects out-of-scope objectives, produces a typed execution plan; wired into workflow creation |
-
-**🟡 In Progress**
-
-| Task | Notes |
-|---|---|
-| FR-023: QR label | Real QR image generated and shown in-app; no printable-label download yet |
-| FR-027: Immutable, ordered per-asset lifecycle history | `STATUS_CHANGE`/`FIELD_AMENDMENT` entries done; verification/maintenance/transfer/disposal/agent-recommendation entries are written by other components |
-| FR-032: Assets exit only via disposal | No delete endpoint exists (satisfies this on its own); full confirmation pending Component C's disposal flow |
-| Planner Agent: in-process migration | Currently a standalone Python/FastAPI service called over HTTP; target architecture is an in-process node |
-
-**❌ Not Started**
-
-| Task | Notes |
-|---|---|
-| FR-030: Computed residual value | Currently a free-entry client field, not derived server-side from acquisition cost/date + useful life |
-| Tests | No `AssetServiceTests.cs` yet |
+| FR-023: QR label | QR image is generated and shown in-app; printable-label download is implemented in the frontend. |
+| FR-027: Immutable, ordered per-asset lifecycle history | Asset history is append-only and ordered; verification, maintenance, transfer, disposal, and agent entries are written by their owning services. |
+| FR-032: Assets exit only via disposal | No asset delete endpoint exists; the Component C disposal flow provides the terminal exit path. |
+| Planner Agent: in-process implementation | `PlannerAgentService` is registered under `backend/Features/Agents/` and is wired into workflow creation. |
+| FR-030: Computed residual value | Server-side residual value, frontend straight-line preview, and depreciation edge-case tests are present. |
+| Tests | `backend.Tests/AssetServiceTests.cs`, frontend depreciation tests, and mobile asset tests are present. Full execution evidence remains in the shared evidence checklist. |
 
 ## Component B — Maintenance Management (Seneja Ramanayaka)
 
@@ -110,6 +179,8 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 | AC3: Condemnation verification | |
 | Maintenance Analysis Agent | Runs automatically after Planner on every new workflow (repair count, MTBF, cost trend, 12-month projection); manual re-run action; rendered on the Workflows page |
 | Backend test coverage | Maintenance service, preventive scheduler, failure-statistics engine, and the Maintenance Analysis Agent node |
+| Copy cleanup | No rendered `(FR-0XX ...)` references or em-dashes remain in `MaintenancePage.tsx`, `CreateMaintenanceModal.tsx`, `ReportFaultModal.tsx` (the create/report-fault pages became modals); em-dashes left only in code comments |
+| Hardcoded colors / shared components sweep | No hex colours or inline styles left in `features/maintenance/`; error copy, field stacks, filter widths and the detail page's key-value grid use shared classes in `styles/index.scss` |
 
 **❌ Not Started**
 
@@ -117,12 +188,8 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 |---|---|
 | FR-077–079: Email/SMS delivery | Deliberately out of scope for this phase — no email code exists |
 | AC4: Notification failure isolation | Blocked on FR-077–079 |
-| Test coverage: Notifications feature, photo upload's storage call | |
-| Frontend tests | No test file exists for any Component B page yet |
-| Copy cleanup | Remove rendered `(FR-0XX ...)` references and em-dashes from `CreateMaintenancePage.tsx`, `ReportFaultPage.tsx`, `MaintenancePage.tsx` |
-| Hardcoded colors / shared components sweep | Own files not yet audited for inline styles / duplicated logic |
 
-## Component C — Transfer & Disposal (Bhanuka Samarasinghe)
+## Component C — Transfer & Disposal (Nipuna Bhanuka / Bhanuka)
 
 **✅ Completed**
 
@@ -140,14 +207,9 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 | React (Administrator, Inventory Officer, Auditor screens) | Live precondition checklist, approve/reject/request-revision, initiate transfer, confirm receipt, condemn, submit disposal. **Administrator now has full parity with Inventory Officer's own operational actions** (initiate transfer, confirm receipt, condemn, submit disposal), not just the approval half — `InitiateTransferModal`/`CondemnAssetModal`/`SubmitDisposalModal` extracted to `features/transfers/components/`. The three per-role pages (`TransfersPage`/`InventoryTransfersPage`/`AuditorTransfersPage`) are now one `TransfersPage` that takes the route's role; `lib/capabilities.ts` decides which actions and audit-trail columns show, and the tables, paging wrapper, precondition checklist, revision and compliance-detail modals are shared components |
 | FR-084: Reports > Disposal tab | Real — `DisposalReportPanel.tsx`, same "fetch every page and aggregate client-side" pattern as Maintenance/Inventory's own report panels; no dedicated report backend endpoint needed. Filters: status, method, date range. Stats: disposals in scope, total proceeds, average approval time. PDF/CSV export |
 | Agent tool endpoints for Budget Analysis Agent | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
-| Budget Analysis Agent | Migrated from standalone Python/LangGraph to in-process C# service (BudgetAgentService.cs), following team-wide architecture decision and matching PlannerAgentService.cs's blueprint (deterministic tools -> LLM call -> deterministic fallback). Uses configurable OpenAI-compatible endpoint (Budget:Endpoint/Model/ApiKey config), defaulting to Gemini's OpenAI-compatible endpoint for cost consistency. BudgetScopeGuard provides structural validation and a real deterministic fallback using OrganizationPolicy's actual RepairToReplaceCostThreshold when configured. 19 new unit tests (188 total repo-wide, 0 failures on full unfiltered run including Postgres-backed AppendOnlyTests). Original Python implementation (agent-service/) preserved untouched pending final decommission decision. Wired into the live multi-agent orchestration pipeline as Node 3 (AgentWorkflowService.cs), sequenced correctly after Maintenance Analysis. Graceful degradation on failure (does not hard-fail the workflow). New POST /api/agent-workflows/{id}/run-budget-agent endpoint for independent re-runs. |
-| Tests | 105 Component C-specific unit tests (86 transfer/disposal/tools + 19 budget agent tests across BudgetScopeGuardTests and BudgetAgentServiceTests), plus reject×2/amend×3/verify×6 added for the SRS §9 opt-in items. Repo-wide suite: 376 backend tests, 51 frontend tests, both currently 100% passing |
-
-**❌ Not Started**
-
-| Task | Notes |
-|---|---|
-| Hardcoded colors / shared components sweep | Own files not yet audited |
+| Budget Analysis Agent | Migrated to the in-process C# `BudgetAgentService`, with deterministic tools, configurable model access, scope guard, fallback, Node 3 orchestration, graceful degradation, and independent re-run endpoint. |
+| Tests | Transfer, disposal, precondition, Budget Agent, authorization, and frontend role-boundary test files are present. The repository's CI is passing; exact suite counts should be taken from the CI run rather than this hand-maintained tracker. |
+| Hardcoded colors / shared components sweep | No hex colours or inline styles left in `features/transfers/`; actions columns, button rows and pagination spacing use shared classes |
 
 ## Component D — Audit & Compliance + Org Configuration + User Administration (Hasitha Erandika)
 
@@ -174,6 +236,7 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 | Policy Compliance Agent + human-approval checkpoint | Deterministic rule engine, node-4 recommendation step, approval workflow — no LLM call, by team decision. Fixed incorrect AgentExecutionStep sequence (was hardcoded 3, now correctly 4). Now consumes real FinancialAssessmentResultDto from Node 3 instead of always evaluating null financial facts. |
 | CI pipeline ownership | Backend/frontend jobs |
 | Tests (append-only, discrepancy resolution, authorisation matrix) | |
+| Hardcoded colors / shared components sweep | No hex colours left in `features/workflows/`, `features/users/`, `features/reports/`, `features/dashboard/`: rule-outcome icons and the chart palette (series colour, condition ramp, axis/grid/label colours) are SCSS tokens in `styles/index.scss`, and the duplicated `CONDITION_COLORS` array is gone. The one inline style left is `LineChart`'s tooltip position, which is computed per hover |
 
 **🟡 In Progress**
 
@@ -186,13 +249,13 @@ Tracks what's actually built, against the ownership in [SRS §12](srs/12-individ
 
 | Task | Notes |
 |---|---|
-| Hardcoded colors / shared components sweep | `WorkflowsPage.tsx`, `ReportsPage.tsx`, `UsersPage.tsx`, dashboard pages still have inline styles |
 | MSW for frontend tests | Considered, not adopted |
 
 ## Program-wide
 
-**❌ Not Started**
+**✅ Completed**
 
 | Task | Notes |
 |---|---|
-| Sidebar nav grouping for Inventory Officer / Auditor | Admin layout already grouped into sections; Inventory Officer/Auditor layouts left as flat lists, each owner's call |
+| Sidebar nav grouping for Inventory Officer / Auditor | `InventoryLayout.tsx` and `AuditLayout.tsx` use `navGroups` with the same Assets / Operations / Compliance sections as `AdminLayout.tsx` (no Administration section, since neither role has users/settings access) |
+| Shared inline-notification width | `.cds--inline-notification { max-inline-size: 100% }` in `styles/index.scss` replaces the per-call `style={{ maxWidth: "100%" }}`; removed from Components B, C and D. `features/assets/`, `features/audit/`, `features/settings/` etc. still carry the now-redundant inline prop |

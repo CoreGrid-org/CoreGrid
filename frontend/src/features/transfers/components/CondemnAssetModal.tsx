@@ -73,7 +73,6 @@ export default function CondemnAssetModal({ onClose, onCondemned }: { onClose: (
               subtitle={getErrorMessage(condemnAsset.error, "Asset condemnation failed.")}
               lowContrast
               hideCloseButton
-              style={{ maxWidth: "100%" }}
             />
           )}
 

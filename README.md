@@ -16,6 +16,7 @@ CoreGrid registers, identifies, maintains, transfers and disposes of an organisa
 |---|---|
 | `frontend/` | Marketing/landing site (React + Vite) - see [`frontend/README.md`](frontend/README.md) |
 | `docs/srs/` | Baselined Software Requirements Specification |
+| `docs/mobile/` | Flutter mobile client specification, progress, ownership, setup, and feature documentation |
 | `LICENSE` | Apache License 2.0 |
 
 ## License

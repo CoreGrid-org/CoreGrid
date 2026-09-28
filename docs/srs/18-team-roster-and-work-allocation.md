@@ -10,10 +10,10 @@ Component A (Asset Registry & QR Identification) was claimed first and is fixed 
 
 | Role | Name | GitHub username | Branch prefix | Primary component | Requirement range owned (§12) | Agent owned (§7.3) | Business-specific operation (§6) |
 |---|---|---|---|---|---|---|---|
-| Student 1 | **Jayashan Guruge** | `<github-handle>` | `feature/asset-*` | A — Asset Registry & QR Identification | FR-016 to FR-032 | Planner Agent | `POST /api/assets/{id}/verify` (FR-031) |
-| Student 2 | **Seneja Ramanayaka** | `<github-handle>` | `feature/maintenance-*` | B — Maintenance Management | FR-033 to FR-042, FR-077 to FR-080 | Maintenance Analysis Agent | `POST /api/maintenance/{id}/complete` (FR-038) |
-| Student 3 | **Bhanuka Samarasinghe** | `<github-handle>` | `feature/transfer-*`, `feature/disposal-*` | C — Transfer & Disposal | FR-043 to FR-055 | Budget Analysis Agent | `POST /api/disposals/{id}/approve` (FR-051) |
-| Student 4 | **Hasitha Erandika** (Group Leader) | `<github-handle>` | `feature/audit-*`, `feature/config-*`, `feature/ci-*` | D — Audit & Compliance, plus organisation configuration and user administration | FR-010 to FR-015, FR-056 to FR-066 | Policy Compliance Agent + human-approval checkpoint | `POST /api/discrepancies/{id}/resolve` (FR-062) |
+| Student 1 | **Jayashan Guruge** | `jguruge` | `feature/asset-*` | A — Asset Registry & QR Identification | FR-016 to FR-032 | Planner Agent | `POST /api/assets/{id}/verify` (FR-031) |
+| Student 2 | **Seneja Ramanayaka** | `seneja` | `feature/maintenance-*` | B — Maintenance Management | FR-033 to FR-042, FR-077 to FR-080 | Maintenance Analysis Agent | `POST /api/maintenance/{id}/complete` (FR-038) |
+| Student 3 | **Nipuna Bhanuka (Bhanuka)** | `NipunaBhanuka18` | `feature/transfer-*`, `feature/disposal-*` | C — Transfer & Disposal | FR-043 to FR-055 | Budget Analysis Agent | `POST /api/disposals/{id}/approve` (FR-051) |
+| Student 4 | **Hasitha Erandika** (Group Leader) | `HasithaErandika` | `feature/audit-*`, `feature/config-*`, `feature/ci-*` | D — Audit & Compliance, plus organisation configuration and user administration | FR-010 to FR-015, FR-056 to FR-066 | Policy Compliance Agent + human-approval checkpoint | `POST /api/discrepancies/{id}/resolve` (FR-062) |
 
 Component D absorbs organisation configuration (departments, locations, users, policy parameters — FR-010 to FR-015) in addition to audit and compliance, exactly as allocated in §12. Giving this range to the Group Leader is a deliberate, not incidental, choice: the leader already carries the CI pipeline, the consolidated submission and cross-cutting authorisation testing (§18.5 below), and organisation configuration is the one component every other owner's demonstration data depends on, so it benefits from being built and stabilised early by whoever is coordinating the schedule.
 
@@ -81,7 +81,9 @@ A roster row missing any of these is not "mostly done" — from a marking-eviden
 
 **React** — Transfer request/approval queue; disposal request/approval queue with evidence display; a precondition checklist showing the live P1–P6 status before Approve is enabled.
 
-**Flutter** — Transfer request creation and scan-based receipt confirmation (FR-046); condemnation flow capturing condition and evidence from the field (FR-049).
+**Flutter** — Transfer request creation and scan-based receipt confirmation (FR-046); condemnation flow
+capturing condition and evidence from the field (FR-049) is the assigned scope, but the reported mobile PR is
+not present in the checked mobile tree and must be reconciled before it can be marked delivered.
 
 **Agentic AI — Budget Analysis Agent** — input `FinancialAssessmentRequest { assetId, maintenanceAnalysis }`, output `FinancialAssessment { residualValue, replacementEstimate, repairToReplaceRatio, budgetHeadroom, rankedOptions[], proposedRecommendation }`; allow-listed tools `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation`.
 

@@ -78,7 +78,7 @@ export default function MaintenancePage() {
             Log asset faults, track work orders, manage repairs, and oversee preventive maintenance schedules across the organization.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="cg-actions">
           {canReportFault && (
             <Button
               ref={reportFaultButtonRef}
@@ -103,7 +103,7 @@ export default function MaintenancePage() {
           subtitle={`A maintenance request was created for ${reportedRecord.asset_code}.`}
           lowContrast
           onClose={() => setReportedRecord(null)}
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         >
           <Button kind="ghost" size="sm" onClick={() => navigate(reportedRecord.id)}>
             View request
@@ -118,7 +118,7 @@ export default function MaintenancePage() {
           subtitle={`A work order was created for ${createdRecord.asset_code}.`}
           lowContrast
           onClose={() => setCreatedRecord(null)}
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         >
           <Button kind="ghost" size="sm" onClick={() => navigate(createdRecord.id)}>
             View record
@@ -165,12 +165,12 @@ export default function MaintenancePage() {
                 subtitle={getErrorMessage(error, "Something went wrong.")}
                 lowContrast
                 hideCloseButton
-                style={{ marginBottom: "1rem", maxWidth: "100%" }}
+                className="cg-page-notification"
               />
             )}
             <div className="cg-section">
-              <div className="cg-toolbar" style={{ marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
-                <div style={{ width: "12rem" }}>
+              <div className="cg-toolbar cg-toolbar--spaced">
+                <div className="cg-toolbar__filter--fixed">
                   <Select
                     id="maintenance-status-filter"
                     labelText="Filter by Status"
@@ -197,7 +197,7 @@ export default function MaintenancePage() {
                   }
                   selectedItem={departmentId ?? ""}
                   onChange={({ selectedItem }) => setDepartmentId(selectedItem || undefined)}
-                  style={{ minWidth: "12rem" }}
+                  className="cg-toolbar__filter"
                 />
                 <Dropdown
                   id="maintenance-assignee-filter"
@@ -212,7 +212,7 @@ export default function MaintenancePage() {
                   }}
                   selectedItem={assigneeId ?? ""}
                   onChange={({ selectedItem }) => setAssigneeId(selectedItem || undefined)}
-                  style={{ minWidth: "12rem" }}
+                  className="cg-toolbar__filter"
                 />
                 <DatePicker
                   datePickerType="single"
@@ -232,7 +232,7 @@ export default function MaintenancePage() {
               {isLoading ? (
                 <div className="cg-placeholder"><p>Loading records…</p></div>
               ) : records && records.length > 0 ? (
-                <table className="cg-table cg-table--no-hover">
+                <table className="cg-table">
                   <thead>
                     <tr>
                       <th>Asset</th>
@@ -248,7 +248,7 @@ export default function MaintenancePage() {
                   </thead>
                   <tbody>
                     {records.map((rec) => (
-                      <tr key={rec.id} onClick={() => navigate(rec.id)} style={{ cursor: "pointer" }}>
+                      <tr key={rec.id} onClick={() => navigate(rec.id)}>
                         <td>
                           <span className="cg-table__mono">{rec.asset_code}</span>
                           <br />

@@ -48,7 +48,7 @@ export default function InventoryDashboard() {
           subtitle={getErrorMessage(summary.error, "Something went wrong. Please try again.")}
           lowContrast
           hideCloseButton
-          style={{ marginBottom: "1rem", maxWidth: "100%" }}
+          className="cg-page-notification"
         />
       )}
 
@@ -68,7 +68,7 @@ export default function InventoryDashboard() {
             ))}
       </div>
 
-      <div className="cg-quick-grid" style={{ marginTop: "1.5rem" }}>
+      <div className="cg-quick-grid cg-quick-grid--spaced">
         {FEATURE_CARDS.map((card) => (
           <FeatureCard key={card.to} {...card} />
         ))}

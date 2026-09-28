@@ -133,7 +133,6 @@ export default function CreateMaintenanceModal({ onClose, onCreated, launcherBut
               subtitle={getErrorMessage(createMaintenance.error, "Something went wrong. Please try again.")}
               lowContrast
               hideCloseButton
-              style={{ maxWidth: "100%" }}
             />
           )}
 
@@ -196,7 +195,7 @@ export default function CreateMaintenanceModal({ onClose, onCreated, launcherBut
             {submitted && errors.type && <p className="cg-fault-modal__error">{errors.type}</p>}
           </fieldset>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div className="cg-grid-2">
             <ComboBox<Option<MaintenancePriority>>
               id="create-maintenance-priority"
               titleText="Priority"

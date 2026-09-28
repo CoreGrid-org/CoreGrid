@@ -4,15 +4,15 @@ import { Button } from "@carbon/react";
 export interface BarChartDatum {
   label: string;
   value: number;
-  // Per-bar colour — for an ordinal ramp (e.g. condition tiers). Omit it and
-  // every bar takes the chart's single `color` instead (nominal categories,
-  // where the bars are one series, not separate identities).
-  color?: string;
+  // Step on the ordinal chart ramp (`$cg-chart-ramp` in index.scss), e.g.
+  // condition tiers. Omit it and every bar takes the single series colour
+  // instead (nominal categories, where the bars are one series, not separate
+  // identities).
+  rampStep?: number;
 }
 
 interface BarChartProps {
   data: BarChartDatum[];
-  color?: string;
   valueFormatter?: (value: number) => string;
 }
 
@@ -26,7 +26,7 @@ const TRACK_INSET = 8;
 // ordinal data, one colour role per bar supplied by the caller). Bars carry
 // direct value labels at the tip, so every value is reachable without
 // hovering — hover only adds the lift + native tooltip.
-export default function BarChart({ data, color = "#2a78d6", valueFormatter = (v) => v.toLocaleString() }: BarChartProps) {
+export default function BarChart({ data, valueFormatter = (v) => v.toLocaleString() }: BarChartProps) {
   const [hovered, setHovered] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
 
@@ -74,7 +74,7 @@ export default function BarChart({ data, color = "#2a78d6", valueFormatter = (v)
                 onMouseLeave={() => setHovered(null)}
                 onFocus={() => setHovered(i)}
                 onBlur={() => setHovered(null)}
-                style={{ cursor: "default" }}
+                className="cg-chart__bar"
               >
                 <title>{`${d.label}: ${valueFormatter(d.value)}`}</title>
                 <text
@@ -83,18 +83,18 @@ export default function BarChart({ data, color = "#2a78d6", valueFormatter = (v)
                   textAnchor="end"
                   dominantBaseline="middle"
                   fontSize="11"
-                  fill="#52514e"
+                  className="cg-chart__label"
                 >
                   {d.label}
                 </text>
-                <rect x={LABEL_WIDTH} y={y} width={plotWidth} height={BAR_HEIGHT} rx={4} fill="#f2f1ee" />
+                <rect x={LABEL_WIDTH} y={y} width={plotWidth} height={BAR_HEIGHT} rx={4} className="cg-chart__track" />
                 <rect
                   x={LABEL_WIDTH}
                   y={y}
                   width={barWidth}
                   height={BAR_HEIGHT}
                   rx={4}
-                  fill={d.color ?? color}
+                  className={d.rampStep === undefined ? "cg-chart__series" : `cg-chart__series cg-chart__series--ramp-${d.rampStep}`}
                   opacity={isHovered ? 0.82 : 1}
                 />
                 <text
@@ -103,7 +103,7 @@ export default function BarChart({ data, color = "#2a78d6", valueFormatter = (v)
                   dominantBaseline="middle"
                   fontSize="11"
                   fontWeight={isHovered ? 600 : 400}
-                  fill="#0b0b0b"
+                  className="cg-chart__value"
                 >
                   {valueFormatter(d.value)}
                 </text>

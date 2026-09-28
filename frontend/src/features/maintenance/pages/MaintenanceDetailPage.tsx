@@ -70,7 +70,7 @@ export default function MaintenanceDetailPage() {
             kind="ghost"
             onClick={() => navigate(maintenanceListPath)}
             renderIcon={ArrowLeft}
-            style={{ marginBottom: "1rem" }}
+            className="cg-back-button"
           >
             Back to Maintenance
           </Button>
@@ -81,7 +81,7 @@ export default function MaintenanceDetailPage() {
             Asset: {record.asset_code} - {record.asset_name}
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="cg-actions">
           {canManage && record.status === "REQUESTED" && (
             <Button kind="primary" onClick={() => setApproveOpen(true)}>
               Approve
@@ -106,7 +106,7 @@ export default function MaintenanceDetailPage() {
       </div>
 
       <div className="cg-section">
-        <div className="cg-kv-grid cg-kv-grid--three" style={{ marginBottom: "2rem" }}>
+        <div className="cg-kv-grid cg-kv-grid--three cg-kv-grid--spaced">
           <div className="cg-kv-item">
             <p className="cg-kv-item__label">Status</p>
             <div>
@@ -149,20 +149,20 @@ export default function MaintenanceDetailPage() {
             <p className="cg-kv-item__label">Date Created</p>
             <p className="cg-kv-item__value">{formatDate(record.created_at)}</p>
           </div>
-          <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
+          <div className="cg-kv-item cg-kv-item--full">
             <p className="cg-kv-item__label">Description</p>
-            <p className="cg-kv-item__value" style={{ whiteSpace: "pre-wrap" }}>{record.description}</p>
+            <p className="cg-kv-item__value cg-kv-item__value--prose">{record.description}</p>
           </div>
           {record.photo_url && (
-            <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
+            <div className="cg-kv-item cg-kv-item--full">
               <p className="cg-kv-item__label">Photo</p>
               <PhotoThumbnail url={record.photo_url} alt={record.description} title={`Photo: ${record.asset_code}`} size="md" />
             </div>
           )}
           {record.work_performed && (
-            <div className="cg-kv-item" style={{ gridColumn: "span 3" }}>
+            <div className="cg-kv-item cg-kv-item--full">
               <p className="cg-kv-item__label">Work Performed</p>
-              <p className="cg-kv-item__value" style={{ whiteSpace: "pre-wrap" }}>{record.work_performed}</p>
+              <p className="cg-kv-item__value cg-kv-item__value--prose">{record.work_performed}</p>
             </div>
           )}
         </div>

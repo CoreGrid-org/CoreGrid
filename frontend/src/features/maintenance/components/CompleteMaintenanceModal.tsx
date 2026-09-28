@@ -76,69 +76,67 @@ export default function CompleteMaintenanceModal({
       secondaryButtonText="Cancel"
       primaryButtonDisabled={completeMaintenance.isPending}
     >
-      <p style={{ marginBottom: "1rem" }}>
+      <p className="cg-modal-intro">
         Record the actual cost, work performed, and the resulting asset condition.
       </p>
       {(error || completeMaintenance.isError) && (
-        <p style={{ color: "#da1e28", marginBottom: "1rem" }}>
+        <p className="cg-text-error">
           {error || getErrorMessage(completeMaintenance.error, "Failed to complete maintenance.")}
         </p>
       )}
 
       <FormGroup legendText="">
-        <TextInput
-          id="actualCost"
-          labelText="Actual Cost (LKR)"
-          placeholder="0.00"
-          value={actualCost}
-          onChange={(e) => setActualCost(e.target.value)}
-          type="number"
-          min="0"
-          step="0.01"
-          style={{ marginBottom: "1rem" }}
-        />
+        <div className="cg-stack">
+          <TextInput
+            id="actualCost"
+            labelText="Actual Cost (LKR)"
+            placeholder="0.00"
+            value={actualCost}
+            onChange={(e) => setActualCost(e.target.value)}
+            type="number"
+            min="0"
+            step="0.01"
+          />
 
-        <TextArea
-          id="workPerformed"
-          labelText="Work Performed"
-          placeholder="Describe the work done..."
-          value={workPerformed}
-          onChange={(e) => setWorkPerformed(e.target.value)}
-          rows={3}
-          style={{ marginBottom: "1rem" }}
-        />
+          <TextArea
+            id="workPerformed"
+            labelText="Work Performed"
+            placeholder="Describe the work done..."
+            value={workPerformed}
+            onChange={(e) => setWorkPerformed(e.target.value)}
+            rows={3}
+          />
 
-        <TextInput
-          id="completionDate"
-          labelText="Completion Date"
-          type="date"
-          value={completionDate}
-          onChange={(e) => setCompletionDate(e.target.value)}
-          style={{ marginBottom: "1rem" }}
-        />
+          <TextInput
+            id="completionDate"
+            labelText="Completion Date"
+            type="date"
+            value={completionDate}
+            onChange={(e) => setCompletionDate(e.target.value)}
+          />
 
-        <Select
-          id="resultingCondition"
-          labelText="Resulting Condition"
-          value={resultingCondition}
-          onChange={(e) => setCondition(e.target.value)}
-          style={{ marginBottom: "1rem" }}
-        >
-          <SelectItem value="" text="Choose condition..." disabled hidden />
-          <SelectItem value="GOOD" text="Good" />
-          <SelectItem value="FAIR" text="Fair" />
-          <SelectItem value="POOR" text="Poor" />
-          <SelectItem value="UNSERVICEABLE" text="Unserviceable" />
-        </Select>
+          <Select
+            id="resultingCondition"
+            labelText="Resulting Condition"
+            value={resultingCondition}
+            onChange={(e) => setCondition(e.target.value)}
+          >
+            <SelectItem value="" text="Choose condition..." disabled hidden />
+            <SelectItem value="GOOD" text="Good" />
+            <SelectItem value="FAIR" text="Fair" />
+            <SelectItem value="POOR" text="Poor" />
+            <SelectItem value="UNSERVICEABLE" text="Unserviceable" />
+          </Select>
 
-        <TextArea
-          id="overspendJustification"
-          labelText="Overspend Justification (Optional)"
-          placeholder="Required if cost greatly exceeds estimate..."
-          value={overspendJustification}
-          onChange={(e) => setOverspendJustification(e.target.value)}
-          rows={2}
-        />
+          <TextArea
+            id="overspendJustification"
+            labelText="Overspend Justification (Optional)"
+            placeholder="Required if cost greatly exceeds estimate..."
+            value={overspendJustification}
+            onChange={(e) => setOverspendJustification(e.target.value)}
+            rows={2}
+          />
+        </div>
       </FormGroup>
     </Modal>
   );

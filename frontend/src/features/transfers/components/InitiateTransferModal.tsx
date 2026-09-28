@@ -66,7 +66,6 @@ export default function InitiateTransferModal({ onClose, onInitiated }: { onClos
               subtitle={getErrorMessage(initiateTransfer.error, "Transfer initiation failed.")}
               lowContrast
               hideCloseButton
-              style={{ maxWidth: "100%" }}
             />
           )}
 
