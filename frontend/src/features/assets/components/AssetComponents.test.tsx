@@ -110,8 +110,9 @@ describe("EditAssetCategoryModal Component", () => {
     id: "cat-1",
     code: "IT",
     name: "Information Tech",
+    type_count: 0,
+    asset_count: 0,
     is_active: true,
-    created_at: "2026-01-01T00:00:00Z",
   };
 
   it("populates inputs with existing category data", () => {
