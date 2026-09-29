@@ -26,7 +26,7 @@ An item is complete only when the artefact is linked or attached, not merely whe
 - [x] Attach the final React asset-form/component test output and the mobile asset test output.
 - [x] Link the Component A README/design note and ADR-006 input for attribute-value storage.
 - [x] Complete Jayashan's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
-- [ ] Attach a device or emulator record for QR scan, asset lookup, condition update, and verification.
+- [x] Attach a device or emulator record for QR scan, asset lookup, condition update, and verification.
 
 ### Student 2 — Seneja Ramanayaka — Component B
 
