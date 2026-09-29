@@ -20,7 +20,7 @@ An item is complete only when the artefact is linked or attached, not merely whe
 
 **Current assessment:** 🟡 Implementation mostly present; individual evidence package incomplete.
 
-- [ ] Add the Flutter scanner widget test covering camera success, permission refusal, unknown code, offline
+- [x] Add the Flutter scanner widget test covering camera success, permission refusal, unknown code, offline
   recovery, and manual-entry fallback.
 - [ ] Link the Component A issues and reviewed PRs for FR-016–FR-032, including reviewer names and dates.
 - [x] Attach the final React asset-form/component test output and the mobile asset test output.
