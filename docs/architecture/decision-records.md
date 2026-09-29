@@ -149,9 +149,13 @@ CoreGrid must support different asset domains without code changes. Asset types 
 
 Store configurable asset data in `AssetAttributeDefinitions` and `AssetAttributeValues` relational tables. Store variable agent plan/output/tool/validation artefacts as JSONB within the persisted workflow model.
 
+An attribute definition belongs to an asset type and records the attribute name, data type, required status, validation rule, select options, and display order. Each asset value is stored in a separate row linked to both the asset and its definition. The value row has typed columns for text, number, date, and boolean values; a select value is stored as text. A database check constraint requires exactly one value column to be populated, and a unique index allows at most one value for each asset-definition pair. Application validation checks that the value matches the definition's data type and rules.
+
 ### 5. Rationale
 
-Relational storage directly supports FR-019 validation and FR-028 filtering through foreign keys and indexes. Workflow state has no equally meaningful fixed relational shape and is read primarily as a complete execution trace; JSONB is better suited to it. Using each model where it fits is more defensible than forcing all data into one representation.
+Relational storage was chosen for asset attributes because FR-019 requires values to be validated against their definitions and FR-028 requires searching by custom value. Foreign keys keep each value connected to a valid asset and attribute definition; typed columns and indexes support validation and filtering. New asset types and attributes can be configured without adding columns to the asset table. Storing them as JSONB would make definition-level referential integrity and typed filtering harder to enforce.
+
+Workflow state has a different shape: plans, tool traces, findings, and validation artefacts vary between runs and are usually read as one record. JSONB keeps those workflow records flexible without weakening the relational guarantees required for asset attributes. The trade-off for relational attributes is that rendering an asset's full set of values requires joins.
 
 ### 6. Consequences
 

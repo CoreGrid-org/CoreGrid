@@ -347,3 +347,4 @@ If the entries below do not appear, select the field and press F9 (Word) or use 
 - [Appendix D — Architecture Decision Record Index](appendix-d-architecture-decision-record-index.md)
 - [Appendix E — AI Usage Disclosure](appendix-e-ai-usage-disclosure.md)
 - [Appendix F — Full Physical Database Schema (Reference Design)](appendix-f-physical-database-schema.md)
+- [Component A — Test Results](component-a-test-results.md)
