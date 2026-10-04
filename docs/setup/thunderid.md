@@ -16,18 +16,17 @@ Everything below is done once per ThunderID instance, in the console. It does no
 
 ### Start ThunderID and PostgreSQL
 
-**Brand-new machine:**
+The quickest route is `./setup.sh` from the repository root (see `CONTRIBUTING.md`). It starts the containers, prints the console password, checks the backend credentials once you have done the steps below, and creates the test accounts. To start the containers by hand:
 
 ```bash
-docker compose -f oci://ghcr.io/thunder-id/thunderid-quick-start:latest -p coregrid up -d
-docker compose up -d   # from the repo root — brings up coregrid-postgres alongside it
+make infra-bootstrap   # first time only — docker compose up -d
 ```
 
-The first command pulls the (large — several minutes) ThunderID image and runs one-shot init containers that exit normally. The server ends up named `coregrid-thunderid-1`.
+`docker-compose.yml` includes ThunderID's quick-start bundle (`oci://ghcr.io/thunder-id/thunderid-quick-start:latest`) alongside CoreGrid's PostgreSQL. The first run pulls a large image and runs two one-shot containers, `thunderid-db-init` and `thunderid-setup`, which exit normally. The server container is `coregrid-thunderid` (`coregrid-thunderid-1` if it was created by an older checkout).
 
-**To restart later, don't re-run `up -d`** — use `docker compose start` or `docker start coregrid-thunderid-1`/`coregrid-postgres`. Re-running `up -d` re-executes the one-shot setup container against an already-initialized volume and fails with a user-type conflict.
+**To restart later, use `make infra-up` (`docker start` on the server and the database). Never run `docker compose up -d` again.** Re-running `up` re-executes the one-shot setup container against an already-initialised volume, and it fails with a user-type conflict.
 
-**The admin password is random, not `admin`** — printed once to the setup container's logs (`docker logs coregrid-thunderid-setup-1`, which stays around after exiting):
+**The admin password is random, not `admin`.** It is printed once to the setup container's logs (`docker logs coregrid-thunderid-setup-1`), and `setup.sh` prints it for you:
 
 ```
 Admin credentials:
@@ -36,6 +35,8 @@ Admin credentials:
 ```
 
 Console: `https://localhost:8090/console`.
+
+**Reference configuration.** [`infra/thunderid/coregrid.yaml`](../../infra/thunderid/coregrid.yaml) is an export of a ThunderID instance configured by these steps. It shows every resource, ID and token attribute below, so you can check your console setup against it. It is not loaded automatically; see [`infra/thunderid/README.md`](../../infra/thunderid/README.md).
 
 ### 1. Create the CoreGridUser Type
 
@@ -143,7 +144,7 @@ Password recovery is ThunderID's own hosted RECOVERY flow — CoreGrid never see
 make thunderid-recovery   # runs scripts/thunderid/enable-password-recovery.sh
 ```
 
-It reads the backend app's credentials from `backend/appsettings.Development.json` and `dotnet user-secrets` (or `THUNDERID_CLIENT_ID` / `THUNDERID_CLIENT_SECRET`), then:
+It reads the backend app's credentials from `backend/.env` (or `THUNDERID_CLIENT_ID` / `THUNDERID_CLIENT_SECRET`), then:
 
 1. creates a **CoreGrid Recovery Flow** — a copy of ThunderID's default recovery flow whose "Back to sign in" returns to the CoreGrid Frontend sign-in flow instead of ThunderID's generic one;
 2. adds a **Forgot password?** link, just above the Sign In button, to the CoreGrid Frontend sign-in flow;
@@ -166,7 +167,7 @@ The flow is the same for every role: enter the sign-in email → receive a singl
 
 ## Environment Variables
 
-**Backend** (`backend/appsettings.Development.json` for non-secrets, `dotnet user-secrets` for the client secret):
+**Backend.** Every value goes in **`backend/.env`**, which is git-ignored and loaded by `Program.cs`; `appsettings*.json` hold only logging. `backend/.env.example` already contains the IDs of the reference configuration, so on a matching instance only the client secret needs filling in.
 
 ```dotenv
 ThunderID__Issuer=https://localhost:8090
@@ -181,13 +182,13 @@ ThunderID__ScimClientId=<Backend Client ID, step 6>
 ThunderID__ScimClientSecret=<Backend Client Secret, step 6>
 ```
 
-- Everything is `https://` — ThunderID doesn't serve plain HTTP by default.
-- `ThunderID__Issuer` is the bare server URL, no path. `AddJwtBearer` resolves JWKS and token URLs from it automatically.
-- **No `ThunderID__Audience`.** Inbound token validation checks only issuer and RS256 signature. `ThunderID__Resource` is unrelated — it's for the backend's own outbound `client_credentials` calls only.
-- `ThunderID__ScimClientSecret` goes in `dotnet user-secrets`, never in `appsettings.Development.json` (committed to git).
-- Relax TLS verification for the self-signed cert only in Development — `Program.cs` already gates this on `IsDevelopment()`.
+- Everything is `https://`, because ThunderID doesn't serve plain HTTP by default.
+- `ThunderID__Issuer` is the bare server URL, with no path. `AddJwtBearer` resolves the JWKS and token URLs from it.
+- **There is no `ThunderID__Audience`.** Inbound token validation checks only the issuer and the RS256 signature. `ThunderID__Resource` is unrelated: it is only for the backend's own outbound `client_credentials` calls.
+- Never put `ThunderID__ScimClientSecret` in a committed file. `backend/.env` is git-ignored.
+- TLS verification for the self-signed certificate is relaxed only in Development; `Program.cs` already gates this on `IsDevelopment()`.
 
-**Frontend** (`frontend/.env` — `make env` copies it from `.env.example`):
+**Frontend** (`frontend/.env`, created from `frontend/.env.example` by `setup.sh` or `make env`):
 
 ```dotenv
 VITE_THUNDERID_CLIENT_ID=<frontend Client ID, step 4>
@@ -197,7 +198,15 @@ VITE_THUNDERID_AFTER_SIGN_IN_URL=http://localhost:5173
 VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 ```
 
-`AFTER_SIGN_IN_URL`/`AFTER_SIGN_OUT_URL` must exactly match the redirect URI from step 4.
+`AFTER_SIGN_IN_URL` and `AFTER_SIGN_OUT_URL` must match the redirect URI from step 4 exactly.
+
+## Test Accounts
+
+Once the backend credentials work, `setup.sh` creates one account per role, all with password `Login@123456`:
+- `admin@coregrid.test`, created through first-run Setup together with the organisation;
+- `officer@coregrid.test`, `auditor@coregrid.test` and `staff@coregrid.test`, created in ThunderID exactly as `ThunderIdIdentityDirectory` does (`POST /users`, then `POST /roles/{id}/assignments/add`). CoreGrid creates their local user record on first sign-in.
+
+These are for local development only. Never create them on a shared or deployed instance.
 
 ## Known Gaps
 
@@ -228,6 +237,6 @@ VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
 | Recovery says the email was sent but nothing arrives | ThunderID's SMTP isn't configured (its image default points at `127.0.0.1:2525`) — expected until deployment; reset the password from Users & Roles instead |
 | CORS errors on `/oauth2/token` or `/flow/meta` | Frontend origin isn't in `cors` server-config's `allowedOrigins` — step 5 |
 | Signing out doesn't return to the app | Post-logout redirect URI isn't set — step 4 |
-| All data disappeared after a restart | `docker compose down -v` was used instead of `docker compose start` |
-| `thunderid-setup` fails with a user-type conflict after a restart | `docker compose up -d` was re-run against an initialized volume — use `docker compose start` |
+| All data disappeared after a restart | `docker compose down -v` was used instead of `make infra-stop` / `make infra-up` |
+| `thunderid-setup` fails with a user-type conflict after a restart | `docker compose up -d` was re-run against an initialised volume — use `make infra-up` |
 | Multiple ThunderID stacks, `invalid_client` for no obvious reason | Compose was run without `-p coregrid` from another directory. `docker compose ls`, `docker ps -a \| grep coregrid` to find and consolidate |

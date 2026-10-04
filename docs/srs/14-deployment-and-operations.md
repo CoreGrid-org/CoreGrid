@@ -30,6 +30,7 @@
     ThunderID__OuId                   ThunderID__RoleIds__<Role>
     ThunderID__ScimClientId           ThunderID__ScimClientSecret
     Llm__ApiKey (optional Llm__Endpoint, Llm__Model)
+    LlmFallback__ApiKey (optional fallback model provider)
     CloudflareR2__AccountId           CloudflareR2__AccessKeyId
     CloudflareR2__SecretAccessKey     CloudflareR2__BucketName
 ```

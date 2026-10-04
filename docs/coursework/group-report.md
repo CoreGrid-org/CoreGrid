@@ -136,7 +136,7 @@ The SRS (`docs/srs/`) defines 86 functional requirements.
 | ≥ 4 business components | Components A–D, one per student |
 | CRUD + status workflows + search/filter/sort/pagination + reporting | All list endpoints are server-side paged/sorted/filtered (`PagedResult`), five status machines (§2.3), Reports page with Inventory / Maintenance / Disposal / Audit tabs and PDF/CSV export |
 | Distinct React vs Flutter purpose | §1.4 |
-| ≥ 1 third-party integration | ThunderID, Cloudflare R2, Google Gemini (§8); hosting on Azure, Vercel, GitHub Pages (§12) |
+| ≥ 1 third-party integration | ThunderID, Cloudflare R2, Google Gemini with an optional Groq fallback (§8); hosting on Azure, Vercel, GitHub Pages (§12) |
 | Cross-platform workflow | Flutter initiates evaluation → API + PostgreSQL + agents → React Administrator approves → Flutter shows final status (§7.7) |
 
 ---
@@ -166,7 +166,7 @@ flowchart LR
   M -. OIDC PKCE .-> IDP
   API -- JWKS / SCIM --> IDP
   S --> R2[Cloudflare R2<br/>S3-compatible]
-  AG --> LLM[Gemini<br/>OpenAI-compatible endpoint]
+  AG --> LLM[Gemini, optional Groq fallback<br/>OpenAI-compatible endpoints]
 ```
 
 Both clients talk **only** to the ASP.NET Core API. Neither client holds database, storage or model credentials. The agent subsystem runs in-process inside the API (ADR-010), so there is no separately exposed agent service for a client to call.
@@ -309,7 +309,7 @@ Role-specific dashboards (Officer, Staff); QR scan → asset detail → conditio
 | Identity | ThunderID (OIDC/OAuth 2.0, PKCE) | Credentials never touch CoreGrid; one IdP for web and mobile; SCIM for admin-driven provisioning |
 | Web | React 19, Vite 8, React Router 7, Carbon | Carbon gives accessible enterprise components out of the box (ADR-008) |
 | Mobile | Flutter 3.47, Riverpod 3, go_router, Dio | Compile-time-safe providers, testable without a widget tree (ADR-004) |
-| Agents | Custom in-process C# orchestrator, Gemini via OpenAI-compatible endpoint | One deployable, no extra runtime, deterministic fallbacks (ADR-010) |
+| Agents | Custom in-process C# orchestrator; Gemini as the primary model and Groq `gpt-oss-120b` as an optional fallback, both via the OpenAI-compatible protocol | One deployable, no extra runtime, deterministic fallbacks (ADR-010) |
 | Storage | Cloudflare R2 (S3 API) | Free tier, private objects, short-lived signed URLs (ADR-009) |
 
 ### 6.2 Notable engineering decisions
@@ -356,9 +356,9 @@ flowchart LR
 
 | # | Agent | Owner | Responsibility | Input contract | Output contract | Allowed tools | Model use |
 |---|---|---|---|---|---|---|---|
-| 1 | Planner | Jayashan | Reject out-of-scope objectives; produce an ordered, typed execution plan | `assetId, objectiveText, initiatedBy, organizationId` | `ExecutionPlan { steps[], inScope, rejectionReason? }` | `get_asset_summary` | Gemini; deterministic fallback plan if key missing, timeout or invalid JSON |
+| 1 | Planner | Jayashan | Reject out-of-scope objectives; produce an ordered, typed execution plan | `assetId, objectiveText, initiatedBy, organizationId` | `ExecutionPlan { steps[], inScope, rejectionReason? }` | `get_asset_summary` | Gemini, then the optional Groq fallback; deterministic fallback plan if both fail (error, 429, timeout, invalid JSON) or no key is set |
 | 2 | Maintenance Analysis | Seneja | Quantify reliability: repair count, MTBF, cost trend, 12-month projection | `workflowId, assetId` | `MaintenanceAnalysisResult` (jsonb) | `get_maintenance_history`, `compute_failure_statistics` | None (deterministic) |
-| 3 | Budget Analysis | Nipuna | Assess residual value against repair/replacement cost and departmental budget; rank options | `workflowId, assetId` + Node 2 output | `FinancialAssessmentResult { rankedOptions[], proposedRecommendation, … }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` | Gemini behind `BudgetScopeGuard`; deterministic fallback |
+| 3 | Budget Analysis | Nipuna | Assess residual value against repair/replacement cost and departmental budget; rank options | `workflowId, assetId` + Node 2 output | `FinancialAssessmentResult { rankedOptions[], proposedRecommendation, … }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` | Gemini, then the optional Groq fallback, behind `BudgetScopeGuard`; deterministic fallback if both fail |
 | 4 | Policy Compliance | Hasitha | Apply organisation policy rules to the evidence; decide whether approval is required | Workflow + Node 2/3 outputs | `PolicyEvaluationResult { rules[PASS/FAIL], recommendation, requiresApproval }` | `get_asset_compliance_state`, `get_organization_policies` | None (deterministic rule engine, by design) |
 
 Each agent is a separate service behind its own interface (`IPlannerAgentClient`, `IMaintenanceAnalysisAgentService`, `IBudgetAgentClient`, `IPolicyComplianceAgentService`), writes its own `AgentExecutionStep` row, and can be re-run on its own (`run-maintenance-agent`, `run-budget-agent`, `run-policy-agent`).
@@ -380,13 +380,13 @@ All tools are implemented in `IAgentToolsService` and exposed read-only at `/api
 | Control | Implementation |
 |---|---|
 | Objective scope / prompt injection | `PlannerScopeGuard` rejects, before any model call, objectives with no lifecycle term and objectives containing forbidden phrases ("approve disposal", "delete database", "modify policy", …). `ValidatePlan` then rejects any plan that delegates to an agent outside the allow-list {Maintenance, Budget, Policy, DeterministicGate}. `BudgetScopeGuard` applies the same idea to Node 3 |
-| Output schema | Planner and Budget outputs are deserialised into typed records; malformed output → deterministic fallback, never partial state |
+| Output schema | Planner and Budget outputs are deserialised into typed records; malformed output → next provider, then deterministic fallback, never partial state |
 | Business rules | `PolicyRuleEngine` (17 unit tests) — repair-cost ratio, service life, condition, cumulative cost thresholds from `OrganizationPolicies` |
 | Revision bound | At most 2 revisions, then `REVISION_REQUESTED` (terminal) |
 | Approval authority | `CanApproveWorkflow` — Administrator only, verified by `AuthorizationMatrixTests` |
 | Concurrency | One in-flight workflow per asset (409 `workflow_already_running`) |
 | Timeouts / limits | Model HTTP client timeout 60 s; rate-limited initiation per user+org |
-| Secrets | Model key read from configuration / user-secrets / environment only |
+| Secrets | Model keys (primary and fallback) read only from the git-ignored `backend/.env` or environment variables |
 | Safe failure | Any node exception → `FAILED_SAFE` with recorded reason; no business data touched |
 
 ### 7.6 Human approval
@@ -409,7 +409,8 @@ High-impact recommendations (dispose, replace) pause at `AWAITING_APPROVAL`. Onl
 |---|---|---|
 | **ThunderID** (OIDC/OAuth 2.0, SCIM) | Single sign-on for web and mobile; admin-driven user provisioning and password reset | PKCE public clients; API validates issuer, audience, lifetime and RS256 signature via JWKS; SCIM client secret server-side only; health check probes issuer reachability |
 | **Cloudflare R2** (S3 API) | Store fault and verification photo evidence outside the database | Backend-only access via `IFileStorageService`; MIME/size checks; private objects; fresh short-lived signed URL minted only on an authorised read; rate-limited upload |
-| **Google Gemini** (OpenAI-compatible chat completions) | Planner plan generation, Budget option reasoning | Server-side key; only asset facts, no personal data; 60 s timeout; deterministic fallback on 4xx/5xx/429/timeout/invalid JSON, so a provider outage degrades rather than breaks the workflow |
+| **Google Gemini** (OpenAI-compatible chat completions) | Planner plan generation, Budget option reasoning | Server-side key; only asset facts, no personal data; 60 s timeout per call. On 4xx/5xx/429, timeout or invalid JSON the agent moves to the fallback provider |
+| **Groq** (optional fallback, `openai/gpt-oss-120b`) | Keeps model-backed planning available when Gemini is rate-limited or unavailable | Same OpenAI-compatible call and safeguards; enabled only when `LlmFallback__ApiKey` is set. If it also fails, the deterministic fallback is used, so a provider outage degrades rather than breaks the workflow |
 
 ---
 
@@ -420,7 +421,7 @@ High-impact recommendations (dispose, replace) pause at `AWAITING_APPROVAL`. Onl
 | Suite | Command | Result |
 |---|---|---|
 | Backend build | `dotnet build backend.Tests` | **0 warnings, 0 errors** |
-| Backend tests (xUnit, InMemory + real PostgreSQL 16) | `dotnet test backend.Tests` | **437 passed / 0 failed** (25 test classes) |
+| Backend tests (xUnit, InMemory + real PostgreSQL 16) | `dotnet test backend.Tests` | **439 passed / 0 failed** (25 test classes) |
 | React tests (Vitest + RTL) | `npm test` | **113 passed / 0 failed** (23 files) |
 | React build / typecheck | `npm run build` | Pass (bundle-size warning only) |
 | Flutter static analysis | `flutter analyze` | **No issues found** |
@@ -548,7 +549,7 @@ flowchart LR
   AZ --> PG[(Azure Database for<br/>PostgreSQL)]
   AZ --> IDP[ThunderID]
   AZ --> R2[Cloudflare R2]
-  AZ --> LLM[Gemini API]
+  AZ --> LLM[Gemini API<br/>Groq fallback]
   V -. OIDC PKCE .-> IDP
   M -. OIDC PKCE .-> IDP
 ```
@@ -579,14 +580,14 @@ None of these choices required code changes, which confirms ADR-011's portabilit
 6. Vercel React build
 7. Install the APK
 
-Local alternative: `make setup && make infra-bootstrap && make db-update && make dev`.
+Local alternative: `./setup.sh` (dependencies, `.env` files, Docker, migrations, test accounts), then `make dev`.
 
 ### 12.3 Environment variables (names only)
 
 - **API (Azure application settings):**
   - `ConnectionStrings__CoreGrid`, `Cors__AllowedOrigins__0` (the Vercel URL)
   - `ThunderID__Issuer`, `ThunderID__Resource`, `ThunderID__OuId`, `ThunderID__ScimClientId`, `ThunderID__ScimClientSecret`, `ThunderID__RoleIds__<Role>`
-  - `Llm__ApiKey`
+  - `Llm__ApiKey`, optional `LlmFallback__ApiKey` (Groq)
   - `CloudflareR2__AccountId`, `CloudflareR2__AccessKeyId`, `CloudflareR2__SecretAccessKey`, `CloudflareR2__BucketName`
 - **React (Vercel):** `VITE_API_URL`, `VITE_THUNDERID_BASE_URL`, `VITE_THUNDERID_CLIENT_ID`, `VITE_THUNDERID_APPLICATION_ID`, `VITE_THUNDERID_AFTER_SIGN_IN_URL`, `VITE_THUNDERID_AFTER_SIGN_OUT_URL`
 - **Mobile (build-time):** `API_BASE_URL`, `THUNDERID_CLIENT_ID`

@@ -52,8 +52,8 @@ Asset list with searchable pickers and filters; asset detail with history timeli
 | Output | `PlannerExecutionPlan { inScope, steps[], rejectionReason? }` |
 | Tool permissions | `get_asset_summary` only (read-only; organisation taken from persisted state) |
 | Validation | `PlannerScopeGuard.RejectionReason` (forbidden phrases, required lifecycle terms) before any model call; `ValidatePlan` rejects out-of-scope plans that contain steps, and plans delegating to agents outside {Maintenance, Budget, Policy, DeterministicGate} |
-| Failure handling | Missing key, non-2xx (incl. 429), timeout or invalid JSON → deterministic fallback plan, logged |
-| Model | Gemini via OpenAI-compatible endpoint (`LlmSettings`, overridable per agent) |
+| Failure handling | Non-2xx (incl. 429), timeout or invalid JSON → retry on the optional fallback provider (Groq `gpt-oss-120b`) → deterministic fallback plan; each step logged with the model name |
+| Model | Gemini via OpenAI-compatible endpoint (`LlmSettings`, overridable per agent), optional Groq fallback (`LlmFallback`) |
 
 ### 2.6 Tests
 
@@ -64,7 +64,7 @@ Asset list with searchable pickers and filters; asset detail with history timeli
 | Backend | ⟦Component A is covered by `AssetServiceTests`; list any backend tests you add for FR-019 or `GET qr/{code}` AC1–AC4⟧ |
 | Evidence | [`evidence/component-a-test-results.md`](../evidence/component-a-test-results.md): React and Flutter test output, scanner tests, `flutter analyze`, Pixel 6 emulator walkthroughs |
 
-Run of 2026-10-04: backend 437/437, React 113/113, Flutter 69/69.
+Run of 2026-10-04: backend 439/439, React 113/113, Flutter 69/69.
 
 ### 2.7 Git evidence
 

@@ -1,150 +1,122 @@
 # Contributing to CoreGrid
 
-Thank you for your interest in contributing to CoreGrid. This guide walks you through setting up the full development environment from scratch.
+Thank you for your interest in contributing to CoreGrid. This guide covers the development environment, the project structure and the contribution workflow.
 
 ---
 
 ## Prerequisites
 
-Install the following before starting:
-
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Node.js 18+](https://nodejs.org/) with npm
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- [Node.js 20+](https://nodejs.org/) with npm (CI uses Node 22)
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose v2
+- `curl`, `jq` and `make`; `psql` is optional (performance tests, `make db-shell`)
 
-Install the EF Core CLI tool (used for migrations):
-
-```bash
-dotnet tool install --global dotnet-ef
-```
-
-Make sure `~/.dotnet/tools` is on your `PATH` — the installer tells you if it isn't.
-
-There's no separate codegen step for API docs or database queries: Swagger is generated automatically from the ASP.NET Core controllers at runtime, and there's no SQL query-builder codegen — CoreGrid uses EF Core directly.
+Swagger is generated from the controllers at runtime and EF Core is used directly, so there is no code-generation step.
 
 ---
 
-## 1. Clone the Repository
+## Quick Setup
 
 ```bash
 git clone https://github.com/CoreGrid-org/CoreGrid.git
 cd CoreGrid
+./setup.sh          # or: make setup
 ```
+
+`setup.sh` is safe to re-run. It:
+
+1. checks the prerequisites;
+2. installs `dotnet-ef` and restores the NuGet and npm packages;
+3. creates `backend/.env` and `frontend/.env` from their examples (an existing file is never overwritten);
+4. starts PostgreSQL and ThunderID in Docker (on the first run it creates and initialises ThunderID, which takes a few minutes);
+5. applies the EF Core migrations;
+6. checks the ThunderID configuration: it prints the console's admin password, tests the backend client credentials, and asks for any value it cannot discover;
+7. creates one **test account per role**, all with password `Login@123456`. These are for local development only.
+
+| Role | Email | Client |
+|---|---|---|
+| Administrator | `admin@coregrid.test` | Web |
+| Inventory Officer | `officer@coregrid.test` | Web and mobile |
+| Auditor | `auditor@coregrid.test` | Web |
+| Department Staff | `staff@coregrid.test` | Mobile |
+
+**On a fresh ThunderID you must still do the one-time console setup** in [`docs/setup/thunderid.md`](./docs/setup/thunderid.md): the user type, the roles, the frontend, backend and mobile applications, and CORS. `setup.sh` stops at step 6 and tells you which values to enter. Re-run it once the console setup is done, and it will create the accounts.
+
+Then start the API and the web app:
+
+```bash
+make dev            # API http://localhost:5083, web http://localhost:5173
+```
+
+Options: `./setup.sh --yes` never prompts; `./setup.sh --skip-users` skips the test accounts.
 
 ---
 
-## 2. Start Infrastructure (ThunderID + PostgreSQL)
+## Manual Setup
 
-**On a machine that's never run this project's containers before**, bootstrap ThunderID on its own first:
+These are the same steps `setup.sh` performs, for when you want to do them yourself.
 
-```bash
-docker compose -f oci://ghcr.io/thunder-id/thunderid-quick-start:latest -p coregrid up -d
-```
-
-Then, from the repo root, bring up CoreGrid's own database alongside it:
+### 1. Infrastructure (ThunderID + PostgreSQL)
 
 ```bash
-docker compose up -d
+make infra-bootstrap   # first time only: docker compose up -d
 ```
 
-Together these give you two running containers: `coregrid-thunderid-1` (identity, `https://localhost:8090`) and `coregrid-postgres` (CoreGrid's own application database, host port `5433` — not the Postgres default `5432`, to avoid colliding with another local project's Postgres). See [`docs/setup/thunderid.md`](./docs/setup/thunderid.md#start-thunderid-and-postgresql) for why it's two commands the first time, not one.
+`docker-compose.yml` includes ThunderID's quick-start bundle and adds CoreGrid's own PostgreSQL. The result is:
+- **ThunderID** on `https://localhost:8090`, container `coregrid-thunderid` (`coregrid-thunderid-1` on older checkouts);
+- **`coregrid-postgres`** on host port **5433**, not 5432, to avoid clashing with another local Postgres.
 
-**The first `docker compose -f oci://...` run pulls the ThunderID image, which is large and can take several minutes** — this is normal, not a hang. After that first bootstrap, everything is local: to stop without losing data, `docker compose stop`; to restart, `docker compose start` (don't re-run either `up -d` command against an existing volume unless you mean to — see the troubleshooting table in [`docs/setup/thunderid.md`](./docs/setup/thunderid.md)).
+The first run pulls a large image, so allow several minutes.
 
----
+**Afterwards, start and stop with `make infra-up` and `make infra-stop`.** Don't run `docker compose up -d` again against an initialised ThunderID: it re-runs ThunderID's one-shot setup container, which then fails with a user-type conflict. `make infra-up` starts only the server and the database.
 
-## 3. Set Up ThunderID
+### 2. ThunderID
 
-Follow [`docs/setup/thunderid.md`](./docs/setup/thunderid.md) for the full one-time console setup — creating the `CoreGridUser` type and the four CoreGrid roles, registering the frontend application, allowing the frontend's CORS origin, and creating the backend's service credential. Come back here once that's done.
+Follow [`docs/setup/thunderid.md`](./docs/setup/thunderid.md) once per ThunderID instance. [`infra/thunderid/coregrid.yaml`](./infra/thunderid/coregrid.yaml) is an export of a working configuration, which you can use to check your console settings.
 
----
+### 3. Backend configuration
 
-## 4. Backend Setup
+`appsettings.json` and `appsettings.Development.json` contain only logging. Every environment-specific value lives in **`backend/.env`**: the connection string, CORS origin, ThunderID IDs and client credentials, model key and R2 storage. The file is git-ignored and `Program.cs` loads it on start-up. Real environment variables override it, and blank values are ignored.
 
 ```bash
-cd backend
-dotnet restore
+cp backend/.env.example backend/.env       # setup.sh does this for you
+# then set ThunderID__ScimClientSecret=<CoreGrid Backend client secret>
 ```
 
-### Apply Database Migrations
+[`backend/.env.example`](./backend/.env.example) already holds the local defaults: Docker Postgres, the CORS origin, and the ThunderID IDs of the reference configuration in `infra/thunderid/`. Change the IDs if your ThunderID instance differs. The file also shows the Supabase connection-string options. In Docker or the cloud, set the same names as real environment variables.
+
+### 4. Database and API
 
 ```bash
-dotnet ef database update
+make db-update      # dotnet ef database update against localhost:5433
+make backend        # http://localhost:5083, Swagger at /swagger, health at /health
 ```
 
-Schema is managed exclusively by these EF Core migrations (SRS §2.3, C-02) — see [`backend/db/README.md`](./backend/db/README.md) if you also want the plain numbered `.sql` files that get generated from them for review.
+To migrate another database, such as Supabase, pass its connection string: `make db-update DB_CONNECTION='Host=…;Port=5432;…;SSL Mode=Require'`. Schema changes are made only through EF Core migrations. [`backend/db/README.md`](./backend/db/README.md) covers the generated SQL exports.
 
-### Configure ThunderID Credentials
-
-`backend/appsettings.Development.json` already has the local Postgres connection string, the frontend's CORS origin, and every non-secret ThunderID value filled in (`Issuer`, `Resource`, `OuId`, `UserType`, `RoleIds`, `ScimClientId`) — nothing to fill in there yourself unless you set up a fresh ThunderID instance. The one secret, `ScimClientSecret`, is never committed — set it with `dotnet user-secrets`, matching SRS §14.2's naming:
+### 5. Frontend
 
 ```bash
-cd backend
-dotnet user-secrets set "ThunderID:ScimClientSecret" "<Backend Service Client Secret from docs/setup/thunderid.md>"
+make frontend-install
+cp frontend/.env.example frontend/.env     # if setup.sh hasn't already
+make frontend       # http://localhost:5173
 ```
 
-See [`docs/setup/thunderid.md`](./docs/setup/thunderid.md) for what each of these values is and where it comes from in the console — including the `username` attribute `CoreGridUser` needs for sign-in to resolve at all, a common first-time gotcha.
+In `frontend/.env`, set `VITE_THUNDERID_CLIENT_ID` to the CoreGrid Frontend **Client ID** (not its Application ID). `VITE_API_URL` and the redirect URLs are already right for local development. `ThunderIDProvider` in `frontend/src/main.tsx` reads these values.
 
-### Start the Backend
-
-```bash
-dotnet run
-```
-
-The backend runs on `http://localhost:5083`. Swagger UI is available at `http://localhost:5083/swagger`.
-
----
-
-## 5. Frontend Setup
-
-```bash
-cd frontend
-npm install
-cp .env.example .env
-```
-
-Fill in `.env` with the values from your ThunderID frontend application (see [`docs/setup/thunderid.md`](./docs/setup/thunderid.md)) — `VITE_API_URL` is already correct as-is for a default local backend:
-
-```env
-VITE_API_URL=http://localhost:5083/api
-
-VITE_THUNDERID_CLIENT_ID=<frontend Client ID>
-VITE_THUNDERID_BASE_URL=https://localhost:8090
-VITE_THUNDERID_AFTER_SIGN_IN_URL=http://localhost:5173
-VITE_THUNDERID_AFTER_SIGN_OUT_URL=http://localhost:5173
-```
-
-These are read by `ThunderIDProvider` in `frontend/src/main.tsx`. `.env` is gitignored, same as `.env.local` would be — either name works with Vite, but `.env` is what the rest of the team actually uses, so stick with it for consistency.
-
-Start the frontend:
-
-```bash
-npm run dev
-```
-
-The frontend runs on `http://localhost:5173`.
-
----
-
-## 6. Verify Everything is Running
+### 6. First sign-in
 
 | Service | URL |
 |---|---|
-| Frontend | http://localhost:5173 |
-| Backend | http://localhost:5083 |
-| Swagger UI | http://localhost:5083/swagger |
-| ThunderID Console | https://localhost:8090/console |
-| PostgreSQL | localhost:5433 |
+| Web app | http://localhost:5173 |
+| API / Swagger | http://localhost:5083/swagger |
+| ThunderID console | https://localhost:8090/console |
+| PostgreSQL | localhost:5433 (`make db-shell`) |
 
----
-
-## 7. Try It Out
-
-1. Go to `http://localhost:5173`.
-2. On a fresh database, you'll be redirected through sign-in straight to `/setup` — `GET /api/setup/status` genuinely checks whether any organisation exists yet.
-3. Fill in the admin account and organisation details and submit. This provisions a real ThunderID account (`Identity/ThunderIdIdentityDirectory.cs`) and creates the matching `Organizations`/`Users` rows locally.
-4. Sign in with that account. `/` resolves your role from the `roles` claim and sends you to the matching dashboard — an Administrator lands on `/admin`. Create accounts for the other roles from **Users & Roles**; each role lands on its own dashboard (`/inventory`, `/audit`; Staff use the mobile app).
-5. From `/admin` → **Users & Roles**, an Administrator can invite further users by email and role (FR-013) — everything else on the Admin Dashboard is a mock/placeholder page; see [Project Structure](#project-structure) below for which parts are real.
+1. On a database with no organisation yet, the web app sends you to `/setup`, because `GET /api/setup/status` reports `needs_setup`.
+2. Setup creates the organisation and the first Administrator, both in ThunderID and in CoreGrid's own `Users` table. If you ran `setup.sh`, this is already done for `admin@coregrid.test`.
+3. Sign in. Each role lands on its own area: Administrator on `/admin`, Inventory Officer on `/inventory`, Auditor on `/audit`. Staff use the mobile app.
+4. Add more users from **Users & Roles**. A user who exists only in ThunderID, with a CoreGrid role, gets a CoreGrid record automatically on first sign-in.
 
 ---
 

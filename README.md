@@ -30,7 +30,9 @@ CoreGrid registers, identifies, maintains, transfers, verifies and disposes of a
 | `docs/architecture/` | Architecture Decision Records |
 | `docs/setup/` | ThunderID, Cloudflare R2 and AI-agent setup guides |
 | `docs/coursework/` | University coursework material (SE3090); not part of the product documentation |
+| `infra/thunderid/` | Reference ThunderID configuration export (see its README) |
 | `docker-compose.yml` | Local ThunderID + PostgreSQL |
+| `setup.sh` | First-time local setup (`make setup`) |
 | `Makefile` | Developer commands (`make help`) |
 
 ## Technology
@@ -42,27 +44,25 @@ CoreGrid registers, identifies, maintains, transfers, verifies and disposes of a
 | Identity | ThunderID (OIDC / OAuth 2.0 with PKCE, SCIM provisioning) |
 | Web | React 19, TypeScript, Vite, React Router 7, IBM Carbon |
 | Mobile | Flutter, Riverpod, go_router, Dio, flutter_appauth |
-| Agentic AI | In-process C# orchestrator with four agents (Planner, Maintenance Analysis, Budget Analysis, Policy Compliance); any OpenAI-compatible chat-completions endpoint |
+| Agentic AI | In-process C# orchestrator with four agents (Planner, Maintenance Analysis, Budget Analysis, Policy Compliance); any OpenAI-compatible chat-completions endpoint (Gemini primary, optional Groq fallback) |
 | Object storage | Any S3-compatible store (Cloudflare R2 by default) |
 
 ## Quick start (local)
 
-Prerequisites: .NET 10 SDK, Node 22, Docker, `make`.
+Prerequisites: .NET 10 SDK, Node 20+, Docker with Compose v2, `curl`, `jq`, `make`.
 
 ```bash
-make setup            # dotnet-ef, NuGet + npm restore, frontend/.env
-make infra-bootstrap  # first run only: ThunderID + PostgreSQL (later: make infra-up)
-make db-update        # apply EF Core migrations
-make dev              # API on http://localhost:5083, web on http://localhost:5173
+./setup.sh      # dependencies, .env files, PostgreSQL + ThunderID in Docker, migrations, test accounts
+make dev        # API on http://localhost:5083, web app on http://localhost:5173
 ```
 
-Open the web app and complete first-run **Setup**, which creates the organisation and its first Administrator. Swagger is at `http://localhost:5083/swagger`, and health is at `http://localhost:5083/health`.
+On a brand-new ThunderID instance, do the one-time console setup in [`docs/setup/thunderid.md`](docs/setup/thunderid.md) first. `setup.sh` checks it, asks for the client credentials, and then creates one test account per role (`admin@`, `officer@`, `auditor@`, `staff@coregrid.test`, password `Login@123456`, local only). Swagger is at `http://localhost:5083/swagger` and health at `http://localhost:5083/health`.
 
-ThunderID configuration (applications, roles, SCIM client) is described in [`docs/setup/thunderid.md`](docs/setup/thunderid.md), object storage in [`docs/setup/cloudflare-r2.md`](docs/setup/cloudflare-r2.md), and the model key in [`docs/setup/ai-agents.md`](docs/setup/ai-agents.md).
+Later starts: `make infra-up && make dev`. The full walkthrough, manual equivalents and project structure are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Object storage is covered in [`docs/setup/cloudflare-r2.md`](docs/setup/cloudflare-r2.md), and the model key in [`docs/setup/ai-agents.md`](docs/setup/ai-agents.md).
 
 ## Configuration
 
-The API is configured through `appsettings.json`, `dotnet user-secrets` (development) or environment variables. A double underscore marks a nested key. Values are never committed.
+`appsettings*.json` hold only logging. Every environment-specific value and secret comes from the git-ignored `backend/.env`, which is loaded at start-up, or from real environment variables, which take precedence. A double underscore marks a nested key. Values are never committed. [`backend/.env.example`](backend/.env.example) lists every variable, with connection-string examples for local Docker Postgres and for a hosted PostgreSQL such as Supabase (use its session pooler on port 5432).
 
 | Variable | Purpose |
 |---|---|
@@ -71,7 +71,8 @@ The API is configured through `appsettings.json`, `dotnet user-secrets` (develop
 | `ThunderID__Issuer`, `ThunderID__Resource`, `ThunderID__OuId` | Token validation and directory |
 | `ThunderID__ScimClientId`, `ThunderID__ScimClientSecret` | User provisioning |
 | `ThunderID__RoleIds__Administrator` (… per role) | Role mapping |
-| `Llm__ApiKey` (optional `Llm__Endpoint`, `Llm__Model`) | Model access for the Planner and Budget agents; without a key, both use a deterministic fallback |
+| `Llm__ApiKey` (optional `Llm__Endpoint`, `Llm__Model`) | Primary model for the Planner and Budget agents (Gemini by default) |
+| `LlmFallback__ApiKey` (optional `LlmFallback__Endpoint`, `LlmFallback__Model`) | Optional second provider tried when the primary fails (Groq `openai/gpt-oss-120b` by default). With no key at all, both agents use a deterministic fallback |
 | `CloudflareR2__AccountId`, `__AccessKeyId`, `__SecretAccessKey`, `__BucketName` | Photo evidence storage |
 
 The web app reads `VITE_API_URL` and `VITE_THUNDERID_*` at build time (see `frontend/.env.example`).

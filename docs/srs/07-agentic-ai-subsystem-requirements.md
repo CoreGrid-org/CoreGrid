@@ -93,7 +93,7 @@ flowchart TD
         N3 --> IMC
     end
 
-    IMC -->|"outbound HTTPS,\nprovider chosen by config"| MODEL["OpenAI-compatible\nchat-completions endpoint\n(Gemini by default)"]
+    IMC -->|"outbound HTTPS,\nprovider chosen by config"| MODEL["OpenAI-compatible\nchat-completions endpoint\n(Gemini primary,\noptional Groq fallback)"]
 ```
 
 Each agent's tool box is that agent's own allow-list (§7.4) — disjoint from every other agent's, and never touched by the Orchestrator directly.
@@ -114,10 +114,11 @@ Each agent's tool box is that agent's own allow-list (§7.4) — disjoint from e
 
 ```
 Llm:Endpoint / Llm:Model / Llm:ApiKey              shared defaults (Gemini's OpenAI-compatible endpoint by default)
+LlmFallback:Endpoint / :Model / :ApiKey            optional second provider (Groq, openai/gpt-oss-120b by default)
 <Agent>:Endpoint / <Agent>:Model / <Agent>:ApiKey  per-agent overrides, e.g. Planner:*, Budget:*
 ```
 
-Any provider that exposes the OpenAI chat-completions protocol (a hosted vendor, or an on-prem/local model for a data-residency-constrained customer) can be selected by configuration per deployment. Choosing a model vendor is therefore a deployment decision, not an engineering decision baked into the product. A missing key, a non-success response (including 429), a timeout or an unparseable reply makes the node fall back to a deterministic result. A model outage degrades a workflow; it never breaks one.
+Any provider that exposes the OpenAI chat-completions protocol (a hosted vendor, or an on-prem/local model for a data-residency-constrained customer) can be selected by configuration per deployment. Choosing a model vendor is therefore a deployment decision, not an engineering decision baked into the product. A non-success response (including 429), a timeout or an unparseable reply makes the node retry once against an optional second provider (`LlmFallback:Endpoint` / `Model` / `ApiKey`; Groq's `openai/gpt-oss-120b` by default), and only then fall back to a deterministic result. A provider without a key is skipped. A model outage degrades a workflow; it never breaks one.
 
 **When a node may call a model.** A node calls one only when all four hold; if any fails, it must be deterministic:
 

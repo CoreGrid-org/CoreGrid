@@ -437,7 +437,7 @@ CoreGrid's lifecycle decisions need a stateful workflow with four distinct speci
 
 ### 4. Decision
 
-Run a single in-process `AgentWorkflowService` in the ASP.NET Core API. It orchestrates four separate agent services, each behind its own interface: Planner (`IPlannerAgentClient`), Maintenance Analysis (`IMaintenanceAnalysisAgentService`), Budget Analysis (`IBudgetAgentClient`) and Policy Compliance (`IPolicyComplianceAgentService`). Agents read data only through the read-only `IAgentToolsService`. Model access goes through configuration (`LlmSettings`: endpoint, model and key, with per-agent overrides) to any OpenAI-compatible chat-completions endpoint, and only where a node meets the model-use criterion. In the baseline that is the Planner, plus the Budget Analysis node's option ranking. Both fall back deterministically on any model failure.
+Run a single in-process `AgentWorkflowService` in the ASP.NET Core API. It orchestrates four separate agent services, each behind its own interface: Planner (`IPlannerAgentClient`), Maintenance Analysis (`IMaintenanceAnalysisAgentService`), Budget Analysis (`IBudgetAgentClient`) and Policy Compliance (`IPolicyComplianceAgentService`). Agents read data only through the read-only `IAgentToolsService`. Model access goes through configuration (`LlmSettings`: endpoint, model and key, with per-agent overrides) to any OpenAI-compatible chat-completions endpoint, and only where a node meets the model-use criterion. In the baseline that is the Planner, plus the Budget Analysis node's option ranking. If the primary provider fails, both retry once against an optional fallback provider (`LlmFallback`, Groq `openai/gpt-oss-120b` by default) and then fall back deterministically.
 
 ### 5. Rationale
 
@@ -447,7 +447,7 @@ This option gives genuine delegation to distinct agents while preserving CoreGri
 
 - Positive: four auditable, independently testable agent responsibilities in one deployable.
 - Positive: checkpoints, execution steps, validation results, and approvals persist alongside domain data.
-- Positive: few model calls, provider portability through one OpenAI-compatible protocol, and no client access to model credentials.
+- Positive: few model calls, provider portability through one OpenAI-compatible protocol (which also makes a second provider a configuration change), and no client access to model credentials.
 - Trade-off: the API contains workflow orchestration complexity and must remain non-blocking/resilient.
 - Risk: a model/tool failure can delay a workflow; therefore every run is time-bounded and failure-safe.
 - Responsibility: enforce per-agent allow-lists, read-only tools, JSON-schema validation, organisation scope, timeout/retry limits, 120-second total bound, approval gate, and GC-01 to GC-12 evaluation.

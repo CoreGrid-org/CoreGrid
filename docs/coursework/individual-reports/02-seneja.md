@@ -65,7 +65,7 @@ Maintenance list with filters and paging, create-maintenance and report-fault mo
 | Backend | Component B is covered by `MaintenanceServiceTests` (6). ⟦Add and list your own: BR1 variance rejection, BR2 condemnation, 409 on re-completion, preventive scheduler due date⟧ |
 | React | ⟦Add and list a maintenance form/modal validation or error-state test⟧ |
 
-Run of 2026-10-04: backend 437/437, React 113/113, Flutter 69/69.
+Run of 2026-10-04: backend 439/439, React 113/113, Flutter 69/69.
 
 ### 2.7 Git evidence
 

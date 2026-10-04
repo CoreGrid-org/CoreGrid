@@ -9,7 +9,7 @@ Internal checklist. **Do not include this file in the submitted PDF.**
 | Check | Result |
 |---|---|
 | `dotnet build` | 0 warnings, 0 errors |
-| `dotnet test backend.Tests` (with PostgreSQL on :5433) | 437 / 437 pass |
+| `dotnet test backend.Tests` (with PostgreSQL on :5433) | 439 / 439 pass |
 | `npm test` / `npm run build` (frontend) | 113 / 113 pass (23 files); build OK |
 | `flutter analyze` / `flutter test` (mobile) | 0 issues; 69 / 69 pass (18 files) |
 

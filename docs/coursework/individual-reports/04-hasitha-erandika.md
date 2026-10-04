@@ -141,7 +141,7 @@ Approximate insertions per feature folder, from `git log --numstat`:
 | Flutter (8 files) | `app_shell_test`, `campaigns_test`, `scan_to_verify_test`, `verification_task_list_screen_test`, `initiate_workflow_screen_test`, `find_asset_card_test`, `auth_config_test`, `widget_test` |
 | CI | Both GitHub Actions pipelines (see §2.7) |
 
-Run of 2026-10-04: backend **437/437**, React **113/113**, Flutter **69/69**, `flutter analyze` 0 issues, build 0 warnings.
+Run of 2026-10-04: backend **439/439**, React **113/113**, Flutter **69/69**, `flutter analyze` 0 issues, build 0 warnings.
 
 ### 2.7 Git evidence and CI
 
@@ -166,6 +166,17 @@ Run of 2026-10-04: backend **437/437**, React **113/113**, Flutter **69/69**, `f
 ### 2.9 Deployment (coursework)
 
 API container on Microsoft Azure; PostgreSQL on Azure; React on Vercel; `coregrid-web` (features, user manual, changelog) on GitHub Pages; release APK. ⟦Add URLs and screenshots⟧.
+
+### 2.10 Developer tooling, configuration and resilience
+
+| Item | Work |
+|---|---|
+| `setup.sh` (`make setup`) | One-command local setup: prerequisite checks, dependencies, `.env` files, Docker start-up that never re-runs ThunderID's one-shot setup, migrations, ThunderID credential check, and one test account per role |
+| Configuration | `backend/.env` loader (`DotEnvFile`), so `appsettings*.json` hold only logging and every secret or environment value lives in one git-ignored file; `backend/.env.example` with local, Supabase and R2 options |
+| Model resilience | Optional second model provider (`LlmFallback`, Groq `openai/gpt-oss-120b`) shared by the Planner and Budget agents through `LlmSettings.Chain` and `LlmChat`: Gemini, then Groq, then the deterministic fallback; timeouts now fall through instead of escaping. Covered by `LlmSettingsTests` and `BudgetAgentServiceTests` |
+| Performance suite | `scripts/perf/`: idempotent dataset seed, k6 load test (50 VUs, 70:30), agent-latency test, slow-query capture, generated results table (`make perf`) |
+| Database tooling | `scripts/db/export-migrations.sh` (`make db-export`), which added the missing 0016/0017 SQL exports |
+| ThunderID | Sanitised reference export of the working configuration (`infra/thunderid/`) |
 
 ## 3. Key Commits
 

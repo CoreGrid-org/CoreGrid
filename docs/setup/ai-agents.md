@@ -109,7 +109,7 @@ THUNDERID_AGENT_CLIENT_SECRET=<secret_from_thunderid_console>
 
 ## 5. In-Process Agent LLM Configuration (.NET Core)
 
-With the migration of agents into the ASP.NET Core process (PlannerAgentService and BudgetAgentService), external M2M tokens and standalone Python runtimes are no longer needed for these nodes. Their LLM outbound endpoints are configured via standard .NET `IConfiguration` (via `appsettings.json`, `appsettings.Development.json`, User Secrets, or environment variables).
+With the migration of agents into the ASP.NET Core process (PlannerAgentService and BudgetAgentService), external M2M tokens and standalone Python runtimes are no longer needed for these nodes. Their LLM outbound endpoints are configured via standard .NET `IConfiguration`: `backend/.env` locally, or environment variables in Docker and the cloud. `appsettings*.json` hold no values here.
 
 All in-process agents that call an LLM share one **`Llm`** section. The team standard is **Google Gemini 3.5 Flash** through Gemini's OpenAI-compatible endpoint:
 
@@ -117,17 +117,26 @@ All in-process agents that call an LLM share one **`Llm`** section. The team sta
 |---|---|---|---|
 | `Llm:Endpoint` | `Llm__Endpoint` | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | Any OpenAI-compatible chat-completions URL |
 | `Llm:Model` | `Llm__Model` | `gemini-3.5-flash` | |
-| `Llm:ApiKey` | `Llm__ApiKey` | *(none)* | A Google AI Studio (Gemini) API key. **Never put it in appsettings**; use user-secrets or an env var |
+| `Llm:ApiKey` | `Llm__ApiKey` | *(none)* | A Google AI Studio (Gemini) API key. Set it in `backend/.env` or as an environment variable, never in a committed file |
 
-Set the key once for local development:
+Set the key once for local development, in `backend/.env`:
 
-```bash
-cd backend
-dotnet user-secrets set "Llm:ApiKey" "<your Gemini API key>"
+```dotenv
+Llm__ApiKey=<your Gemini API key>
 ```
+
+**Optional fallback provider.** If the primary call fails (HTTP error, `429` rate limit, timeout, or output that doesn't validate), each agent retries once against a second OpenAI-compatible provider before using its deterministic fallback. Groq hosts `gpt-oss-120b` and is the default:
+
+| Key | Env var | Default | Notes |
+|---|---|---|---|
+| `LlmFallback:Endpoint` | `LlmFallback__Endpoint` | `https://api.groq.com/openai/v1/chat/completions` | Any OpenAI-compatible chat-completions URL |
+| `LlmFallback:Model` | `LlmFallback__Model` | `openai/gpt-oss-120b` | |
+| `LlmFallback:ApiKey` | `LlmFallback__ApiKey` | *(none, so disabled)* | A Groq API key (console.groq.com) |
+
+The order is: primary, then fallback, then deterministic result. A provider without a key is skipped. Logs name the model that produced each plan or assessment.
 
 An agent's own section overrides any single shared value, e.g. `Budget:Model` to try a different model for the Budget agent only. Blank values count as unset, so an empty placeholder never hides a real key.
 
-Without a key, each agent logs a warning and uses its deterministic fallback (`PlannerScopeGuard.FallbackPlan()`, `BudgetScopeGuard.FallbackAssessment()`), so workflows still complete. Older key names (`Planner:OpenAiApiKey`, `Budget:ApiKey`) are still read for backwards compatibility, but prefer `Llm:ApiKey`.
+Without any key, each agent logs a warning and uses its deterministic fallback (`PlannerScopeGuard.FallbackPlan()`, `BudgetScopeGuard.FallbackAssessment()`), so workflows still complete. Older key names (`Planner:OpenAiApiKey`, `Budget:ApiKey`) are still read for backwards compatibility, but prefer `Llm:ApiKey`.
 
-Implementation: `backend/Features/Agents/LlmSettings.cs`; both agents use the shared `"Llm"` named `HttpClient` (60 s timeout).
+Implementation: `backend/Features/Agents/LlmSettings.cs` (`Chain`) and `Services/LlmChat.cs`; both agents use the shared `"Llm"` named `HttpClient` (60 s timeout per call).
