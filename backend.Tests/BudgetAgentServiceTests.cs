@@ -241,4 +241,76 @@ public class BudgetAgentServiceTests
         Assert.Equal("REPAIR", result.RankedOptions[0].Action);
         Assert.Equal(0.90m, result.RankedOptions[0].Score);
     }
+
+    [Fact]
+    public async Task RunAssessmentAsync_WhenPrimaryIsRateLimited_UsesTheFallbackProvider()
+    {
+        var orgId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var stats = CreateSampleStats(assetId);
+        _mockAgentTools.Setup(t => t.GetAssetFinancialsAsync(orgId, assetId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSampleFinancials(assetId));
+
+        var fallbackPayload = new
+        {
+            choices = new[]
+            {
+                new
+                {
+                    message = new
+                    {
+                        content = JsonSerializer.Serialize(new
+                        {
+                            residual_value = 6000.0,
+                            replacement_estimate = 15000.0,
+                            repair_to_replace_ratio = 0.20,
+                            budget_headroom = (double?)null,
+                            ranked_options = new[]
+                            {
+                                new { action = "REPAIR", score = 0.88, rationale = "Ranked by the fallback model." },
+                                new { action = "TRANSFER", score = 0.40, rationale = "Possible." },
+                                new { action = "REPLACE", score = 0.20, rationale = "Premature." },
+                                new { action = "DISPOSE", score = 0.05, rationale = "Still useful." }
+                            },
+                            proposed_recommendation = "REPAIR"
+                        })
+                    }
+                }
+            }
+        };
+
+        var requested = new List<(string Host, string? Model)>();
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .Returns(async (HttpRequestMessage request, CancellationToken _) =>
+            {
+                var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+                requested.Add((request.RequestUri!.Host, body.RootElement.GetProperty("model").GetString()));
+                return request.RequestUri!.Host == "api.groq.com"
+                    ? new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(JsonSerializer.Serialize(fallbackPayload), Encoding.UTF8, "application/json")
+                    }
+                    : new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("{\"error\":\"quota\"}") };
+            });
+        _mockHttpClientFactory.Setup(f => f.CreateClient(CoreGrid.Api.Features.Agents.AgentsModule.LlmHttpClient))
+            .Returns(new HttpClient(mockHandler.Object));
+
+        var config = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["Llm:ApiKey"] = "gemini-key",
+            ["LlmFallback:ApiKey"] = "groq-key"
+        });
+
+        var service = new BudgetAgentService(_mockAgentTools.Object, config, _mockHttpClientFactory.Object, _mockLogger.Object);
+
+        var result = await service.RunAssessmentAsync(orgId, assetId, null, null, stats);
+
+        Assert.Equal(
+            new[] { ("generativelanguage.googleapis.com", (string?)"gemini-3.5-flash"), ("api.groq.com", (string?)"openai/gpt-oss-120b") },
+            requested.ToArray());
+        Assert.Equal("Ranked by the fallback model.", result.RankedOptions[0].Rationale);
+        Assert.Equal(0.88m, result.RankedOptions[0].Score);
+    }
 }

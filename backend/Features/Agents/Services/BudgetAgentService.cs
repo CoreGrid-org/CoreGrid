@@ -110,21 +110,17 @@ public sealed class BudgetAgentService : IBudgetAgentClient
                 organizationId, departmentId.Value, year, cancellationToken);
         }
 
-        // ── 2. Check API key configuration ────────────────────────────────────────
-        var llm = LlmSettings.For(_configuration, "Budget", "Planner:OpenAiApiKey");
-        var apiKey = llm.ApiKey;
-        if (!llm.HasApiKey)
+        // ── 2. Check API key configuration (primary, then optional fallback provider) ──
+        var providers = LlmSettings.Chain(_configuration, "Budget", "Planner:OpenAiApiKey");
+        if (providers.Count == 0)
         {
             _logger.LogWarning(
-                "BudgetAgent: LLM API key not configured (Llm:ApiKey or Budget:ApiKey). " +
+                "BudgetAgent: no LLM API key configured (Llm:ApiKey / Budget:ApiKey / LlmFallback:ApiKey). " +
                 "Returning deterministic fallback assessment.");
             return BudgetScopeGuard.FallbackAssessment(financials, maintenanceAnalysis, policyThreshold);
         }
 
         // ── 3. Assemble sanitized context with AI-22 / NFR-49 delimiter guards ────
-        var endpoint = llm.Endpoint;
-        var model = llm.Model;
-
         var sanitizedContext = new
         {
             asset_id = financials.AssetId,
@@ -171,84 +167,36 @@ public sealed class BudgetAgentService : IBudgetAgentClient
             "--- END ASSET FINANCIAL TELEMETRY ---\n\n" +
             "Analyze the above financial facts and produce the required FinancialAssessment.";
 
-        var requestBody = new
+        // ── 4. Outbound LLM call (OpenAI-compatible), provider by provider ─────────
+        using var client = _httpClientFactory.CreateClient(AgentsModule.LlmHttpClient);
+        foreach (var llm in providers)
         {
-            model,
-            temperature = 0.1,
-            response_format = new { type = "json_object" },
-            messages = new[]
+            try
             {
-                new { role = "system", content = SystemPrompt },
-                new { role = "user",   content = userMessage   }
+                var json = await LlmChat.CompleteJsonAsync(
+                    client, llm, SystemPrompt, userMessage, temperature: 0.1, JsonOptions, cancellationToken);
+
+                var assessment = JsonSerializer.Deserialize<FinancialAssessmentResultDto>(json, JsonOptions)
+                    ?? throw new InvalidOperationException($"{llm.Model} returned an empty financial assessment object.");
+
+                var validated = BudgetScopeGuard.ValidateAssessment(assessment);
+
+                _logger.LogInformation(
+                    "BudgetAgent: assessment produced by {Model}. Recommendation={Recommendation}, ResidualValue={ResidualValue}, Ratio={Ratio}",
+                    llm.Model, validated.ProposedRecommendation, validated.ResidualValue, validated.RepairToReplaceRatio);
+
+                return validated;
             }
-        };
-
-        // ── 4. Outbound HTTP LLM Call (OpenAI-compatible) ──────────────────────────
-        try
-        {
-            using var client = _httpClientFactory.CreateClient(AgentsModule.LlmHttpClient);
-            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            // A timeout surfaces as a cancellation that the caller didn't ask for.
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
-                Headers = { { "Authorization", $"Bearer {apiKey}" } },
-                Content = new StringContent(
-                    JsonSerializer.Serialize(requestBody, JsonOptions),
-                    Encoding.UTF8,
-                    "application/json")
-            };
-
-            using var response = await client.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError(
-                    "BudgetAgent: LLM endpoint {Endpoint} returned {Status}: {Body}. Using fallback assessment.",
-                    endpoint, (int)response.StatusCode, errorBody);
-                return BudgetScopeGuard.FallbackAssessment(financials, maintenanceAnalysis, policyThreshold);
+                _logger.LogWarning(
+                    "BudgetAgent: {Model} failed ({Type}: {Message}); trying the next provider.",
+                    llm.Model, ex.GetType().Name, ex.Message);
             }
-
-            var chatResponse = await response.Content.ReadFromJsonAsync<OpenAiChatResponse>(
-                JsonOptions, cancellationToken);
-
-            var json = chatResponse?.Choices?.FirstOrDefault()?.Message?.Content
-                ?? throw new InvalidOperationException("LLM returned no content in chat choices.");
-
-            var assessment = JsonSerializer.Deserialize<FinancialAssessmentResultDto>(json, JsonOptions)
-                ?? throw new InvalidOperationException("LLM returned an empty financial assessment object.");
-
-            var validated = BudgetScopeGuard.ValidateAssessment(assessment);
-
-            _logger.LogInformation(
-                "BudgetAgent: assessment produced successfully. Recommendation={Recommendation}, ResidualValue={ResidualValue}, Ratio={Ratio}",
-                validated.ProposedRecommendation, validated.ResidualValue, validated.RepairToReplaceRatio);
-
-            return validated;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex,
-                "BudgetAgent: LLM call failed ({Type}: {Message}). Returning deterministic fallback assessment.",
-                ex.GetType().Name, ex.Message);
-            return BudgetScopeGuard.FallbackAssessment(financials, maintenanceAnalysis, policyThreshold);
-        }
-    }
 
-    // ── Minimal OpenAI-compatible response deserialization models ──────────────
-
-    private sealed class OpenAiChatResponse
-    {
-        [JsonPropertyName("choices")]
-        public List<OpenAiChoice>? Choices { get; set; }
-    }
-
-    private sealed class OpenAiChoice
-    {
-        [JsonPropertyName("message")]
-        public OpenAiMessage? Message { get; set; }
-    }
-
-    private sealed class OpenAiMessage
-    {
-        [JsonPropertyName("content")]
-        public string? Content { get; set; }
+        _logger.LogError("BudgetAgent: every configured LLM provider failed. Returning deterministic fallback assessment.");
+        return BudgetScopeGuard.FallbackAssessment(financials, maintenanceAnalysis, policyThreshold);
     }
 }

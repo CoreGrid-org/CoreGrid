@@ -7,11 +7,18 @@ namespace CoreGrid.Api.Features.Agents;
 // appsettings never hides a key set in user-secrets or the environment.
 //
 //   Llm:Endpoint / Llm:Model / Llm:ApiKey          shared defaults
+//   LlmFallback:Endpoint / :Model / :ApiKey        optional second provider (Groq by default)
 //   <Agent>:Endpoint / <Agent>:Model / <Agent>:ApiKey  per-agent overrides
 public sealed record LlmSettings(string Endpoint, string Model, string? ApiKey)
 {
     public const string DefaultEndpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
     public const string DefaultModel = "gemini-3.5-flash";
+
+    // Optional second provider, tried when the primary fails (error, 429, timeout or
+    // unusable output). Groq's OpenAI-compatible endpoint by default; configured only
+    // by setting LlmFallback:ApiKey.
+    public const string DefaultFallbackEndpoint = "https://api.groq.com/openai/v1/chat/completions";
+    public const string DefaultFallbackModel = "openai/gpt-oss-120b";
 
     public bool HasApiKey => !string.IsNullOrWhiteSpace(ApiKey);
 
@@ -25,4 +32,25 @@ public sealed record LlmSettings(string Endpoint, string Model, string? ApiKey)
             Read($"{agent}:Model") ?? Read("Llm:Model") ?? DefaultModel,
             Read($"{agent}:ApiKey") ?? Read("Llm:ApiKey") ?? legacyApiKeys.Select(Read).FirstOrDefault(k => k is not null));
     }
+
+    /// <summary>The optional fallback provider (LlmFallback:Endpoint / Model / ApiKey).</summary>
+    public static LlmSettings Fallback(IConfiguration configuration)
+    {
+        string? Read(string key) => string.IsNullOrWhiteSpace(configuration[key]) ? null : configuration[key]!.Trim();
+
+        return new LlmSettings(
+            Read("LlmFallback:Endpoint") ?? DefaultFallbackEndpoint,
+            Read("LlmFallback:Model") ?? DefaultFallbackModel,
+            Read("LlmFallback:ApiKey"));
+    }
+
+    /// <summary>
+    /// The providers an agent should try, in order: its primary (For) and then the
+    /// shared fallback, each only if it has an API key. Empty means "use the
+    /// deterministic fallback straight away".
+    /// </summary>
+    public static IReadOnlyList<LlmSettings> Chain(IConfiguration configuration, string agent, params string[] legacyApiKeys) =>
+        new[] { For(configuration, agent, legacyApiKeys), Fallback(configuration) }
+            .Where(s => s.HasApiKey)
+            .ToList();
 }
