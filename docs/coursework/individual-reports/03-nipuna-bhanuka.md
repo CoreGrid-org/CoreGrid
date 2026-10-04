@@ -52,21 +52,21 @@ Transfers & Disposals for three roles, wired to the real backend: a live P1–P6
 | Aspect | Detail |
 |---|---|
 | Responsibility | Weigh residual value against repair and replacement cost and the departmental budget; rank options |
-| Input | `workflowId`, `assetId` + Node 2 maintenance evidence |
+| Input | `EvaluationScope` + Node 2 per-asset maintenance statistics |
 | Output | `FinancialAssessmentResultDto { rankedOptions[{option, score, rationale}], proposedRecommendation, … }`, persisted to `AgentWorkflows.BudgetAnalysis` and consumed by the Policy Compliance Agent |
-| Tool permissions | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` (read-only, in-process via `IAgentToolsService`) |
-| Validation / safety | `BudgetScopeGuard` (15 tests) validates model output and scope; on an error, timeout or invalid output the agent retries on the optional Groq fallback provider, then uses the deterministic fallback; graceful degradation so Node 4 still runs |
+| Tool permissions | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` (read-only, in-process via `IBudgetTools`); the policy threshold is read through `IPolicyTools` |
+| Validation / safety | `BudgetTriage` computes every figure deterministically; the model only re-scores the options, and `BudgetAssessmentValidator` (15 tests) rejects an invalid reply; on an error, timeout or invalid output the agent retries on the optional Groq fallback provider, then uses the deterministic fallback; graceful degradation so Node 4 still runs |
 | Orchestration | Node 3; re-runnable on its own via `POST /api/agent-workflows/{id}/run-budget-agent` |
 
 ### 2.6 Tests
 
 | Suite | Tests authored |
 |---|---|
-| Backend | `DisposalPreconditionServiceTests` (20), `DisposalServiceTests` (17), `TransferServiceTests` (12), `BudgetScopeGuardTests` (15), `AgentToolsServiceTests` (7), `BudgetAgentServiceTests` (4) |
+| Backend | `DisposalPreconditionServiceTests` (20), `DisposalServiceTests` (17), `TransferServiceTests` (12), `BudgetAssessmentTests` (15), `BudgetToolsTests` (7), `BudgetAgentTests` (4) |
 | React | `TransfersPage.test.tsx`, `capabilities.test.ts` (role-boundary regression coverage) |
 | Flutter | ⟦None yet; `test/features/transfers/` is empty. Add widget tests for initiate-transfer validation and receipt asset-identity mismatch⟧ |
 
-Run of 2026-10-04: backend 439/439, React 113/113, Flutter 69/69.
+Run of 2026-10-04: backend 452/452, React 115/115, Flutter 69/69.
 
 ### 2.7 Git evidence
 

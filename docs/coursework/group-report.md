@@ -344,9 +344,10 @@ flowchart LR
   MA --> B[3 · Budget Analysis Agent<br/>residual value, budget, ranked options]
   B --> PO[4 · Policy Compliance Agent<br/>deterministic rule engine]
   PO --> G{Gate}
-  G -->|advisory, rules PASS| C[COMPLETED_ADVISORY]
-  G -->|rule FAIL| R[NEEDS_REVISION ≤2 → REVISION_REQUESTED]
-  G -->|high impact: DISPOSE / REPLACE| H[AWAITING_APPROVAL]
+  G -->|PASS, low impact| C[COMPLETED_ADVISORY]
+  G -->|FAIL| FS[FAILED_SAFE]
+  G -->|NEEDS_REVISION| R[REVISION_REQUESTED]
+  G -->|PASS, high impact: DISPOSE or low confidence| H[AWAITING_APPROVAL]
   H -->|Administrator APPROVE| A[APPROVED]
   H -->|REJECT| X[REJECTED]
   H -->|REVISE| MA
@@ -356,42 +357,42 @@ flowchart LR
 
 | # | Agent | Owner | Responsibility | Input contract | Output contract | Allowed tools | Model use |
 |---|---|---|---|---|---|---|---|
-| 1 | Planner | Jayashan | Reject out-of-scope objectives; produce an ordered, typed execution plan | `assetId, objectiveText, initiatedBy, organizationId` | `ExecutionPlan { steps[], inScope, rejectionReason? }` | `get_asset_summary` | Gemini, then the optional Groq fallback; deterministic fallback plan if both fail (error, 429, timeout, invalid JSON) or no key is set |
-| 2 | Maintenance Analysis | Seneja | Quantify reliability: repair count, MTBF, cost trend, 12-month projection | `workflowId, assetId` | `MaintenanceAnalysisResult` (jsonb) | `get_maintenance_history`, `compute_failure_statistics` | None (deterministic) |
-| 3 | Budget Analysis | Nipuna | Assess residual value against repair/replacement cost and departmental budget; rank options | `workflowId, assetId` + Node 2 output | `FinancialAssessmentResult { rankedOptions[], proposedRecommendation, … }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` | Gemini, then the optional Groq fallback, behind `BudgetScopeGuard`; deterministic fallback if both fail |
-| 4 | Policy Compliance | Hasitha | Apply organisation policy rules to the evidence; decide whether approval is required | Workflow + Node 2/3 outputs | `PolicyEvaluationResult { rules[PASS/FAIL], recommendation, requiresApproval }` | `get_asset_compliance_state`, `get_organization_policies` | None (deterministic rule engine, by design) |
+| 1 | Planner | Jayashan | Reject out-of-scope objectives; produce an ordered, typed execution plan | `EvaluationScope` (asset type, optional asset) + objective text | `ExecutionPlan { steps[], inScope, rejectionReason? }` | `get_asset_type_summary` | Gemini, then the optional Groq fallback; deterministic fallback plan if both fail (error, 429, timeout, invalid JSON) or no key is set |
+| 2 | Maintenance Analysis | Seneja | Quantify reliability per asset: repair count, MTBF, cost trend, 12-month projection; roll a fleet up into one figure | `EvaluationScope` | `FailureStatistics` per asset + aggregate (jsonb) | `get_maintenance_history`, `compute_failure_statistics` | None (deterministic) |
+| 3 | Budget Analysis | Nipuna | Triage each asset (projected 12-month repair cost against residual value and the policy threshold) and rank the lifecycle options | `EvaluationScope` + Node 2 per-asset statistics | `FinancialAssessmentResult { rankedOptions[], proposedRecommendation, assets[], source }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation`; reads the policy threshold through `get_organization_policies` | All figures are deterministic (`BudgetTriage`); Gemini, then the optional Groq fallback, only re-scores the options, and `BudgetAssessmentValidator` rejects an invalid reply; deterministic ranking if both fail or no key is set |
+| 4 | Policy Compliance | Hasitha | For each asset, try candidate actions in order and keep the first one the rule engine passes; decide whether approval is required | `EvaluationScope` + Node 2/3 outputs | `PolicyValidation { verdict, ruleResults[], blockingReasons[], isHighImpact }` + per-asset fleet result | `get_asset_compliance_state`, `get_organization_policies` | None (deterministic rule engine, by design) |
 
-Each agent is a separate service behind its own interface (`IPlannerAgentClient`, `IMaintenanceAnalysisAgentService`, `IBudgetAgentClient`, `IPolicyComplianceAgentService`), writes its own `AgentExecutionStep` row, and can be re-run on its own (`run-maintenance-agent`, `run-budget-agent`, `run-policy-agent`).
+The code is in `backend/Features/Agents/Services/`, one folder per agent: `Planner/` (`IPlannerAgent`), `Maintenance/` (`MaintenanceAggregation` over `IMaintenanceTools`), `Budget/` (`IBudgetAgent`) and `Policy/` (`IPolicyComplianceEvaluator`, `PolicyRuleEngine`). `Orchestration/` holds `AgentWorkflowService` (the API-facing service), `WorkflowPipeline` (runs the nodes in plan order) and `WorkflowRouting` (the gate and the approval decisions). Every node writes its own `AgentExecutionStep` row. `run-maintenance-agent` and `run-budget-agent` re-run one analysis node; `run-policy-agent` resumes the remaining plan (Policy Compliance, then the gate).
 
 ### 7.3 Tools
 
-All tools are implemented in `IAgentToolsService` and exposed read-only at `/api/agent-tools/*`. Every tool takes the organisation id from persisted workflow state, never from agent output, so a manipulated plan cannot reach another organisation's data. Tools return typed DTOs; none mutates business data.
+Each agent receives only its own tool interface — `IPlannerTools`, `IMaintenanceTools`, `IBudgetTools`, `IPolicyTools` (`backend/Features/AgentTools/Services/`) — so a call outside its allow-list does not compile. The same tools are exposed read-only at `/api/agent-tools/*`. Every tool takes the organisation id from persisted workflow state, never from agent output, so a manipulated plan cannot reach another organisation's data. Tools return typed DTOs; none mutates business data.
 
 ### 7.4 Persisted state
 
 | Table | Contents |
 |---|---|
-| `AgentWorkflows` | Id, objective, asset, initiator, status, approval status, revision count, `Plan`, `MaintenanceAnalysis`, `BudgetAnalysis`, validation result, failure reason, correlation id, timings |
-| `AgentExecutionSteps` | Per-node sequence, agent name, input/output summary, tool calls, duration, status, error |
+| `AgentWorkflows` | Id, objective, asset type and optional asset, initiator, status, approval status, revision count, `Plan`, `MaintenanceAnalysis`, `BudgetAnalysis`, `ValidationResult`, `AgentOutputs` (per-asset fleet result), recommendation, high-impact flag, failure reason, correlation id, timings |
+| `AgentExecutionSteps` | Per-node sequence, agent name, one-line output summary, duration, status, error |
 | `AgentApprovals` | Decision, decider, mandatory reason, full workflow snapshot at decision time, timestamp |
 
 ### 7.5 Validation and safety controls
 
 | Control | Implementation |
 |---|---|
-| Objective scope / prompt injection | `PlannerScopeGuard` rejects, before any model call, objectives with no lifecycle term and objectives containing forbidden phrases ("approve disposal", "delete database", "modify policy", …). `ValidatePlan` then rejects any plan that delegates to an agent outside the allow-list {Maintenance, Budget, Policy, DeterministicGate}. `BudgetScopeGuard` applies the same idea to Node 3 |
+| Objective scope / prompt injection | `PlannerScopeGuard` rejects, before any model call, objectives with no lifecycle term and objectives containing forbidden phrases ("approve disposal", "delete database", "modify policy", …). `ValidatePlan` then rejects any plan that delegates to an agent outside the allow-list {Maintenance, Budget, Policy, DeterministicGate}. `BudgetAssessmentValidator` applies the same idea to Node 3's model reply |
 | Output schema | Planner and Budget outputs are deserialised into typed records; malformed output → next provider, then deterministic fallback, never partial state |
-| Business rules | `PolicyRuleEngine` (17 unit tests) — repair-cost ratio, service life, condition, cumulative cost thresholds from `OrganizationPolicies` |
+| Business rules | `PolicyRuleEngine` (17 unit tests) — PR-01 to PR-09: condition, minimum service life and valuation validity for DISPOSE; repair-to-replace ratio for REPLACE; budget headroom for REPAIR (N/A while department budgets aren't tracked); terminal state; open maintenance/transfer records; confidence floor; DISPOSE always needs approval. Thresholds come from `OrganizationPolicies` |
 | Revision bound | At most 2 revisions, then `REVISION_REQUESTED` (terminal) |
 | Approval authority | `CanApproveWorkflow` — Administrator only, verified by `AuthorizationMatrixTests` |
-| Concurrency | One in-flight workflow per asset (409 `workflow_already_running`) |
-| Timeouts / limits | Model HTTP client timeout 60 s; rate-limited initiation per user+org |
+| Concurrency | One in-flight workflow per target, an asset type or a single asset (409 `workflow_already_running`) |
+| Timeouts / limits | Model HTTP client timeout 30 s per call; rate-limited initiation per user+org |
 | Secrets | Model keys (primary and fallback) read only from the git-ignored `backend/.env` or environment variables |
-| Safe failure | Any node exception → `FAILED_SAFE` with recorded reason; no business data touched |
+| Safe failure | A Planner or Policy Compliance failure → `FAILED_SAFE` with the reason recorded; a Maintenance or Budget failure is recorded as a failed step and the pipeline degrades (Policy falls back to condition-based proposals). No business data is touched |
 
 ### 7.6 Human approval
 
-High-impact recommendations (dispose, replace) pause at `AWAITING_APPROVAL`. Only an Administrator can call `PATCH /api/agent-workflows/{id}/decide` with `APPROVE`, `REJECT` or `REVISE` and a reason. The decision and a full workflow snapshot are written to `AgentApprovals`, and the audit interceptor logs the change. On approval, the Administrator carries out the disposal through `POST /api/disposals/{id}/approve`. Its precondition P6 requires a linked workflow that reached `AWAITING_APPROVAL` with a PASS validation result, so the agent workflow gates the real business action.
+High-impact recommendations — DISPOSE always, or any action whose model confidence is below the policy floor (PR-08) — pause at `AWAITING_APPROVAL`; low-impact, policy-compliant ones complete as advisory. Only an Administrator can call `PATCH /api/agent-workflows/{id}/decide` with `APPROVE`, `REJECT` or `REVISE` and a reason of at least 10 characters. `REVISE` re-runs the analysis straight away without re-proposing the returned action, at most twice before `REVISION_REQUESTED`. The decision and a full workflow snapshot are written to `AgentApprovals`, and the audit interceptor logs the change. On approval, the Administrator carries out the disposal through `POST /api/disposals/{id}/approve`. Its precondition P6 requires a linked workflow that reached `AWAITING_APPROVAL` with a PASS validation result, so the agent workflow gates the real business action.
 
 ### 7.7 Cross-platform end-to-end workflow
 
@@ -421,8 +422,8 @@ High-impact recommendations (dispose, replace) pause at `AWAITING_APPROVAL`. Onl
 | Suite | Command | Result |
 |---|---|---|
 | Backend build | `dotnet build backend.Tests` | **0 warnings, 0 errors** |
-| Backend tests (xUnit, InMemory + real PostgreSQL 16) | `dotnet test backend.Tests` | **439 passed / 0 failed** (25 test classes) |
-| React tests (Vitest + RTL) | `npm test` | **113 passed / 0 failed** (23 files) |
+| Backend tests (xUnit, InMemory + real PostgreSQL 16) | `dotnet test backend.Tests` | **452 passed / 0 failed** (26 test classes) |
+| React tests (Vitest + RTL) | `npm test` | **115 passed / 0 failed** (23 files) |
 | React build / typecheck | `npm run build` | Pass (bundle-size warning only) |
 | Flutter static analysis | `flutter analyze` | **No issues found** |
 | Flutter tests | `flutter test` | **69 passed / 0 failed** (18 files) |
@@ -435,7 +436,7 @@ Component A's detailed verification evidence (emulator walkthroughs, scanner wid
 
 | Required layer (spec §12) | Evidence |
 |---|---|
-| Unit / service | `AssetServiceTests`, `MaintenanceServiceTests`, `TransferServiceTests`, `DisposalServiceTests`, `DisposalPreconditionServiceTests` (20), `DiscrepancyResolutionServiceTests`, `PolicyRuleEngineTests` (17), `StraightLineDepreciationTests`, `BudgetScopeGuardTests` (15) |
+| Unit / service | `AssetServiceTests`, `MaintenanceServiceTests`, `TransferServiceTests`, `DisposalServiceTests`, `DisposalPreconditionServiceTests` (20), `DiscrepancyResolutionServiceTests`, `PolicyRuleEngineTests` (17), `StraightLineDepreciationTests`, `BudgetAssessmentTests` (15) |
 | Validation | `RecordRequestValidationTests`, `ValidationAndErrorEnvelopeTests`, `AuditDateRangeValidationTests` |
 | AuthN / AuthZ | `AuthorizationMatrixTests` (15, through `WebApplicationFactory` + `TestAuthHandler`), `DepartmentScopeTests`, `UserMirrorProvisioningTests` |
 | Controller / API integration | `CoreGridWebApplicationFactory`-based tests over real routes and status codes |
@@ -470,13 +471,13 @@ Owners follow Team Roster §18.7 (also listed in SRS §12).
 | ID | Scenario | Assertion | Owner | Automated evidence | Result |
 |---|---|---|---|---|---|
 | GC-01 | Correct disposal recommendation | Old, high-cost asset → `AWAITING_APPROVAL`, recommendation DISPOSE | Hasitha | `AgentWorkflowServiceTests`, `PolicyRuleEngineTests` | ⟦PASS + output ref⟧ |
-| GC-02 | Correct repair recommendation | Healthy asset → `COMPLETED_ADVISORY`, no approval | Nipuna | `BudgetAgentServiceTests`, `PolicyRuleEngineTests` | ⟦⟧ |
+| GC-02 | Correct repair recommendation | Healthy asset → `COMPLETED_ADVISORY`, no approval | Nipuna | `BudgetAgentTests`, `PolicyRuleEngineTests` | ⟦⟧ |
 | GC-03 | Policy blocks disposal | Rule FAIL recorded with rule id | Hasitha | `PolicyRuleEngineTests` | ⟦⟧ |
 | GC-04 | Revision path | REVISE ≤ 2, then `REVISION_REQUESTED` | Hasitha | `AgentWorkflowServiceTests` | ⟦⟧ |
-| GC-05 | Insufficient data | Sparse history → low data quality; no policy → `no_policy_configured` | Seneja | ⟦⟧ | ⟦⟧ |
+| GC-05 | Insufficient data | Sparse history → cost trend `INSUFFICIENT_DATA`; no policy → Policy step fails safe with `no_policy_configured` | Seneja | ⟦⟧ | ⟦⟧ |
 | GC-06 | Tool allow-list | Plan delegating to a non-allow-listed agent is rejected | Jayashan | Planner `ValidatePlan` | ⟦⟧ |
-| GC-07 | Prompt injection | Forbidden-phrase objective rejected before any model call | Jayashan | Planner scope guard, `BudgetScopeGuardTests` | ⟦⟧ |
-| GC-08 | Schema violation | Malformed model JSON → deterministic fallback, no partial state | Hasitha | `BudgetAgentServiceTests` | ⟦⟧ |
+| GC-07 | Prompt injection | Forbidden-phrase objective rejected before any model call | Jayashan | Planner scope guard (`PlannerScopeGuard`) | ⟦⟧ |
+| GC-08 | Schema violation | Malformed model JSON → deterministic fallback, no partial state | Hasitha | `BudgetAgentTests` | ⟦⟧ |
 | GC-09 | Tool / model timeout | Fallback, no business change | Seneja | ⟦⟧ | ⟦⟧ |
 | GC-10 | Approval authorisation | Non-admin decide → 403 | Hasitha | `AuthorizationMatrixTests` | ⟦⟧ |
 | GC-11 | Approval → execution gate | Disposal P6 passes only with an approved workflow | Hasitha | `DisposalPreconditionServiceTests` | ⟦⟧ |

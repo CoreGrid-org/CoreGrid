@@ -51,9 +51,9 @@ Maintenance list with filters and paging, create-maintenance and report-fault mo
 | Aspect | Detail |
 |---|---|
 | Responsibility | Quantify the asset's reliability and maintenance-cost trajectory as evidence for the decision |
-| Input | `workflowId`, `assetId` (organisation from the persisted workflow) |
-| Output | Repair count, MTBF, cost trend and 12-month projection; persisted to `AgentWorkflows.MaintenanceAnalysis` (`jsonb`) and logged as an `AgentExecutionStep` |
-| Tool permissions | `get_maintenance_history`, `compute_failure_statistics` (read-only) |
+| Input | `EvaluationScope`: an asset type's active fleet or one asset (organisation from the persisted workflow) |
+| Output | Per-asset repair count, MTBF, cost trend and 12-month projection, rolled up for a fleet by `MaintenanceAggregation`; persisted to `AgentWorkflows.MaintenanceAnalysis` (`jsonb`) and logged as an `AgentExecutionStep` |
+| Tool permissions | `get_maintenance_history`, `compute_failure_statistics` through `IMaintenanceTools` (read-only) |
 | Model use | None. Deterministic statistics make results reproducible and testable |
 | Orchestration | Runs automatically after the Planner; re-runnable on its own via `POST /api/agent-workflows/{id}/run-maintenance-agent` |
 
@@ -65,7 +65,7 @@ Maintenance list with filters and paging, create-maintenance and report-fault mo
 | Backend | Component B is covered by `MaintenanceServiceTests` (6). ⟦Add and list your own: BR1 variance rejection, BR2 condemnation, 409 on re-completion, preventive scheduler due date⟧ |
 | React | ⟦Add and list a maintenance form/modal validation or error-state test⟧ |
 
-Run of 2026-10-04: backend 439/439, React 113/113, Flutter 69/69.
+Run of 2026-10-04: backend 452/452, React 115/115, Flutter 69/69.
 
 ### 2.7 Git evidence
 

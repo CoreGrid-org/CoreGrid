@@ -38,10 +38,11 @@ Tracks what's actually built against the requirements in the [SRS](../srs/00-fro
 | EF Core migrations + generated `db/schema.sql` export | |
 | CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` has backend and frontend jobs. Backend restores/builds `backend.Tests` with warnings as errors, sets `TEST_DB_CONNECTION` to port 5433, applies EF migrations, and runs the real-Postgres tests. The sibling mobile workflow runs Flutter analysis/tests and a release APK build. |
 | Mobile CI | `coregrid-mobile/.github/workflows/ci.yml` runs `flutter analyze`, `flutter test`, and `flutter build apk --release`; team status is passing. |
-| Backend test project | `backend.Tests`, xUnit — InMemory suite plus real-Postgres append-only checks. 439 tests in 25 classes, 100% passing (2026-10-04 run); CI confirmed passing. |
-| Frontend test project | Vitest + React Testing Library (113 tests in 23 files, 100% passing — 2026-10-04 run) |
+| Backend test project | `backend.Tests`, xUnit — InMemory suite plus real-Postgres append-only checks. 452 tests in 26 classes, 100% passing (2026-10-04 run); CI confirmed passing. |
+| Frontend test project | Vitest + React Testing Library (115 tests in 23 files, 100% passing — 2026-10-04 run) |
 | Multi-agent orchestration pipeline | Full Planner -> Maintenance -> Budget -> Policy pipeline is genuinely connected end-to-end for the first time in the project; new `BudgetAnalysis` jsonb column on `AgentWorkflows` table |
-| Optional fallback LLM provider | Planner and Budget agents try Gemini, then `LlmFallback` (Groq `openai/gpt-oss-120b`), then their deterministic fallback; shared `LlmChat` helper; timeouts fall through to the next provider. `LlmSettingsTests`, `BudgetAgentServiceTests` |
+| Optional fallback LLM provider | Planner and Budget agents try Gemini, then `LlmFallback` (Groq `openai/gpt-oss-120b`), then their deterministic fallback; shared `ILlmClient`; timeouts fall through to the next provider. `LlmSettingsTests`, `BudgetAgentTests` |
+| Agent subsystem structure | `Features/Agents/Services/` has one folder per agent (`Planner/`, `Maintenance/`, `Budget/`, `Policy/`) plus `Orchestration/` (`AgentWorkflowService`, `WorkflowPipeline`, `WorkflowRouting`) and `Llm/`; `Features/AgentTools/` gives each agent its own tool interface (`IPlannerTools`, `IMaintenanceTools`, `IBudgetTools`, `IPolicyTools`), so the §7.4 allow-list is enforced at compile time |
 | Environment configuration in `backend/.env` | `DotEnvFile` loads the git-ignored `backend/.env`; `appsettings*.json` hold only logging; `backend/.env.example` lists every variable (local, Supabase, R2, Gemini, Groq) |
 
 ## Component A — Asset Registry & QR Identification (Jayashan Guruge)
@@ -67,7 +68,7 @@ Tracks what's actually built against the requirements in the [SRS](../srs/00-fro
 | FR-023: QR label | QR image is generated and shown in-app; printable-label download is implemented in the frontend. |
 | FR-027: Immutable, ordered per-asset lifecycle history | Asset history is append-only and ordered; verification, maintenance, transfer, disposal, and agent entries are written by their owning services. |
 | FR-032: Assets exit only via disposal | No asset delete endpoint exists; the Component C disposal flow provides the terminal exit path. |
-| Planner Agent: in-process implementation | `PlannerAgentService` is registered under `backend/Features/Agents/` and is wired into workflow creation. |
+| Planner Agent: in-process implementation | `PlannerAgent` is registered under `backend/Features/Agents/Services/Planner/` and is wired into workflow creation. |
 | FR-030: Computed residual value | Server-side residual value, frontend straight-line preview, and depreciation edge-case tests are present. |
 | Tests | `backend.Tests/AssetServiceTests.cs`, frontend depreciation tests, and mobile asset tests are present.  |
 
@@ -125,7 +126,7 @@ Tracks what's actually built against the requirements in the [SRS](../srs/00-fro
 | React (Administrator, Inventory Officer, Auditor screens) | Live precondition checklist, approve/reject/request-revision, initiate transfer, confirm receipt, condemn, submit disposal. **Administrator now has full parity with Inventory Officer's own operational actions** (initiate transfer, confirm receipt, condemn, submit disposal), not just the approval half — `InitiateTransferModal`/`CondemnAssetModal`/`SubmitDisposalModal` extracted to `features/transfers/components/`. The three per-role pages (`TransfersPage`/`InventoryTransfersPage`/`AuditorTransfersPage`) are now one `TransfersPage` that takes the route's role; `lib/capabilities.ts` decides which actions and audit-trail columns show, and the tables, paging wrapper, precondition checklist, revision and compliance-detail modals are shared components |
 | FR-084: Reports > Disposal tab | Real — `DisposalReportPanel.tsx`, same "fetch every page and aggregate client-side" pattern as Maintenance/Inventory's own report panels; no dedicated report backend endpoint needed. Filters: status, method, date range. Stats: disposals in scope, total proceeds, average approval time. PDF/CSV export |
 | Agent tool endpoints for Budget Analysis Agent | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation` |
-| Budget Analysis Agent | Migrated to the in-process C# `BudgetAgentService`, with deterministic tools, configurable model access, scope guard, fallback, Node 3 orchestration, graceful degradation, and independent re-run endpoint. |
+| Budget Analysis Agent | Migrated to the in-process C# `BudgetAgent` (`BudgetTriage` + `BudgetAssessmentValidator`), with deterministic tools, configurable model access, scope guard, fallback, Node 3 orchestration, graceful degradation, and independent re-run endpoint. |
 | Tests | Transfer, disposal, precondition, Budget Agent, authorization, and frontend role-boundary test files are present. The repository's CI is passing; exact suite counts should be taken from the CI run rather than this hand-maintained tracker. |
 | Hardcoded colors / shared components sweep | No hex colours or inline styles left in `features/transfers/`; actions columns, button rows and pagination spacing use shared classes |
 

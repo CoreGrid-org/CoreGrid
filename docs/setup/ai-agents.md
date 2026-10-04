@@ -46,7 +46,7 @@ These steps must be performed in the ThunderID Admin Console (`https://localhost
 
 ## 3. Token Request — Standalone External Agent Only
 
-A standalone external agent process requests an M2M access token before invoking tool endpoints. The existing Budget Analysis Agent does this in Python:
+A standalone external agent process requests an M2M access token before invoking tool endpoints. The retired Python Budget Analysis prototype did this as follows (kept for reference):
 
 ```python
 import httpx
@@ -90,13 +90,13 @@ response.EnsureSuccessStatusCode();
 var token = (await response.Content.ReadFromJsonAsync<TokenResponse>())!.AccessToken;
 ```
 
-**None of this section applies to a .NET-native in-process agent** (the direction for Planner and Maintenance Analysis) — it runs inside the same API process as `AgentToolsController` and calls its tool methods directly, with no token request, no separate deployment, and no `.env` of its own.
+**None of this section applies to a .NET-native in-process agent** (all four current agents) — it runs inside the same API process as `AgentToolsController` and calls its own tool interface (`IPlannerTools`, `IMaintenanceTools`, `IBudgetTools`, `IPolicyTools`) directly, with no token request, no separate deployment, and no `.env` of its own.
 
 ---
 
 ## 4. Environment Variables Required for a Standalone External Agent
 
-Only needed for an agent running as its own process (today: the Budget Analysis Agent). Add to that agent's `.env` file:
+Only needed for an agent running as its own process (none today; every agent runs in-process). Add to that agent's `.env` file:
 ```dotenv
 COREGRID_API_URL=http://localhost:5000
 THUNDERID_ISSUER=https://localhost:8090
@@ -109,7 +109,7 @@ THUNDERID_AGENT_CLIENT_SECRET=<secret_from_thunderid_console>
 
 ## 5. In-Process Agent LLM Configuration (.NET Core)
 
-With the migration of agents into the ASP.NET Core process (PlannerAgentService and BudgetAgentService), external M2M tokens and standalone Python runtimes are no longer needed for these nodes. Their LLM outbound endpoints are configured via standard .NET `IConfiguration`: `backend/.env` locally, or environment variables in Docker and the cloud. `appsettings*.json` hold no values here.
+With the migration of agents into the ASP.NET Core process (`PlannerAgent` and `BudgetAgent`), external M2M tokens and standalone Python runtimes are no longer needed for these nodes. Their LLM outbound endpoints are configured via standard .NET `IConfiguration`: `backend/.env` locally, or environment variables in Docker and the cloud. `appsettings*.json` hold no values here.
 
 All in-process agents that call an LLM share one **`Llm`** section. The team standard is **Google Gemini 3.5 Flash** through Gemini's OpenAI-compatible endpoint:
 
@@ -137,6 +137,6 @@ The order is: primary, then fallback, then deterministic result. A provider with
 
 An agent's own section overrides any single shared value, e.g. `Budget:Model` to try a different model for the Budget agent only. Blank values count as unset, so an empty placeholder never hides a real key.
 
-Without any key, each agent logs a warning and uses its deterministic fallback (`PlannerScopeGuard.FallbackPlan()`, `BudgetScopeGuard.FallbackAssessment()`), so workflows still complete. Older key names (`Planner:OpenAiApiKey`, `Budget:ApiKey`) are still read for backwards compatibility, but prefer `Llm:ApiKey`.
+Without any key, each agent uses its deterministic fallback (`PlannerScopeGuard.FallbackPlan()`, `BudgetTriage.DeterministicAssessment()`), so workflows still complete. Older key names (`Planner:OpenAiApiKey`, `Budget:ApiKey`) are still read for backwards compatibility, but prefer `Llm:ApiKey`.
 
-Implementation: `backend/Features/Agents/LlmSettings.cs` (`Chain`) and `Services/LlmChat.cs`; both agents use the shared `"Llm"` named `HttpClient` (60 s timeout per call).
+Implementation: `backend/Features/Agents/Services/Llm/` — `LlmSettings` (`Chain`) and `LlmClient` (`ILlmClient`, the provider chain and fallback); both agents use the shared `"Llm"` named `HttpClient` (30 s timeout per call).

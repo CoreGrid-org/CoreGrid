@@ -122,12 +122,12 @@ Approximate insertions per feature folder, from `git log --numstat`:
 
 | Aspect | Detail |
 |---|---|
-| Orchestrator | `AgentWorkflowService`: creates the workflow, runs Planner → Maintenance → Budget → Policy, records an `AgentExecutionStep` per node, enforces one in-flight workflow per asset (409), and turns any node failure into `FAILED_SAFE` with a recorded reason |
+| Orchestrator | `AgentWorkflowService` creates the workflow and enforces one in-flight workflow per target (409); `WorkflowPipeline` runs Planner → Maintenance → Budget → Policy → gate and records an `AgentExecutionStep` per node; `WorkflowRouting` applies the gate and the approval decisions. A Planner or Policy failure becomes `FAILED_SAFE` with a recorded reason; a Maintenance or Budget failure is recorded and the pipeline degrades |
 | Policy agent responsibility | Apply organisation policy to the combined evidence, produce the final recommendation, and decide whether human approval is required |
 | Input | Workflow + Node 3 `FinancialAssessmentResultDto` (degrades gracefully if absent) |
-| Output | Rule results (PASS/FAIL per rule), recommendation, high-impact flag; workflow → `COMPLETED_ADVISORY`, revision, or `AWAITING_APPROVAL`; step sequence 4 |
+| Output | Rule results (PASS / FAIL / NEEDS_REVISION / N/A per rule), recommendation, high-impact flag; workflow → `COMPLETED_ADVISORY`, revision, or `AWAITING_APPROVAL`; step sequence 4 |
 | Tool permissions | `get_asset_compliance_state`, `get_organization_policies` (read-only) |
-| Rule engine | `PolicyRuleEngine` + `AssetActionRecommendationEngine`: repair-to-replace cost ratio, minimum service life, condition, failure frequency, valuation validity, confidence floor |
+| Rule engine | `PolicyComplianceEvaluator` tries candidate actions per asset (condition-based proposal from `AssetActionRecommendationEngine`, budget triage, ranked options, RETAIN) and keeps the first that `PolicyRuleEngine` passes. Rules PR-01 to PR-09: condition, minimum service life, valuation validity, repair-to-replace ratio, budget headroom, terminal state, open records, confidence floor, DISPOSE approval |
 | Why no LLM | A compliance gate guarding a high-impact action must be deterministic, reproducible and auditable. Rules decide; the model only advises upstream (SRS §7.3) |
 | Approval checkpoint | `PATCH /api/agent-workflows/{id}/decide`: `CanApproveWorkflow` (Administrator only); APPROVE / REJECT / REVISE with mandatory reason; full workflow snapshot stored in `AgentApprovals`; audited by the interceptor |
 | Execution gate | Approved disposal recommendations are executed through Component C's disposal approval, whose P6 precondition requires the approved workflow |
@@ -141,7 +141,7 @@ Approximate insertions per feature folder, from `git log --numstat`:
 | Flutter (8 files) | `app_shell_test`, `campaigns_test`, `scan_to_verify_test`, `verification_task_list_screen_test`, `initiate_workflow_screen_test`, `find_asset_card_test`, `auth_config_test`, `widget_test` |
 | CI | Both GitHub Actions pipelines (see §2.7) |
 
-Run of 2026-10-04: backend **439/439**, React **113/113**, Flutter **69/69**, `flutter analyze` 0 issues, build 0 warnings.
+Run of 2026-10-04: backend **452/452**, React **115/115**, Flutter **69/69**, `flutter analyze` 0 issues, build 0 warnings.
 
 ### 2.7 Git evidence and CI
 
@@ -173,7 +173,7 @@ API container on Microsoft Azure; PostgreSQL on Azure; React on Vercel; `coregri
 |---|---|
 | `setup.sh` (`make setup`) | One-command local setup: prerequisite checks, dependencies, `.env` files, Docker start-up that never re-runs ThunderID's one-shot setup, migrations, ThunderID credential check, and one test account per role |
 | Configuration | `backend/.env` loader (`DotEnvFile`), so `appsettings*.json` hold only logging and every secret or environment value lives in one git-ignored file; `backend/.env.example` with local, Supabase and R2 options |
-| Model resilience | Optional second model provider (`LlmFallback`, Groq `openai/gpt-oss-120b`) shared by the Planner and Budget agents through `LlmSettings.Chain` and `LlmChat`: Gemini, then Groq, then the deterministic fallback; timeouts now fall through instead of escaping. Covered by `LlmSettingsTests` and `BudgetAgentServiceTests` |
+| Model resilience | Optional second model provider (`LlmFallback`, Groq `openai/gpt-oss-120b`) shared by the Planner and Budget agents through `LlmSettings.Chain` and the shared `ILlmClient`: Gemini, then Groq, then the deterministic fallback; timeouts now fall through instead of escaping. Covered by `LlmSettingsTests` and `BudgetAgentTests` |
 | Performance suite | `scripts/perf/`: idempotent dataset seed, k6 load test (50 VUs, 70:30), agent-latency test, slow-query capture, generated results table (`make perf`) |
 | Database tooling | `scripts/db/export-migrations.sh` (`make db-export`), which added the missing 0016/0017 SQL exports |
 | ThunderID | Sanitised reference export of the working configuration (`infra/thunderid/`) |

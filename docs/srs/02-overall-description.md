@@ -132,7 +132,7 @@ The table above states each role's primary client(s); the two tables below state
 | PostgreSQL | PostgreSQL 15 or later, managed instance with restricted network access and credentials supplied only through environment configuration; schema managed exclusively by EF Core migrations. |
 | React web application | Modern evergreen browsers (Chrome, Edge, Firefox, Safari — current and previous major version). Built with Vite and served as static assets from a hosting platform configured to call the deployed API. |
 | Flutter mobile application | Android 8.0 (API 26) and above; release APK produced for evaluation. Requires camera permission for QR scanning and photo capture, and network connectivity for all business operations. |
-| Agentic-AI subsystem | The Orchestrator and all four agent nodes run in-process within the API (Section 7.2.1, ADR-010). `PlannerAgentService` and `BudgetAgentService` are present under `backend/Features/Agents/`; the historical Python/LangGraph M2M setup is retained only as migration context and is not the current runtime path. |
+| Agentic-AI subsystem | The Orchestrator and all four agent nodes run in-process within the API (Section 7.2.1, ADR-010). `PlannerAgent` and `BudgetAgent` are present under `backend/Features/Agents/Services/`; the historical Python/LangGraph M2M setup is retained only as migration context and is not the current runtime path. |
 | Identity provider | ThunderID, self-hosted alongside the API and database as part of each customer organisation's own deployment (M0: one ThunderID instance per deployment, single organisation unit — Section 4.2). |
 | Email provider | Transactional email API on a free tier, invoked only from the backend, with credentials held in server-side configuration. |
 
