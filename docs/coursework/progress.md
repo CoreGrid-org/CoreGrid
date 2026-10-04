@@ -38,9 +38,11 @@ Tracks what's actually built against the requirements in the [SRS](../srs/00-fro
 | EF Core migrations + generated `db/schema.sql` export | |
 | CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` has backend and frontend jobs. Backend restores/builds `backend.Tests` with warnings as errors, sets `TEST_DB_CONNECTION` to port 5433, applies EF migrations, and runs the real-Postgres tests. The sibling mobile workflow runs Flutter analysis/tests and a release APK build. |
 | Mobile CI | `coregrid-mobile/.github/workflows/ci.yml` runs `flutter analyze`, `flutter test`, and `flutter build apk --release`; team status is passing. |
-| Backend test project | `backend.Tests`, xUnit — InMemory suite plus real-Postgres append-only checks. CI is confirmed passing; the current repository contains 25 test classes. |
+| Backend test project | `backend.Tests`, xUnit — InMemory suite plus real-Postgres append-only checks. 439 tests in 25 classes, 100% passing (2026-10-04 run); CI confirmed passing. |
 | Frontend test project | Vitest + React Testing Library (113 tests in 23 files, 100% passing — 2026-10-04 run) |
 | Multi-agent orchestration pipeline | Full Planner -> Maintenance -> Budget -> Policy pipeline is genuinely connected end-to-end for the first time in the project; new `BudgetAnalysis` jsonb column on `AgentWorkflows` table |
+| Optional fallback LLM provider | Planner and Budget agents try Gemini, then `LlmFallback` (Groq `openai/gpt-oss-120b`), then their deterministic fallback; shared `LlmChat` helper; timeouts fall through to the next provider. `LlmSettingsTests`, `BudgetAgentServiceTests` |
+| Environment configuration in `backend/.env` | `DotEnvFile` loads the git-ignored `backend/.env`; `appsettings*.json` hold only logging; `backend/.env.example` lists every variable (local, Supabase, R2, Gemini, Groq) |
 
 ## Component A — Asset Registry & QR Identification (Jayashan Guruge)
 
@@ -174,4 +176,14 @@ Tracks what's actually built against the requirements in the [SRS](../srs/00-fro
 | Task | Notes |
 |---|---|
 | Sidebar nav grouping for Inventory Officer / Auditor | `InventoryLayout.tsx` and `AuditLayout.tsx` use `navGroups` with the same Assets / Operations / Compliance sections as `AdminLayout.tsx` (no Administration section, since neither role has users/settings access) |
+| One-command local setup | `setup.sh` / `make setup`: prerequisites, dependencies, `.env` files, Docker start-up that never re-runs ThunderID's one-shot setup, migrations, ThunderID credential check, one test account per role (`*@coregrid.test`, local only). `make infra-up` fixed to start existing containers only |
+| ThunderID reference configuration | `infra/thunderid/coregrid.yaml`: sanitised export of the working configuration, for checking a console setup (not auto-loaded) |
+| Database export tooling | `make db-export` (`scripts/db/export-migrations.sh`); missing `0016`/`0017` SQL exports generated; `schema.sql` regenerated in the documented non-idempotent form |
+| Sass deprecation fix | `styles/index.scss` uses `sass:list` (`list.length`, `list.nth`) instead of the deprecated globals |
 | Shared inline-notification width | `.cds--inline-notification { max-inline-size: 100% }` in `styles/index.scss` replaces the per-call `style={{ maxWidth: "100%" }}`; removed from Components B, C and D. `features/assets/`, `features/audit/`, `features/settings/` etc. still carry the now-redundant inline prop |
+
+**🟡 In Progress**
+
+| Task | Notes |
+|---|---|
+| Performance test run | Suite is in place (`scripts/perf/`, `make perf`: dataset seed, k6 50-VU 70:30 load test, agent latency, slow queries, generated results table) and validated with stubbed k6 output; the measured run against the deployed API is still to be done |

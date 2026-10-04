@@ -16,11 +16,11 @@
 
 ## Component
 
-<!-- Which of the five cooperating parts does this touch? SRS §12, Component Ownership. -->
+<!-- Which parts does this touch? Component maintainers are listed in SRS §12 (Component Ownership). -->
 
 - [ ] Backend (ASP.NET Core API)
 - [ ] Frontend (React)
-- [ ] Agentic AI (LangGraph)
+- [ ] Agentic AI (in-process agents, `backend/Features/Agents`)
 - [ ] Docs / SRS
 - [ ] Infrastructure (Docker, CI)
 
@@ -28,14 +28,14 @@
 
 <!-- Be specific: which commands you ran, what you clicked through, what you couldn't test. -->
 
-- [ ] `dotnet build` passes (backend)
-- [ ] `npx tsc -b` passes (frontend)
+- [ ] `dotnet build` passes with zero warnings and `dotnet test` passes (backend)
+- [ ] `npm test` and `npm run build` pass (frontend)
 - [ ] Manually verified in the browser / Swagger, not just compiled
 - [ ] Added or updated a migration, and regenerated the SQL export (`backend/db/README.md`), if the schema changed
 
 ## Checklist
 
-- [ ] This PR targets `development`
+- [ ] This PR targets `development` (or is a `development` → `main` release PR)
 - [ ] No secrets, tokens, or credentials are included in the diff
 - [ ] Docs (`CONTRIBUTING.md`, `docs/setup/thunderid.md`, or the SRS) are updated if this changes setup steps or a documented requirement
 - [ ] I've noted any known limitations or follow-up work below
