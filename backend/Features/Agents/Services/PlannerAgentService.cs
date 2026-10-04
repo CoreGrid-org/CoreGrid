@@ -72,99 +72,50 @@ public sealed class PlannerAgentService : IPlannerAgentClient
                 "The asset was not found in the initiating organisation.");
         }
 
-        // ── 3. LLM call ───────────────────────────────────────────────────────
+        // ── 3. LLM call: primary provider, then the optional fallback ─────────
         // Planner:OpenAiApiKey is the pre-Gemini key name, still honoured.
-        var llm = LlmSettings.For(_configuration, "Planner", "Planner:OpenAiApiKey");
-        if (!llm.HasApiKey)
+        var providers = LlmSettings.Chain(_configuration, "Planner", "Planner:OpenAiApiKey");
+        if (providers.Count == 0)
         {
             _logger.LogWarning(
-                "Planner: LLM API key not configured (Llm:ApiKey). Returning deterministic fallback plan.");
+                "Planner: no LLM API key configured (Llm:ApiKey / LlmFallback:ApiKey). Returning deterministic fallback plan.");
             return PlannerScopeGuard.FallbackPlan();
         }
 
-        var model = llm.Model;
         var userMessage =
             $"Objective: {objective}\n" +
             $"Asset summary: {JsonSerializer.Serialize(summary, JsonOptions)}\n" +
             "Produce the typed plan.";
 
-        var requestBody = new
+        using var client = _httpClientFactory.CreateClient(AgentsModule.LlmHttpClient);
+        foreach (var llm in providers)
         {
-            model,
-            temperature = 0,
-            response_format = new { type = "json_object" },
-            messages = new[]
+            try
             {
-                new { role = "system", content = SystemPrompt },
-                new { role = "user",   content = userMessage  }
+                var json = await LlmChat.CompleteJsonAsync(
+                    client, llm, SystemPrompt, userMessage, temperature: 0, JsonOptions, cancellationToken);
+
+                var plan = JsonSerializer.Deserialize<PlannerExecutionPlan>(json, JsonOptions)
+                    ?? throw new InvalidOperationException($"{llm.Model} returned an empty plan object.");
+
+                var validated = PlannerScopeGuard.ValidatePlan(plan);
+
+                _logger.LogInformation(
+                    "Planner: plan created by {Model}. InScope={InScope}, Steps={StepCount}",
+                    llm.Model, validated.InScope, validated.Steps.Count);
+
+                return validated;
             }
-        };
-
-        try
-        {
-            using var client = _httpClientFactory.CreateClient(AgentsModule.LlmHttpClient);
-            using var request = new HttpRequestMessage(HttpMethod.Post, llm.Endpoint)
+            // A timeout surfaces as a cancellation that the caller didn't ask for.
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
-                Headers = { { "Authorization", $"Bearer {llm.ApiKey}" } },
-                Content = new StringContent(
-                    JsonSerializer.Serialize(requestBody, JsonOptions),
-                    Encoding.UTF8,
-                    "application/json")
-            };
-
-            using var response = await client.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError(
-                    "Planner: {Model} returned {Status}: {Body}. Using fallback plan.",
-                    model, (int)response.StatusCode, errorBody);
-                return PlannerScopeGuard.FallbackPlan();
+                _logger.LogWarning(
+                    "Planner: {Model} failed ({Type}: {Message}); trying the next provider.",
+                    llm.Model, ex.GetType().Name, ex.Message);
             }
-
-            var openAiResponse = await response.Content.ReadFromJsonAsync<OpenAiChatResponse>(
-                JsonOptions, cancellationToken);
-
-            var json = openAiResponse?.Choices?.FirstOrDefault()?.Message?.Content
-                ?? throw new InvalidOperationException("OpenAI returned no content.");
-
-            var plan = JsonSerializer.Deserialize<PlannerExecutionPlan>(json, JsonOptions)
-                ?? throw new InvalidOperationException("OpenAI returned an empty plan object.");
-
-            var validated = PlannerScopeGuard.ValidatePlan(plan);
-
-            _logger.LogInformation(
-                "Planner: plan created. InScope={InScope}, Steps={StepCount}",
-                validated.InScope, validated.Steps.Count);
-
-            return validated;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex,
-                "Planner: LLM call failed ({Type}: {Message}). Returning fallback plan.",
-                ex.GetType().Name, ex.Message);
-            return PlannerScopeGuard.FallbackPlan();
-        }
-    }
 
-    // ── Minimal OpenAI response deserialization models ─────────────────────
-
-    private sealed class OpenAiChatResponse
-    {
-        [JsonPropertyName("choices")]
-        public List<OpenAiChoice>? Choices { get; set; }
-    }
-
-    private sealed class OpenAiChoice
-    {
-        [JsonPropertyName("message")]
-        public OpenAiMessage? Message { get; set; }
-    }
-
-    private sealed class OpenAiMessage
-    {
-        [JsonPropertyName("content")]
-        public string? Content { get; set; }
+        _logger.LogError("Planner: every configured LLM provider failed. Returning fallback plan.");
+        return PlannerScopeGuard.FallbackPlan();
     }
 }

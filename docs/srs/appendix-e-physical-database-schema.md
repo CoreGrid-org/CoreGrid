@@ -1,24 +1,24 @@
-# Appendix F — Full Physical Database Schema (Reference Design)
+# Appendix E — Full Physical Database Schema (Reference Design)
 
-## F.1 Purpose and Status
+## E.1 Purpose and Status
 
 [§8.1–8.3](08-data-requirements.md) give the conceptual model — an ER diagram, an entity inventory, and the fifteen data requirements (DR-01 to DR-15) every table must satisfy. They deliberately stop short of physical SQL: "the full ER diagram with attributes and cardinalities accompanies the technical report." This file **is** that physical design — every table, column, type, constraint and index for every entity in the [§8.2 entity inventory](08-data-requirements.md#82-entity-inventory), written as PostgreSQL DDL, so that:
 
 - each component owner has a concrete starting point for their EF Core entity classes and migration, instead of re-deriving column names and types independently;
-- the four owners' schemas are reviewed against one consistent set of conventions (§F.3) before any of them writes a migration, the same way the agent contracts are frozen in [§18.8](18-team-roster-and-work-allocation.md#188-shared-agent-contract-freeze) before any agent is coded;
+- the four owners' schemas are reviewed against one consistent set of conventions (§E.3) before any of them writes a migration, the same way the shared agent contracts are agreed in [§18.3](18-development-workflow-and-change-control.md#183-shared-agent-contracts) before agent logic changes;
 - a reviewer can check a merged migration against this document and see immediately whether it drifted.
 
-**This is not `backend/db/schema.sql`.** That file is explained in [`backend/db/README.md`](../../backend/db/README.md): it is a **generated export** of whatever EF Core migrations actually exist, produced by `dotnet ef migrations script`, and it is overwritten every time a migration is added — hand-editing it is pointless. Today it contains only `Organizations` and `Users`, because those are the only two entities implemented so far ([progress.md](../progress.md)). This document covers all twenty-four entities across all four components and the agentic subsystem; as each is implemented, the corresponding EF Core migration should produce SQL matching what is here, and `backend/db/schema.sql` will grow to match this document one migration at a time. Nobody should ever paste this file's SQL directly into `backend/db/schema.sql` — DR-13 requires schema evolution to happen only through committed EF Core migrations.
+**This is not `backend/db/schema.sql`.** That file is explained in [`backend/db/README.md`](../../backend/db/README.md): it is a **generated export** of whatever EF Core migrations actually exist, produced by `dotnet ef migrations script`, and it is overwritten every time a migration is added — hand-editing it is pointless. It reflects exactly the migrations that exist at any moment. This document covers all twenty-four entities across all four components and the agentic subsystem; as each is implemented, the corresponding EF Core migration should produce SQL matching what is here, and `backend/db/schema.sql` will grow to match this document one migration at a time. Nobody should ever paste this file's SQL directly into `backend/db/schema.sql` — DR-13 requires schema evolution to happen only through committed EF Core migrations.
 
-## F.2 How to Use This Document
+## E.2 How to Use This Document
 
-1. Find your component's section (§F.6–F.11).
+1. Find your component's section (§E.6–E.11).
 2. Model each table as an EF Core entity in `backend/Domain/`, matching the columns, types and nullability here.
 3. Configure the constraints this document adds beyond EF Core's defaults (check constraints, partial unique indexes, the `ON DELETE` behaviour) using `IEntityTypeConfiguration<T>` / Fluent API — EF Core does not infer these from C# alone.
 4. Run `dotnet ef migrations add <Name>`, then regenerate the exports per `backend/db/README.md`.
-5. If your migration's generated SQL disagrees with this document, either the migration is wrong or this document is stale — fix whichever is actually wrong, and if it's this document, update it in the same pull request (this is the same discipline §18.11 asks of the team roster).
+5. If your migration's generated SQL disagrees with this document, either the migration is wrong or this document is stale — fix whichever is actually wrong, and if it's this document, update it in the same pull request (the same rule as §18.4).
 
-## F.3 Conventions
+## E.3 Conventions
 
 These apply to every table below and are not repeated per table.
 
@@ -28,7 +28,7 @@ These apply to every table below and are not repeated per table.
 | Primary keys | `uuid`, assigned by the API (`Guid.NewGuid()`), never a database default — matching the existing `Organizations`/`Users` tables. DR-02. |
 | Timestamps | `timestamptz`, UTC, populated by an EF Core `SaveChanges` interceptor rather than a column `DEFAULT` — consistent with DR-09's "populated automatically by the persistence layer rather than by callers." No column below carries `DEFAULT now()`. DR-07. |
 | Money | `numeric(18,2)`. DR-07. |
-| Enumerations | `varchar(n)` with an explicit `CHECK ... IN (...)` naming every permitted value from [Appendix A](appendix-a-status-and-enumeration-reference.md), **not** a bare integer. DR-06. See §F.4 for why this differs from the `Users.Role` column that exists today. |
+| Enumerations | `varchar(n)` with an explicit `CHECK ... IN (...)` naming every permitted value from [Appendix A](appendix-a-status-and-enumeration-reference.md), **not** a bare integer. DR-06. See §E.4 for why this differs from the `Users.Role` column that exists today. |
 | Audit columns | Every table carries `CreatedAt`, `UpdatedAt`, `CreatedBy`, `UpdatedBy` (DR-09) **except** the two append-only event logs, `AssetHistory` and `AuditLogs`, which carry `CreatedAt` and a single `ActorUserId` and deliberately have no `UpdatedAt`/`UpdatedBy` — an update column on a table nothing may ever update is misleading, not merely unused, and DR-12 makes the exception explicit. |
 | `CreatedBy` / `UpdatedBy` | Nullable FK to `Users("Id")`, `ON DELETE SET NULL` — history must outlive a deactivated or anonymised user (DR-15), so these can never cascade-delete or block a user deletion. |
 | Organisation scoping | `OrganizationId` is a direct column with its own index on every table that is a query-filter root (DR-04). Detail/child tables that only ever reach the database through their parent (e.g. `AssetAttributeValues` via `AssetId`, `AgentExecutionSteps` via `AgentWorkflowId`) are scoped transitively through that parent's `OrganizationId` and do not repeat the column — repeating it there would be denormalisation DR-01 does not ask for. |
@@ -36,17 +36,17 @@ These apply to every table below and are not repeated per table.
 | Indexes | Every foreign key is indexed; DR-08's named list filters (asset status, condition, department, asset type, maintenance status, campaign, workflow status, audit timestamp) are indexed explicitly and called out per table below. |
 | Concurrency | DR-11's optimistic concurrency uses PostgreSQL's built-in `xmin` system column via EF Core's `IsRowVersion()`/`xmin` concurrency token configuration — this is not a column that appears in any `CREATE TABLE` below; every table gets it for free. |
 
-## F.4 Corrections Applied Relative to the Current SRS and Implementation
+## E.4 Corrections Applied Relative to the Current SRS and Implementation
 
 Working through every entity end to end against DR-01 to DR-15 surfaced a few inconsistencies worth fixing rather than silently carrying forward:
 
-1. **`Users.Role` is a bare `integer` today** (`backend/db/schema.sql`), with no constraint tying it to the four permitted values in Appendix A — a typo in application code could write `Role = 7` and the database would accept it, which is exactly what DR-06 exists to prevent. §F.6 changes it to `varchar(20)` with an explicit `CHECK`; the EF Core side is `.HasConversion<string>()` on the `CoreGridRole` enum.
-2. **`Organizations` and `Users` are both missing `UpdatedAt`, `CreatedBy` and `UpdatedBy`** in the current migration, against the blanket rule in DR-09. §F.6 adds them, with `Organizations.CreatedBy`/`UpdatedBy` nullable for a documented reason: Setup creates the `Organizations` row before any `Users` row can exist to be its creator, so the row is inserted with `CreatedBy = NULL` and back-filled with the new Administrator's `Id` once that insert completes, in the same transaction.
-3. **`Users` has no `DepartmentId`**, but FR-013 requires an Administrator to "assign them to a department" on invite. §F.6 adds it as nullable, because the bootstrap Administrator is provisioned by Setup before any `Departments` row exists.
-4. **Appendix A's `VerificationResult` enumeration has no `SURPLUS` value**, but FR-060 explicitly requires the system to classify a discrepancy as "Missing, Surplus, Location Mismatch, Condition Mismatch or Data Mismatch." This is not an oversight to carry forward silently: `VerificationResult` (an officer's assertion about *one already-registered asset* during a scan) correctly has no `SURPLUS`, since scanning a known asset can never produce "this shouldn't exist" — but `Discrepancies.Classification` is a different vocabulary describing what the discrepancy itself *is*, and that one must include `SURPLUS`. §F.10 defines `Discrepancies.Classification` as its own enumeration, separate from `AuditVerifications.Result`, and Appendix A has been updated (below) to record both explicitly instead of conflating them.
-5. **`AssetAttributeValues` needs a typed-column CHECK**, not just four nullable columns, or the attribute-value model ADR-006 chose specifically to get referential and type integrity (§8.4) would allow a row with two values set, or none. §F.7 adds a `CHECK` tying the populated column to the attribute definition's declared `DataType`.
-6. **Nothing in the current design enforces FR-068's "refuse ... where an evaluation for the same asset is already running"** at the database level — it would rely entirely on an API-layer check with a race condition between the check and the insert. §F.11 adds a partial unique index on `AgentWorkflows("AssetId")` restricted to non-terminal statuses, so a concurrent double-initiation is rejected by the database itself, not just the application.
-7. **`DisposalRequests` has no database-level separation-of-duties guard**, though FR-051 AC2 requires the approver never to be the requester. §F.9 adds it as a `CHECK`, so the rule holds even against a future code path that forgets to check it in the service layer.
+1. **`Users.Role` is a bare `integer` today** (`backend/db/schema.sql`), with no constraint tying it to the four permitted values in Appendix A — a typo in application code could write `Role = 7` and the database would accept it, which is exactly what DR-06 exists to prevent. §E.6 changes it to `varchar(20)` with an explicit `CHECK`; the EF Core side is `.HasConversion<string>()` on the `CoreGridRole` enum.
+2. **`Organizations` and `Users` are both missing `UpdatedAt`, `CreatedBy` and `UpdatedBy`** in the current migration, against the blanket rule in DR-09. §E.6 adds them, with `Organizations.CreatedBy`/`UpdatedBy` nullable for a documented reason: Setup creates the `Organizations` row before any `Users` row can exist to be its creator, so the row is inserted with `CreatedBy = NULL` and back-filled with the new Administrator's `Id` once that insert completes, in the same transaction.
+3. **`Users` has no `DepartmentId`**, but FR-013 requires an Administrator to "assign them to a department" on invite. §E.6 adds it as nullable, because the bootstrap Administrator is provisioned by Setup before any `Departments` row exists.
+4. **Appendix A's `VerificationResult` enumeration has no `SURPLUS` value**, but FR-060 explicitly requires the system to classify a discrepancy as "Missing, Surplus, Location Mismatch, Condition Mismatch or Data Mismatch." This is not an oversight to carry forward silently: `VerificationResult` (an officer's assertion about *one already-registered asset* during a scan) correctly has no `SURPLUS`, since scanning a known asset can never produce "this shouldn't exist" — but `Discrepancies.Classification` is a different vocabulary describing what the discrepancy itself *is*, and that one must include `SURPLUS`. §E.10 defines `Discrepancies.Classification` as its own enumeration, separate from `AuditVerifications.Result`, and Appendix A has been updated (below) to record both explicitly instead of conflating them.
+5. **`AssetAttributeValues` needs a typed-column CHECK**, not just four nullable columns, or the attribute-value model ADR-006 chose specifically to get referential and type integrity (§8.4) would allow a row with two values set, or none. §E.7 adds a `CHECK` tying the populated column to the attribute definition's declared `DataType`.
+6. **Nothing in the current design enforces FR-068's "refuse ... where an evaluation for the same asset is already running"** at the database level — it would rely entirely on an API-layer check with a race condition between the check and the insert. §E.11 adds a partial unique index on `AgentWorkflows("AssetId")` restricted to non-terminal statuses, so a concurrent double-initiation is rejected by the database itself, not just the application.
+7. **`DisposalRequests` has no database-level separation-of-duties guard**, though FR-051 AC2 requires the approver never to be the requester. §E.9 adds it as a `CHECK`, so the rule holds even against a future code path that forgets to check it in the service layer.
 
 Appendix A has been updated to match point 4:
 
@@ -57,7 +57,7 @@ Appendix A has been updated to match point 4:
 
 (Applied directly to [`appendix-a-status-and-enumeration-reference.md`](appendix-a-status-and-enumeration-reference.md) in this same change.)
 
-## F.5 Entity-Relationship Overview
+## E.5 Entity-Relationship Overview
 
 This is the physical-design companion to the conceptual diagram in [§8.1](08-data-requirements.md#81-conceptual-data-model) — cardinalities only, not every column.
 
@@ -91,9 +91,9 @@ erDiagram
     USERS ||--o{ AUDIT_LOGS : "acts (nullable)"
 ```
 
-## F.6 Cross-Cutting — Organisations, Identity, Structure, Policy
+## E.6 Cross-Cutting — Organisations, Identity, Structure, Policy
 
-Owner: shared foundation; organisation structure and policy are Component D's (§18.6).
+Owner: shared platform; organisation structure and policy belong to Component D (§12).
 
 ```sql
 -- =========================================================================
@@ -104,7 +104,7 @@ CREATE TABLE "Organizations" (
     "Name"      text NOT NULL,
     "CreatedAt" timestamptz NOT NULL,
     "UpdatedAt" timestamptz NOT NULL,
-    "CreatedBy" uuid NULL,  -- nullable: Setup creates this row before any User exists (§F.4 point 2)
+    "CreatedBy" uuid NULL,  -- nullable: Setup creates this row before any User exists (§E.4 point 2)
     "UpdatedBy" uuid NULL,
     CONSTRAINT "PK_Organizations" PRIMARY KEY ("Id")
 );
@@ -134,12 +134,12 @@ CREATE INDEX "IX_Departments_OrganizationId" ON "Departments" ("OrganizationId")
 CREATE TABLE "Users" (
     "Id"                uuid NOT NULL,
     "OrganizationId"    uuid NOT NULL,
-    "DepartmentId"      uuid NULL,  -- FR-013; nullable — bootstrap Administrator predates any Department (§F.4 point 3)
+    "DepartmentId"      uuid NULL,  -- FR-013; nullable — bootstrap Administrator predates any Department (§E.4 point 3)
     "ExternalSubjectId" text NOT NULL,  -- ThunderID `sub` claim
     "Email"             text NOT NULL,
     "GivenName"         text NOT NULL,
     "FamilyName"        text NOT NULL,
-    "Role"              varchar(20) NOT NULL,  -- see §F.4 point 1 — was a bare integer
+    "Role"              varchar(20) NOT NULL,  -- see §E.4 point 1 — was a bare integer
     "IsActive"          boolean NOT NULL DEFAULT true,
     "CreatedAt"         timestamptz NOT NULL,
     "UpdatedAt"         timestamptz NOT NULL,
@@ -180,9 +180,9 @@ CREATE INDEX "IX_Locations_OrganizationId" ON "Locations" ("OrganizationId");
 CREATE INDEX "IX_Locations_DepartmentId" ON "Locations" ("DepartmentId");
 ```
 
-## F.7 Component A — Asset Registry & QR Identification
+## E.7 Component A — Asset Registry & QR Identification
 
-Owner: Jayashan Guruge (§18.3).
+Owner: Component A (§12).
 
 ```sql
 -- =========================================================================
@@ -346,7 +346,7 @@ CREATE TABLE "AssetAttributeValues" (
     CONSTRAINT "FK_AssetAttributeValues_Assets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "Assets" ("Id") ON DELETE RESTRICT,
     CONSTRAINT "FK_AssetAttributeValues_AssetAttributeDefinitions_DefId" FOREIGN KEY ("AssetAttributeDefinitionId") REFERENCES "AssetAttributeDefinitions" ("Id") ON DELETE RESTRICT,
     CONSTRAINT "UQ_AssetAttributeValues_Asset_Definition" UNIQUE ("AssetId", "AssetAttributeDefinitionId"),
-    -- §F.4 point 5: exactly one typed column populated, never zero, never more than one
+    -- §E.4 point 5: exactly one typed column populated, never zero, never more than one
     CONSTRAINT "CK_AssetAttributeValues_ExactlyOneValue" CHECK (
         (num_nonnulls("ValueText", "ValueNumber", "ValueDate", "ValueBoolean") = 1)
     )
@@ -385,9 +385,9 @@ CREATE INDEX "IX_AssetHistory_CreatedAt" ON "AssetHistory" ("CreatedAt");
 --   REVOKE UPDATE, DELETE ON "AssetHistory" FROM coregrid_app;
 ```
 
-## F.8 Component B — Maintenance Management
+## E.8 Component B — Maintenance Management
 
-Owner: Seneja Ramanayaka (§18.4).
+Owner: Component B (§12).
 
 ```sql
 -- =========================================================================
@@ -486,9 +486,9 @@ CREATE INDEX "IX_Notifications_OrganizationId" ON "Notifications" ("Organization
 CREATE INDEX "IX_Notifications_UserId_IsRead" ON "Notifications" ("UserId", "IsRead");  -- FR-080 unread state
 ```
 
-## F.9 Component C — Transfer & Disposal
+## E.9 Component C — Transfer & Disposal
 
-Owner: Bhanuka Samarasinghe (§18.5).
+Owner: Component C (§12).
 
 ```sql
 -- =========================================================================
@@ -535,7 +535,7 @@ CREATE INDEX "IX_AssetTransfers_ToDepartmentId" ON "AssetTransfers" ("ToDepartme
 
 -- =========================================================================
 -- DisposalRequests  (FR-049 to FR-055; §8.2)
--- AgentWorkflowId's FK is added in §F.11 once AgentWorkflows exists (P6)
+-- AgentWorkflowId's FK is added in §E.11 once AgentWorkflows exists (P6)
 -- =========================================================================
 CREATE TABLE "DisposalRequests" (
     "Id"                 uuid NOT NULL,
@@ -566,7 +566,7 @@ CREATE TABLE "DisposalRequests" (
     CONSTRAINT "CK_DisposalRequests_ProposedMethod" CHECK ("ProposedMethod" IN ('TRANSFER_TO_ENTITY','AUCTION','DESTRUCTION')),
     CONSTRAINT "CK_DisposalRequests_FinalMethod" CHECK ("FinalMethod" IS NULL OR "FinalMethod" IN ('TRANSFER_TO_ENTITY','AUCTION','DESTRUCTION')),
     CONSTRAINT "CK_DisposalRequests_Status" CHECK ("Status" IN ('DRAFT','PENDING_APPROVAL','REVISION_REQUESTED','APPROVED','REJECTED','COMPLETED')),
-    -- §F.4 point 7 / FR-051 AC2: separation of duties enforced by the database, not only the API
+    -- §E.4 point 7 / FR-051 AC2: separation of duties enforced by the database, not only the API
     CONSTRAINT "CK_DisposalRequests_SeparationOfDuties" CHECK ("ApprovedByUserId" IS NULL OR "ApprovedByUserId" <> "RequestedByUserId")
 );
 CREATE INDEX "IX_DisposalRequests_OrganizationId" ON "DisposalRequests" ("OrganizationId");
@@ -597,9 +597,9 @@ CREATE TABLE "DisposalEvidence" (
 CREATE INDEX "IX_DisposalEvidence_DisposalRequestId" ON "DisposalEvidence" ("DisposalRequestId");
 ```
 
-## F.10 Component D — Audit & Compliance
+## E.10 Component D — Audit & Compliance
 
-Owner: Hasitha Erandika, Group Leader (§18.6).
+Owner: Component D (§12).
 
 ```sql
 -- =========================================================================
@@ -678,7 +678,7 @@ CREATE TABLE "Discrepancies" (
     "OrganizationId"        uuid NOT NULL,
     "AuditVerificationId"   uuid NOT NULL,
     "AssetId"               uuid NOT NULL,
-    "Classification"        varchar(20) NOT NULL,  -- DiscrepancyClassification — see §F.4 point 4
+    "Classification"        varchar(20) NOT NULL,  -- DiscrepancyClassification — see §E.4 point 4
     "Status"                varchar(15) NOT NULL,  -- OPEN | UNDER_REVIEW | RESOLVED
     "IsAutoRaised"          boolean NOT NULL,       -- FR-060 vs FR-061
     "RaisedByUserId"        uuid NULL,              -- null when system-raised (FR-060)
@@ -736,9 +736,9 @@ CREATE INDEX "IX_AuditLogs_CorrelationId" ON "AuditLogs" ("CorrelationId");
 -- As with AssetHistory: REVOKE UPDATE, DELETE ON "AuditLogs" FROM coregrid_app;
 ```
 
-## F.11 Agentic Subsystem (Shared, §7.5)
+## E.11 Agentic Subsystem (Shared, §7.5)
 
-Owned jointly; the human-approval checkpoint and the rule engine driving `ValidationResult` are Component D's (§18.6); each agent populates its own key inside `AgentOutputs`.
+Owned jointly; the human-approval checkpoint and the rule engine driving `ValidationResult` are Component D's (§12); each agent populates its own key inside `AgentOutputs`.
 
 ```sql
 -- =========================================================================
@@ -779,7 +779,7 @@ CREATE TABLE "AgentWorkflows" (
 CREATE INDEX "IX_AgentWorkflows_OrganizationId" ON "AgentWorkflows" ("OrganizationId");
 CREATE INDEX "IX_AgentWorkflows_AssetId" ON "AgentWorkflows" ("AssetId");
 CREATE INDEX "IX_AgentWorkflows_Status" ON "AgentWorkflows" ("Status");  -- DR-08 named filter
--- §F.4 point 6 / FR-068: the database itself refuses a second concurrent run for the same asset
+-- §E.4 point 6 / FR-068: the database itself refuses a second concurrent run for the same asset
 CREATE UNIQUE INDEX "UQ_AgentWorkflows_Asset_InFlight" ON "AgentWorkflows" ("AssetId")
     WHERE "Status" IN ('PLANNING','ANALYZING','VALIDATING','AWAITING_APPROVAL','REVISION_REQUESTED');
 
@@ -830,9 +830,9 @@ CREATE INDEX "IX_AgentApprovals_AgentWorkflowId" ON "AgentApprovals" ("AgentWork
 CREATE INDEX "IX_AgentApprovals_DeciderUserId" ON "AgentApprovals" ("DeciderUserId");
 ```
 
-## F.12 Deferred Audit-Column Foreign Keys
+## E.12 Deferred Audit-Column Foreign Keys
 
-Every `CreatedBy`/`UpdatedBy` column declared above (excluding `AssetHistory` and `AuditLogs`, which use `ActorUserId` instead per §F.3) is a nullable FK to `Users("Id")`, `ON DELETE SET NULL`. They are added here, after every table exists, rather than inline, because `Organizations.CreatedBy` and `Users.OrganizationId` are mutually dependent (§F.4 point 2) — the same circularity a straight top-to-bottom script would hit for any of these columns. `Organizations` is handled explicitly in §F.6 since it is the one genuinely bootstrap-sensitive case; the rest are mechanical, so they are generated here instead of repeating twenty near-identical `ALTER TABLE` statements by hand:
+Every `CreatedBy`/`UpdatedBy` column declared above (excluding `AssetHistory` and `AuditLogs`, which use `ActorUserId` instead per §E.3) is a nullable FK to `Users("Id")`, `ON DELETE SET NULL`. They are added here, after every table exists, rather than inline, because `Organizations.CreatedBy` and `Users.OrganizationId` are mutually dependent (§E.4 point 2) — the same circularity a straight top-to-bottom script would hit for any of these columns. `Organizations` is handled explicitly in §E.6 since it is the one genuinely bootstrap-sensitive case; the rest are mechanical, so they are generated here instead of repeating twenty near-identical `ALTER TABLE` statements by hand:
 
 ```sql
 DO $$
@@ -858,13 +858,13 @@ END $$;
 
 `AgentApprovals` is intentionally left out of the loop above: it has no `CreatedBy`/`UpdatedBy` at all — `DeciderUserId` already records the one person who acted on it, and duplicating that as `CreatedBy` would be redundant. This DO-block is a convenience for keeping this reference document short; an actual EF Core migration will generate one explicit `ALTER TABLE` per foreign key as usual, and that generated form — not this loop — is what belongs in `backend/db/schema.sql`.
 
-## F.13 Turning This Into Migrations
+## E.13 Turning This Into Migrations
 
-Each component owner's week-1 deliverable (§18.9) is a vertical slice, not the whole component's schema — so nobody adds every table in this document in one migration. The expected sequence per table is:
+Each component is built as a sequence of vertical slices, not its whole schema at once — so nobody adds every table in this document in one migration. The expected sequence per table is:
 
 1. Add the C# entity to `backend/Domain/`, matching this document's columns and nullability.
-2. Add an `IEntityTypeConfiguration<T>` for anything EF Core's conventions won't infer alone: every `CHECK` constraint, the partial unique index in §F.11, the `ON DELETE` behaviour on each relationship (EF Core defaults to `Cascade`, which DR-03 forbids for anything carrying history — set it explicitly), and `.HasConversion<string>()` for every enum column.
+2. Add an `IEntityTypeConfiguration<T>` for anything EF Core's conventions won't infer alone: every `CHECK` constraint, the partial unique index in §E.11, the `ON DELETE` behaviour on each relationship (EF Core defaults to `Cascade`, which DR-03 forbids for anything carrying history — set it explicitly), and `.HasConversion<string>()` for every enum column.
 3. Register the entity's `DbSet<T>` on `CoreGridDbContext`.
 4. `dotnet ef migrations add <ComponentName_TableName>`.
-5. Diff the generated migration's SQL against this document. A mismatch means one of the two is wrong — resolve it before merging, the same discipline §F.2 step 5 describes.
+5. Diff the generated migration's SQL against this document. A mismatch means one of the two is wrong — resolve it before merging, the same discipline §E.2 step 5 describes.
 6. Regenerate `db/migrations/*.sql` and `db/schema.sql` per `backend/db/README.md`.

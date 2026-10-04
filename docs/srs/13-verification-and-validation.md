@@ -27,12 +27,12 @@ Every requirement in this document is verifiable by one of four methods, and the
 
 ## 13.3 The End-to-End Golden Workflow
 
-One scenario is designated the golden workflow. It is the demonstration centrepiece and the primary evidence for the assignment's end-to-end requirement.
+One scenario is designated the golden workflow. It is the primary end-to-end acceptance test for the integrated system.
 
 ```
   1  Officer signs into FLUTTER through ThunderID (PKCE, external agent).
   2  Officer scans AST-00042 → GET /api/assets/qr/AST-00042.
-  3  Officer taps "Evaluate lifecycle" → POST /api/workflows/asset-evaluation.
+  3  Officer taps "Evaluate lifecycle" → POST /api/agent-workflows.
   4  API authorises, validates asset state, persists AgentWorkflow, returns id.
   5  Orchestrator: Planner → Maintenance → Budget → Policy, tool calls recorded.
   6  Deterministic gate: schema PASS, rules PASS, action = DISPOSE (high impact).

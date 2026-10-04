@@ -3,6 +3,7 @@
   $css--font-face: false
 );
 @use "sass:color";
+@use "sass:list";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 $cg-accent:        #406AAF;   // brand — interactive, borders, icons
@@ -983,8 +984,8 @@ html, body, #root {
   &__line { stroke: var(--cg-chart-color, #{$cg-chart-series}); }
 
   // Ordinal ramp, one modifier per step (see CONDITION ordering in the dashboards).
-  @for $i from 1 through length($cg-chart-ramp) {
-    &__series--ramp-#{$i - 1} { fill: nth($cg-chart-ramp, $i); }
+  @for $i from 1 through list.length($cg-chart-ramp) {
+    &__series--ramp-#{$i - 1} { fill: list.nth($cg-chart-ramp, $i); }
   }
 }
 

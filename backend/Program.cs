@@ -18,6 +18,7 @@ using CoreGrid.Api.Features.AgentTools;
 using CoreGrid.Api.Features.Agents;
 using CoreGrid.Api.Features.Shared.Api;
 using CoreGrid.Api.Features.Shared.Auth;
+using CoreGrid.Api.Features.Shared.Configuration;
 using CoreGrid.Api.Features.Shared.CurrentUser;
 using CoreGrid.Api.Features.Shared.Health;
 using CoreGrid.Api.Features.Shared.Http;
@@ -33,6 +34,9 @@ AppContext.SetSwitch("System.Net.Security.UseNetworkFramework", true);
 // FR-084/FR-085 (campaign report PDF export) — Community licence, free for
 // this project's size; must be set once before any Document.GeneratePdf().
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+// Optional backend/.env for local runs (backend/.env.example); real environment variables win.
+DotEnvFile.Load(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
 
 var builder = WebApplication.CreateBuilder(args);
 

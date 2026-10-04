@@ -55,4 +55,24 @@ public class LlmSettingsTests
 
         Assert.Equal("legacy", LlmSettings.For(config, "Planner", "Planner:OpenAiApiKey").ApiKey);
     }
+
+    [Fact]
+    public void Chain_IsPrimaryThenFallback_AndSkipsProvidersWithoutAKey()
+    {
+        Assert.Empty(LlmSettings.Chain(Config(new()), "Planner"));
+
+        var onlyFallback = LlmSettings.Chain(Config(new() { ["LlmFallback:ApiKey"] = "groq" }), "Planner");
+        Assert.Single(onlyFallback);
+        Assert.Equal(LlmSettings.DefaultFallbackModel, onlyFallback[0].Model);
+        Assert.Equal(LlmSettings.DefaultFallbackEndpoint, onlyFallback[0].Endpoint);
+
+        var both = LlmSettings.Chain(Config(new()
+        {
+            ["Llm:ApiKey"] = "gemini",
+            ["LlmFallback:ApiKey"] = "groq",
+            ["LlmFallback:Model"] = "llama-3.3-70b-versatile",
+        }), "Budget");
+        Assert.Equal(new[] { "gemini", "groq" }, both.Select(p => p.ApiKey));
+        Assert.Equal("llama-3.3-70b-versatile", both[1].Model);
+    }
 }

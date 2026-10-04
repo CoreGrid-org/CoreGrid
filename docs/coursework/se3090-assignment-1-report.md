@@ -253,7 +253,7 @@ Failures such as malformed output, unavailable tools, timeout, policy failure, o
 |---|---|---|
 | ThunderID | External user authentication and directory functions. | OIDC/OAuth 2.0 with PKCE; API validates JWTs; CoreGrid retains internal authorisation and organisation scoping. |
 | Transactional email provider | Sends approval and lifecycle notifications. | Reached through `INotificationService`; failures are logged/retried and never roll back the business transaction. API keys remain in environment variables. |
-| S3-compatible object storage / Cloudflare R2 default | Holds maintenance-photo evidence outside PostgreSQL. | Accessed only by the backend through `IBlobStorageService`; opaque `StorageKey` is persisted; uploads are MIME/size checked and re-encoded; retrieval uses authorised short-lived signed URLs. |
+| S3-compatible object storage / Cloudflare R2 default | Holds maintenance-photo evidence outside PostgreSQL. | Accessed only by the backend through `IFileStorageService`; opaque `StorageKey` is persisted; uploads are MIME/size checked and re-encoded; retrieval uses authorised short-lived signed URLs. |
 | Configured model provider | Supports structured planning where a model is genuinely needed. | Reached only by `IModelClient` from the Planner node; credentials remain in the server environment and personal data is excluded. |
 
 ### 2.10 Testing Report
@@ -293,7 +293,7 @@ The SRS specifies real PostgreSQL for database integration, a seeded demonstrati
 #### 2.10.6 Flutter Testing
 
 Mobile unit/widget tests are present in the sibling `coregrid-mobile` repository and are documented in
-[`docs/mobile/progress.md`](../mobile/progress.md). The latest recorded run reports 68 passing tests and zero
+[`docs/mobile/progress.md`](mobile/progress.md). The latest recorded run reports 68 passing tests and zero
 analysis issues. Device-level scanner, TLS, photo-upload, live-backend, APK-build, and screenshot evidence is
 still **Not verified** and must be attached before submission.
 

@@ -20,8 +20,8 @@
 #   THUNDERID_CLIENT_SECRET=<backend client secret> scripts/thunderid/enable-password-recovery.sh
 # Optional env: THUNDERID_URL (https://localhost:8090), THUNDERID_CLIENT_ID,
 #   THUNDERID_RESOURCE, FRONTEND_APP_NAME ("CoreGrid Frontend").
-# Without THUNDERID_CLIENT_SECRET it reads ThunderID:ScimClientSecret and
-# ThunderID:ScimClientId from the backend's dotnet user-secrets/appsettings.
+# Without them it reads ThunderID__ScimClientId / ThunderID__ScimClientSecret from
+# backend/.env, falling back to the backend's dotnet user-secrets.
 
 set -euo pipefail
 
@@ -34,12 +34,14 @@ FRONTEND_APP_NAME="${FRONTEND_APP_NAME:-CoreGrid Frontend}"
 RECOVERY_FLOW_HANDLE="coregrid-recovery-flow"
 RECOVERY_FLOW_NAME="CoreGrid Recovery Flow"
 
-if [[ -z "${THUNDERID_CLIENT_SECRET:-}" ]]; then
-  THUNDERID_CLIENT_SECRET="$(cd "$REPO_ROOT/backend" && dotnet user-secrets list 2>/dev/null | sed -n 's/^ThunderID:ScimClientSecret = //p')"
-fi
-if [[ -z "${THUNDERID_CLIENT_ID:-}" ]]; then
-  THUNDERID_CLIENT_ID="$(jq -r '.ThunderID.ScimClientId // empty' "$REPO_ROOT/backend/appsettings.Development.json")"
-fi
+backend_value() {  # backend_value ThunderID:ScimClientId
+  local v=""
+  [[ -f "$REPO_ROOT/backend/.env" ]] && v="$(sed -n "s/^${1//:/__}=//p" "$REPO_ROOT/backend/.env" | tail -1)"
+  [[ -z "$v" ]] && v="$(cd "$REPO_ROOT/backend" && dotnet user-secrets list 2>/dev/null | sed -n "s/^$1 = //p")"
+  echo "$v"
+}
+THUNDERID_CLIENT_SECRET="${THUNDERID_CLIENT_SECRET:-$(backend_value ThunderID:ScimClientSecret)}"
+THUNDERID_CLIENT_ID="${THUNDERID_CLIENT_ID:-$(backend_value ThunderID:ScimClientId)}"
 [[ -n "$THUNDERID_CLIENT_ID" && -n "$THUNDERID_CLIENT_SECRET" ]] || {
   echo "Set THUNDERID_CLIENT_ID and THUNDERID_CLIENT_SECRET (the CoreGrid Backend app's credentials)." >&2
   exit 1

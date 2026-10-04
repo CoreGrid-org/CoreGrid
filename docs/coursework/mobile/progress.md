@@ -5,7 +5,7 @@ what is still limited, and what must be checked before release. The main platfor
 source for backend and React status.
 
 For the evidence still required to fully satisfy each member's SRS allocation, see the
-[individual allocation evidence checklist](../progress.md#individual-allocation-evidence--remaining-work).
+[individual allocation evidence checklist](../team/evidence-checklist.md).
 
 ## Requirement status
 
@@ -66,7 +66,7 @@ For the evidence still required to fully satisfy each member's SRS allocation, s
 ## Verification evidence
 
 - `flutter analyze`: 0 issues in the latest recorded run.
-- `flutter test`: 68 passing in the latest recorded run.
+- `flutter test`: 69 passing (18 test files) in the latest recorded run, 2026-10-04.
 - Mobile CI is confirmed passing; `.github/workflows/ci.yml` runs analysis, tests, and a release APK build.
 - Widget tests cover authentication states, asset detail and lookup, verification, maintenance, transfers,
   notifications, and workflow behaviour.

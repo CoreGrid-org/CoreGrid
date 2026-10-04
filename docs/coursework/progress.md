@@ -1,86 +1,8 @@
 # Progress Tracker
 
-Tracks what's actually built, against the ownership in [SRS §12](srs/12-individual-contribution-and-work-allocation.md) and [SRS §18](srs/18-team-roster-and-work-allocation.md). Each section lists items as Completed, In Progress, or Not Started — tick an item only once it's actually in the repo, and update this file in the same PR that lands the work it describes.
+Tracks what's actually built against the requirements in the [SRS](../srs/00-front-matter.md), grouped by the component ownership in [SRS §12](../srs/12-component-ownership.md). Each section lists items as Completed, In Progress, or Not Started. Tick an item only once it is actually in the repository, and update this file in the same PR that lands the work (SRS §18.2).
 
 **Legend:** ✅ done and in the repo · 🟡 partially done · ❌ not started
-
-**Documentation audit — 2026-09-28.** This tracker has been reconciled with the current repository tree and
-the supplied web/mobile PR history. Pull-request titles and member attribution are recorded in
-[`docs/contribution-history.md`](contribution-history.md). A closed PR is treated as delivery evidence only
-when its implementation is present in the checked tree; mobile FR-049 is the current exception and remains
-unverified because no condemnation screen, route, API call, or test is present in the checked mobile tree.
-
-## Individual allocation evidence — remaining work
-
-The implementation sections below show what is built. This checklist tracks the additional evidence required
-to fully satisfy the individual contribution requirements in [SRS §18.3–§18.6](srs/18-team-roster-and-work-allocation.md).
-An item is complete only when the artefact is linked or attached, not merely when the feature exists in code.
-
-### Student 1 — Jayashan Guruge — Component A
-
-**Current assessment:** 🟡 Implementation mostly present; individual evidence package incomplete.
-
-- [x] Add the Flutter scanner widget test covering camera success, permission refusal, unknown code, offline
-  recovery, and manual-entry fallback.
-- [ ] Link the Component A issues and reviewed PRs for FR-016–FR-032, including reviewer names and dates.
-- [x] Attach the final React asset-form/component test output and the mobile asset test output.
-- [x] Link the Component A README/design note and ADR-006 input for attribute-value storage.
-- [x] Complete Jayashan's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
-- [x] Attach a device or emulator record for QR scan, asset lookup, condition update, and verification.
-
-### Student 2 — Seneja Ramanayaka — Component B
-
-**Current assessment:** 🟡 Implementation mostly present; notification and contribution evidence incomplete.
-
-- [ ] Add or link the notification failure-isolation test proving delivery failure does not roll back maintenance
-  completion.
-- [ ] Add an explicit storage-provider integration test or recorded verification for maintenance-photo upload and
-  retrieval through the configured object storage.
-- [ ] Add the Component B notification-provider design note referenced by SRS §18.4.
-- [ ] Link the maintenance/notification issues and reviewed PRs for FR-033–FR-042 and FR-077–FR-080, including
-  reviewer names and dates.
-- [ ] Attach backend, React, and mobile test output for maintenance, notification, photo, and status-transition
-  flows.
-- [ ] Complete Seneja's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
-
-### Student 3 — Nipuna Bhanuka (Bhanuka) — Component C
-
-**Current assessment:** 🟡 Web/API and Budget Agent implementation present; mobile FR-049 and formal evidence incomplete.
-
-- [ ] Reconcile the reported mobile FR-049 PR with the checked `coregrid-mobile` branch. Restore or implement the
-  condemnation screen, route, API call, authorization gate, evidence capture, and tests.
-- [ ] Add the dedicated concurrency-conflict test for DR-11 using PostgreSQL/EF Core optimistic concurrency.
-- [ ] Link negative tests for all disposal preconditions P1–P6 and the separation-of-duties test to FR-051.
-- [ ] Add a documented merge-conflict-resolution record for Component C integration work.
-- [ ] Add/link Flutter tests for transfer creation, asset identity matching, receipt confirmation, and FR-049.
-- [ ] Add the Component C concurrency-control design note and Budget Agent evidence.
-- [ ] Link the transfer/disposal issues and reviewed PRs for FR-043–FR-055, including reviewer names and dates.
-- [ ] Complete Nipuna's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
-
-### Student 4 — Hasitha Erandika — Component D and group integration
-
-**Current assessment:** 🟡 Implementation and documentation coordination mostly present; release/evidence verification incomplete.
-
-- [x] CI is passing for the main CoreGrid repository and the sibling mobile repository, including backend,
-  frontend, PostgreSQL integration, Flutter analysis/tests, and mobile APK build. Attach the final run links and
-  secret-scanning record to the submission evidence package.
-- [ ] Run and record the golden cases required by SRS §13.4, especially approval authorisation, rejection,
-  checkpoint resume, and disposal execution.
-- [ ] Attach live end-to-end evidence for the four-agent workflow and the human-approval checkpoint.
-- [ ] Link Hasitha's reviewed PRs/issues for Component D, authentication, CI, documentation, and integration work.
-- [ ] Confirm the authorisation matrix, append-only database checks, and organisation-isolation tests with a
-  reproducible test command and output.
-- [ ] Attach the mobile authentication, role-gate, dashboard, verification, workflow, and device-run evidence.
-- [ ] Complete the consolidated README/report, demonstration script, submission links, and final Appendix E AI
-  record for all members.
-
-### Shared completion gate
-
-- [ ] Replace every placeholder student ID and email in the SRS roster.
-- [ ] Confirm every PR has a real GitHub link, reviewer, review date, requirement IDs, and final merge status.
-- [ ] Reconcile the supplied PR list with local merge commits using the GitHub PR pages as the authority.
-- [ ] Store final backend, frontend, and mobile test outputs under the submission evidence location.
-- [ ] Update this tracker and SRS §18 only after the evidence links have been checked by the group leader.
 
 ## Cross-cutting (Identity, Access, Admin Shell)
 
@@ -116,15 +38,11 @@ An item is complete only when the artefact is linked or attached, not merely whe
 | EF Core migrations + generated `db/schema.sql` export | |
 | CI pipeline (build/test on push and PR) | `.github/workflows/ci.yml` has backend and frontend jobs. Backend restores/builds `backend.Tests` with warnings as errors, sets `TEST_DB_CONNECTION` to port 5433, applies EF migrations, and runs the real-Postgres tests. The sibling mobile workflow runs Flutter analysis/tests and a release APK build. |
 | Mobile CI | `coregrid-mobile/.github/workflows/ci.yml` runs `flutter analyze`, `flutter test`, and `flutter build apk --release`; team status is passing. |
-| Backend test project | `backend.Tests`, xUnit — InMemory suite plus real-Postgres append-only checks. CI is confirmed passing; the current repository contains 25 test classes. |
-| Frontend test project | Vitest + React Testing Library (86 frontend tests, 100% passing) |
+| Backend test project | `backend.Tests`, xUnit — InMemory suite plus real-Postgres append-only checks. 439 tests in 25 classes, 100% passing (2026-10-04 run); CI confirmed passing. |
+| Frontend test project | Vitest + React Testing Library (113 tests in 23 files, 100% passing — 2026-10-04 run) |
 | Multi-agent orchestration pipeline | Full Planner -> Maintenance -> Budget -> Policy pipeline is genuinely connected end-to-end for the first time in the project; new `BudgetAnalysis` jsonb column on `AgentWorkflows` table |
-
-**🟡 Evidence / follow-up**
-
-| Task | Notes |
-|---|---|
-| CI and submission evidence | CI passes. Attach the main and mobile run links, APK artifact link, and the secret-scanning result to the final submission package. |
+| Optional fallback LLM provider | Planner and Budget agents try Gemini, then `LlmFallback` (Groq `openai/gpt-oss-120b`), then their deterministic fallback; shared `LlmChat` helper; timeouts fall through to the next provider. `LlmSettingsTests`, `BudgetAgentServiceTests` |
+| Environment configuration in `backend/.env` | `DotEnvFile` loads the git-ignored `backend/.env`; `appsettings*.json` hold only logging; `backend/.env.example` lists every variable (local, Supabase, R2, Gemini, Groq) |
 
 ## Component A — Asset Registry & QR Identification (Jayashan Guruge)
 
@@ -151,7 +69,7 @@ An item is complete only when the artefact is linked or attached, not merely whe
 | FR-032: Assets exit only via disposal | No asset delete endpoint exists; the Component C disposal flow provides the terminal exit path. |
 | Planner Agent: in-process implementation | `PlannerAgentService` is registered under `backend/Features/Agents/` and is wired into workflow creation. |
 | FR-030: Computed residual value | Server-side residual value, frontend straight-line preview, and depreciation edge-case tests are present. |
-| Tests | `backend.Tests/AssetServiceTests.cs`, frontend depreciation tests, and mobile asset tests are present. Full execution evidence remains in the shared evidence checklist. |
+| Tests | `backend.Tests/AssetServiceTests.cs`, frontend depreciation tests, and mobile asset tests are present.  |
 
 ## Component B — Maintenance Management (Seneja Ramanayaka)
 
@@ -258,4 +176,14 @@ An item is complete only when the artefact is linked or attached, not merely whe
 | Task | Notes |
 |---|---|
 | Sidebar nav grouping for Inventory Officer / Auditor | `InventoryLayout.tsx` and `AuditLayout.tsx` use `navGroups` with the same Assets / Operations / Compliance sections as `AdminLayout.tsx` (no Administration section, since neither role has users/settings access) |
+| One-command local setup | `setup.sh` / `make setup`: prerequisites, dependencies, `.env` files, Docker start-up that never re-runs ThunderID's one-shot setup, migrations, ThunderID credential check, one test account per role (`*@coregrid.test`, local only). `make infra-up` fixed to start existing containers only |
+| ThunderID reference configuration | `infra/thunderid/coregrid.yaml`: sanitised export of the working configuration, for checking a console setup (not auto-loaded) |
+| Database export tooling | `make db-export` (`scripts/db/export-migrations.sh`); missing `0016`/`0017` SQL exports generated; `schema.sql` regenerated in the documented non-idempotent form |
+| Sass deprecation fix | `styles/index.scss` uses `sass:list` (`list.length`, `list.nth`) instead of the deprecated globals |
 | Shared inline-notification width | `.cds--inline-notification { max-inline-size: 100% }` in `styles/index.scss` replaces the per-call `style={{ maxWidth: "100%" }}`; removed from Components B, C and D. `features/assets/`, `features/audit/`, `features/settings/` etc. still carry the now-redundant inline prop |
+
+**🟡 In Progress**
+
+| Task | Notes |
+|---|---|
+| Performance test run | Suite is in place (`scripts/perf/`, `make perf`: dataset seed, k6 50-VU 70:30 load test, agent latency, slow queries, generated results table) and validated with stubbed k6 output; the measured run against the deployed API is still to be done |

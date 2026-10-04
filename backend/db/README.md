@@ -7,7 +7,7 @@ The files in this folder are **generated exports** for readability/review, not a
 - `db/migrations/NNNN_description.sql` — one numbered, idempotent SQL script per EF Core migration.
 - `db/schema.sql` — the full current schema, start to finish.
 
-Regenerate them after adding a migration — don't hand-edit them, they'll just be overwritten:
+Regenerate them after adding a migration with `make db-export` (`scripts/db/export-migrations.sh`), which writes any missing numbered export and regenerates `schema.sql`. Don't hand-edit them; they'll just be overwritten. The equivalent manual commands:
 
 ```bash
 cd backend

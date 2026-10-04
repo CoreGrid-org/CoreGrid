@@ -2,7 +2,8 @@
 #
 # Local stack: ThunderID + PostgreSQL in Docker (docker-compose.yml), the API
 # with `dotnet run` (http://localhost:5083) and the web app with Vite
-# (http://localhost:5173). See README.md for first-time setup.
+# (http://localhost:5173). See README.md for first-time setup; helper scripts
+# live in scripts/ (see scripts/README.md).
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
@@ -11,10 +12,18 @@ BACKEND    := backend
 TESTS      := backend.Tests
 FRONTEND   := frontend
 COMPOSE    := docker compose
-THUNDERID_BUNDLE := oci://ghcr.io/thunder-id/thunderid-quick-start:latest
 
 DB_CONNECTION ?= Host=localhost;Port=5433;Database=coregrid;Username=coregrid;Password=coregrid
+PG_URL        ?= postgresql://coregrid:coregrid@localhost:5433/coregrid
+API_URL       ?= http://localhost:5083
 IMAGE_TAG     ?= local
+
+# Build-time settings baked into the web image (override on the command line or in the environment).
+VITE_API_URL                      ?= $(API_URL)/api
+VITE_THUNDERID_BASE_URL           ?= https://localhost:8090
+VITE_THUNDERID_CLIENT_ID          ?=
+VITE_THUNDERID_AFTER_SIGN_IN_URL  ?= http://localhost:5173
+VITE_THUNDERID_AFTER_SIGN_OUT_URL ?= http://localhost:5173
 
 .PHONY: help
 help: ## Show this help
@@ -26,8 +35,11 @@ help: ## Show this help
 ##@ Setup
 
 .PHONY: setup
-setup: tools restore frontend-install env ## Install tools and dependencies, create frontend/.env
-	@echo "Next: 'make infra-bootstrap' (first time) or 'make infra-up', then 'make db-update' and 'make dev'."
+setup: ## First-time setup: prerequisites, deps, .env files, Docker, migrations, ThunderID check, test accounts
+	./setup.sh
+
+.PHONY: deps
+deps: tools restore frontend-install env ## Install tools and dependencies only (no Docker, no database)
 
 .PHONY: tools
 tools: ## Install the EF Core CLI (dotnet-ef) if missing
@@ -43,9 +55,10 @@ frontend-install: ## Install frontend npm packages (clean, from the lockfile)
 	cd $(FRONTEND) && npm ci
 
 .PHONY: env
-env: ## Create frontend/.env from .env.example (never overwrites)
-	@if [ -f $(FRONTEND)/.env ]; then echo "frontend/.env already exists, leaving it alone."; \
-	else cp $(FRONTEND)/.env.example $(FRONTEND)/.env && echo "Created frontend/.env; fill in VITE_THUNDERID_CLIENT_ID."; fi
+env: ## Create backend/.env and frontend/.env from their examples (never overwrites)
+	@for f in $(BACKEND)/.env $(FRONTEND)/.env; do \
+		if [ -f $$f ]; then echo "$$f already exists, leaving it alone."; \
+		else cp $$f.example $$f && echo "Created $$f"; fi; done
 
 .PHONY: secrets
 secrets: ## List which backend user-secrets are set (values hidden)
@@ -55,13 +68,14 @@ secrets: ## List which backend user-secrets are set (values hidden)
 ##@ Infrastructure (Docker)
 
 .PHONY: infra-bootstrap
-infra-bootstrap: ## First run only: bootstrap ThunderID, then start everything
-	$(COMPOSE) -f $(THUNDERID_BUNDLE) -p coregrid up -d
+infra-bootstrap: ## First run only: create and initialise ThunderID and PostgreSQL
 	$(COMPOSE) up -d
 
 .PHONY: infra-up
-infra-up: ## Start ThunderID and PostgreSQL
-	$(COMPOSE) up -d
+infra-up: ## Start existing ThunderID and PostgreSQL containers (never re-runs ThunderID's one-shot setup)
+	@tid=$$(docker ps -a --format '{{.Names}}' | grep -xE 'coregrid-thunderid(-1)?' | head -1); \
+	if [ -z "$$tid" ]; then echo "No ThunderID container yet: run 'make infra-bootstrap' (or ./setup.sh) first."; exit 1; fi; \
+	docker start $$tid coregrid-postgres
 
 .PHONY: infra-stop
 infra-stop: ## Stop the containers, keeping their data
@@ -98,6 +112,10 @@ db-migration: ## Add a migration: make db-migration NAME=AddSomething
 db-schema: ## Regenerate backend/db/schema.sql from the migrations
 	cd $(BACKEND) && dotnet ef migrations script -o db/schema.sql
 
+.PHONY: db-export
+db-export: ## Write missing backend/db/migrations/NNNN_*.sql exports and regenerate schema.sql
+	scripts/db/export-migrations.sh
+
 .PHONY: db-backup
 db-backup: ## Dump the local database to backups/coregrid-<timestamp>.dump
 	@mkdir -p backups
@@ -127,8 +145,8 @@ frontend: ## Run the web app on http://localhost:5173
 	cd $(FRONTEND) && npm run dev
 
 .PHONY: health
-health: ## Check the running API's health endpoint
-	@curl -fsS http://localhost:5083/health && echo
+health: ## Check the running API's health endpoint (API_URL=…)
+	@curl -fsS $(API_URL)/health && echo
 
 ##@ Quality
 
@@ -148,7 +166,7 @@ build-frontend: ## Type-check and build the web app
 test: test-backend test-frontend ## Run all tests
 
 .PHONY: test-backend
-test-backend: ## Run backend tests (needs PostgreSQL for the append-only suite)
+test-backend: db-update ## Run backend tests (migrates local PostgreSQL first; the append-only suite needs it)
 	TEST_DB_CONNECTION="$(DB_CONNECTION)" dotnet test $(TESTS)
 
 .PHONY: test-frontend
@@ -162,6 +180,24 @@ lint: ## Lint the frontend
 .PHONY: check
 check: build test ## Everything CI checks: build (zero warnings) and tests
 
+##@ Performance (scripts/perf/, needs CG_TOKEN — see scripts/perf/README.md)
+
+.PHONY: perf
+perf: ## Full run: seed, 50-VU load test, agent latency, slow queries -> scripts/perf/results/
+	API_URL="$(API_URL)" PG_URL="$(PG_URL)" scripts/perf/run-perf.sh
+
+.PHONY: perf-seed
+perf-seed: ## Seed the performance dataset (600 assets, 1,800 maintenance records; idempotent)
+	psql "$(PG_URL)" -v ON_ERROR_STOP=1 -f scripts/perf/seed-perf-data.sql
+
+.PHONY: perf-smoke
+perf-smoke: ## Quick run: 10 VUs for 1 minute, 3 agent workflows, no seeding
+	API_URL="$(API_URL)" PG_URL="$(PG_URL)" VUS=10 DURATION=1m RUNS=3 SKIP_SEED=1 scripts/perf/run-perf.sh
+
+.PHONY: perf-slow-queries
+perf-slow-queries: ## Show the 5 slowest statements recorded by pg_stat_statements
+	psql "$(PG_URL)" -q -f scripts/perf/slow-queries.sql
+
 ##@ Docker images
 
 .PHONY: docker-build
@@ -172,11 +208,17 @@ docker-build-backend: ## Build the API image (coregrid-api:local; override with 
 	docker build -t coregrid-api:$(IMAGE_TAG) $(BACKEND)
 
 .PHONY: docker-build-frontend
-docker-build-frontend: ## Build the web image (coregrid-web:local); VITE_* URLs are build args
-	docker build -t coregrid-web:$(IMAGE_TAG) $(FRONTEND)
+docker-build-frontend: ## Build the web image (coregrid-web:local); pass VITE_*=… to target another API
+	docker build -t coregrid-web:$(IMAGE_TAG) \
+		--build-arg VITE_API_URL="$(VITE_API_URL)" \
+		--build-arg VITE_THUNDERID_BASE_URL="$(VITE_THUNDERID_BASE_URL)" \
+		--build-arg VITE_THUNDERID_CLIENT_ID="$(VITE_THUNDERID_CLIENT_ID)" \
+		--build-arg VITE_THUNDERID_AFTER_SIGN_IN_URL="$(VITE_THUNDERID_AFTER_SIGN_IN_URL)" \
+		--build-arg VITE_THUNDERID_AFTER_SIGN_OUT_URL="$(VITE_THUNDERID_AFTER_SIGN_OUT_URL)" \
+		$(FRONTEND)
 
 ##@ Housekeeping
 
 .PHONY: clean
-clean: ## Remove build output (bin/, obj/, dist/)
-	rm -rf $(BACKEND)/bin $(BACKEND)/obj $(TESTS)/bin $(TESTS)/obj $(FRONTEND)/dist $(FRONTEND)/*.tsbuildinfo
+clean: ## Remove build output (bin/, obj/, dist/) and performance results
+	rm -rf $(BACKEND)/bin $(BACKEND)/obj $(TESTS)/bin $(TESTS)/obj $(FRONTEND)/dist $(FRONTEND)/*.tsbuildinfo scripts/perf/results

@@ -3,7 +3,7 @@
 ## Start the host services
 
 From the main repository, start the backend, database, and ThunderID using the documented Docker Compose
-workflow in [ThunderID setup](../setup/thunderid.md). Confirm the API and identity service are reachable over
+workflow in [ThunderID setup](../../setup/thunderid.md). Confirm the API and identity service are reachable over
 the local HTTPS endpoints before starting Flutter.
 
 ## Android emulator and device networking

@@ -14,17 +14,18 @@ No CORS rules are needed: the browser never talks to R2 for uploads, only the ba
 
 ## 2. Configure the backend
 
-Credentials go in user-secrets (dev) or environment variables (production), never in `appsettings*.json`:
+Credentials never go in `appsettings*.json`. Locally, put them in the git-ignored `backend/.env` (see `backend/.env.example`; the API loads it on start-up):
 
-```bash
-cd backend
-dotnet user-secrets set "CloudflareR2:AccountId"       "<account id>"
-dotnet user-secrets set "CloudflareR2:AccessKeyId"     "<access key id>"
-dotnet user-secrets set "CloudflareR2:SecretAccessKey" "<secret access key>"
-dotnet user-secrets set "CloudflareR2:BucketName"      "coregrid-dev"
+```dotenv
+CloudflareR2__AccountId=<account id — the subdomain of the S3 API URL>
+CloudflareR2__AccessKeyId=<S3 Access Key ID>
+CloudflareR2__SecretAccessKey=<S3 Secret Access Key>
+CloudflareR2__BucketName=<bucket name>
 ```
 
-Production: `CloudflareR2__AccountId`, `CloudflareR2__AccessKeyId`, `CloudflareR2__SecretAccessKey`, `CloudflareR2__BucketName`.
+Only the **S3 credentials** (Access Key ID and Secret Access Key) are needed. The Cloudflare API token shown on the same page is not used by CoreGrid.
+
+In Docker or the cloud, set the same four names as environment variables.
 
 `CloudflareR2:PublicBaseUrl` is only needed for files uploaded as *public* objects; maintenance photos don't use it.
 
