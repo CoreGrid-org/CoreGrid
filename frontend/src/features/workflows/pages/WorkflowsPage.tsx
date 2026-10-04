@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabList, Tab, TabPanels, TabPanel, Button, InlineNotification, Pagination } from "@carbon/react";
-import { Add, Renew } from "@carbon/icons-react";
+import { Add, Renew, InProgress, Pending, CheckmarkOutline, Misuse } from "@carbon/icons-react";
+import type { ComponentType } from "react";
 import { formatStatusLabel } from "@/shared/lib/statusTag";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { useClientPagination } from "@/shared/hooks/useClientPagination";
@@ -34,10 +35,41 @@ const OUTCOME_COPY: Partial<Record<WorkflowStatus, string>> = {
   FAILED_SAFE: "Stopped safely. No business record was changed.",
 };
 
+// Clickable count tiles above the tabs; each jumps to the tab that holds them.
+function SummaryTile({
+  label,
+  count,
+  hint,
+  icon: Icon,
+  tone,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  hint: string;
+  icon: ComponentType<{ size?: number; className?: string }>;
+  tone: "progress" | "attention" | "done" | "stopped";
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={`cg-workflow-summary__tile cg-workflow-summary__tile--${tone}`} onClick={onClick}>
+      <span className="cg-workflow-summary__icon">
+        <Icon size={20} />
+      </span>
+      <span className="cg-workflow-summary__text">
+        <span className="cg-workflow-summary__count">{count}</span>
+        <span className="cg-workflow-summary__label">{label}</span>
+        <span className="cg-workflow-summary__hint">{hint}</span>
+      </span>
+    </button>
+  );
+}
+
 function WorkflowCardPagination({ pagination }: { pagination: ReturnType<typeof useClientPagination<AgentWorkflow>> }) {
-  if (pagination.total === 0) return null;
+  if (pagination.total <= 5) return null;
   return (
     <Pagination
+      className="cg-workflow-pagination"
       page={pagination.page}
       pageSize={pagination.pageSize}
       pageSizes={[5, 10, 20, 50]}
@@ -58,7 +90,7 @@ function RecommendationSummary({ workflow }: { workflow: AgentWorkflow }) {
     <div className="cg-workflow-card__recommendation">
       <div className="cg-workflow-card__recommendation-head">
         <span className="cg-workflow-card__section-label">Recommendation</span>
-        {workflow.recommendation ? <ActionTag action={workflow.recommendation} /> : <span>N/A</span>}
+        {workflow.recommendation ? <ActionTag action={workflow.recommendation} /> : <span className="cg-table__muted">N/A</span>}
       </div>
       {single && <p className="cg-workflow-card__reason">{single.reason}</p>}
       {workflow.fleet && workflow.fleet.asset_count > 1 && <ActionMix fleet={workflow.fleet} />}
@@ -124,9 +156,13 @@ export default function WorkflowsPage() {
     );
   };
 
-  const placeholder = (text: string) => (
-    <div className="cg-placeholder">
-      <p>{workflows.isLoading ? "Loading…" : text}</p>
+  const failedSafe = completed.filter((w) => w.status === "FAILED_SAFE").length;
+
+  const placeholder = (text: string, hint: string, Icon: ComponentType<{ size?: number }>) => (
+    <div className="cg-placeholder cg-workflow-empty">
+      <Icon size={32} />
+      <p className="cg-workflow-empty__title">{workflows.isLoading ? "Loading…" : text}</p>
+      {!workflows.isLoading && <p className="cg-workflow-empty__hint">{hint}</p>}
     </div>
   );
 
@@ -177,6 +213,41 @@ export default function WorkflowsPage() {
         />
       )}
 
+      <div className="cg-workflow-summary">
+        <SummaryTile
+          label="In progress"
+          count={active.length}
+          hint="Agents still running"
+          icon={InProgress}
+          tone="progress"
+          onClick={() => setSelectedTab(TAB.active)}
+        />
+        <SummaryTile
+          label="Needs a decision"
+          count={awaitingApproval.length}
+          hint="High-impact, paused for approval"
+          icon={Pending}
+          tone="attention"
+          onClick={() => setSelectedTab(TAB.awaiting)}
+        />
+        <SummaryTile
+          label="Finished"
+          count={completed.length - failedSafe}
+          hint="Advisory, approved, rejected or revised"
+          icon={CheckmarkOutline}
+          tone="done"
+          onClick={() => setSelectedTab(TAB.completed)}
+        />
+        <SummaryTile
+          label="Stopped safely"
+          count={failedSafe}
+          hint="No business record was changed"
+          icon={Misuse}
+          tone="stopped"
+          onClick={() => setSelectedTab(TAB.completed)}
+        />
+      </div>
+
       <Tabs selectedIndex={selectedTab} onChange={({ selectedIndex }) => setSelectedTab(selectedIndex)}>
         <TabList aria-label="Workflow sections">
           <Tab>Active{active.length > 0 ? ` (${active.length})` : ""}</Tab>
@@ -186,7 +257,7 @@ export default function WorkflowsPage() {
         </TabList>
         <TabPanels>
           {/* ── Active ──────────────────────────────────────────────────── */}
-          <TabPanel>
+          <TabPanel className="cg-workflow-panel">
             {active.length > 0 ? (
               <>
                 <div className="cg-workflow-list">
@@ -224,12 +295,16 @@ export default function WorkflowsPage() {
                 <WorkflowCardPagination pagination={activePage} />
               </>
             ) : (
-              placeholder("No evaluations in progress.")
+              placeholder(
+                "No evaluations in progress.",
+                canInitiate ? "Start one with “New evaluation” — it usually finishes in a few seconds." : "Evaluations appear here while their agents are running.",
+                InProgress,
+              )
             )}
           </TabPanel>
 
           {/* ── Awaiting approval ───────────────────────────────────────── */}
-          <TabPanel>
+          <TabPanel className="cg-workflow-panel">
             {awaitingApproval.length > 0 ? (
               <>
                 <div className="cg-workflow-list">
@@ -239,13 +314,18 @@ export default function WorkflowsPage() {
                       <AnalysisFacts workflow={w} />
 
                       {w.validation_result && (
-                        <>
+                        <div className="cg-workflow-card__section">
                           <p className="cg-workflow-card__section-label">Policy validation: {w.validation_result.verdict}</p>
                           <PolicyRules validation={w.validation_result} />
-                        </>
+                        </div>
                       )}
 
-                      {w.fleet && w.fleet.asset_count > 1 && <FleetTable fleet={w.fleet} />}
+                      {w.fleet && w.fleet.asset_count > 1 && (
+                        <div className="cg-workflow-card__section">
+                          <p className="cg-workflow-card__section-label">Per-asset results</p>
+                          <FleetTable fleet={w.fleet} />
+                        </div>
+                      )}
 
                       {canDecide ? (
                         <div className="cg-workflow-card__actions">
@@ -260,7 +340,7 @@ export default function WorkflowsPage() {
                           </Button>
                         </div>
                       ) : (
-                        <p className="cg-table__muted cg-text-small">Awaiting an Administrator's decision.</p>
+                        <p className="cg-workflow-card__waiting">Awaiting an Administrator's decision.</p>
                       )}
                     </WorkflowCard>
                   ))}
@@ -268,18 +348,20 @@ export default function WorkflowsPage() {
                 <WorkflowCardPagination pagination={awaitingApprovalPage} />
               </>
             ) : (
-              placeholder("Nothing is awaiting approval.")
+              placeholder("Nothing is awaiting approval.", "High-impact recommendations pause here until an Administrator decides.", Pending)
             )}
           </TabPanel>
 
           {/* ── Completed ───────────────────────────────────────────────── */}
-          <TabPanel>
+          <TabPanel className="cg-workflow-panel">
             {completed.length > 0 ? (
               <>
                 <div className="cg-workflow-list">
                   {completedPage.pageItems.map((w) => (
                     <WorkflowCard key={w.id} workflow={w}>
-                      <p className="cg-workflow-card__outcome">{OUTCOME_COPY[w.status] ?? formatStatusLabel(w.status)}</p>
+                      <p className={`cg-workflow-card__outcome cg-workflow-card__outcome--${w.status.toLowerCase()}`}>
+                        {OUTCOME_COPY[w.status] ?? formatStatusLabel(w.status)}
+                      </p>
                       {w.recommendation && <RecommendationSummary workflow={w} />}
                       <div className="cg-workflow-card__facts">
                         <KeyFact label="Completed" value={w.completed_at ? new Date(w.completed_at).toLocaleString() : "—"} />
@@ -292,12 +374,12 @@ export default function WorkflowsPage() {
                 <WorkflowCardPagination pagination={completedPage} />
               </>
             ) : (
-              placeholder("No completed evaluations yet.")
+              placeholder("No completed evaluations yet.", "Finished, rejected and safely-stopped evaluations are kept here for audit.", CheckmarkOutline)
             )}
           </TabPanel>
 
           {/* ── Agents ──────────────────────────────────────────────────── */}
-          <TabPanel>
+          <TabPanel className="cg-workflow-panel">
             <AgentsOverview />
           </TabPanel>
         </TabPanels>

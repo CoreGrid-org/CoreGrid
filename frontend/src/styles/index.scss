@@ -1026,7 +1026,7 @@ html, body, #root {
 .cg-agent-card {
   background: #ffffff;
   border: 1px solid $cg-border;
-  padding: 1.25rem 1.5rem 1.5rem;
+  padding: 1.5rem 1.75rem 1.75rem;
   transition: border-color 0.2s ease;
 
   &:hover { border-color: $cg-accent-border; }
@@ -1168,46 +1168,184 @@ html, body, #root {
   }
 }
 
+// ─── Workflow summary tiles (Workflows page, above the tabs) ─────────────────
+.cg-workflow-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+
+  @media (max-width: 1100px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 560px)  { grid-template-columns: 1fr; }
+
+  &__tile {
+    --cg-tile-accent: #{$cg-accent};
+    --cg-tile-tint: #{$cg-accent-light};
+
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    width: 100%;
+    padding: 1.125rem 1.25rem;
+    background: #ffffff;
+    border: 1px solid $cg-border;
+    border-left: 3px solid var(--cg-tile-accent);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); border-color: $cg-accent-border; border-left-color: var(--cg-tile-accent); }
+    &:focus-visible { outline: 2px solid $cg-accent; outline-offset: 2px; }
+
+    &--progress  { --cg-tile-accent: #{$cg-accent};        --cg-tile-tint: #{$cg-accent-light}; }
+    &--attention { --cg-tile-accent: #d02670;              --cg-tile-tint: #fff0f7; }
+    &--done      { --cg-tile-accent: #{$cg-support-success}; --cg-tile-tint: #defbe6; }
+    &--stopped   { --cg-tile-accent: #8d8d8d;              --cg-tile-tint: #f4f4f4; }
+  }
+
+  &__icon {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: var(--cg-tile-tint);
+
+    svg { fill: var(--cg-tile-accent); }
+  }
+
+  &__text { display: flex; flex-direction: column; min-width: 0; }
+
+  &__count {
+    font-size: 1.75rem;
+    font-weight: 300;
+    line-height: 1.1;
+    color: $cg-text-primary;
+  }
+
+  &__label {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+  }
+
+  &__hint {
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: $cg-text-tertiary;
+  }
+}
+
+.cg-workflow-panel { padding: 1.5rem 0 0 !important; }
+
+.cg-workflow-pagination { margin-top: 0.5rem; border: 1px solid $cg-border; }
+
+.cg-workflow-empty {
+  background: #ffffff;
+  border: 1px dashed $cg-border;
+  padding: 3.5rem 2rem;
+
+  svg { fill: $cg-accent-mid; margin-bottom: 0.75rem; }
+
+  &__title { font-size: 0.9375rem !important; font-weight: 600; color: $cg-text-primary; }
+  &__hint { margin-top: 0.375rem !important; max-width: 28rem; font-size: 0.8125rem !important; line-height: 1.5; color: $cg-text-secondary; }
+}
+
 // ─── Workflow cards (Workflows > Active/Awaiting Approval/Completed) ────────
 // One shared card shell (WorkflowCard.tsx) across all three tabs, so the
 // same header/fact/action language reads consistently regardless of a
 // workflow's status — only the body content between header and trace
-// differs per tab.
+// differs per tab. The left rule colour signals the status at a glance.
 .cg-workflow-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
 }
 
 .cg-workflow-card {
+  --cg-card-rule: #{$cg-accent};
+
   background: #ffffff;
   border: 1px solid $cg-border;
-  transition: border-color 0.2s ease;
+  border-left: 3px solid var(--cg-card-rule);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
-  &:hover { border-color: $cg-accent-border; }
+  &:hover {
+    border-color: $cg-accent-border;
+    border-left-color: var(--cg-card-rule);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  &--awaiting_approval  { --cg-card-rule: #d02670; }
+  &--completed_advisory,
+  &--approved           { --cg-card-rule: #{$cg-support-success}; }
+  &--rejected           { --cg-card-rule: #{$cg-support-error}; }
+  &--revision_requested { --cg-card-rule: #{$cg-support-warning}; }
+  &--failed_safe        { --cg-card-rule: #8d8d8d; }
 
   &__header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.5rem;
+    gap: 1.5rem;
+    padding: 1.25rem 1.75rem;
     border-bottom: 1px solid $cg-border;
+
+    @media (max-width: 640px) { flex-direction: column; gap: 0.75rem; padding: 1rem 1.25rem; }
+  }
+
+  &__heading { min-width: 0; flex: 1; }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.375rem;
   }
 
   &__asset {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 600;
     color: $cg-text-primary;
-    margin: 0 0 0.125rem;
+    margin: 0;
+  }
+
+  &__scope { margin: 0 !important; }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 1.25rem;
+    font-size: 0.75rem;
+    color: $cg-text-secondary;
+    margin: 0 0 0.625rem;
+  }
+
+  &__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: $cg-text-tertiary;
+
+    svg { fill: $cg-text-tertiary; }
   }
 
   &__objective {
     font-size: 0.8125rem;
+    font-style: italic;
+    line-height: 1.5;
     color: $cg-text-secondary;
     margin: 0;
+    max-width: 60rem;
   }
 
   &__tags {
@@ -1215,149 +1353,495 @@ html, body, #root {
     align-items: center;
     gap: 0.5rem;
     flex-shrink: 0;
+
+    .cds--tag { margin: 0; }
   }
 
   &__body {
-    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1.5rem 1.75rem;
+
+    @media (max-width: 640px) { padding: 1.25rem; }
+  }
+
+  // A titled block inside the body, separated from the one above it.
+  &__section {
+    padding-top: 1.25rem;
+    border-top: 1px solid $cg-border;
   }
 
   &__facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: 1px;
+    background: $cg-border;
+    border: 1px solid $cg-border;
   }
 
   &__fact {
+    background: #fafafa;
+    padding: 0.875rem 1rem;
+    min-width: 0;
+
     &-label {
       font-size: 0.6875rem;
       font-weight: 600;
       letter-spacing: 0.05em;
       text-transform: uppercase;
       color: $cg-text-tertiary;
-      margin: 0 0 0.25rem;
+      margin: 0 0 0.375rem;
     }
 
     &-value {
-      font-size: 0.875rem;
+      font-size: 0.9375rem;
       color: $cg-text-primary;
       margin: 0;
+      overflow-wrap: anywhere;
     }
   }
 
   &__section-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: $cg-text-tertiary;
-    margin: 0 0 0.625rem;
+    margin: 0 0 0.75rem;
+
+    .cds--tag { margin: 0; text-transform: none; letter-spacing: 0; }
+  }
+
+  &__recommendation {
+    padding: 1rem 1.25rem;
+    background: $cg-accent-light;
+    border: 1px solid #d0def2;
+
+    &-head {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .cg-workflow-card__section-label { margin: 0; }
+      .cds--tag { margin: 0; }
+    }
+
+    .cg-action-mix { margin-top: 0.875rem; }
+  }
+
+  &__reason {
+    margin: 0.625rem 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: $cg-text-primary;
+    max-width: 62rem;
+  }
+
+  &__outcome {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    background: #f4f4f4;
+    border-left: 3px solid var(--cg-card-rule);
+    color: $cg-text-primary;
   }
 
   &__rules {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
+    border: 1px solid $cg-border;
   }
 
   &__rule {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1rem 3.5rem minmax(0, 1fr) auto;
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid $cg-border;
+
+    &:last-of-type { border-bottom: none; }
+    &:nth-of-type(even) { background: #fafafa; }
+
+    .cds--tag { margin: 0; }
 
     &-icon {
       flex-shrink: 0;
       &--pass { fill: $cg-support-success; }
       &--fail { fill: $cg-support-error; }
-      &--needs_revision { fill: $cg-support-warning; }
+      &--needs_revision { fill: #b28600; }
     }
 
     &-id {
+      font-family: 'IBM Plex Mono', monospace;
       font-size: 0.8125rem;
       font-weight: 600;
-      color: $cg-text-secondary;
-      min-width: 3.5rem;
+      color: $cg-text-primary;
     }
 
     &-values {
       font-size: 0.8125rem;
+      line-height: 1.45;
       color: $cg-text-secondary;
     }
   }
 
+  &__rules > .cg-agent-output__note {
+    margin: 0;
+    padding: 0.625rem 1rem;
+    border-top: 1px solid $cg-border;
+  }
+
   &__actions {
     display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0.25rem -1.75rem -1.5rem;
+    padding: 1rem 1.75rem;
+    background: #fafafa;
+    border-top: 1px solid $cg-border;
+
+    @media (max-width: 640px) { margin: 0.25rem -1.25rem -1.25rem; padding: 1rem 1.25rem; }
+  }
+
+  &__waiting {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: $cg-text-tertiary;
+    font-style: italic;
+  }
+}
+
+// ─── Agent outputs (AgentOutputs.tsx) ────────────────────────────────────────
+.cg-agent-output {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding: 1.25rem;
+  background: #fafafa;
+  border: 1px solid $cg-border;
+
+  &__headline {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
+
+    .cds--tag { margin: 0; }
   }
+
+  &__note {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #8e6a00;
+  }
+}
+
+.cg-agent-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.cg-agent-stat {
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  border: 1px solid $cg-border;
+
+  &__label {
+    margin: 0 0 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $cg-text-tertiary;
+  }
+
+  &__value { margin: 0; font-size: 1rem; color: $cg-text-primary; }
+  &__hint { margin: 0.25rem 0 0; font-size: 0.75rem; color: $cg-text-tertiary; }
+}
+
+.cg-plan-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  &__item {
+    display: grid;
+    grid-template-columns: minmax(12rem, auto) 1rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: #ffffff;
+    border: 1px solid $cg-border;
+
+    @media (max-width: 640px) { grid-template-columns: 1fr; gap: 0.25rem; }
+  }
+
+  &__agent {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $cg-text-primary;
+
+    svg { fill: $cg-accent; }
+  }
+
+  &__arrow {
+    fill: $cg-text-tertiary;
+    @media (max-width: 640px) { display: none; }
+  }
+
+  &__purpose { font-size: 0.8125rem; color: $cg-text-secondary; }
+}
+
+// Bar fills and stacked-bar segments share one colour per lifecycle action,
+// matching the Carbon tag colour ActionTag gives the same action.
+$cg-action-colors: (
+  dispose: #da1e28,
+  replace: #d02670,
+  repair: #0f62fe,
+  transfer: #1192e8,
+  retain: #24a148,
+  deferred: #b28600,
+  blocked: #6f6f6f,
+);
+
+.cg-option-ranking {
+  &__row {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr) 3rem;
+    align-items: center;
+    column-gap: 0.875rem;
+    row-gap: 0.25rem;
+    padding: 0.625rem 0;
+    border-bottom: 1px solid $cg-border;
+
+    &:last-child { border-bottom: none; }
+  }
+
+  &__action { font-size: 0.8125rem; font-weight: 600; color: $cg-text-primary; }
+
+  &__bar { height: 0.5rem; background: #e8e8e8; border-radius: 4px; overflow: hidden; }
+
+  &__fill {
+    height: 100%;
+    border-radius: 4px;
+    background: $cg-accent;
+    transition: width 0.3s ease;
+
+    @each $action, $color in $cg-action-colors {
+      &--#{$action} { background: $color; }
+    }
+  }
+
+  &__score {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8125rem;
+    text-align: right;
+    color: $cg-text-secondary;
+  }
+
+  &__why {
+    grid-column: 2 / -1;
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: $cg-text-tertiary;
+  }
+}
+
+.cg-action-mix {
+  &__bar {
+    display: flex;
+    gap: 2px;
+    height: 0.75rem;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #e8e8e8;
+  }
+
+  &__segment {
+    min-width: 6px;
+
+    @each $action, $color in $cg-action-colors {
+      &--#{$action} { background: $color; }
+    }
+  }
+
+  &__legend {
+    list-style: none;
+    margin: 0.625rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem 1.25rem;
+    font-size: 0.75rem;
+    color: $cg-text-secondary;
+
+    li { display: inline-flex; align-items: center; gap: 0.375rem; }
+    strong { color: $cg-text-primary; }
+  }
+
+  &__swatch { width: 0.625rem; height: 0.625rem; border-radius: 2px; }
+}
+
+.cg-fleet-table {
+  overflow-x: auto;
+  border: 1px solid $cg-border;
+
+  .cg-table {
+    th, td { padding: 0.625rem 1rem; }
+    td { font-size: 0.8125rem; vertical-align: top; }
+    .cds--tag { margin: 0; }
+  }
+
+  > .cds--btn { margin: 0.25rem 0.5rem; }
+  > .cg-text-small { margin: 0 1rem 0.75rem; }
+
+  &__code { font-family: 'IBM Plex Mono', monospace; font-weight: 600; white-space: nowrap; }
+  &__reason { min-width: 16rem; max-width: 32rem; line-height: 1.45; color: $cg-text-secondary !important; }
 }
 
 // ─── Execution trace (ExecutionTrace.tsx) ────────────────────────────────────
 .cg-trace-accordion {
   border-top: 1px solid $cg-border;
 
-  .cds--accordion__title { font-size: 0.8125rem; font-weight: 600; }
-  .cds--accordion__content { padding-right: 1rem; }
+  .cds--accordion__item { border-top: 0; border-bottom: 0; }
+  .cds--accordion__heading { padding-left: 1.75rem; padding-right: 1.75rem; min-height: 3rem; }
+  .cds--accordion__heading:hover { background: $cg-accent-light; }
+  .cds--accordion__title { font-size: 0.8125rem; font-weight: 600; margin-left: 0.5rem; }
+  .cds--accordion__content { padding: 0.5rem 1.75rem 1.75rem 1.75rem; }
+
+  @media (max-width: 640px) {
+    .cds--accordion__heading { padding-left: 1.25rem; padding-right: 1.25rem; }
+    .cds--accordion__content { padding: 0.5rem 1.25rem 1.25rem; }
+  }
 }
 
+.cg-trace-meta {
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  color: $cg-text-tertiary;
+}
+
+// A vertical timeline: a rail of numbered agent nodes joined by a line.
 .cg-trace-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
 }
 
 .cg-trace-step {
+  --cg-trace-node: #{$cg-accent};
+
+  position: relative;
   display: flex;
-  gap: 0.75rem;
-  padding-bottom: 0.875rem;
-  border-bottom: 1px solid $cg-border;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
 
-  &:last-child { border-bottom: none; padding-bottom: 0; }
+  &:last-child { padding-bottom: 0; }
+  &--failed { --cg-trace-node: #{$cg-support-error}; }
 
-  &__icon {
-    color: $cg-accent;
-    flex-shrink: 0;
-    margin-top: 0.125rem;
+  &__rail {
+    position: relative;
+    flex: none;
+    width: 2rem;
+    display: flex;
+    justify-content: center;
   }
 
-  &__body { min-width: 0; flex: 1; }
+  // The connector to the next node.
+  &:not(:last-child) &__rail::after {
+    content: "";
+    position: absolute;
+    top: 2rem;
+    bottom: -1.25rem;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: $cg-border;
+  }
+
+  &__node {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid var(--cg-trace-node);
+
+    svg { fill: var(--cg-trace-node); }
+  }
+
+  &__body { min-width: 0; flex: 1; padding-top: 0.25rem; }
 
   &__header {
     display: flex;
     align-items: center;
     gap: 0.625rem;
     flex-wrap: wrap;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.375rem;
+
+    .cds--tag { margin: 0; }
   }
 
   &__seq {
     color: $cg-text-tertiary;
     font-weight: 400;
+    margin-right: 0.125rem;
   }
 
   &__agent {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: $cg-text-primary;
   }
 
   &__duration {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     font-size: 0.75rem;
     color: $cg-text-tertiary;
+
+    svg { fill: $cg-text-tertiary; }
   }
 
   &__summary {
     font-size: 0.8125rem;
     color: $cg-text-secondary;
     margin: 0;
-    line-height: 1.5;
+    line-height: 1.55;
+
+    &--error { color: $cg-support-error; }
   }
+
+  &__toggle { margin-top: 0.375rem; margin-left: -1rem; }
 }
 
 .cg-trace-approvals {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px solid $cg-border;
 
   &__label {
@@ -1366,16 +1850,21 @@ html, body, #root {
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: $cg-text-tertiary;
-    margin: 0 0 0.625rem;
+    margin: 0 0 0.75rem;
   }
 }
 
 .cg-trace-approval {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.625rem;
   flex-wrap: wrap;
+  padding: 0.75rem 1rem;
   margin-bottom: 0.5rem;
+  background: #fafafa;
+  border: 1px solid $cg-border;
+
+  .cds--tag { margin: 0; }
 
   &__by {
     font-size: 0.75rem;
@@ -1385,8 +1874,9 @@ html, body, #root {
   &__reason {
     flex-basis: 100%;
     font-size: 0.8125rem;
-    color: $cg-text-secondary;
-    margin: 0.125rem 0 0;
+    line-height: 1.5;
+    color: $cg-text-primary;
+    margin: 0;
   }
 }
 
