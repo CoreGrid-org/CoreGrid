@@ -14,6 +14,7 @@ import {
 } from "@carbon/react";
 import { Tools, Calendar } from "@carbon/icons-react";
 import { useCreateMaintenance } from "../hooks/useMaintenance";
+import MaintenancePhotoField from "./MaintenancePhotoField";
 import type { MaintenanceRecord, MaintenanceType, MaintenancePriority } from "../types/maintenance";
 import { useAssetsList } from "@/features/assets/hooks/useAssets";
 import type { Asset } from "@/features/assets/types/asset";
@@ -67,6 +68,7 @@ export default function CreateMaintenanceModal({ onClose, onCreated, launcherBut
   const [priority, setPriority] = useState<MaintenancePriority | "">("");
   const [observedCondition, setCondition] = useState("");
   const [description, setDescription] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const selectedAsset = assets.find((a) => a.id === assetId) ?? null;
@@ -87,11 +89,14 @@ export default function CreateMaintenanceModal({ onClose, onCreated, launcherBut
     if (hasErrors || !type || !priority || createMaintenance.isPending) return;
     createMaintenance.mutate(
       {
-        asset_id: assetId,
-        type,
-        priority,
-        description: description.trim(),
-        observed_condition: observedCondition,
+        payload: {
+          asset_id: assetId,
+          type,
+          priority,
+          description: description.trim(),
+          observed_condition: observedCondition,
+        },
+        photo,
       },
       { onSuccess: onCreated },
     );
@@ -236,6 +241,8 @@ export default function CreateMaintenanceModal({ onClose, onCreated, launcherBut
             invalid={submitted && Boolean(errors.description)}
             invalidText={errors.description ?? undefined}
           />
+
+          <MaintenancePhotoField file={photo} onChange={setPhoto} disabled={createMaintenance.isPending} />
         </form>
       </ModalBody>
       <ModalFooter>
@@ -243,7 +250,7 @@ export default function CreateMaintenanceModal({ onClose, onCreated, launcherBut
           Cancel
         </Button>
         <Button kind="primary" onClick={handleSubmit} disabled={createMaintenance.isPending}>
-          {createMaintenance.isPending ? "Creating…" : "Create record"}
+          {createMaintenance.isPending ? (photo ? "Uploading & creating…" : "Creating…") : "Create record"}
         </Button>
       </ModalFooter>
     </ComposedModal>

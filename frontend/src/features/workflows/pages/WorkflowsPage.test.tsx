@@ -19,7 +19,10 @@ vi.mock("../api/workflows", () => ({
   evaluatePolicy: vi.fn(),
   runPolicyAgent: vi.fn(),
   runMaintenanceAgent: vi.fn(),
+  resumeWorkflow: vi.fn(),
   decideWorkflow: vi.fn(),
+  workflowTitle: (w: { scope: string; asset_code: string; asset_type_name: string }) =>
+    w.scope === "ASSET" && w.asset_code ? w.asset_code : `${w.asset_type_name} fleet`,
 }));
 vi.mock("@/features/auth/services/me", () => ({
   getMe: getMeMock,
@@ -38,6 +41,10 @@ const AUDITOR: MeResponse = { ...ADMIN, id: "u2", email: "auditor@mohsl.gov.lk",
 
 const AWAITING: AgentWorkflow = {
   id: "w1",
+  scope: "ASSET",
+  asset_type_id: "t1",
+  asset_type_name: "Server",
+  category_name: "ICT",
   asset_id: "a1",
   asset_code: "MOHSL-ICT-SRV-0002",
   objective: "Assess for disposal",
@@ -49,6 +56,8 @@ const AWAITING: AgentWorkflow = {
   revision_count: 0,
   failure_reason: null,
   maintenance_analysis: null,
+  budget_analysis: null,
+  fleet: null,
   validation_result: {
     verdict: "PASS",
     rule_results: [{ rule_id: "PR-01", expected: "CONDEMNED", actual: "CONDEMNED", outcome: "PASS" }],
@@ -72,7 +81,7 @@ describe("WorkflowsPage", () => {
     expect(screen.getByText("Review and approve agent-recommended actions.")).toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("tab", { name: "Awaiting Approval" }));
+    await user.click(await screen.findByRole("tab", { name: /Awaiting Approval/ }));
 
     expect(await screen.findByText("MOHSL-ICT-SRV-0002")).toBeInTheDocument();
     expect(screen.getByText("Dispose")).toBeInTheDocument();
@@ -87,7 +96,7 @@ describe("WorkflowsPage", () => {
     const user = userEvent.setup();
     render(<WorkflowsPage />);
 
-    await user.click(await screen.findByRole("tab", { name: "Awaiting Approval" }));
+    await user.click(await screen.findByRole("tab", { name: /Awaiting Approval/ }));
 
     expect(await screen.findByRole("button", { name: "Approve" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
@@ -100,7 +109,7 @@ describe("WorkflowsPage", () => {
     const user = userEvent.setup();
     render(<WorkflowsPage />);
 
-    await user.click(await screen.findByRole("tab", { name: "Awaiting Approval" }));
+    await user.click(await screen.findByRole("tab", { name: /Awaiting Approval/ }));
 
     expect(await screen.findByText("Awaiting an Administrator's decision.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
@@ -121,10 +130,55 @@ describe("WorkflowsPage", () => {
     const user = userEvent.setup();
     render(<WorkflowsPage />);
 
-    await user.click(await screen.findByRole("tab", { name: "Completed" }));
+    await user.click(await screen.findByRole("tab", { name: /Completed/ }));
 
     expect(await screen.findByText("MOHSL-ICT-SRV-0002")).toBeInTheDocument();
     expect(screen.getByText("Completed Advisory")).toBeInTheDocument();
+  });
+
+  it("renders an asset-type evaluation with its fleet split and per-asset outcomes", async () => {
+    getMeMock.mockResolvedValue(ADMIN);
+    listWorkflowsMock.mockResolvedValue([
+      {
+        ...AWAITING,
+        id: "w3",
+        scope: "ASSET_TYPE",
+        asset_id: null,
+        asset_code: "",
+        recommendation: "REPLACE",
+        fleet: {
+          asset_count: 3,
+          action_counts: { REPLACE: 1, RETAIN: 1 },
+          pass_count: 2,
+          deferred_count: 1,
+          blocked_count: 0,
+          assets: [
+            { asset_id: "a1", asset_code: "SRV-1", condition: "POOR", action: "REPLACE", verdict: "PASS", is_high_impact: false, ratio: 0.9, projected_cost: 5000, reason: "Financial triage favours REPLACE." },
+            { asset_id: "a2", asset_code: "SRV-2", condition: "GOOD", action: "RETAIN", verdict: "PASS", is_high_impact: false, ratio: 0, projected_cost: 0, reason: "No action justified." },
+            { asset_id: "a3", asset_code: "SRV-3", condition: "FAIR", action: "REPAIR", verdict: "NEEDS_REVISION", is_high_impact: false, ratio: 0.1, projected_cost: 300, reason: "PR-07: an open maintenance record must be resolved first." },
+          ],
+        },
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<WorkflowsPage />);
+
+    await user.click(await screen.findByRole("tab", { name: "Awaiting Approval (1)" }));
+
+    expect(await screen.findByText("Server fleet")).toBeInTheDocument();
+    expect(screen.getByText("Asset type")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "1 Replace, 1 Retain, 1 Deferred" })).toBeInTheDocument();
+    expect(screen.getByText("SRV-3")).toBeInTheDocument();
+    expect(screen.getAllByText("Deferred")).toHaveLength(2); // legend + the deferred row
+  });
+
+  it("offers to resume an evaluation that is still in progress", async () => {
+    getMeMock.mockResolvedValue(ADMIN);
+    listWorkflowsMock.mockResolvedValue([{ ...AWAITING, id: "w4", status: "ANALYZING", validation_result: null }]);
+    render(<WorkflowsPage />);
+
+    expect(await screen.findByRole("button", { name: "Resume evaluation" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Active (1)" })).toBeInTheDocument();
   });
 
   it("shows an error notification when the workflow list fails to load", async () => {

@@ -27,12 +27,12 @@ const AGENTS: AgentSpec[] = [
     callsModel: true,
     responsibility:
       "Interprets the objective, confirms it's in scope, and produces an ordered, typed plan naming which agent executes each step. Rejects out-of-scope objectives before any analysis runs.",
-    input: "EvaluationObjective { assetId, objectiveText, initiatedBy, organizationId }",
+    input: "EvaluationScope { assetType, asset? } + objective",
     output: "ExecutionPlan { steps[], inScope, rejectionReason? }",
     tools: [
       {
-        name: "get_asset_summary",
-        description: "Code, name, type, category, status, condition, department, location, acquisition date and cost.",
+        name: "get_asset_type_summary",
+        description: "Asset type, category, useful life, active asset count and condition mix of the fleet.",
       },
     ],
   },
@@ -42,9 +42,9 @@ const AGENTS: AgentSpec[] = [
     icon: ToolBox,
     callsModel: false,
     responsibility:
-      "Quantifies the asset's maintenance behaviour: how often it fails, what it has cost, whether the trend is worsening, and what the next twelve months are likely to cost.",
-    input: "MaintenanceAnalysisRequest { assetId, windowMonths }",
-    output: "MaintenanceAnalysis { repairCount, cumulativeCost, meanTimeBetweenFailuresDays, costTrend, projectedAnnualCost, dataQuality, confidence }",
+      "Quantifies each asset's maintenance behaviour: how often it fails, whether repair costs are rising, and what the next twelve months are likely to cost. A fleet is rolled up into one figure.",
+    input: "EvaluationScope { assetType, asset? }",
+    output: "FailureStatistics { repairCount, meanTimeBetweenFailuresDays, costTrend, projectedNextTwelveMonthsCost }",
     tools: [
       {
         name: "get_maintenance_history",
@@ -60,11 +60,11 @@ const AGENTS: AgentSpec[] = [
     node: "Node 3",
     name: "Budget Analysis Agent",
     icon: Wallet,
-    callsModel: false,
+    callsModel: true,
     responsibility:
-      "Converts the maintenance picture into a financial comparison: residual value against projected repair cost against replacement cost, within the department's budget reality, and ranks the options.",
-    input: "FinancialAssessmentRequest { assetId, maintenanceAnalysis }",
-    output: "FinancialAssessment { residualValue, replacementEstimate, repairToReplaceRatio, budgetHeadroom, rankedOptions[], proposedRecommendation }",
+      "Triages each asset by comparing projected repair cost with residual value against the policy threshold, then ranks the lifecycle options. Every figure is deterministic; a model, when configured, only re-scores the options and falls back to the deterministic ranking.",
+    input: "EvaluationScope + per-asset FailureStatistics",
+    output: "FinancialAssessment { residualValue, repairToReplaceRatio, budgetHeadroom, rankedOptions[], proposedRecommendation, source }",
     tools: [
       {
         name: "get_asset_financials",
@@ -86,8 +86,8 @@ const AGENTS: AgentSpec[] = [
     icon: RuleLocked,
     callsModel: false,
     responsibility:
-      "Establishes whether the proposed recommendation is permitted by the organisation's configured policy and the asset's compliance state. The PASS / FAIL / NEEDS_REVISION verdict is a deterministic rule engine, never the model.",
-    input: "PolicyValidationRequest { assetId, proposedRecommendation, financialAssessment }",
+      "Tries candidate actions for each asset in order and keeps the first one the organisation's policy permits. The PASS / FAIL / NEEDS_REVISION verdict comes from a deterministic rule engine, never the model.",
+    input: "EvaluationScope + maintenance and financial assessments",
     output: "PolicyValidation { verdict, ruleResults[], blockingReasons[], isHighImpact }",
     tools: [
       {
@@ -110,10 +110,10 @@ export default function AgentsOverview() {
       </div>
       <div className="cg-section__body">
         <p className="cg-agent-intro">
-          One evaluation runs through four specialised agents in a fixed order, each with its own disjoint,
-          read-only tool allow-list. Every tool call is scoped to the initiating organisation, validated
-          against a JSON schema, and recorded with its outcome — an agent can only read through its listed
-          tools; it can never write, update or delete a business record.
+          One evaluation runs through four specialised agents in a fixed order, each with its own read-only
+          tool interface. Every tool call is scoped to the initiating organisation taken from the persisted
+          workflow — an agent can only read through its own tools; it can never write, update or delete a
+          business record.
         </p>
 
         <div className="cg-agent-grid">
@@ -162,10 +162,10 @@ export default function AgentsOverview() {
         </div>
 
         <p className="cg-agent-footnote">
-          A fifth step — the Orchestrator (<code>AgentWorkflowService</code>) — sequences these four agents,
-          enforces per-tool timeouts and retries, and runs the deterministic gate before any high-impact
-          action can proceed. It holds only its own control-plane tools (persist state, checkpoint/resume,
-          enforce timeout, run the gate, request approval) and never calls a business tool directly.
+          The Orchestrator (<code>AgentWorkflowService</code> with <code>WorkflowPipeline</code>) runs these
+          four agents in plan order, records a trace step for each, and finishes with the deterministic gate:
+          DISPOSE or low-confidence recommendations pause for Administrator approval, other policy-compliant
+          ones complete as advisory, and a policy FAIL stops safely. It never calls a business tool itself.
         </p>
       </div>
     </div>

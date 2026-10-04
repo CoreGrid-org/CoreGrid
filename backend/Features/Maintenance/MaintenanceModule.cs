@@ -7,6 +7,7 @@ public static class MaintenanceModule
     public static IServiceCollection AddMaintenanceFeature(this IServiceCollection services)
     {
         services.AddScoped<IMaintenanceService, MaintenanceService>();
+        services.AddScoped<IMaintenanceCostEstimator, MaintenanceCostEstimator>();
         services.AddScoped<IPreventiveMaintenanceScheduler, PreventiveMaintenanceScheduler>();
         services.AddHostedService<PreventiveMaintenanceBackgroundService>();
 

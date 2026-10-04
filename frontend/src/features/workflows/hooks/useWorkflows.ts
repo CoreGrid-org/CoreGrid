@@ -6,6 +6,7 @@ import {
   decideWorkflow,
   evaluatePolicy,
   listWorkflows,
+  resumeWorkflow,
   runMaintenanceAgent,
   runPolicyAgent,
 } from "../api/workflows";
@@ -16,7 +17,13 @@ import type {
   EvaluatePolicyRequest,
 } from "../api/workflows";
 
-export function useWorkflowsList(status?: string) {
+// `poll` refreshes silently in the background (no loading flash) every
+// `everyMs` for as long as `while(items)` holds, e.g. while any evaluation
+// is still in flight.
+export function useWorkflowsList(
+  status?: string,
+  poll?: { everyMs: number; while: (items: AgentWorkflow[]) => boolean },
+) {
   const { getAccessToken } = useThunderID();
   const [data, setData] = useState<AgentWorkflow[]>();
   const [error, setError] = useState<unknown>(undefined);
@@ -48,9 +55,29 @@ export function useWorkflowsList(status?: string) {
     };
   }, [status, attempt, getAccessToken]);
 
+  const pollMs = poll && data && poll.while(data) ? poll.everyMs : undefined;
+  useEffect(() => {
+    if (!pollMs) return;
+    const timer = window.setInterval(() => {
+      getAccessToken()
+        .then((token) => listWorkflows(status, token))
+        .then(setData)
+        .catch(() => undefined); // a missed poll is retried on the next tick
+    }, pollMs);
+    return () => window.clearInterval(timer);
+  }, [pollMs, status, getAccessToken]);
+
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 
   return { data, error, isError: error !== undefined, isLoading, refetch };
+}
+
+export function useResumeWorkflow() {
+  const { getAccessToken } = useThunderID();
+  return useStubMutation<{ id: string }, AgentWorkflow>(async ({ id }) => {
+    const accessToken = await getAccessToken();
+    return resumeWorkflow(id, accessToken);
+  });
 }
 
 export function useCreateWorkflow() {

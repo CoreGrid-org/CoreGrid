@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Modal, TextArea, InlineNotification } from "@carbon/react";
 import { useDecideWorkflow } from "../hooks/useWorkflows";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { workflowTitle } from "../api/workflows";
 import type { AgentWorkflow } from "../api/workflows";
 
 interface DecideWorkflowModalProps {
   workflow: AgentWorkflow;
   decision: "APPROVE" | "REJECT" | "REVISE";
   onClose: () => void;
-  onDecided: () => void;
+  onDecided: (workflow: AgentWorkflow) => void;
 }
 
 const HEADINGS: Record<string, string> = {
@@ -34,7 +35,7 @@ export default function DecideWorkflowModal({ workflow, decision, onClose, onDec
   return (
     <Modal
       open
-      modalLabel={`${workflow.asset_code} — ${workflow.recommendation ?? "recommendation"}`}
+      modalLabel={`${workflowTitle(workflow)}: ${workflow.recommendation ?? "recommendation"}`}
       modalHeading={HEADINGS[decision]}
       primaryButtonText={decide.isPending ? "Recording…" : "Confirm"}
       secondaryButtonText="Cancel"

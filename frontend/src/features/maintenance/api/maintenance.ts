@@ -5,6 +5,7 @@ import type {
   ReportFaultRequest,
   CreateMaintenanceRequest,
   ApproveMaintenanceRequest,
+  MaintenanceCostSuggestion,
   CompleteMaintenanceRequest,
   CancelMaintenanceRequest,
 } from "../types/maintenance";
@@ -100,6 +101,13 @@ export async function createMaintenance(
     body: JSON.stringify(payload),
   });
   return handle(response, "Could not create maintenance record.");
+}
+
+export async function getCostSuggestion(id: string, accessToken: string): Promise<MaintenanceCostSuggestion> {
+  const response = await fetch(`${API_URL}/maintenance/${id}/cost-suggestion`, {
+    headers: authHeaders(accessToken),
+  });
+  return handle(response, "Could not load a cost suggestion.");
 }
 
 export async function approveMaintenance(

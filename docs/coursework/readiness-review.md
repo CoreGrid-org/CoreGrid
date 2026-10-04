@@ -9,8 +9,8 @@ Internal checklist. **Do not include this file in the submitted PDF.**
 | Check | Result |
 |---|---|
 | `dotnet build` | 0 warnings, 0 errors |
-| `dotnet test backend.Tests` (with PostgreSQL on :5433) | 439 / 439 pass |
-| `npm test` / `npm run build` (frontend) | 113 / 113 pass (23 files); build OK |
+| `dotnet test backend.Tests` (with PostgreSQL on :5433) | 452 / 452 pass |
+| `npm test` / `npm run build` (frontend) | 115 / 115 pass (23 files); build OK |
 | `flutter analyze` / `flutter test` (mobile) | 0 issues; 69 / 69 pass (18 files) |
 
 ## Blockers — must fix before submission or evaluation
@@ -35,11 +35,11 @@ Internal checklist. **Do not include this file in the submitted PDF.**
 
 | Gap | Risk | Suggested fix |
 |---|---|---|
-| Approval does **not execute** the approved action (`AgentWorkflowService.cs:515–527`, "stubbed") | Spec requires "an auditable result"; examiners may mark orchestration down | Either wire APPROVE → create/approve the disposal through `DisposalService`, or demo P6 gating explicitly and own the design in the ADR |
-| Tool allow-list is **structural**, not enforced at runtime (each agent just calls specific methods) | "Controlled tool permissions" questions | Add a per-agent allow-list check in `IAgentToolsService` (agent name → permitted tools) that throws and logs on violation, plus a test (GC-06) |
-| No explicit retry count on tool/model calls; 60 s HTTP timeout only | Spec lists "timeouts, retry limits" | Add a bounded retry (e.g. 2) with a test |
+| Approval does **not execute** the approved action (`WorkflowRouting.ApplyDecision` only records it) | Spec requires "an auditable result"; examiners may mark orchestration down | Either wire APPROVE → create/approve the disposal through `DisposalService`, or demo P6 gating explicitly and own the design in the ADR |
+| Tool allow-list is enforced at **compile time**: each agent receives only its own tool interface (`IPlannerTools`, `IMaintenanceTools`, `IBudgetTools`, `IPolicyTools`). There is no runtime log of a violation, and Budget also reads the policy threshold through `IPolicyTools` | "Controlled tool permissions" questions | Explain the interface-per-agent design in the viva; add `get_organization_policies` to Budget's registry entry so the Planner's catalogue matches |
+| No explicit retry count on tool/model calls; 30 s HTTP timeout and one fallback provider only | Spec lists "timeouts, retry limits" | Add a bounded retry (e.g. 2) with a test |
 | Prompt-injection guard is phrase-based ("approve disposal" blocked, "approve" alone is not) | Easy live demo to break | Add more injection golden cases; delimit objective text in the prompt |
-| Planner logs the raw model error body (`PlannerAgentService.cs:120`) | Minor secret/PII hygiene | Truncate or omit |
+| A provider's error body (truncated to 300 characters) is logged by `LlmClient` | Minor secret/PII hygiene | Omit the body from the log |
 
 ## Other gaps
 
@@ -49,7 +49,7 @@ Internal checklist. **Do not include this file in the submitted PDF.**
 - **Mobile registration:** the spec lists "registration" for Flutter. Users are admin-invited (ThunderID); justify this in the report.
 - **SQL export missing** for `AddMaintenanceReporter` (`backend/db/migrations/0016_*`); that migration also has no `.Designer.cs`.
 - **Rate limiting:** only 3 routes use `[EnableRateLimiting]` (setup, photo upload, workflow initiation); report exports are not limited, although `docs/coursework/progress.md` says they are. The `Program.cs:216` comment saying policies are "not yet attached" is stale.
-- ~~Test counts in `docs/coursework/progress.md` / `docs/mobile/progress.md`~~ updated to 113 / 69.
+- ~~Test counts in `docs/coursework/progress.md` / `docs/mobile/progress.md`~~ updated to 115 / 69.
 - `diagrams/relational-schema.png`: the `VerificationCampaigns` header is garbled ("VerificaanceRecoigns"), and `AgentWorkflows.BudgetAnalysis` is missing. Regenerate before the PDF.
 - `diagrams/er-diagram.html` loads an icon font from a CDN; export it to PNG for the PDF.
 - ~~README minimal~~ rewritten (open-source, single-tenant, setup, configuration, components A–D). Live URLs and test accounts stay out of the repository; they go in the PDF.

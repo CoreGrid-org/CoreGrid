@@ -114,7 +114,10 @@ namespace CoreGrid.Api.Migrations
                     b.Property<int>("ApprovalStatus")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("AssetId")
+                    b.Property<Guid?>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetTypeId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("BudgetAnalysis")
@@ -176,6 +179,8 @@ namespace CoreGrid.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AssetId");
+
+                    b.HasIndex("AssetTypeId");
 
                     b.HasIndex("CorrelationId");
 
@@ -1371,6 +1376,11 @@ namespace CoreGrid.Api.Migrations
                     b.HasOne("CoreGrid.Api.Domain.Asset", "Asset")
                         .WithMany()
                         .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CoreGrid.Api.Domain.AssetType", "AssetType")
+                        .WithMany()
+                        .HasForeignKey("AssetTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1387,6 +1397,8 @@ namespace CoreGrid.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Asset");
+
+                    b.Navigation("AssetType");
 
                     b.Navigation("InitiatedByUser");
 
@@ -1729,24 +1741,24 @@ namespace CoreGrid.Api.Migrations
                         .HasForeignKey("AssigneeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("CoreGrid.Api.Domain.User", "ReportedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReportedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("CoreGrid.Api.Domain.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CoreGrid.Api.Domain.User", "ReportedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReportedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Asset");
 
                     b.Navigation("Assignee");
 
-                    b.Navigation("ReportedByUser");
-
                     b.Navigation("Organization");
+
+                    b.Navigation("ReportedByUser");
                 });
 
             modelBuilder.Entity("CoreGrid.Api.Domain.Notification", b =>

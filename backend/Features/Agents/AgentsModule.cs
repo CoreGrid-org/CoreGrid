@@ -1,28 +1,28 @@
-using CoreGrid.Api.Features.Agents.Services;
+using CoreGrid.Api.Features.Agents.Services.Budget;
+using CoreGrid.Api.Features.Agents.Services.Llm;
+using CoreGrid.Api.Features.Agents.Services.Orchestration;
+using CoreGrid.Api.Features.Agents.Services.Planner;
+using CoreGrid.Api.Features.Agents.Services.Policy;
 
 namespace CoreGrid.Api.Features.Agents;
 
 public static class AgentsModule
 {
-    // Shared by every agent that calls the configured LLM (see LlmSettings).
-    public const string LlmHttpClient = "Llm";
+    private static readonly TimeSpan LlmTimeout = TimeSpan.FromSeconds(30);
 
     public static IServiceCollection AddAgentsFeature(this IServiceCollection services)
     {
-        services.AddScoped<IPolicyRuleEngine, PolicyRuleEngine>();
         services.AddScoped<IAgentWorkflowService, AgentWorkflowService>();
-        services.AddScoped<IPlannerAgentClient, PlannerAgentService>();
-        services.AddScoped<IAssetActionRecommendationEngine, AssetActionRecommendationEngine>();
-        services.AddScoped<IPolicyComplianceAgentService, PolicyComplianceAgentService>();
-        services.AddScoped<IMaintenanceAnalysisAgentService, MaintenanceAnalysisAgentService>();
-        services.AddScoped<IBudgetAgentClient, BudgetAgentService>();
+        services.AddScoped<WorkflowPipeline>();
 
-        // Gemini's "thinking" models can take longer than 30s on a full
-        // plan/assessment; the agents fall back deterministically on timeout.
-        services.AddHttpClient(LlmHttpClient, client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(60);
-        });
+        services.AddScoped<IPlannerAgent, PlannerAgent>();
+        services.AddScoped<IBudgetAgent, BudgetAgent>();
+        services.AddScoped<IPolicyComplianceEvaluator, PolicyComplianceEvaluator>();
+        services.AddScoped<IPolicyRuleEngine, PolicyRuleEngine>();
+        services.AddScoped<IAssetActionRecommendationEngine, AssetActionRecommendationEngine>();
+
+        services.AddScoped<ILlmClient, LlmClient>();
+        services.AddHttpClient(LlmClient.HttpClientName, client => client.Timeout = LlmTimeout);
 
         return services;
     }

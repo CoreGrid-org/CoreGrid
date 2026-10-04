@@ -4,11 +4,72 @@ import {
   FormGroup,
   TextInput,
   ComboBox,
+  Button,
+  SkeletonText,
+  Tag,
 } from "@carbon/react";
-import { useApproveMaintenance } from "../hooks/useMaintenance";
+import { MachineLearningModel } from "@carbon/icons-react";
+import { useApproveMaintenance, useCostSuggestion } from "../hooks/useMaintenance";
 import { useUsersList } from "@/features/users/hooks/useUsers";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
-import type { MaintenanceRecord } from "../types/maintenance";
+import type { MaintenanceCostSuggestion, MaintenanceRecord } from "../types/maintenance";
+
+const CONFIDENCE_TAG: Record<MaintenanceCostSuggestion["confidence"], "green" | "blue" | "gray"> = {
+  HIGH: "green",
+  MEDIUM: "blue",
+  LOW: "gray",
+  NONE: "gray",
+};
+
+const formatLkr = (value: number) => `LKR ${value.toLocaleString()}`;
+
+// The estimator's suggestion, with a one-click "Use"; the field itself stays
+// free to edit, so the approver can always override it.
+function CostSuggestion({
+  suggestion,
+  isLoading,
+  onUse,
+}: {
+  suggestion: MaintenanceCostSuggestion | undefined;
+  isLoading: boolean;
+  onUse: (value: number) => void;
+}) {
+  if (isLoading) return <SkeletonText lineCount={2} paragraph />;
+  if (!suggestion) return null;
+
+  if (suggestion.suggested_cost === null) {
+    return (
+      <div className="cg-cost-suggestion cg-cost-suggestion--empty">
+        <MachineLearningModel size={16} className="cg-cost-suggestion__icon" />
+        <p className="cg-cost-suggestion__text">{suggestion.basis_label}. Enter the estimate manually.</p>
+      </div>
+    );
+  }
+
+  const suggested = suggestion.suggested_cost;
+  return (
+    <div className="cg-cost-suggestion">
+      <MachineLearningModel size={16} className="cg-cost-suggestion__icon" />
+      <div className="cg-cost-suggestion__body">
+        <div className="cg-cost-suggestion__header">
+          <span className="cg-cost-suggestion__value">Suggested {formatLkr(suggested)}</span>
+          <Tag size="sm" type={CONFIDENCE_TAG[suggestion.confidence]}>
+            {suggestion.confidence.toLowerCase()} confidence
+          </Tag>
+        </div>
+        <p className="cg-cost-suggestion__text">
+          {suggestion.low_cost !== null && suggestion.high_cost !== null && suggestion.low_cost !== suggestion.high_cost
+            ? `Typical range ${formatLkr(suggestion.low_cost)} – ${formatLkr(suggestion.high_cost)}. `
+            : ""}
+          Based on {suggestion.sample_size} completed record{suggestion.sample_size === 1 ? "" : "s"} of {suggestion.basis_label}.
+        </p>
+      </div>
+      <Button kind="ghost" size="sm" onClick={() => onUse(suggested)}>
+        Use
+      </Button>
+    </div>
+  );
+}
 
 interface ApproveMaintenanceModalProps {
   isOpen: boolean;
@@ -25,6 +86,7 @@ export default function ApproveMaintenanceModal({
 }: ApproveMaintenanceModalProps) {
   const approveMaintenance = useApproveMaintenance();
   const { data: users, isLoading: isLoadingUsers } = useUsersList();
+  const costSuggestion = useCostSuggestion(record.id, isOpen);
   
   const [estimatedCost, setEstimatedCost] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -90,10 +152,17 @@ export default function ApproveMaintenanceModal({
             onChange={({ selectedItem }) => setAssigneeId(selectedItem?.id ?? "")}
           />
         
+          <CostSuggestion
+            suggestion={costSuggestion.data}
+            isLoading={costSuggestion.isLoading}
+            onUse={(value) => setEstimatedCost(String(value))}
+          />
+
           <TextInput
             id="estimatedCost"
             labelText="Estimated Cost (LKR)"
-            placeholder="0.00"
+            helperText="Use the suggestion or enter your own figure."
+            placeholder={costSuggestion.data?.suggested_cost != null ? String(costSuggestion.data.suggested_cost) : "0.00"}
             value={estimatedCost}
             onChange={(e) => setEstimatedCost(e.target.value)}
             type="number"

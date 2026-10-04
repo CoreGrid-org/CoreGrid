@@ -1,6 +1,8 @@
 namespace CoreGrid.Api.Domain;
 
 // Stores the state and results of an asset lifecycle decision workflow.
+// The evaluation target is an asset type (its whole active fleet); AssetId
+// optionally narrows it to a single asset of that type.
 public class AgentWorkflow
 {
     public Guid Id { get; set; }
@@ -8,7 +10,10 @@ public class AgentWorkflow
     public Guid OrganizationId { get; set; }
     public Organization? Organization { get; set; }
 
-    public Guid AssetId { get; set; }
+    public Guid AssetTypeId { get; set; }
+    public AssetType? AssetType { get; set; }
+
+    public Guid? AssetId { get; set; }
     public Asset? Asset { get; set; }
 
     public required string Objective { get; set; }
@@ -16,7 +21,7 @@ public class AgentWorkflow
     public WorkflowStatus Status { get; set; }
 
     public string? Plan { get; set; } // jsonb: ExecutionPlan.steps[]
-    public string? AgentOutputs { get; set; } // jsonb: keyed by agent name
+    public string? AgentOutputs { get; set; } // jsonb: FleetEvaluation — per-asset action, verdict and reason
     public string? ToolCalls { get; set; } // jsonb: name/agent/outcome/duration/retries
     public string? ValidationResult { get; set; } // jsonb: verdict + per-rule outcomes
     public string? MaintenanceAnalysis { get; set; } // jsonb: node 2's FailureStatisticsDto (repair count, MTBF, cost trend, 12mo projection)

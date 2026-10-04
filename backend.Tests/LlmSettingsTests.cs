@@ -1,4 +1,4 @@
-using CoreGrid.Api.Features.Agents;
+using CoreGrid.Api.Features.Agents.Services.Llm;
 using Microsoft.Extensions.Configuration;
 
 namespace backend.Tests.Features.Agents;

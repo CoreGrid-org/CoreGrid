@@ -134,7 +134,7 @@ The frontend application itself never gets a role — only the users who sign in
 
 ### The Agents Don't Register With ThunderID
 
-The four agents run in-process inside the API (ADR-010) and call their tools directly through `IAgentToolsService`, so they need no ThunderID application, client credentials or shared secret. Only the model key (`Llm__ApiKey`) is configured — see [`ai-agents.md`](ai-agents.md).
+The four agents run in-process inside the API (ADR-010) and call their tools directly through their in-process tool interfaces (`IPlannerTools`, `IMaintenanceTools`, `IBudgetTools`, `IPolicyTools`), so they need no ThunderID application, client credentials or shared secret. Only the model key (`Llm__ApiKey`) is configured — see [`ai-agents.md`](ai-agents.md).
 
 ### 8. Enable Password Recovery ("Forgot password?" and "Change password")
 

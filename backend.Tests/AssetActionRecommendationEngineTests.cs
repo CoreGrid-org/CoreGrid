@@ -1,5 +1,5 @@
 using CoreGrid.Api.Features.AgentTools.DTOs;
-using CoreGrid.Api.Features.Agents.Services;
+using CoreGrid.Api.Features.Agents.Services.Policy;
 using Xunit;
 
 namespace backend.Tests.Features.Agents;
