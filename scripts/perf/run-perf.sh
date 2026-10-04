@@ -18,6 +18,7 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 API_URL="${API_URL:-http://localhost:5083}"
 PG_URL="${PG_URL:-postgresql://coregrid:coregrid@localhost:5433/coregrid}"
 VUS="${VUS:-50}"

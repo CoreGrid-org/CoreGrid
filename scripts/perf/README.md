@@ -44,11 +44,13 @@ Tokens are short-lived, so take a fresh one just before starting.
 export CG_TOKEN='<paste token>'
 ```
 
+For a Supabase database, pass the session-pooler URI as `PG_URL`: `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require`.
+
 ## Run
 
 ```bash
 make perf                                   # local API + local Postgres
-API_URL=https://<api-host> PG_URL='postgresql://user:pass@host:5432/coregrid?sslmode=require' make perf
+make perf API_URL=https://<api-host> PG_URL='postgresql://user:pass@host:5432/coregrid?sslmode=require'
 VUS=20 DURATION=1m RUNS=3 make perf         # quick smoke run
 SKIP_SEED=1 SKIP_AGENT=1 make perf          # load test only
 ```

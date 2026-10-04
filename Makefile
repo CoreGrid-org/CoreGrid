@@ -12,7 +12,6 @@ BACKEND    := backend
 TESTS      := backend.Tests
 FRONTEND   := frontend
 COMPOSE    := docker compose
-THUNDERID_BUNDLE := oci://ghcr.io/thunder-id/thunderid-quick-start:latest
 
 DB_CONNECTION ?= Host=localhost;Port=5433;Database=coregrid;Username=coregrid;Password=coregrid
 PG_URL        ?= postgresql://coregrid:coregrid@localhost:5433/coregrid
@@ -36,8 +35,11 @@ help: ## Show this help
 ##@ Setup
 
 .PHONY: setup
-setup: tools restore frontend-install env ## Install tools and dependencies, create frontend/.env
-	@echo "Next: 'make infra-bootstrap' (first time) or 'make infra-up', then 'make db-update' and 'make dev'."
+setup: ## First-time setup: prerequisites, deps, .env files, Docker, migrations, ThunderID check, test accounts
+	./setup.sh
+
+.PHONY: deps
+deps: tools restore frontend-install env ## Install tools and dependencies only (no Docker, no database)
 
 .PHONY: tools
 tools: ## Install the EF Core CLI (dotnet-ef) if missing
@@ -53,9 +55,10 @@ frontend-install: ## Install frontend npm packages (clean, from the lockfile)
 	cd $(FRONTEND) && npm ci
 
 .PHONY: env
-env: ## Create frontend/.env from .env.example (never overwrites)
-	@if [ -f $(FRONTEND)/.env ]; then echo "frontend/.env already exists, leaving it alone."; \
-	else cp $(FRONTEND)/.env.example $(FRONTEND)/.env && echo "Created frontend/.env; fill in VITE_THUNDERID_CLIENT_ID."; fi
+env: ## Create backend/.env and frontend/.env from their examples (never overwrites)
+	@for f in $(BACKEND)/.env $(FRONTEND)/.env; do \
+		if [ -f $$f ]; then echo "$$f already exists, leaving it alone."; \
+		else cp $$f.example $$f && echo "Created $$f"; fi; done
 
 .PHONY: secrets
 secrets: ## List which backend user-secrets are set (values hidden)
@@ -65,13 +68,14 @@ secrets: ## List which backend user-secrets are set (values hidden)
 ##@ Infrastructure (Docker)
 
 .PHONY: infra-bootstrap
-infra-bootstrap: ## First run only: bootstrap ThunderID, then start everything
-	$(COMPOSE) -f $(THUNDERID_BUNDLE) -p coregrid up -d
+infra-bootstrap: ## First run only: create and initialise ThunderID and PostgreSQL
 	$(COMPOSE) up -d
 
 .PHONY: infra-up
-infra-up: ## Start ThunderID and PostgreSQL
-	$(COMPOSE) up -d
+infra-up: ## Start existing ThunderID and PostgreSQL containers (never re-runs ThunderID's one-shot setup)
+	@tid=$$(docker ps -a --format '{{.Names}}' | grep -xE 'coregrid-thunderid(-1)?' | head -1); \
+	if [ -z "$$tid" ]; then echo "No ThunderID container yet: run 'make infra-bootstrap' (or ./setup.sh) first."; exit 1; fi; \
+	docker start $$tid coregrid-postgres
 
 .PHONY: infra-stop
 infra-stop: ## Stop the containers, keeping their data

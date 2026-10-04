@@ -92,3 +92,6 @@ backups/
 
 # Performance-test output (scripts/perf/run-perf.sh)
 scripts/perf/results/
+
+# setup.sh scratch output
+.setup/
