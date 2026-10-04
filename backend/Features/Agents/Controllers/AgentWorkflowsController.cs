@@ -76,7 +76,8 @@ public class AgentWorkflowsController : CoreGridControllerBase
             : Ok(summary);
     }
 
-    // Initiates a new asset lifecycle evaluation.
+    // Initiates a lifecycle evaluation for an asset type (optionally one asset)
+    // and runs it end to end before responding.
     [HttpPost]
     [Authorize(Policy = Policies.CanInitiateWorkflow)]
     [EnableRateLimiting(RateLimitPolicies.AgentWorkflowInitiate)]
@@ -103,6 +104,20 @@ public class AgentWorkflowsController : CoreGridControllerBase
         if (currentUser is null) return Unauthorized();
 
         var workflow = await _workflowService.EvaluatePolicyAsync(currentUser.OrganizationId, id, request, cancellationToken);
+        return workflow is null
+            ? throw NotFoundException.For(nameof(AgentWorkflow), id)
+            : Ok(workflow);
+    }
+
+    // Runs whatever the plan still has left for an in-progress workflow.
+    [HttpPost("{id:guid}/resume")]
+    [Authorize(Policy = Policies.CanInitiateWorkflow)]
+    public async Task<ActionResult<AgentWorkflowDto>> Resume(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var workflow = await _workflowService.ResumeAsync(currentUser.OrganizationId, id, cancellationToken);
         return workflow is null
             ? throw NotFoundException.For(nameof(AgentWorkflow), id)
             : Ok(workflow);

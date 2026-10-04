@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useState, type RefObject } from "react";
 import {
   ComposedModal,
   ModalHeader,
@@ -7,15 +7,14 @@ import {
   TextArea,
   Button,
   InlineNotification,
-  FileUploaderDropContainer,
   ComboBox,
   TileGroup,
   RadioTile,
   Tag,
-  InlineLoading,
 } from "@carbon/react";
-import { Close, WarningAlt, ErrorOutline, Image as ImageIcon, Information } from "@carbon/icons-react";
-import { useReportFault, useUploadMaintenancePhoto } from "../hooks/useMaintenance";
+import { WarningAlt, ErrorOutline, Information } from "@carbon/icons-react";
+import { useReportFault } from "../hooks/useMaintenance";
+import MaintenancePhotoField from "./MaintenancePhotoField";
 import type { MaintenanceRecord } from "../types/maintenance";
 import { useAssetsList } from "@/features/assets/hooks/useAssets";
 import type { Asset } from "@/features/assets/types/asset";
@@ -26,7 +25,6 @@ import { statusTagColor, formatStatusLabel } from "@/shared/lib/statusTag";
 
 // Matches ReportFaultRequest's [MaxLength(2000)] on the backend.
 const DESCRIPTION_MAX = 2000;
-const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
 type FaultCondition = "POOR" | "UNSERVICEABLE";
 
@@ -55,7 +53,6 @@ interface ReportFaultModalProps {
 // then starts from a blank form without any manual reset.
 export default function ReportFaultModal({ onClose, onReported, launcherButtonRef }: ReportFaultModalProps) {
   const reportFault = useReportFault();
-  const uploadPhoto = useUploadMaintenancePhoto();
 
   const { data: assetsData, isLoading: isLoadingAssets } = useAssetsList({ pageSize: 100 });
   const assets = assetsData?.items || [];
@@ -63,44 +60,10 @@ export default function ReportFaultModal({ onClose, onReported, launcherButtonRe
   const [assetId, setAssetId] = useState("");
   const [description, setDescription] = useState("");
   const [observedCondition, setCondition] = useState<FaultCondition | "">("");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const selectedAsset = assets.find((a) => a.id === assetId) ?? null;
-  const isBusy = reportFault.isPending || uploadPhoto.isPending;
-
-  // Free the local preview's object URL when it's replaced or the modal closes.
-  useEffect(() => {
-    return () => {
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
-    };
-  }, [photoPreview]);
-
-  const handlePhotoAdded = (file: File | undefined) => {
-    if (!file) return;
-    if (file.size > PHOTO_MAX_BYTES) {
-      setPhotoError("That photo is larger than 5 MB. Choose a smaller one.");
-      return;
-    }
-    setPhotoError(null);
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
-    setPhotoUrl(null);
-    uploadPhoto.mutate(file, {
-      onSuccess: (url) => setPhotoUrl(url),
-    });
-  };
-
-  const handlePhotoRemove = () => {
-    setPhotoFile(null);
-    setPhotoPreview(null);
-    setPhotoUrl(null);
-    setPhotoError(null);
-  };
-
   const errors = {
     asset: !assetId ? "Choose the asset that has the fault." : null,
     description: !description.trim() ? "Describe what's wrong." : null,
@@ -110,13 +73,15 @@ export default function ReportFaultModal({ onClose, onReported, launcherButtonRe
 
   const handleSubmit = () => {
     setSubmitted(true);
-    if (hasErrors || !observedCondition || isBusy) return;
+    if (hasErrors || !observedCondition || reportFault.isPending) return;
     reportFault.mutate(
       {
-        asset_id: assetId,
-        description: description.trim(),
-        observed_condition: observedCondition,
-        photo_url: photoUrl ?? undefined,
+        payload: {
+          asset_id: assetId,
+          description: description.trim(),
+          observed_condition: observedCondition,
+        },
+        photo,
       },
       { onSuccess: onReported },
     );
@@ -239,51 +204,7 @@ export default function ReportFaultModal({ onClose, onReported, launcherButtonRe
             />
           </div>
 
-          <div className="cg-fault-modal__field">
-            <p className="cds--label">
-              Photo <span className="cg-fault-modal__optional">(optional)</span>
-            </p>
-            {photoFile && photoPreview ? (
-              <div className="cg-fault-modal__photo">
-                <img src={photoPreview} alt="Attached fault photo" />
-                <div className="cg-fault-modal__photo-meta">
-                  <p className="cg-fault-modal__photo-name">{photoFile.name}</p>
-                  <p className="cg-fault-modal__photo-size">{(photoFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                  {uploadPhoto.isPending && <InlineLoading description="Uploading…" />}
-                  {!uploadPhoto.isPending && photoUrl && <InlineLoading status="finished" description="Uploaded" />}
-                  {uploadPhoto.isError && (
-                    <p className="cg-fault-modal__error">
-                      {getErrorMessage(uploadPhoto.error, "Photo upload failed. You can still submit without one.")}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  kind="ghost"
-                  size="sm"
-                  hasIconOnly
-                  renderIcon={Close}
-                  iconDescription="Remove photo"
-                  tooltipPosition="left"
-                  onClick={handlePhotoRemove}
-                  disabled={uploadPhoto.isPending}
-                />
-              </div>
-            ) : (
-              <>
-                <div className="cg-fault-modal__drop">
-                  <ImageIcon size={24} />
-                  <FileUploaderDropContainer
-                    labelText="Drag a photo here or click to choose one"
-                    accept={[".jpg", ".jpeg", ".png", ".webp"]}
-                    multiple={false}
-                    onAddFiles={(_event, { addedFiles }) => handlePhotoAdded(addedFiles[0])}
-                  />
-                  <span className="cg-fault-modal__drop-hint">JPEG, PNG or WebP, up to 5 MB</span>
-                </div>
-                {photoError && <p className="cg-fault-modal__error">{photoError}</p>}
-              </>
-            )}
-          </div>
+          <MaintenancePhotoField file={photo} onChange={setPhoto} disabled={reportFault.isPending} />
 
           <p className="cg-fault-modal__next">
             <Information size={16} />
@@ -295,8 +216,8 @@ export default function ReportFaultModal({ onClose, onReported, launcherButtonRe
         <Button kind="secondary" onClick={handleClose} disabled={reportFault.isPending}>
           Cancel
         </Button>
-        <Button kind="primary" onClick={handleSubmit} disabled={isBusy}>
-          {reportFault.isPending ? "Submitting…" : uploadPhoto.isPending ? "Uploading photo…" : "Report fault"}
+        <Button kind="primary" onClick={handleSubmit} disabled={reportFault.isPending}>
+          {reportFault.isPending ? (photo ? "Uploading & submitting…" : "Submitting…") : "Report fault"}
         </Button>
       </ModalFooter>
     </ComposedModal>

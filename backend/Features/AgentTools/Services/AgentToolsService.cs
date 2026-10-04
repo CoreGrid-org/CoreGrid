@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -76,6 +78,7 @@ public class AgentToolsService : IAgentToolsService
         {
             AssetId = asset.Id,
             AssetCode = asset.AssetCode,
+            DepartmentId = asset.DepartmentId,
             AcquisitionCost = asset.AcquisitionCost,
             AcquisitionDate = asset.AcquisitionDate,
             UsefulLifeYears = usefulLife,
@@ -183,6 +186,130 @@ public class AgentToolsService : IAgentToolsService
             ElapsedServiceLifeYears = Math.Round(elapsedYears, 1)
         };
     }
+
+    public async Task<AssetTypeSummaryDto?> GetAssetTypeSummaryAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        CancellationToken cancellationToken = default)
+    {
+        var type = await _dbContext.AssetTypes.AsNoTracking()
+            .Where(t => t.Id == assetTypeId && t.OrganizationId == organizationId)
+            .Select(t => new { t.Id, t.Name, Category = t.AssetCategory!.Name, t.UsefulLifeYears })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (type is null) return null;
+
+        var conditionCounts = await _dbContext.Assets.AsNoTracking()
+            .Where(a => a.OrganizationId == organizationId && a.AssetTypeId == assetTypeId && a.Status != AssetStatuses.Disposed)
+            .GroupBy(a => a.Condition)
+            .Select(g => new { Condition = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Condition, g => g.Count, cancellationToken);
+
+        return new AssetTypeSummaryDto
+        {
+            AssetTypeId = type.Id,
+            AssetType = type.Name,
+            Category = type.Category,
+            UsefulLifeYears = type.UsefulLifeYears,
+            ActiveAssetCount = conditionCounts.Values.Sum(),
+            ConditionCounts = conditionCounts
+        };
+    }
+
+    public async Task<IReadOnlyList<AssetFinancialsDto>> GetFleetFinancialsAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid? assetId,
+        CancellationToken cancellationToken = default)
+    {
+        var assets = await FleetQuery(organizationId, assetTypeId, assetId)
+            .Select(a => new
+            {
+                a.Id, a.AssetCode, a.DepartmentId, a.AcquisitionCost, a.AcquisitionDate, a.CumulativeMaintenanceCost,
+                UsefulLifeYears = a.AssetType != null ? a.AssetType.UsefulLifeYears : 0
+            })
+            .ToListAsync(cancellationToken);
+
+        var asOf = DateOnly.FromDateTime(DateTime.UtcNow);
+        return assets.Select(a =>
+        {
+            var schedule = a.UsefulLifeYears > 0
+                ? StraightLineDepreciation.ComputeSchedule(a.AcquisitionCost, a.AcquisitionDate, a.UsefulLifeYears, asOf)
+                : null;
+            return new AssetFinancialsDto
+            {
+                AssetId = a.Id,
+                AssetCode = a.AssetCode,
+                DepartmentId = a.DepartmentId,
+                AcquisitionCost = a.AcquisitionCost,
+                AcquisitionDate = a.AcquisitionDate,
+                UsefulLifeYears = a.UsefulLifeYears,
+                AccumulatedDepreciation = schedule?.AccumulatedDepreciation ?? 0m,
+                ResidualBookValue = schedule?.CurrentValue ?? a.AcquisitionCost,
+                CumulativeMaintenanceCost = a.CumulativeMaintenanceCost
+            };
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<AssetComplianceStateDto>> GetFleetComplianceStateAsync(
+        Guid organizationId,
+        Guid assetTypeId,
+        Guid? assetId,
+        CancellationToken cancellationToken = default)
+    {
+        var assets = await FleetQuery(organizationId, assetTypeId, assetId)
+            .Select(a => new { a.Id, a.AssetCode, a.Status, a.Condition, a.AcquisitionDate })
+            .ToListAsync(cancellationToken);
+        if (assets.Count == 0) return [];
+
+        var ids = assets.Select(a => a.Id).ToList();
+
+        var valuations = await _dbContext.DisposalRequests.AsNoTracking()
+            .Where(d => ids.Contains(d.AssetId) && d.OrganizationId == organizationId && d.ValuationDate != null)
+            .GroupBy(d => d.AssetId)
+            .Select(g => new { AssetId = g.Key, Latest = g.Max(d => d.ValuationDate) })
+            .ToDictionaryAsync(g => g.AssetId, g => g.Latest, cancellationToken);
+
+        var openMaintenance = await _dbContext.MaintenanceRecords.AsNoTracking()
+            .Where(m => ids.Contains(m.AssetId) && m.OrganizationId == organizationId
+                && m.Status != MaintenanceStatus.COMPLETED && m.Status != MaintenanceStatus.CANCELLED)
+            .GroupBy(m => m.AssetId)
+            .Select(g => new { AssetId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.AssetId, g => g.Count, cancellationToken);
+
+        var openTransfers = await _dbContext.AssetTransfers.AsNoTracking()
+            .Where(t => ids.Contains(t.AssetId) && t.OrganizationId == organizationId
+                && t.Status != TransferStatus.COMPLETED && t.Status != TransferStatus.REJECTED && t.Status != TransferStatus.CANCELLED)
+            .GroupBy(t => t.AssetId)
+            .Select(g => new { AssetId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.AssetId, g => g.Count, cancellationToken);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return assets.Select(a =>
+        {
+            var valuationDate = valuations.GetValueOrDefault(a.Id);
+            return new AssetComplianceStateDto
+            {
+                AssetId = a.Id,
+                AssetCode = a.AssetCode,
+                CurrentStatus = a.Status,
+                CurrentCondition = a.Condition,
+                IsCondemned = a.Status == AssetStatuses.Condemned,
+                HasValuation = valuationDate.HasValue,
+                ValuationDate = valuationDate,
+                OpenMaintenanceCount = openMaintenance.GetValueOrDefault(a.Id),
+                OpenTransferCount = openTransfers.GetValueOrDefault(a.Id),
+                ElapsedServiceLifeYears = Math.Round((today.DayNumber - a.AcquisitionDate.DayNumber) / 365.25m, 1)
+            };
+        }).ToList();
+    }
+
+    // Every active (non-disposed) asset of the type, or just the one asset.
+    private IQueryable<Asset> FleetQuery(Guid organizationId, Guid assetTypeId, Guid? assetId) =>
+        _dbContext.Assets.AsNoTracking()
+            .Where(a => a.OrganizationId == organizationId
+                && a.AssetTypeId == assetTypeId
+                && a.Status != AssetStatuses.Disposed
+                && (assetId == null || a.Id == assetId));
 
     public ComputeDepreciationResponse ComputeDepreciation(ComputeDepreciationRequest request)
     {

@@ -79,7 +79,18 @@ public class PolicyRuleEngine : IPolicyRuleEngine
         }
 
         // PR-05: REPAIR requires projected repair cost <= budget headroom.
-        if (facts.ProposedRecommendation == Repair)
+        // Department budgets aren't tracked yet (headroom is null), so the
+        // rule can't be evaluated — it's reported as N/A rather than blocking
+        // every REPAIR forever.
+        if (facts.ProposedRecommendation == Repair && !facts.BudgetHeadroom.HasValue)
+        {
+            results.Add(Rule(
+                "PR-05",
+                "Projected repair cost <= available budget headroom",
+                $"cost {facts.ProjectedRepairCost?.ToString("0.00") ?? "n/a"}; department budget not tracked",
+                "N/A"));
+        }
+        else if (facts.ProposedRecommendation == Repair)
         {
             var costOk = facts.ProjectedRepairCost.HasValue && facts.BudgetHeadroom.HasValue
                 && facts.ProjectedRepairCost.Value <= facts.BudgetHeadroom.Value;

@@ -767,3 +767,19 @@ VALUES ('20260925090000_AddMaintenanceReporter', '10.0.10');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "AgentWorkflows" ALTER COLUMN "AssetId" DROP NOT NULL;
+
+ALTER TABLE "AgentWorkflows" ADD "AssetTypeId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+UPDATE "AgentWorkflows" w SET "AssetTypeId" = a."AssetTypeId" FROM "Assets" a WHERE a."Id" = w."AssetId";
+
+CREATE INDEX "IX_AgentWorkflows_AssetTypeId" ON "AgentWorkflows" ("AssetTypeId");
+
+ALTER TABLE "AgentWorkflows" ADD CONSTRAINT "FK_AgentWorkflows_AssetTypes_AssetTypeId" FOREIGN KEY ("AssetTypeId") REFERENCES "AssetTypes" ("Id") ON DELETE RESTRICT;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261004084249_AgentWorkflowAssetTypeScope', '10.0.10');
+
+COMMIT;
+

@@ -22,17 +22,19 @@ internal static class LlmChat
         JsonSerializerOptions jsonOptions,
         CancellationToken cancellationToken)
     {
-        var body = new
+        var body = new Dictionary<string, object>
         {
-            model = llm.Model,
-            temperature,
-            response_format = new { type = "json_object" },
-            messages = new[]
+            ["model"] = llm.Model,
+            ["temperature"] = temperature,
+            ["response_format"] = new { type = "json_object" },
+            ["messages"] = new[]
             {
                 new { role = "system", content = systemPrompt },
                 new { role = "user", content = userMessage },
             },
         };
+        if (llm.MaxTokens is { } maxTokens) body["max_tokens"] = maxTokens;
+        if (!string.IsNullOrEmpty(llm.ReasoningEffort)) body["reasoning_effort"] = llm.ReasoningEffort;
 
         using var request = new HttpRequestMessage(HttpMethod.Post, llm.Endpoint)
         {

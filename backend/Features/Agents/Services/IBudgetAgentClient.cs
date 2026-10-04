@@ -5,16 +5,13 @@ namespace CoreGrid.Api.Features.Agents.Services;
 
 /// <summary>
 /// Client contract for the Budget Analysis Agent (SRS §7.3, Node 3).
-/// Evaluates lifecycle options (REPAIR, REPLACE, TRANSFER, DISPOSE) against
-/// asset financials, department budget constraints, and maintenance statistics.
+/// Triages every asset in scope financially (deterministic), then ranks the
+/// lifecycle options (REPAIR, REPLACE, TRANSFER, DISPOSE, RETAIN) for the scope.
 /// </summary>
 public interface IBudgetAgentClient
 {
     Task<FinancialAssessmentResultDto> RunAssessmentAsync(
-        Guid organizationId,
-        Guid assetId,
-        Guid? departmentId,
-        int? fiscalYear,
-        FailureStatisticsDto maintenanceAnalysis,
+        EvaluationScope scope,
+        IReadOnlyList<FailureStatisticsDto> maintenanceByAsset,
         CancellationToken cancellationToken = default);
 }

@@ -5,9 +5,8 @@ namespace CoreGrid.Api.Features.Agents.Services;
 public interface IPlannerAgentClient
 {
     Task<PlannerExecutionPlan> CreatePlanAsync(
-        Guid assetId,
+        EvaluationScope scope,
         string objective,
         Guid initiatedBy,
-        Guid organizationId,
         CancellationToken cancellationToken);
 }

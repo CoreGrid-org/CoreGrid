@@ -166,6 +166,19 @@ public class PolicyRuleEngineTests
     }
 
     [Fact]
+    public void Repair_WithNoTrackedBudget_IsNotBlockedByPR05()
+    {
+        var facts = BaseFacts("REPAIR");
+        facts.ProjectedRepairCost = 5000m;
+        facts.BudgetHeadroom = null;
+
+        var result = _engine.Evaluate(facts);
+
+        Assert.Equal("PASS", result.Verdict);
+        Assert.Contains(result.RuleResults, r => r.RuleId == "PR-05" && r.Outcome == "N/A");
+    }
+
+    [Fact]
     public void TerminalAsset_FailsPR06RegardlessOfRecommendation()
     {
         var facts = BaseFacts("RETAIN");

@@ -9,44 +9,54 @@ using CoreGrid.Api.Features.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreGrid.Api.Features.Agents.Services;
-// Manages asset lifecycle decision workflows.
+
+// The orchestrator (SRS §7.2.1): resolves the evaluation scope once, asks the
+// Planner for a plan, then executes that plan node by node — Maintenance
+// Analysis → Budget Analysis → Policy Compliance → Deterministic Gate — in a
+// single request, so a workflow comes back already routed. It never calls a
+// business tool itself; each node reads only through its own allow-list.
 public class AgentWorkflowService : IAgentWorkflowService
 {
-    private static readonly string[] InFlightStatuses =
+    private static readonly WorkflowStatus[] InFlightStatuses =
     [
-        nameof(WorkflowStatus.PLANNING), nameof(WorkflowStatus.ANALYZING),
-        nameof(WorkflowStatus.VALIDATING), nameof(WorkflowStatus.AWAITING_APPROVAL)
+        WorkflowStatus.PLANNING, WorkflowStatus.ANALYZING, WorkflowStatus.VALIDATING, WorkflowStatus.AWAITING_APPROVAL
+    ];
+
+    private static readonly WorkflowStatus[] ResumableStatuses =
+    [
+        WorkflowStatus.PLANNING, WorkflowStatus.ANALYZING, WorkflowStatus.VALIDATING
     ];
 
     private readonly CoreGridDbContext _db;
-    private readonly IAgentToolsService _agentTools;
-    private readonly IPolicyRuleEngine _ruleEngine;
     private readonly IPlannerAgentClient _plannerAgent;
     private readonly IMaintenanceAnalysisToolsService _maintenanceAnalysisTools;
     private readonly IBudgetAgentClient _budgetAgent;
+    private readonly IPolicyComplianceEvaluator _policyEvaluator;
 
     public AgentWorkflowService(
         CoreGridDbContext db,
-        IAgentToolsService agentTools,
-        IPolicyRuleEngine ruleEngine,
         IPlannerAgentClient plannerAgent,
         IMaintenanceAnalysisToolsService maintenanceAnalysisTools,
-        IBudgetAgentClient budgetAgent)
+        IBudgetAgentClient budgetAgent,
+        IPolicyComplianceEvaluator policyEvaluator)
     {
         _db = db;
-        _agentTools = agentTools;
-        _ruleEngine = ruleEngine;
         _plannerAgent = plannerAgent;
         _maintenanceAnalysisTools = maintenanceAnalysisTools;
         _budgetAgent = budgetAgent;
+        _policyEvaluator = policyEvaluator;
     }
+
+    // ── Reads ────────────────────────────────────────────────────────────────
+
+    private IQueryable<AgentWorkflow> WorkflowsWithDisplay() => _db.AgentWorkflows.AsNoTracking()
+        .Include(w => w.AssetType).ThenInclude(t => t!.AssetCategory)
+        .Include(w => w.Asset)
+        .Include(w => w.InitiatedByUser);
 
     public async Task<PagedResult<AgentWorkflowDto>> GetWorkflowsAsync(Guid organizationId, AgentWorkflowQueryParameters query, CancellationToken cancellationToken)
     {
-        var workflows = _db.AgentWorkflows.AsNoTracking()
-            .Include(w => w.Asset)
-            .Include(w => w.InitiatedByUser)
-            .Where(w => w.OrganizationId == organizationId);
+        var workflows = WorkflowsWithDisplay().Where(w => w.OrganizationId == organizationId);
 
         if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<WorkflowStatus>(query.Status, true, out var statusFilter))
         {
@@ -75,9 +85,7 @@ public class AgentWorkflowService : IAgentWorkflowService
 
     public async Task<AgentWorkflowDto?> GetWorkflowByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
     {
-        var workflow = await _db.AgentWorkflows.AsNoTracking()
-            .Include(w => w.Asset)
-            .Include(w => w.InitiatedByUser)
+        var workflow = await WorkflowsWithDisplay()
             .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
 
         return workflow is null ? null : MapToDto(workflow);
@@ -85,9 +93,7 @@ public class AgentWorkflowService : IAgentWorkflowService
 
     public async Task<WorkflowExecutionSummaryDto?> GetExecutionSummaryAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
     {
-        var workflow = await _db.AgentWorkflows.AsNoTracking()
-            .Include(w => w.Asset)
-            .Include(w => w.InitiatedByUser)
+        var workflow = await WorkflowsWithDisplay()
             .Include(w => w.Steps)
             .Include(w => w.Approvals).ThenInclude(a => a.DecidedByUser)
             .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
@@ -102,6 +108,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             Workflow = MapToDto(workflow),
             Steps = workflow.Steps
                 .OrderBy(s => s.Sequence)
+                .ThenBy(s => s.CreatedAt)
                 .Select(s => new AgentExecutionStepDto
                 {
                     Id = s.Id,
@@ -130,32 +137,26 @@ public class AgentWorkflowService : IAgentWorkflowService
         };
     }
 
+    // ── Create & run ─────────────────────────────────────────────────────────
+
     public async Task<AgentWorkflowDto> CreateWorkflowAsync(
         Guid organizationId,
         Guid userId,
         CreateAgentWorkflowRequest request,
         CancellationToken cancellationToken)
     {
-        // [Required] on the DTO makes a missing value 400 for a
-        // model-bound HTTP caller before this method ever runs.
-        var assetId = request.AssetId!.Value;
+        var scope = await ResolveRequestedScopeAsync(organizationId, request, cancellationToken);
 
-        var asset = await _db.Assets.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == assetId && a.OrganizationId == organizationId, cancellationToken)
-            ?? throw new ValidationException(nameof(request.AssetId), "Asset not found.");
-
-        // FR-068: refuse a terminal asset or an evaluation already running for it.
-        if (asset.Status == AssetStatuses.Disposed)
-        {
-            throw new BusinessRuleException("This asset is disposed — no further evaluation is possible.", "asset_disposed");
-        }
-
+        // FR-068: one in-flight evaluation per target (type, or type + asset).
         var alreadyRunning = await _db.AgentWorkflows.AsNoTracking().AnyAsync(
-            w => w.AssetId == assetId && w.OrganizationId == organizationId && InFlightStatuses.Contains(w.Status.ToString()),
+            w => w.OrganizationId == organizationId
+                && w.AssetTypeId == scope.AssetTypeId
+                && w.AssetId == scope.AssetId
+                && InFlightStatuses.Contains(w.Status),
             cancellationToken);
         if (alreadyRunning)
         {
-            throw new ConflictException("An evaluation is already running for this asset.", "workflow_already_running");
+            throw new ConflictException($"An evaluation is already running for {scope.Label}.", "workflow_already_running");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -163,7 +164,8 @@ public class AgentWorkflowService : IAgentWorkflowService
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
-            AssetId = assetId,
+            AssetTypeId = scope.AssetTypeId,
+            AssetId = scope.AssetId,
             Objective = request.Objective.Trim(),
             Status = WorkflowStatus.PLANNING,
             ApprovalStatus = ApprovalStatus.NOT_REQUIRED,
@@ -178,166 +180,312 @@ public class AgentWorkflowService : IAgentWorkflowService
         _db.AgentWorkflows.Add(workflow);
         await _db.SaveChangesAsync(cancellationToken);
 
-        try
-        {
-            var started = DateTimeOffset.UtcNow;
-            var plan = await _plannerAgent.CreatePlanAsync(
-                workflow.AssetId,
-                workflow.Objective,
-                workflow.InitiatedByUserId,
-                workflow.OrganizationId,
-                cancellationToken);
-
-            workflow.Plan = JsonSerializer.Serialize(plan);
-            workflow.Status = plan.InScope ? WorkflowStatus.ANALYZING : WorkflowStatus.FAILED_SAFE;
-            workflow.FailureReason = plan.InScope ? null : plan.RejectionReason;
-            workflow.CompletedAt = plan.InScope ? null : DateTimeOffset.UtcNow;
-            workflow.UpdatedAt = DateTimeOffset.UtcNow;
-
-            _db.AgentExecutionSteps.Add(new AgentExecutionStep
-            {
-                Id = Guid.NewGuid(),
-                WorkflowId = workflow.Id,
-                Agent = AgentNames.Planner,
-                Sequence = 1,
-                OutputSummary = plan.InScope
-                    ? $"Plan created with {plan.Steps.Count} steps."
-                    : $"Rejected: {plan.RejectionReason}",
-                DurationMs = (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds),
-                Status = "SUCCESS",
-                CreatedAt = DateTimeOffset.UtcNow
-            });
-
-            await _db.SaveChangesAsync(cancellationToken);
-
-            // Node 2 (Maintenance Analysis, SRS §7.3) & Node 3 (Budget Analysis, SRS §7.3):
-            // run automatically right after Planner accepts the objective.
-            // In-process, assembling facts and lifecycle option assessments
-            // for Policy Compliance (node 4) to evaluate. Failures are recorded
-            // as advisory execution steps and swallowed rather than failing
-            // the whole workflow.
-            if (plan.InScope)
-            {
-                await RunMaintenanceAnalysisAsync(workflow, cancellationToken);
-                await RunBudgetAnalysisAsync(workflow, cancellationToken);
-            }
-        }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
-        {
-            workflow.Status = WorkflowStatus.FAILED_SAFE;
-            workflow.FailureReason = "Planner Agent failed: " + ex.Message;
-            workflow.CompletedAt = DateTimeOffset.UtcNow;
-            workflow.UpdatedAt = DateTimeOffset.UtcNow;
-            await _db.SaveChangesAsync(cancellationToken);
-        }
+        await RunPipelineAsync(workflow, scope, excludedAction: null, cancellationToken);
 
         return await GetWorkflowByIdAsync(organizationId, workflow.Id, cancellationToken)
             ?? throw new InvalidOperationException("Workflow could not be reloaded after creation.");
     }
 
-    private async Task RunMaintenanceAnalysisAsync(AgentWorkflow workflow, CancellationToken cancellationToken)
+    public async Task<AgentWorkflowDto?> ResumeAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
     {
-        var started = DateTimeOffset.UtcNow;
-        try
-        {
-            var stats = await _maintenanceAnalysisTools.ComputeFailureStatisticsAsync(
-                workflow.OrganizationId, workflow.AssetId, cancellationToken);
-
-            if (stats is null)
-            {
-                return;
-            }
-
-            workflow.MaintenanceAnalysis = JsonSerializer.Serialize(stats);
-            workflow.UpdatedAt = DateTimeOffset.UtcNow;
-
-            _db.AgentExecutionSteps.Add(AgentExecutionSteps.MaintenanceAnalysisSucceeded(
-                workflow.Id, stats, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
-
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            // Advisory-only node — record the failure, never fail the workflow over it.
-            _db.AgentExecutionSteps.Add(AgentExecutionSteps.MaintenanceAnalysisFailed(
-                workflow.Id, ex.Message, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
-
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-    }
-
-    private async Task RunBudgetAnalysisAsync(AgentWorkflow workflow, CancellationToken cancellationToken)
-    {
-        var started = DateTimeOffset.UtcNow;
-        try
-        {
-            var failureStats = !string.IsNullOrEmpty(workflow.MaintenanceAnalysis)
-                ? JsonSerializer.Deserialize<AgentToolsDtos.FailureStatisticsDto>(workflow.MaintenanceAnalysis)
-                : null;
-
-            if (failureStats is null)
-            {
-                failureStats = new AgentToolsDtos.FailureStatisticsDto
-                {
-                    AssetId = workflow.AssetId,
-                    AssetCode = workflow.Asset?.AssetCode ?? string.Empty,
-                    EvaluatedAsOf = DateOnly.FromDateTime(DateTime.UtcNow)
-                };
-            }
-
-            Guid? departmentId = workflow.Asset?.DepartmentId;
-            if (!departmentId.HasValue)
-            {
-                departmentId = await _db.Assets.AsNoTracking()
-                    .Where(a => a.Id == workflow.AssetId)
-                    .Select(a => (Guid?)a.DepartmentId)
-                    .FirstOrDefaultAsync(cancellationToken);
-            }
-
-            var assessment = await _budgetAgent.RunAssessmentAsync(
-                workflow.OrganizationId,
-                workflow.AssetId,
-                departmentId,
-                DateTime.UtcNow.Year,
-                failureStats,
-                cancellationToken);
-
-            workflow.BudgetAnalysis = JsonSerializer.Serialize(assessment);
-            workflow.UpdatedAt = DateTimeOffset.UtcNow;
-
-            _db.AgentExecutionSteps.Add(AgentExecutionSteps.BudgetAnalysisSucceeded(
-                workflow.Id, assessment, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
-
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            // Advisory-only node — record the failure, never fail the whole workflow over it.
-            _db.AgentExecutionSteps.Add(AgentExecutionSteps.BudgetAnalysisFailed(
-                workflow.Id, ex.Message, (int)Math.Max(0, (DateTimeOffset.UtcNow - started).TotalMilliseconds), DateTimeOffset.UtcNow));
-
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-    }
-
-    public async Task<AgentWorkflowDto?> RunBudgetAnalysisAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
-    {
-        var workflow = await _db.AgentWorkflows
-            .Include(w => w.Asset)
-            .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
+        var workflow = await LoadForUpdateAsync(organizationId, id, cancellationToken);
         if (workflow is null) return null;
 
-        if (workflow.Status is not (WorkflowStatus.PLANNING or WorkflowStatus.ANALYZING))
+        if (!ResumableStatuses.Contains(workflow.Status))
+        {
+            throw new ConflictException($"Workflow is {workflow.Status} — only an in-progress evaluation can be resumed.", "invalid_status_transition");
+        }
+
+        await RunPipelineAsync(workflow, ScopeOf(workflow), excludedAction: null, cancellationToken);
+        return await GetWorkflowByIdAsync(organizationId, id, cancellationToken);
+    }
+
+    public async Task<AgentWorkflowDto?> RerunNodeAsync(Guid organizationId, Guid id, string agent, CancellationToken cancellationToken)
+    {
+        var workflow = await LoadForUpdateAsync(organizationId, id, cancellationToken);
+        if (workflow is null) return null;
+
+        if (!ResumableStatuses.Contains(workflow.Status))
         {
             throw new ConflictException(
-                $"Workflow is {workflow.Status} — the Budget Analysis Agent only runs from PLANNING or ANALYZING.",
+                $"Workflow is {workflow.Status} — the {AgentExecutionSteps.Label(agent)} Agent only runs while an evaluation is in progress.",
                 "invalid_status_transition");
         }
 
-        await RunBudgetAnalysisAsync(workflow, cancellationToken);
+        var context = new PipelineContext(ScopeOf(workflow), ExcludedAction: null);
+        switch (agent)
+        {
+            case AgentNames.MaintenanceAnalysis:
+                await RunMaintenanceNodeAsync(workflow, context, SequenceOf(workflow, agent), cancellationToken);
+                break;
+            case AgentNames.BudgetAnalysis:
+                await RunBudgetNodeAsync(workflow, context, SequenceOf(workflow, agent), cancellationToken);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(agent), agent, "Only analysis nodes can be re-run on their own.");
+        }
 
         return await GetWorkflowByIdAsync(organizationId, id, cancellationToken);
     }
+
+    public Task<AgentWorkflowDto?> RunBudgetAnalysisAsync(Guid organizationId, Guid id, CancellationToken cancellationToken) =>
+        RerunNodeAsync(organizationId, id, AgentNames.BudgetAnalysis, cancellationToken);
+
+    private sealed record PipelineContext(EvaluationScope Scope, string? ExcludedAction)
+    {
+        public IReadOnlyList<AgentToolsDtos.FailureStatisticsDto>? Maintenance { get; set; }
+        public FinancialAssessmentResultDto? Budget { get; set; }
+        public PolicyValidation? Validation { get; set; }
+    }
+
+    // Planner (if no plan yet), then the plan's steps in order. Every node
+    // persists its own output and trace row, so an interruption leaves an
+    // honest partial trace and the workflow can be resumed.
+    private async Task RunPipelineAsync(AgentWorkflow workflow, EvaluationScope scope, string? excludedAction, CancellationToken cancellationToken)
+    {
+        var plan = string.IsNullOrEmpty(workflow.Plan)
+            ? await RunPlannerAsync(workflow, scope, cancellationToken)
+            : JsonSerializer.Deserialize<PlannerExecutionPlan>(workflow.Plan);
+        if (plan is null || !plan.InScope) return;
+
+        workflow.Status = WorkflowStatus.ANALYZING;
+        workflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var context = new PipelineContext(scope, excludedAction);
+        foreach (var step in plan.Steps.OrderBy(s => s.Seq))
+        {
+            var sequence = step.Seq + 1; // the Planner is step 1
+            switch (step.Agent)
+            {
+                case AgentNames.MaintenanceAnalysis:
+                    await RunMaintenanceNodeAsync(workflow, context, sequence, cancellationToken);
+                    break;
+                case AgentNames.BudgetAnalysis:
+                    await RunBudgetNodeAsync(workflow, context, sequence, cancellationToken);
+                    break;
+                case AgentNames.PolicyCompliance:
+                    if (!await RunPolicyNodeAsync(workflow, context, sequence, cancellationToken)) return;
+                    break;
+                case AgentNames.DeterministicGate:
+                    await RunGateNodeAsync(workflow, context.Validation, sequence, automated: true, cancellationToken);
+                    break;
+            }
+        }
+    }
+
+    private async Task<PlannerExecutionPlan?> RunPlannerAsync(AgentWorkflow workflow, EvaluationScope scope, CancellationToken cancellationToken)
+    {
+        var started = DateTimeOffset.UtcNow;
+        try
+        {
+            var plan = await _plannerAgent.CreatePlanAsync(scope, workflow.Objective, workflow.InitiatedByUserId, cancellationToken);
+
+            workflow.Plan = JsonSerializer.Serialize(plan);
+            workflow.UpdatedAt = DateTimeOffset.UtcNow;
+            if (!plan.InScope)
+            {
+                workflow.Status = WorkflowStatus.FAILED_SAFE;
+                workflow.FailureReason = plan.RejectionReason;
+                workflow.CompletedAt = DateTimeOffset.UtcNow;
+            }
+
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Succeeded(
+                workflow.Id, AgentNames.Planner, 1, AgentExecutionSteps.PlanSummary(plan), AgentExecutionSteps.Elapsed(started)));
+            await _db.SaveChangesAsync(cancellationToken);
+            return plan;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+        {
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Failed(workflow.Id, AgentNames.Planner, 1, ex.Message, AgentExecutionSteps.Elapsed(started)));
+            FailSafe(workflow, "Planner Agent failed: " + ex.Message);
+            await _db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+    }
+
+    // Node 2 — deterministic; facts only, never a recommendation.
+    private async Task RunMaintenanceNodeAsync(AgentWorkflow workflow, PipelineContext context, int sequence, CancellationToken cancellationToken)
+    {
+        var started = DateTimeOffset.UtcNow;
+        try
+        {
+            context.Maintenance = await _maintenanceAnalysisTools.ComputeFleetFailureStatisticsAsync(
+                workflow.OrganizationId, workflow.AssetTypeId, workflow.AssetId, cancellationToken);
+
+            var aggregate = MaintenanceAggregation.Aggregate(context.Scope, context.Maintenance);
+            workflow.MaintenanceAnalysis = JsonSerializer.Serialize(aggregate);
+            workflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Succeeded(
+                workflow.Id, AgentNames.MaintenanceAnalysis, sequence, AgentExecutionSteps.MaintenanceSummary(aggregate), AgentExecutionSteps.Elapsed(started)));
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Advisory node — record the failure; downstream nodes degrade to "no repair history".
+            context.Maintenance = [];
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Failed(
+                workflow.Id, AgentNames.MaintenanceAnalysis, sequence, ex.Message, AgentExecutionSteps.Elapsed(started)));
+        }
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    // Node 3 — deterministic triage, optionally model-ranked.
+    private async Task RunBudgetNodeAsync(AgentWorkflow workflow, PipelineContext context, int sequence, CancellationToken cancellationToken)
+    {
+        var started = DateTimeOffset.UtcNow;
+        try
+        {
+            // Re-run or resume without node 2 in this request: recompute its
+            // per-asset input (milliseconds, deterministic) rather than trust a summary.
+            context.Maintenance ??= await _maintenanceAnalysisTools.ComputeFleetFailureStatisticsAsync(
+                workflow.OrganizationId, workflow.AssetTypeId, workflow.AssetId, cancellationToken);
+
+            context.Budget = await _budgetAgent.RunAssessmentAsync(context.Scope, context.Maintenance, cancellationToken);
+            workflow.BudgetAnalysis = JsonSerializer.Serialize(context.Budget);
+            workflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Succeeded(
+                workflow.Id, AgentNames.BudgetAnalysis, sequence, AgentExecutionSteps.BudgetSummary(context.Budget), AgentExecutionSteps.Elapsed(started)));
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Advisory node — Policy Compliance falls back to condition-based proposals.
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Failed(
+                workflow.Id, AgentNames.BudgetAnalysis, sequence, ex.Message, AgentExecutionSteps.Elapsed(started)));
+        }
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    // Node 4 — deterministic; returns false when the workflow had to fail safe.
+    private async Task<bool> RunPolicyNodeAsync(AgentWorkflow workflow, PipelineContext context, int sequence, CancellationToken cancellationToken)
+    {
+        workflow.Status = WorkflowStatus.VALIDATING;
+        workflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var started = DateTimeOffset.UtcNow;
+        try
+        {
+            context.Budget ??= Deserialize<FinancialAssessmentResultDto>(workflow.BudgetAnalysis);
+
+            var outcome = await _policyEvaluator.EvaluateAsync(
+                context.Scope, context.Maintenance, context.Budget, new PolicyEvaluationOptions(ExcludedAction: context.ExcludedAction), cancellationToken);
+
+            RecordOutcome(workflow, outcome);
+            context.Validation = outcome.Validation;
+
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Succeeded(
+                workflow.Id, AgentNames.PolicyCompliance, sequence, outcome.Summary, AgentExecutionSteps.Elapsed(started)));
+            await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (Exception ex) when (ex is BusinessRuleException or InvalidOperationException)
+        {
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Failed(
+                workflow.Id, AgentNames.PolicyCompliance, sequence, ex.Message, AgentExecutionSteps.Elapsed(started)));
+            FailSafe(workflow, "Policy Compliance Agent failed: " + ex.Message);
+            await _db.SaveChangesAsync(cancellationToken);
+            return false;
+        }
+    }
+
+    private async Task RunGateNodeAsync(AgentWorkflow workflow, PolicyValidation? validation, int sequence, bool automated, CancellationToken cancellationToken)
+    {
+        var started = DateTimeOffset.UtcNow;
+        validation ??= Deserialize<PolicyValidation>(workflow.ValidationResult);
+        if (validation is null)
+        {
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Failed(
+                workflow.Id, AgentNames.DeterministicGate, sequence, "No policy validation to gate.", AgentExecutionSteps.Elapsed(started)));
+            FailSafe(workflow, "No policy validation was produced — nothing can be routed.");
+        }
+        else
+        {
+            var summary = ApplyGate(workflow, validation, automated);
+            _db.AgentExecutionSteps.Add(AgentExecutionSteps.Succeeded(
+                workflow.Id, AgentNames.DeterministicGate, sequence, summary, AgentExecutionSteps.Elapsed(started)));
+        }
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    // Stage 2 of the deterministic gate (§7.6): FAIL → safe failure;
+    // PASS + high-impact → interrupt for approval; PASS + low-impact →
+    // advisory. NEEDS_REVISION: in the automated pipeline every permitted
+    // candidate has already been tried, so it ends as REVISION_REQUESTED; a
+    // human's manual proposal goes back to analysis, capped at 2 (AI-20).
+    private static string ApplyGate(AgentWorkflow workflow, PolicyValidation validation, bool automated)
+    {
+        var now = DateTimeOffset.UtcNow;
+        workflow.UpdatedAt = now;
+
+        switch (validation.Verdict)
+        {
+            case "FAIL":
+                workflow.Status = WorkflowStatus.FAILED_SAFE;
+                workflow.FailureReason = string.Join(" ", validation.BlockingReasons);
+                workflow.CompletedAt = now;
+                return "Policy FAIL → safe failure. No business record was changed.";
+
+            case "NEEDS_REVISION" when automated || workflow.RevisionCount >= 2:
+                workflow.Status = WorkflowStatus.REVISION_REQUESTED;
+                workflow.FailureReason = string.Join(" ", validation.BlockingReasons);
+                workflow.CompletedAt = now;
+                return "No policy-permitted action yet → revision requested. " + string.Join(" ", validation.BlockingReasons);
+
+            case "NEEDS_REVISION":
+                workflow.RevisionCount++;
+                workflow.Status = WorkflowStatus.ANALYZING;
+                return $"Needs revision → back to analysis (revision {workflow.RevisionCount} of 2).";
+
+            default: // PASS
+                if (validation.IsHighImpact)
+                {
+                    workflow.Status = WorkflowStatus.AWAITING_APPROVAL;
+                    workflow.ApprovalStatus = ApprovalStatus.PENDING;
+                    return "High-impact recommendation → paused for Administrator approval.";
+                }
+
+                workflow.Status = WorkflowStatus.COMPLETED_ADVISORY;
+                workflow.ApprovalStatus = ApprovalStatus.NOT_REQUIRED;
+                workflow.FailureReason = null;
+                workflow.CompletedAt = now;
+                return "Low-impact and policy-compliant → completed as advisory.";
+        }
+    }
+
+    // Persists node 4's result and the FR-027 lifecycle history entries.
+    private void RecordOutcome(AgentWorkflow workflow, PolicyOutcome outcome)
+    {
+        var now = DateTimeOffset.UtcNow;
+        workflow.ValidationResult = JsonSerializer.Serialize(outcome.Validation);
+        workflow.AgentOutputs = JsonSerializer.Serialize(outcome.Fleet);
+        workflow.Recommendation = outcome.Recommendation;
+        workflow.IsHighImpact = outcome.Validation.IsHighImpact;
+        workflow.UpdatedAt = now;
+
+        // Single asset: always recorded. Fleet: only assets that actually got
+        // a permitted, non-trivial action — RETAIN across a fleet is noise.
+        var recorded = workflow.AssetId.HasValue
+            ? outcome.Fleet.Assets
+            : outcome.Fleet.Assets.Where(a => a.Verdict == "PASS" && a.Action != "RETAIN");
+
+        foreach (var asset in recorded)
+        {
+            _db.AssetHistoryEntries.Add(new AssetHistory
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = workflow.OrganizationId,
+                AssetId = asset.AssetId,
+                ActorUserId = null,
+                EventType = AssetHistoryEventTypes.AgentRecommendation,
+                Description = $"Workflow {workflow.Id} recorded recommendation '{asset.Action}' (verdict {asset.Verdict}).",
+                PreviousValue = null,
+                NewValue = JsonSerializer.Serialize(new { recommendation = asset.Action, verdict = asset.Verdict, isHighImpact = asset.IsHighImpact }),
+                CreatedAt = now
+            });
+        }
+    }
+
+    // ── Manual evaluation & human decision ───────────────────────────────────
 
     public async Task<AgentWorkflowDto?> EvaluatePolicyAsync(
         Guid organizationId,
@@ -345,8 +493,7 @@ public class AgentWorkflowService : IAgentWorkflowService
         EvaluatePolicyRequest request,
         CancellationToken cancellationToken)
     {
-        var workflow = await _db.AgentWorkflows
-            .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
+        var workflow = await LoadForUpdateAsync(organizationId, id, cancellationToken);
         if (workflow is null) return null;
 
         if (workflow.Status is not (WorkflowStatus.PLANNING or WorkflowStatus.ANALYZING))
@@ -354,114 +501,19 @@ public class AgentWorkflowService : IAgentWorkflowService
             throw new ConflictException($"Workflow is {workflow.Status} — policy evaluation only runs from PLANNING or ANALYZING.", "invalid_status_transition");
         }
 
-        var complianceState = await _agentTools.GetAssetComplianceStateAsync(organizationId, workflow.AssetId, cancellationToken)
-            ?? throw new InvalidOperationException("Could not load the asset's compliance state.");
+        var started = DateTimeOffset.UtcNow;
+        var outcome = await _policyEvaluator.EvaluateAsync(
+            ScopeOf(workflow),
+            maintenanceByAsset: null,
+            Deserialize<FinancialAssessmentResultDto>(workflow.BudgetAnalysis),
+            new PolicyEvaluationOptions(ForcedAction: request.ProposedRecommendation, ManualFacts: request.FinancialAssessment),
+            cancellationToken);
 
-        var asset = await _db.Assets.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == workflow.AssetId, cancellationToken)
-            ?? throw new InvalidOperationException("Asset not found.");
+        RecordOutcome(workflow, outcome);
+        _db.AgentExecutionSteps.Add(AgentExecutionSteps.Succeeded(
+            workflow.Id, AgentNames.PolicyCompliance, 4, "Manual proposal · " + outcome.Summary, AgentExecutionSteps.Elapsed(started)));
 
-        var policy = await _agentTools.GetOrganizationPoliciesAsync(organizationId, asset.AssetTypeId, cancellationToken)
-            ?? throw new BusinessRuleException("No organisation policy is configured — cannot evaluate compliance.", "no_policy_configured");
-
-        var facts = new DTOs.PolicyEvaluationFacts
-        {
-            ProposedRecommendation = request.ProposedRecommendation,
-            AssetCondition = complianceState.CurrentCondition,
-            AssetStatus = complianceState.CurrentStatus,
-            ElapsedServiceLifeYears = complianceState.ElapsedServiceLifeYears,
-            HasValuation = complianceState.HasValuation,
-            ValuationDate = complianceState.ValuationDate,
-            OpenMaintenanceCount = complianceState.OpenMaintenanceCount,
-            OpenTransferCount = complianceState.OpenTransferCount,
-            RepairToReplaceRatio = request.FinancialAssessment?.RepairToReplaceRatio,
-            ProjectedRepairCost = request.FinancialAssessment?.ProjectedRepairCost,
-            BudgetHeadroom = request.FinancialAssessment?.BudgetHeadroom,
-            Confidence = request.FinancialAssessment?.Confidence,
-            MinimumServiceLifeYears = policy.MinimumServiceLifeYears,
-            ValuationValidityWindowDays = policy.ValuationValidityWindowDays,
-            RepairToReplaceCostThreshold = policy.RepairToReplaceCostThreshold,
-            ConfidenceFloor = policy.ConfidenceFloor,
-            EvaluatedAsOf = DateOnly.FromDateTime(DateTime.UtcNow)
-        };
-
-        var validation = _ruleEngine.Evaluate(facts);
-        var now = DateTimeOffset.UtcNow;
-
-        workflow.ValidationResult = JsonSerializer.Serialize(validation);
-        workflow.Recommendation = request.ProposedRecommendation;
-        workflow.IsHighImpact = validation.IsHighImpact;
-        workflow.UpdatedAt = now;
-
-        // FR-027 (B12): lifecycle history when a workflow records a
-        // recommendation — covers both this manual /evaluate submission and
-        // PolicyComplianceAgentService's agent-driven call, since both funnel
-        // through this one method.
-        _db.AssetHistoryEntries.Add(new AssetHistory
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = organizationId,
-            AssetId = workflow.AssetId,
-            ActorUserId = null,
-            EventType = AssetHistoryEventTypes.AgentRecommendation,
-            Description = $"Workflow {workflow.Id} recorded recommendation '{request.ProposedRecommendation}' (verdict {validation.Verdict}).",
-            PreviousValue = null,
-            NewValue = JsonSerializer.Serialize(new { recommendation = request.ProposedRecommendation, verdict = validation.Verdict, isHighImpact = validation.IsHighImpact }),
-            CreatedAt = now
-        });
-
-        _db.AgentExecutionSteps.Add(new AgentExecutionStep
-        {
-            Id = Guid.NewGuid(),
-            WorkflowId = workflow.Id,
-            Agent = AgentNames.PolicyCompliance,
-            Sequence = 4,
-            OutputSummary = $"Verdict={validation.Verdict}, IsHighImpact={validation.IsHighImpact}",
-            Status = "SUCCESS",
-            CreatedAt = now
-        });
-
-        // Stage 2 of the deterministic gate (§7.6): FAIL → safe failure;
-        // PASS + high-impact → interrupt; PASS + low-impact → advisory;
-        // NEEDS_REVISION → back to analysis, capped at 2 revisions (AI-20).
-        switch (validation.Verdict)
-        {
-            case "FAIL":
-                workflow.Status = WorkflowStatus.FAILED_SAFE;
-                workflow.FailureReason = string.Join(" ", validation.BlockingReasons);
-                workflow.CompletedAt = now;
-                break;
-
-            case "NEEDS_REVISION":
-                if (workflow.RevisionCount >= 2)
-                {
-                    workflow.Status = WorkflowStatus.REVISION_REQUESTED;
-                    workflow.CompletedAt = now;
-                }
-                else
-                {
-                    workflow.RevisionCount++;
-                    workflow.Status = WorkflowStatus.ANALYZING;
-                }
-                break;
-
-            default: // PASS
-                if (validation.IsHighImpact)
-                {
-                    workflow.Status = WorkflowStatus.AWAITING_APPROVAL;
-                    workflow.ApprovalStatus = ApprovalStatus.PENDING;
-                }
-                else
-                {
-                    workflow.Status = WorkflowStatus.COMPLETED_ADVISORY;
-                    workflow.ApprovalStatus = ApprovalStatus.NOT_REQUIRED;
-                    workflow.CompletedAt = now;
-                }
-                break;
-        }
-
-        await _db.SaveChangesAsync(cancellationToken);
-
+        await RunGateNodeAsync(workflow, outcome.Validation, 5, automated: false, cancellationToken);
         return await GetWorkflowByIdAsync(organizationId, id, cancellationToken);
     }
 
@@ -473,6 +525,7 @@ public class AgentWorkflowService : IAgentWorkflowService
         CancellationToken cancellationToken)
     {
         var workflow = await _db.AgentWorkflows
+            .Include(w => w.AssetType).ThenInclude(t => t!.AssetCategory)
             .Include(w => w.Asset)
             .Include(w => w.InitiatedByUser)
             .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
@@ -510,6 +563,7 @@ public class AgentWorkflowService : IAgentWorkflowService
             DecidedAt = now
         });
 
+        var rerunExcluding = (string?)null;
         switch (request.Decision)
         {
             case WorkflowDecisions.Approve:
@@ -518,9 +572,7 @@ public class AgentWorkflowService : IAgentWorkflowService
                 // service (Component A/B/C's own guarded endpoints). That
                 // cross-component execution wiring isn't built yet — the
                 // decision is recorded and the workflow marked APPROVED, but
-                // no business record is touched by this call. Same posture
-                // as Component C's P6 precondition: stubbed pending the rest
-                // of the agent subsystem, not silently faked.
+                // no business record is touched by this call.
                 workflow.Status = WorkflowStatus.APPROVED;
                 workflow.ApprovalStatus = ApprovalStatus.APPROVED;
                 workflow.CompletedAt = now;
@@ -543,6 +595,7 @@ public class AgentWorkflowService : IAgentWorkflowService
                     workflow.RevisionCount++;
                     workflow.Status = WorkflowStatus.ANALYZING;
                     workflow.ApprovalStatus = ApprovalStatus.NOT_REQUIRED;
+                    rerunExcluding = workflow.Recommendation;
                 }
                 break;
         }
@@ -550,38 +603,125 @@ public class AgentWorkflowService : IAgentWorkflowService
         workflow.UpdatedAt = now;
         await _db.SaveChangesAsync(cancellationToken);
 
+        // A revision re-runs the analysis straight away, never re-proposing
+        // the action the reviewer just sent back.
+        if (workflow.Status == WorkflowStatus.ANALYZING)
+        {
+            await RunPipelineAsync(workflow, ScopeOf(workflow), rerunExcluding, cancellationToken);
+        }
+
         return await GetWorkflowByIdAsync(organizationId, id, cancellationToken);
     }
 
-    private static AgentWorkflowDto MapToDto(AgentWorkflow w) => new()
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private async Task<EvaluationScope> ResolveRequestedScopeAsync(Guid organizationId, CreateAgentWorkflowRequest request, CancellationToken cancellationToken)
     {
-        Id = w.Id,
-        AssetId = w.AssetId,
-        AssetCode = w.Asset?.AssetCode ?? string.Empty,
-        Objective = w.Objective,
-        Status = w.Status.ToString(),
-        Recommendation = w.Recommendation,
-        IsHighImpact = w.IsHighImpact,
-        ApprovalStatus = w.ApprovalStatus.ToString(),
-        RevisionCount = w.RevisionCount,
-        FailureReason = w.FailureReason,
-        Plan = string.IsNullOrEmpty(w.Plan)
-            ? null
-            : JsonSerializer.Deserialize<PlannerExecutionPlan>(w.Plan),
-        ValidationResult = string.IsNullOrEmpty(w.ValidationResult)
-            ? null
-            : JsonSerializer.Deserialize<DTOs.PolicyValidation>(w.ValidationResult),
-        MaintenanceAnalysis = string.IsNullOrEmpty(w.MaintenanceAnalysis)
-            ? null
-            : JsonSerializer.Deserialize<AgentToolsDtos.FailureStatisticsDto>(w.MaintenanceAnalysis),
-        BudgetAnalysis = string.IsNullOrEmpty(w.BudgetAnalysis)
-            ? null
-            : JsonSerializer.Deserialize<FinancialAssessmentResultDto>(w.BudgetAnalysis),
-        CorrelationId = w.CorrelationId,
-        InitiatedByUserId = w.InitiatedByUserId,
-        InitiatedByEmail = w.InitiatedByUser?.Email,
-        StartedAt = w.StartedAt,
-        CompletedAt = w.CompletedAt,
-        CreatedAt = w.CreatedAt
-    };
+        Guid? assetTypeId = request.AssetTypeId;
+        string? assetCode = null;
+
+        if (request.AssetId is { } assetId)
+        {
+            var asset = await _db.Assets.AsNoTracking()
+                .Where(a => a.Id == assetId && a.OrganizationId == organizationId)
+                .Select(a => new { a.AssetTypeId, a.AssetCode, a.Status })
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new ValidationException(nameof(request.AssetId), "Asset not found.");
+
+            if (assetTypeId.HasValue && assetTypeId != asset.AssetTypeId)
+            {
+                throw new ValidationException(nameof(request.AssetId), "The asset doesn't belong to the selected asset type.");
+            }
+
+            // FR-068: refuse a terminal asset.
+            if (asset.Status == AssetStatuses.Disposed)
+            {
+                throw new BusinessRuleException("This asset is disposed — no further evaluation is possible.", "asset_disposed");
+            }
+
+            assetTypeId = asset.AssetTypeId;
+            assetCode = asset.AssetCode;
+        }
+
+        if (assetTypeId is null)
+        {
+            throw new ValidationException(nameof(request.AssetTypeId), "Choose an asset type to evaluate.");
+        }
+
+        var type = await _db.AssetTypes.AsNoTracking()
+            .Where(t => t.Id == assetTypeId && t.OrganizationId == organizationId)
+            .Select(t => new { t.Id, t.Name, Category = t.AssetCategory!.Name })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new ValidationException(nameof(request.AssetTypeId), "Asset type not found.");
+
+        return new EvaluationScope(organizationId, type.Id, type.Name, type.Category, request.AssetId, assetCode);
+    }
+
+    private Task<AgentWorkflow?> LoadForUpdateAsync(Guid organizationId, Guid id, CancellationToken cancellationToken) =>
+        _db.AgentWorkflows
+            .Include(w => w.AssetType).ThenInclude(t => t!.AssetCategory)
+            .Include(w => w.Asset)
+            .FirstOrDefaultAsync(w => w.Id == id && w.OrganizationId == organizationId, cancellationToken);
+
+    private static EvaluationScope ScopeOf(AgentWorkflow workflow) => new(
+        workflow.OrganizationId,
+        workflow.AssetTypeId,
+        workflow.AssetType?.Name ?? "Asset type",
+        workflow.AssetType?.AssetCategory?.Name ?? string.Empty,
+        workflow.AssetId,
+        workflow.Asset?.AssetCode);
+
+    // A node's trace sequence: its position in the stored plan, after the Planner.
+    private static int SequenceOf(AgentWorkflow workflow, string agent)
+    {
+        var plan = Deserialize<PlannerExecutionPlan>(workflow.Plan);
+        var step = plan?.Steps.FirstOrDefault(s => s.Agent == agent);
+        return step is null ? Array.FindIndex(AgentRegistry.Agents, a => a.Name == agent) + 2 : step.Seq + 1;
+    }
+
+    private static void FailSafe(AgentWorkflow workflow, string reason)
+    {
+        workflow.Status = WorkflowStatus.FAILED_SAFE;
+        workflow.FailureReason = reason;
+        workflow.CompletedAt = DateTimeOffset.UtcNow;
+        workflow.UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    private static T? Deserialize<T>(string? json) where T : class =>
+        string.IsNullOrEmpty(json) ? null : JsonSerializer.Deserialize<T>(json);
+
+    private static AgentWorkflowDto MapToDto(AgentWorkflow w)
+    {
+        var budget = Deserialize<FinancialAssessmentResultDto>(w.BudgetAnalysis);
+        if (budget is not null) budget.Assets = null; // per-asset rows travel in Fleet instead
+
+        return new AgentWorkflowDto
+        {
+            Id = w.Id,
+            Scope = w.AssetId.HasValue ? "ASSET" : "ASSET_TYPE",
+            AssetTypeId = w.AssetTypeId,
+            AssetTypeName = w.AssetType?.Name ?? string.Empty,
+            CategoryName = w.AssetType?.AssetCategory?.Name ?? string.Empty,
+            AssetId = w.AssetId,
+            AssetCode = w.Asset?.AssetCode ?? string.Empty,
+            Objective = w.Objective,
+            Status = w.Status.ToString(),
+            Recommendation = w.Recommendation,
+            IsHighImpact = w.IsHighImpact,
+            ApprovalStatus = w.ApprovalStatus.ToString(),
+            RevisionCount = w.RevisionCount,
+            FailureReason = w.FailureReason,
+            Plan = Deserialize<PlannerExecutionPlan>(w.Plan),
+            ValidationResult = Deserialize<PolicyValidation>(w.ValidationResult),
+            MaintenanceAnalysis = Deserialize<AgentToolsDtos.FailureStatisticsDto>(w.MaintenanceAnalysis),
+            BudgetAnalysis = budget,
+            Fleet = Deserialize<FleetEvaluationDto>(w.AgentOutputs),
+            CorrelationId = w.CorrelationId,
+            InitiatedByUserId = w.InitiatedByUserId,
+            InitiatedByEmail = w.InitiatedByUser?.Email,
+            StartedAt = w.StartedAt,
+            CompletedAt = w.CompletedAt,
+            CreatedAt = w.CreatedAt
+        };
+    }
 }

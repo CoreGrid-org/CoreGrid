@@ -8,7 +8,11 @@ using CoreGrid.Api.Features.Shared.Paging;
 public class AgentWorkflowDto
 {
     public Guid Id { get; set; }
-    public Guid AssetId { get; set; }
+    public required string Scope { get; set; } // ASSET_TYPE | ASSET
+    public Guid AssetTypeId { get; set; }
+    public required string AssetTypeName { get; set; }
+    public required string CategoryName { get; set; }
+    public Guid? AssetId { get; set; }
     public required string AssetCode { get; set; }
     public required string Objective { get; set; }
     public required string Status { get; set; }
@@ -21,6 +25,7 @@ public class AgentWorkflowDto
     public PolicyValidation? ValidationResult { get; set; }
     public FailureStatisticsDto? MaintenanceAnalysis { get; set; }
     public FinancialAssessmentResultDto? BudgetAnalysis { get; set; }
+    public FleetEvaluationDto? Fleet { get; set; }
     public required string CorrelationId { get; set; }
     public Guid InitiatedByUserId { get; set; }
     public string? InitiatedByEmail { get; set; }
@@ -56,10 +61,13 @@ public class PlannerPlanStep
     public required string ExpectedOutput { get; set; }
 }
 
-// Defines the request for creating an agent workflow.
+// Defines the request for creating an agent workflow. The target is an asset
+// type (its whole active fleet); AssetId optionally narrows it to one asset of
+// that type. AssetId alone is still accepted — its type is then inferred.
 public class CreateAgentWorkflowRequest
 {
-    [Required]
+    public Guid? AssetTypeId { get; set; }
+
     public Guid? AssetId { get; set; }
 
     [Required, MaxLength(2000)]

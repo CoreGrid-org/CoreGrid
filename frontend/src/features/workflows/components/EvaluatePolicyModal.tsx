@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal, Select, SelectItem, NumberInput, InlineNotification } from "@carbon/react";
 import { useEvaluatePolicy } from "../hooks/useWorkflows";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
+import { workflowTitle } from "../api/workflows";
 import type { AgentWorkflow } from "../api/workflows";
 
 const RECOMMENDATIONS = ["REPAIR", "REPLACE", "TRANSFER", "DISPOSE", "RETAIN"];
@@ -45,7 +46,7 @@ export default function EvaluatePolicyModal({ workflow, onClose, onEvaluated }: 
     <Modal
       open
       modalLabel="Agentic Workflows"
-      modalHeading={`Evaluate policy compliance — ${workflow.asset_code}`}
+      modalHeading={`Evaluate policy compliance: ${workflowTitle(workflow)}`}
       primaryButtonText={evaluatePolicy.isPending ? "Evaluating…" : "Run evaluation"}
       secondaryButtonText="Cancel"
       primaryButtonDisabled={evaluatePolicy.isPending}
@@ -53,9 +54,9 @@ export default function EvaluatePolicyModal({ workflow, onClose, onEvaluated }: 
       onRequestSubmit={handleSubmit}
     >
       <p className="cg-table__muted cg-text-small cg-modal-intro">
-        Runs the deterministic rule engine (PR-01 to PR-09) against this asset's compliance state and the
-        figures below, then either completes advisory, pauses for approval, or sends the workflow back to
-        analysis — exactly what the Policy Compliance Agent's node does once the rest of the graph exists.
+        Runs the deterministic rule engine (PR-01 to PR-09) for your proposed action against every asset in
+        this evaluation's scope, then completes advisory, pauses for approval, or sends the workflow back to
+        analysis. Figures left blank fall back to the Budget Analysis Agent's own per-asset numbers.
       </p>
 
       {evaluatePolicy.isError && (

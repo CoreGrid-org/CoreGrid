@@ -19,11 +19,14 @@ public class MaintenanceHistoryEntryDto
     public string Description { get; set; } = string.Empty;
 }
 
-// Represents maintenance failure statistics for an asset.
+// Represents maintenance failure statistics for an asset — or, aggregated,
+// for an asset-type fleet (AssetCount > 1, AssetId empty, AssetCode = type name).
 public class FailureStatisticsDto
 {
     public Guid AssetId { get; set; }
     public string AssetCode { get; set; } = string.Empty;
+    public int AssetCount { get; set; } = 1;
+    public int AssetsWithRepairs { get; set; }
     public int RepairCount { get; set; }
     public decimal? MeanTimeBetweenFailuresDays { get; set; }
     public string CostTrend { get; set; } = string.Empty; // INCREASING | DECREASING | STABLE | INSUFFICIENT_DATA

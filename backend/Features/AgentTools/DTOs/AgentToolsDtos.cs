@@ -22,6 +22,7 @@ public class AssetFinancialsDto
 {
     public Guid AssetId { get; set; }
     public string AssetCode { get; set; } = string.Empty;
+    public Guid DepartmentId { get; set; }
     public decimal AcquisitionCost { get; set; }
     public DateOnly AcquisitionDate { get; set; }
     public int UsefulLifeYears { get; set; }
@@ -48,6 +49,18 @@ public class DepartmentBudgetSummaryDto
     public decimal? RemainingAmount { get; set; }
     public string Status { get; set; } = string.Empty;
     public string Note { get; set; } = string.Empty;
+}
+
+// get_asset_type_summary — the Planner's view of an evaluation target: the
+// asset type, its category and the shape of its active (non-disposed) fleet.
+public class AssetTypeSummaryDto
+{
+    public Guid AssetTypeId { get; set; }
+    public string AssetType { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public int UsefulLifeYears { get; set; }
+    public int ActiveAssetCount { get; set; }
+    public Dictionary<string, int> ConditionCounts { get; set; } = [];
 }
 
 // Represents the organization policies used for evaluation.

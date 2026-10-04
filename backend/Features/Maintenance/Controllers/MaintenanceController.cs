@@ -25,14 +25,17 @@ public class MaintenanceController : CoreGridControllerBase
 
     private readonly IMaintenanceService _maintenanceService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IMaintenanceCostEstimator _costEstimator;
 
     public MaintenanceController(
         IMaintenanceService maintenanceService,
         IFileStorageService fileStorageService,
+        IMaintenanceCostEstimator costEstimator,
         CoreGridDbContext db) : base(db)
     {
         _maintenanceService = maintenanceService;
         _fileStorageService = fileStorageService;
+        _costEstimator = costEstimator;
     }
 // Uploads a private photo for a maintenance record.
     [HttpPost("photos")]
@@ -139,6 +142,22 @@ public class MaintenanceController : CoreGridControllerBase
             currentUser.OrganizationId, currentUser.Id, request, cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = record!.Id }, record);
+    }
+
+    // Suggests an estimated cost for a record from comparable completed
+    // work (same asset → asset type → category → organisation). Advisory
+    // only: the approver can accept it or enter their own figure.
+    [HttpGet("{id:guid}/cost-suggestion")]
+    [Authorize(Policy = Policies.CanManageMaintenance)]
+    public async Task<ActionResult<MaintenanceCostSuggestionDto>> GetCostSuggestion(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUser = await GetCurrentUserAsync(cancellationToken);
+        if (currentUser is null) return Unauthorized();
+
+        var suggestion = await _costEstimator.SuggestAsync(currentUser.OrganizationId, id, cancellationToken);
+        return suggestion is null
+            ? throw NotFoundException.For(nameof(MaintenanceRecord), id)
+            : Ok(suggestion);
     }
 
     // Approves a REQUESTED maintenance record: assigns it to a

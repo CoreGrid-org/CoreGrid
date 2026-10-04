@@ -13,15 +13,17 @@ public static class AgentsModule
         services.AddScoped<IAgentWorkflowService, AgentWorkflowService>();
         services.AddScoped<IPlannerAgentClient, PlannerAgentService>();
         services.AddScoped<IAssetActionRecommendationEngine, AssetActionRecommendationEngine>();
+        services.AddScoped<IPolicyComplianceEvaluator, PolicyComplianceEvaluator>();
         services.AddScoped<IPolicyComplianceAgentService, PolicyComplianceAgentService>();
         services.AddScoped<IMaintenanceAnalysisAgentService, MaintenanceAnalysisAgentService>();
         services.AddScoped<IBudgetAgentClient, BudgetAgentService>();
 
-        // Gemini's "thinking" models can take longer than 30s on a full
-        // plan/assessment; the agents fall back deterministically on timeout.
+        // Prompts and replies are compact now, so a healthy call returns in a
+        // few seconds; a stalled provider is cut off sooner and the agent
+        // moves to the fallback provider or its deterministic path.
         services.AddHttpClient(LlmHttpClient, client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(60);
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         return services;

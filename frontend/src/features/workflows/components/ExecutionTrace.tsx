@@ -1,62 +1,103 @@
 import { useEffect, useState } from "react";
 import { useThunderID } from "@thunderid/react";
-import { Accordion, AccordionItem, InlineNotification, SkeletonText, Tag } from "@carbon/react";
-import { Bot, ToolBox, Wallet, RuleLocked, FlowConnection, CheckmarkFilled, ErrorFilled } from "@carbon/icons-react";
+import { Accordion, AccordionItem, Button, InlineNotification, SkeletonText, Tag } from "@carbon/react";
+import { CheckmarkFilled, ErrorFilled, ChevronDown, ChevronUp, Time } from "@carbon/icons-react";
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { getExecutionSummary } from "../api/workflows";
-import type { AgentExecutionStep, WorkflowExecutionSummary } from "../api/workflows";
-
-// Maps agent identifiers to their display names and icons.
-const AGENT_DISPLAY: Record<string, { label: string; icon: typeof Bot }> = {
-  Planner: { label: "Planner Agent", icon: Bot },
-  MaintenanceAnalysis: { label: "Maintenance Analysis Agent", icon: ToolBox },
-  BudgetAnalysis: { label: "Budget Analysis Agent", icon: Wallet },
-  PolicyCompliance: { label: "Policy Compliance Agent", icon: RuleLocked },
-  PolicyComplianceRecommendation: { label: "Policy Compliance Agent — recommendation", icon: RuleLocked },
-  DeterministicGate: { label: "Deterministic Gate", icon: FlowConnection },
-};
-
-function agentDisplay(agent: string) {
-  return AGENT_DISPLAY[agent] ?? { label: agent, icon: FlowConnection };
-}
+import type { AgentExecutionStep, AgentWorkflow, WorkflowExecutionSummary } from "../api/workflows";
+import { agentDisplay } from "./agentDisplay";
+import { ActionMix, ActionTag, BudgetFacts, FleetTable, MaintenanceFacts, PlanSteps, PolicyRules } from "./AgentOutputs";
 
 function formatDuration(ms: number | null) {
   if (ms === null) return null;
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 
-function StepRow({ step }: { step: AgentExecutionStep }) {
+// The structured output behind a step, read from the workflow itself.
+// Returns null when there's nothing beyond the one-line summary.
+function StepDetail({ agent, workflow }: { agent: string; workflow: AgentWorkflow }) {
+  switch (agent) {
+    case "Planner":
+      return workflow.plan ? <PlanSteps plan={workflow.plan} /> : null;
+    case "MaintenanceAnalysis":
+      return workflow.maintenance_analysis ? <MaintenanceFacts stats={workflow.maintenance_analysis} /> : null;
+    case "BudgetAnalysis":
+      return workflow.budget_analysis ? <BudgetFacts assessment={workflow.budget_analysis} /> : null;
+    case "PolicyCompliance":
+      if (!workflow.validation_result) return null;
+      return (
+        <>
+          <div className="cg-agent-output__headline">
+            {workflow.recommendation && <ActionTag action={workflow.recommendation} />}
+            <Tag size="sm" type={workflow.validation_result.verdict === "PASS" ? "green" : workflow.validation_result.verdict === "FAIL" ? "red" : "warm-gray"}>
+              {workflow.validation_result.verdict}
+            </Tag>
+            {workflow.validation_result.is_high_impact && <Tag size="sm" type="magenta">High impact</Tag>}
+          </div>
+          {workflow.fleet && workflow.fleet.asset_count > 1 && <ActionMix fleet={workflow.fleet} />}
+          <PolicyRules validation={workflow.validation_result} />
+          {workflow.fleet && workflow.fleet.asset_count > 1 && <FleetTable fleet={workflow.fleet} />}
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+function StepRow({ step, workflow, isLatestForAgent }: { step: AgentExecutionStep; workflow: AgentWorkflow; isLatestForAgent: boolean }) {
   const { label, icon: Icon } = agentDisplay(step.agent);
   const succeeded = step.status === "SUCCESS";
+  const detail = succeeded && isLatestForAgent ? <StepDetail agent={step.agent} workflow={workflow} /> : null;
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="cg-trace-step">
-      <Icon size={20} className="cg-trace-step__icon" />
+    <li className={`cg-trace-step cg-trace-step--${succeeded ? "success" : "failed"}`}>
+      <div className="cg-trace-step__rail" aria-hidden="true">
+        <span className="cg-trace-step__node">
+          <Icon size={16} />
+        </span>
+      </div>
       <div className="cg-trace-step__body">
         <div className="cg-trace-step__header">
           <span className="cg-trace-step__agent">
-            <span className="cg-trace-step__seq">{step.sequence}.</span> {label}
+            <span className="cg-trace-step__seq">{step.sequence}</span> {label}
           </span>
           <Tag type={succeeded ? "green" : "red"} size="sm" renderIcon={succeeded ? CheckmarkFilled : ErrorFilled}>
             {succeeded ? "Success" : "Failed"}
           </Tag>
           {formatDuration(step.duration_ms) && (
-            <span className="cg-trace-step__duration">{formatDuration(step.duration_ms)}</span>
+            <span className="cg-trace-step__duration">
+              <Time size={12} /> {formatDuration(step.duration_ms)}
+            </span>
           )}
+          {!isLatestForAgent && <Tag size="sm" type="cool-gray">Earlier run</Tag>}
         </div>
-        <p className="cg-trace-step__summary">{step.error ?? step.output_summary ?? "No summary recorded."}</p>
+        <p className={`cg-trace-step__summary${succeeded ? "" : " cg-trace-step__summary--error"}`}>
+          {step.error ?? step.output_summary ?? "No summary recorded."}
+        </p>
+        {detail && (
+          <>
+            <Button
+              kind="ghost"
+              size="sm"
+              className="cg-trace-step__toggle"
+              renderIcon={open ? ChevronUp : ChevronDown}
+              onClick={() => setOpen((v) => !v)}
+            >
+              {open ? "Hide output" : "Show output"}
+            </Button>
+            {open && <div className="cg-agent-output">{detail}</div>}
+          </>
+        )}
       </div>
-    </div>
+    </li>
   );
 }
 
 // SRS §9.6: "Full auditable trace: plan, agent outputs, tool calls,
-// validation, decision" — rendered as a readable step-by-step list (an
-// icon, the agent's name, a pass/fail tag, its own summary sentence),
-// never as a raw JSON dump of the underlying AgentExecutionStep rows.
-// Fetched lazily, only once the accordion is actually opened, since a
-// page of workflow cards would otherwise fire one extra request per card
-// whether or not anyone looks at the trace.
+// validation, decision": a timeline of nodes, each with its own one-line
+// summary and, on demand, its structured output. Fetched lazily, only once
+// the accordion is opened, so a page of cards doesn't fire a request per card.
 export default function ExecutionTrace({ workflowId }: { workflowId: string }) {
   const { getAccessToken } = useThunderID();
   const [summary, setSummary] = useState<WorkflowExecutionSummary | null>(null);
@@ -76,6 +117,11 @@ export default function ExecutionTrace({ workflowId }: { workflowId: string }) {
       .finally(() => setIsLoading(false));
   }, [hasOpened, summary, isLoading, workflowId, getAccessToken]);
 
+  // Re-runs leave earlier rows in the trace; only the latest per agent maps to the stored output.
+  const latestIdByAgent = new Map<string, string>();
+  summary?.steps.forEach((s) => latestIdByAgent.set(s.agent, s.id));
+  const totalMs = summary?.steps.reduce((sum, s) => sum + (s.duration_ms ?? 0), 0) ?? 0;
+
   return (
     <Accordion align="start" className="cg-trace-accordion">
       <AccordionItem title="Agent execution trace" onHeadingClick={({ isOpen }) => isOpen && setHasOpened(true)}>
@@ -93,15 +139,25 @@ export default function ExecutionTrace({ workflowId }: { workflowId: string }) {
 
         {summary && (
           <>
-            <div className="cg-trace-steps">
-              {summary.steps.length > 0 ? (
-                summary.steps.map((step) => <StepRow key={step.id} step={step} />)
-              ) : (
-                <p className="cg-table__muted cg-text-small">
-                  No agent has run for this workflow yet.
+            {summary.steps.length > 0 ? (
+              <>
+                <p className="cg-trace-meta">
+                  {summary.steps.length} step{summary.steps.length === 1 ? "" : "s"} · {formatDuration(totalMs)} total
                 </p>
-              )}
-            </div>
+                <ol className="cg-trace-steps">
+                  {summary.steps.map((step) => (
+                    <StepRow
+                      key={step.id}
+                      step={step}
+                      workflow={summary.workflow}
+                      isLatestForAgent={latestIdByAgent.get(step.agent) === step.id}
+                    />
+                  ))}
+                </ol>
+              </>
+            ) : (
+              <p className="cg-table__muted cg-text-small">No agent has run for this workflow yet.</p>
+            )}
 
             {summary.approvals.length > 0 && (
               <div className="cg-trace-approvals">

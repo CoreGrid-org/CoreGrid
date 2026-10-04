@@ -7,11 +7,6 @@ namespace CoreGrid.Api.Features.Agents.Services;
 // Pure static — no I/O, deterministic, unit-testable without any DI.
 internal static class PlannerScopeGuard
 {
-    private static readonly string[] AllowedAgents =
-    [
-        AgentNames.MaintenanceAnalysis, AgentNames.BudgetAnalysis, AgentNames.PolicyCompliance, AgentNames.DeterministicGate
-    ];
-
     // Terms that must appear in an in-scope objective (case-insensitive).
     private static readonly string[] AllowedTerms =
     [
@@ -49,7 +44,10 @@ internal static class PlannerScopeGuard
     internal static PlannerExecutionPlan RejectedPlan(string reason) =>
         new() { InScope = false, RejectionReason = reason, Steps = [] };
 
-    // Validates a plan produced by the LLM; throws on any structural violation.
+    // Validates and normalises a plan produced by the LLM; throws on any
+    // structural violation so the caller moves to the next provider or the
+    // fallback. Normalisation (renumbering, filling purpose/expectedOutput from
+    // the registry, appending the gate) is what lets the model reply tersely.
     internal static PlannerExecutionPlan ValidatePlan(PlannerExecutionPlan plan)
     {
         if (!plan.InScope)
@@ -67,45 +65,57 @@ internal static class PlannerScopeGuard
             throw new InvalidOperationException(
                 "An in-scope plan cannot contain a rejection reason.");
 
-        if (plan.Steps.Count is < 4 or > 6)
+        if (plan.Steps.Any(step => AgentRegistry.Find(step.Agent) is null))
             throw new InvalidOperationException(
-                "An in-scope plan must contain 4 to 6 steps.");
+                "Plan steps must only use agents from the registry.");
 
-        var seqs = plan.Steps.Select(s => s.Seq).ToList();
-        var expected = Enumerable.Range(1, seqs.Count).ToList();
-        if (!seqs.SequenceEqual(expected))
+        // Keep each agent's first occurrence; the gate always runs last.
+        var ordered = plan.Steps
+            .OrderBy(s => s.Seq)
+            .DistinctBy(s => s.Agent)
+            .Where(s => s.Agent != AgentNames.DeterministicGate)
+            .ToList();
+
+        var required = AgentRegistry.Agents.Where(a => a.Name != AgentNames.DeterministicGate).Select(a => a.Name).ToList();
+        if (!required.All(name => ordered.Any(s => s.Agent == name)))
             throw new InvalidOperationException(
-                "Plan steps must have consecutive sequence numbers starting at 1.");
+                $"An in-scope plan must schedule {string.Join(", ", required)}.");
 
-        if (plan.Steps.Any(step =>
-                !AllowedAgents.Contains(step.Agent, StringComparer.Ordinal) ||
-                string.IsNullOrWhiteSpace(step.Purpose) ||
-                string.IsNullOrWhiteSpace(step.ExpectedOutput)))
-            throw new InvalidOperationException(
-                "Plan steps must use an allowed downstream agent and include purpose and expected output.");
+        var position = ordered.Select((s, i) => (s.Agent, i)).ToDictionary(x => x.Agent, x => x.i);
+        foreach (var step in ordered)
+        {
+            var dependsOn = AgentRegistry.Find(step.Agent)!.DependsOn;
+            if (dependsOn is not null && position.TryGetValue(dependsOn, out var dependencyIndex) && dependencyIndex > position[step.Agent])
+                throw new InvalidOperationException($"{step.Agent} must run after {dependsOn}.");
+        }
 
-        return plan;
+        var gate = plan.Steps.FirstOrDefault(s => s.Agent == AgentNames.DeterministicGate);
+        return new PlannerExecutionPlan
+        {
+            InScope = true,
+            Steps = ordered.Append(gate ?? Step(AgentNames.DeterministicGate, null))
+                .Select((s, i) => Step(s.Agent, s.Purpose, i + 1))
+                .ToList()
+        };
     }
 
-    // Deterministic four-step fallback used when the LLM fails.
+    // Deterministic plan used when no model is configured or every provider fails.
     internal static PlannerExecutionPlan FallbackPlan() =>
         new()
         {
             InScope = true,
-            Steps =
-            [
-                new() { Seq = 1, Agent = AgentNames.MaintenanceAnalysis,
-                    Purpose = "Analyse repair history and projected maintenance cost.",
-                    ExpectedOutput = "MaintenanceAnalysis" },
-                new() { Seq = 2, Agent = AgentNames.BudgetAnalysis,
-                    Purpose = "Compare repair, replacement, residual value, and budget facts.",
-                    ExpectedOutput = "FinancialAssessment" },
-                new() { Seq = 3, Agent = AgentNames.PolicyCompliance,
-                    Purpose = "Evaluate the proposed recommendation against organisation policy.",
-                    ExpectedOutput = "PolicyValidation" },
-                new() { Seq = 4, Agent = AgentNames.DeterministicGate,
-                    Purpose = "Validate schemas, business rules, and authorisation before action.",
-                    ExpectedOutput = "GateResult" },
-            ]
+            Steps = AgentRegistry.Agents.Select((a, i) => Step(a.Name, null, i + 1)).ToList()
         };
+
+    private static PlannerPlanStep Step(string agent, string? purpose, int seq = 0)
+    {
+        var spec = AgentRegistry.Find(agent)!;
+        return new PlannerPlanStep
+        {
+            Seq = seq,
+            Agent = agent,
+            Purpose = string.IsNullOrWhiteSpace(purpose) ? spec.DefaultPurpose : purpose.Trim(),
+            ExpectedOutput = spec.Output
+        };
+    }
 }

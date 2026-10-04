@@ -11,8 +11,13 @@ public static class BudgetScopeGuard
 {
     private static readonly HashSet<string> AllowedActions = new(StringComparer.OrdinalIgnoreCase)
     {
-        "REPAIR", "REPLACE", "TRANSFER", "DISPOSE"
+        "REPAIR", "REPLACE", "TRANSFER", "DISPOSE", "RETAIN"
     };
+
+    private static readonly string[] CoreActions = ["REPAIR", "REPLACE", "TRANSFER", "DISPOSE"];
+
+    // Tie-break order for equal scores — least disruptive first.
+    private static readonly string[] ActionOrder = ["RETAIN", "REPAIR", "REPLACE", "TRANSFER", "DISPOSE"];
 
     private const decimal DefaultRepairToReplaceThreshold = 0.70m;
 
@@ -28,9 +33,9 @@ public static class BudgetScopeGuard
             throw new InvalidOperationException("Residual value must be greater than or equal to 0.");
         }
 
-        if (result.RankedOptions == null || result.RankedOptions.Count != 4)
+        if (result.RankedOptions == null || result.RankedOptions.Count is < 4 or > 5)
         {
-            throw new InvalidOperationException("Assessment must contain exactly 4 ranked lifecycle options.");
+            throw new InvalidOperationException("Assessment must contain 4 or 5 ranked lifecycle options (RETAIN is optional).");
         }
 
         var actionsPresent = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -45,7 +50,7 @@ public static class BudgetScopeGuard
             if (!AllowedActions.Contains(upperAction))
             {
                 throw new InvalidOperationException(
-                    $"Action '{option.Action}' is not an allowed lifecycle action (REPAIR, REPLACE, TRANSFER, DISPOSE).");
+                    $"Action '{option.Action}' is not an allowed lifecycle action (REPAIR, REPLACE, TRANSFER, DISPOSE, RETAIN).");
             }
 
             if (!actionsPresent.Add(upperAction))
@@ -67,7 +72,7 @@ public static class BudgetScopeGuard
             }
         }
 
-        if (actionsPresent.Count != 4)
+        if (!CoreActions.All(actionsPresent.Contains))
         {
             throw new InvalidOperationException(
                 "Assessment must cover all 4 actions: REPAIR, REPLACE, TRANSFER, and DISPOSE.");
@@ -101,134 +106,106 @@ public static class BudgetScopeGuard
     }
 
     /// <summary>
-    /// Deterministic rule-based assessment used when the LLM call fails, times out, or when no API key is configured.
-    /// Uses real organization policy RepairToReplaceCostThreshold if provided; otherwise defaults to 0.70 (70%).
+    /// One asset's financial triage: projected 12-month repair cost against
+    /// residual book value. No projected spend → RETAIN; ratio at or above the
+    /// policy threshold → REPLACE (or DISPOSE once fully depreciated); else REPAIR.
     /// </summary>
+    public static AssetFinancialTriageDto TriageAsset(
+        AssetFinancialsDto financials,
+        FailureStatisticsDto? maintenance,
+        decimal? policyRepairToReplaceThreshold = null)
+    {
+        ArgumentNullException.ThrowIfNull(financials);
+
+        var threshold = Threshold(policyRepairToReplaceThreshold);
+        var residual = Math.Max(0m, financials.ResidualBookValue);
+        var projected = Math.Max(0m, maintenance?.ProjectedNextTwelveMonthsCost ?? 0m);
+        var ratio = Math.Round(projected / Math.Max(residual, 1m), 2);
+
+        var action = projected == 0m ? "RETAIN"
+            : ratio >= threshold ? (residual <= 0m ? "DISPOSE" : "REPLACE")
+            : "REPAIR";
+
+        return new AssetFinancialTriageDto
+        {
+            AssetId = financials.AssetId,
+            AssetCode = financials.AssetCode,
+            ResidualValue = residual,
+            ProjectedCost = projected,
+            Ratio = ratio,
+            Action = action
+        };
+    }
+
+    /// <summary>
+    /// Deterministic assessment across a scope (one asset or an asset-type
+    /// fleet): totals, and every action scored by the share of assets whose
+    /// triage lands on it. Used as-is without a model, and as the base the
+    /// model's scores are merged onto.
+    /// </summary>
+    public static FinancialAssessmentResultDto DeterministicAssessment(
+        IReadOnlyList<AssetFinancialTriageDto> triage,
+        decimal? policyRepairToReplaceThreshold = null,
+        decimal? budgetHeadroom = null)
+    {
+        ArgumentNullException.ThrowIfNull(triage);
+
+        var threshold = Threshold(policyRepairToReplaceThreshold);
+        var n = Math.Max(triage.Count, 1);
+        var residual = triage.Sum(t => t.ResidualValue);
+        var projected = triage.Sum(t => t.ProjectedCost);
+        var ratio = Math.Round(projected / Math.Max(residual, 1m), 2);
+        var counts = ActionOrder.ToDictionary(a => a, a => triage.Count(t => t.Action == a));
+
+        var options = ActionOrder
+            .Select((action, order) => new RankedOptionDto
+            {
+                Action = action,
+                // Share of the fleet, nudged by the tie-break order so ranks are distinct.
+                Score = Math.Clamp(Math.Round(0.10m + 0.85m * counts[action] / n - order * 0.01m, 2), 0m, 1m),
+                Rationale = Rationale(action, counts[action], triage.Count, threshold, triage.Where(t => t.Action == action).Sum(t => t.ProjectedCost))
+            })
+            .OrderByDescending(o => o.Score)
+            .ToList();
+
+        return new FinancialAssessmentResultDto
+        {
+            ResidualValue = residual,
+            ReplacementEstimate = null,
+            RepairToReplaceRatio = ratio,
+            BudgetHeadroom = budgetHeadroom,
+            RankedOptions = options,
+            ProposedRecommendation = options[0].Action,
+            AssetCount = triage.Count,
+            ProjectedRepairCost = projected,
+            Source = "DETERMINISTIC",
+            Assets = triage.ToList()
+        };
+    }
+
+    /// <summary>Single-asset convenience over TriageAsset + DeterministicAssessment.</summary>
     public static FinancialAssessmentResultDto FallbackAssessment(
         AssetFinancialsDto financials,
         FailureStatisticsDto maintenanceAnalysis,
         decimal? policyRepairToReplaceThreshold = null)
     {
-        ArgumentNullException.ThrowIfNull(financials);
         ArgumentNullException.ThrowIfNull(maintenanceAnalysis);
+        return DeterministicAssessment([TriageAsset(financials, maintenanceAnalysis, policyRepairToReplaceThreshold)], policyRepairToReplaceThreshold);
+    }
 
-        var threshold = policyRepairToReplaceThreshold is > 0
-            ? policyRepairToReplaceThreshold.Value
-            : DefaultRepairToReplaceThreshold;
+    private static decimal Threshold(decimal? policyThreshold) =>
+        policyThreshold is > 0 ? policyThreshold.Value : DefaultRepairToReplaceThreshold;
 
-        var residual = Math.Max(0m, financials.ResidualBookValue);
-        var projectedRepair = Math.Max(0m, maintenanceAnalysis.ProjectedNextTwelveMonthsCost);
-        var denominator = Math.Max(residual, 1m);
-        var ratio = Math.Round(projectedRepair / denominator, 2);
-
-        string proposed;
-        List<RankedOptionDto> rankedOptions;
-
-        if (ratio >= threshold)
+    private static string Rationale(string action, int count, int total, decimal threshold, decimal projected)
+    {
+        var share = total == 1 ? (count == 1 ? "This asset" : "Not this asset") : $"{count} of {total} assets";
+        return action switch
         {
-            if (residual <= 0m)
-            {
-                proposed = "DISPOSE";
-                rankedOptions =
-                [
-                    new()
-                    {
-                        Action = "DISPOSE",
-                        Score = 0.85m,
-                        Rationale = $"Asset is fully depreciated (residual value $0) and projected 12-month repair cost is ${projectedRepair:N2}, exceeding the economic threshold ({threshold:P0}). Decommissioning is optimal."
-                    },
-                    new()
-                    {
-                        Action = "REPLACE",
-                        Score = 0.70m,
-                        Rationale = $"Procuring a replacement is financially justified as maintenance costs exceed the asset's residual value, but capital expenditure is required."
-                    },
-                    new()
-                    {
-                        Action = "TRANSFER",
-                        Score = 0.30m,
-                        Rationale = $"Transferring an asset with escalating repair needs (${projectedRepair:N2}/yr) merely shifts an economic burden to another department."
-                    },
-                    new()
-                    {
-                        Action = "REPAIR",
-                        Score = 0.15m,
-                        Rationale = $"Projected repair cost of ${projectedRepair:N2} yields a repair-to-replace ratio of {ratio:F2}, exceeding policy threshold {threshold:P0}. Continued repair is uneconomical."
-                    }
-                ];
-            }
-            else
-            {
-                proposed = "REPLACE";
-                rankedOptions =
-                [
-                    new()
-                    {
-                        Action = "REPLACE",
-                        Score = 0.80m,
-                        Rationale = $"Projected 12-month repair cost of ${projectedRepair:N2} represents {ratio:P0} of the residual book value (${residual:N2}), exceeding the policy threshold ({threshold:P0}). Replacement is recommended."
-                    },
-                    new()
-                    {
-                        Action = "DISPOSE",
-                        Score = 0.65m,
-                        Rationale = $"Disposal without replacement is feasible if service requirements have subsided, avoiding ongoing maintenance of ${projectedRepair:N2}."
-                    },
-                    new()
-                    {
-                        Action = "TRANSFER",
-                        Score = 0.35m,
-                        Rationale = $"Transfer is only recommended if receiving department has specialized maintenance capability to absorb ${projectedRepair:N2} projected annual costs."
-                    },
-                    new()
-                    {
-                        Action = "REPAIR",
-                        Score = 0.20m,
-                        Rationale = $"Repair-to-replace ratio of {ratio:F2} exceeds acceptable threshold {threshold:P0}. Further repair investment will yield negative returns."
-                    }
-                ];
-            }
-        }
-        else
-        {
-            proposed = "REPAIR";
-            rankedOptions =
-            [
-                new()
-                {
-                    Action = "REPAIR",
-                    Score = 0.85m,
-                    Rationale = $"Projected 12-month repair cost of ${projectedRepair:N2} represents {ratio:P0} of residual book value (${residual:N2}), safely within the policy threshold ({threshold:P0}). Continuing maintenance is economical."
-                },
-                new()
-                {
-                    Action = "TRANSFER",
-                    Score = 0.50m,
-                    Rationale = $"Asset remains economically viable (ratio {ratio:F2}); transfer to another operational unit is feasible if department requirements change."
-                },
-                new()
-                {
-                    Action = "REPLACE",
-                    Score = 0.35m,
-                    Rationale = $"Premature replacement is unwarranted while the asset retains ${residual:N2} in book value and projected repairs (${projectedRepair:N2}) remain economical."
-                },
-                new()
-                {
-                    Action = "DISPOSE",
-                    Score = 0.15m,
-                    Rationale = $"Asset is in usable condition with substantial remaining value (${residual:N2}); disposal would result in unnecessary capital loss."
-                }
-            ];
-        }
-
-        return new FinancialAssessmentResultDto
-        {
-            ResidualValue = residual,
-            ReplacementEstimate = financials.ReplacementEstimate,
-            RepairToReplaceRatio = ratio,
-            BudgetHeadroom = null, // Department budget tracking not configured in database schema
-            RankedOptions = rankedOptions,
-            ProposedRecommendation = proposed
+            "RETAIN" => $"{share}: no repair spend projected for the next 12 months — no lifecycle action needed.",
+            "REPAIR" => $"{share}: projected repairs (LKR {projected:N0}) stay under {threshold:P0} of residual value — repair is economical.",
+            "REPLACE" => $"{share}: projected repairs (LKR {projected:N0}) reach {threshold:P0}+ of residual value while book value remains.",
+            "DISPOSE" => $"{share}: fully depreciated with repairs (LKR {projected:N0}) still projected — beyond economic repair.",
+            _ => "No financial signal favours transfer; it depends on departmental need rather than cost."
         };
     }
 }

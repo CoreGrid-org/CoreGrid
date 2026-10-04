@@ -49,8 +49,8 @@ public class BudgetScopeGuardTests
 
     [Theory]
     [InlineData(3)]
-    [InlineData(5)]
-    public void ValidateAssessment_WhenOptionsCountNotFour_ThrowsInvalidOperationException(int count)
+    [InlineData(6)]
+    public void ValidateAssessment_WhenOptionsCountOutOfRange_ThrowsInvalidOperationException(int count)
     {
         var assessment = CreateValidAssessment();
         if (count == 3)
@@ -59,11 +59,31 @@ public class BudgetScopeGuardTests
         }
         else
         {
+            assessment.RankedOptions.Add(new RankedOptionDto { Action = "RETAIN", Score = 0.2m, Rationale = "Extra" });
             assessment.RankedOptions.Add(new RankedOptionDto { Action = "REPAIR", Score = 0.5m, Rationale = "Extra" });
         }
 
         var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
-        Assert.Contains("exactly 4 ranked lifecycle options", ex.Message);
+        Assert.Contains("4 or 5 ranked lifecycle options", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAssessment_WithOptionalRetain_IsValid()
+    {
+        var assessment = CreateValidAssessment();
+        assessment.RankedOptions.Add(new RankedOptionDto { Action = "RETAIN", Score = 0.2m, Rationale = "No spend projected." });
+
+        Assert.Same(assessment, BudgetScopeGuard.ValidateAssessment(assessment));
+    }
+
+    [Fact]
+    public void TriageAsset_WithNoProjectedSpend_Retains()
+    {
+        var triage = BudgetScopeGuard.TriageAsset(
+            new AssetFinancialsDto { AssetId = Guid.NewGuid(), ResidualBookValue = 5000m },
+            new FailureStatisticsDto { ProjectedNextTwelveMonthsCost = 0m });
+
+        Assert.Equal("RETAIN", triage.Action);
     }
 
     [Fact]
@@ -168,7 +188,7 @@ public class BudgetScopeGuardTests
         Assert.Equal("REPAIR", result.ProposedRecommendation);
         Assert.Equal(5000m, result.ResidualValue);
         Assert.Equal(0.30m, result.RepairToReplaceRatio);
-        Assert.Equal(4, result.RankedOptions.Count);
+        Assert.Equal(5, result.RankedOptions.Count); // RETAIN included
 
         var topOption = result.RankedOptions.MaxBy(o => o.Score);
         Assert.NotNull(topOption);

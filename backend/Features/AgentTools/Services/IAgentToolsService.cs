@@ -18,4 +18,12 @@ public interface IAgentToolsService
     Task<OrganizationPolicyFactsDto?> GetOrganizationPoliciesAsync(Guid organizationId, Guid? assetTypeId, CancellationToken cancellationToken = default);
 
     Task<AssetComplianceStateDto?> GetAssetComplianceStateAsync(Guid organizationId, Guid assetId, CancellationToken cancellationToken = default);
+
+    // Fleet variants: every active (non-disposed) asset of the type, or just
+    // assetId when given — a fixed number of queries however large the fleet.
+    Task<AssetTypeSummaryDto?> GetAssetTypeSummaryAsync(Guid organizationId, Guid assetTypeId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AssetFinancialsDto>> GetFleetFinancialsAsync(Guid organizationId, Guid assetTypeId, Guid? assetId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AssetComplianceStateDto>> GetFleetComplianceStateAsync(Guid organizationId, Guid assetTypeId, Guid? assetId, CancellationToken cancellationToken = default);
 }

@@ -7,6 +7,7 @@ import {
   reportFault,
   createMaintenance,
   approveMaintenance,
+  getCostSuggestion,
   startMaintenance,
   completeMaintenance,
   cancelMaintenance,
@@ -19,6 +20,7 @@ import type {
   ReportFaultRequest,
   CreateMaintenanceRequest,
   ApproveMaintenanceRequest,
+  MaintenanceCostSuggestion,
   CompleteMaintenanceRequest,
   CancelMaintenanceRequest,
 } from "../types/maintenance";
@@ -103,27 +105,66 @@ export function useMaintenanceDetail(id: string | undefined) {
   return { data, error, isError: error !== undefined, isLoading, refetch };
 }
 
-export function useUploadMaintenancePhoto() {
+export function useCostSuggestion(id: string | undefined, enabled = true) {
   const { getAccessToken } = useThunderID();
-  return useStubMutation<File, string>(async (file) => {
-    const accessToken = await getAccessToken();
-    return uploadMaintenancePhoto(file, accessToken);
-  });
+  const [data, setData] = useState<MaintenanceCostSuggestion>();
+  const [error, setError] = useState<unknown>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!id || !enabled) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setError(undefined);
+
+    getAccessToken()
+      .then((token) => getCostSuggestion(id, token))
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, enabled, getAccessToken]);
+
+  return { data, error, isError: error !== undefined, isLoading };
+}
+
+// A form submission with an optional photo. The photo is uploaded only here,
+// as part of the submit, so nothing reaches storage for an abandoned form.
+interface WithPhoto<T> {
+  payload: T;
+  photo?: File | null;
+}
+
+async function withUploadedPhoto<T extends { photo_url?: string }>(
+  { payload, photo }: WithPhoto<T>,
+  accessToken: string,
+): Promise<T> {
+  if (!photo) return payload;
+  return { ...payload, photo_url: await uploadMaintenancePhoto(photo, accessToken) };
 }
 
 export function useReportFault() {
   const { getAccessToken } = useThunderID();
-  return useStubMutation<ReportFaultRequest, MaintenanceRecord>(async (payload) => {
+  return useStubMutation<WithPhoto<ReportFaultRequest>, MaintenanceRecord>(async (request) => {
     const accessToken = await getAccessToken();
-    return reportFault(payload, accessToken);
+    return reportFault(await withUploadedPhoto(request, accessToken), accessToken);
   });
 }
 
 export function useCreateMaintenance() {
   const { getAccessToken } = useThunderID();
-  return useStubMutation<CreateMaintenanceRequest, MaintenanceRecord>(async (payload) => {
+  return useStubMutation<WithPhoto<CreateMaintenanceRequest>, MaintenanceRecord>(async (request) => {
     const accessToken = await getAccessToken();
-    return createMaintenance(payload, accessToken);
+    return createMaintenance(await withUploadedPhoto(request, accessToken), accessToken);
   });
 }
 

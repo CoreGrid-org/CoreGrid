@@ -8,6 +8,7 @@ import {
   TabPanel,
   Tag,
   Button,
+  ActionableNotification,
   InlineNotification,
   Select,
   SelectItem,
@@ -97,33 +98,31 @@ export default function MaintenancePage() {
       </div>
 
       {reportedRecord && (
-        <InlineNotification
+        <ActionableNotification
+          inline
           kind="success"
           title="Fault reported"
           subtitle={`A maintenance request was created for ${reportedRecord.asset_code}.`}
           lowContrast
+          actionButtonLabel="View request"
+          onActionButtonClick={() => navigate(reportedRecord.id)}
           onClose={() => setReportedRecord(null)}
           className="cg-page-notification"
-        >
-          <Button kind="ghost" size="sm" onClick={() => navigate(reportedRecord.id)}>
-            View request
-          </Button>
-        </InlineNotification>
+        />
       )}
 
       {createdRecord && (
-        <InlineNotification
+        <ActionableNotification
+          inline
           kind="success"
           title="Maintenance record created"
           subtitle={`A work order was created for ${createdRecord.asset_code}.`}
           lowContrast
+          actionButtonLabel="View record"
+          onActionButtonClick={() => navigate(createdRecord.id)}
           onClose={() => setCreatedRecord(null)}
           className="cg-page-notification"
-        >
-          <Button kind="ghost" size="sm" onClick={() => navigate(createdRecord.id)}>
-            View record
-          </Button>
-        </InlineNotification>
+        />
       )}
 
       {isCreateOpen && (

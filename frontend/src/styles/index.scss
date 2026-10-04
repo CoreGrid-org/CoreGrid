@@ -2561,3 +2561,29 @@ html, body, #root {
 .cg-section__subtitle { margin: 0.125rem 0 0; font-size: 0.8125rem; }
 .cg-fill-viewport { min-height: 100vh; }
 .cg-m-0 { margin: 0; }
+
+// ─── Maintenance cost suggestion (ApproveMaintenanceModal.tsx) ───────────────
+.cg-cost-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: $cg-accent-light;
+  border-left: 3px solid $cg-accent;
+
+  &--empty { background: #f4f4f4; border-left-color: $cg-border; }
+
+  &__icon { flex-shrink: 0; margin-top: 0.125rem; fill: $cg-accent; }
+  &__body { flex: 1; min-width: 0; }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+  }
+
+  &__value { font-size: 0.875rem; font-weight: 600; color: $cg-text-primary; }
+  &__text { font-size: 0.75rem; color: $cg-text-secondary; margin: 0; line-height: 1.5; }
+}

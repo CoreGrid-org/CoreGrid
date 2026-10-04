@@ -50,6 +50,20 @@ export interface CreateMaintenanceRequest {
   assignee_id?: string;
 }
 
+// GET /api/maintenance/{id}/cost-suggestion: advisory starting point for
+// the approver's estimate; suggested_cost is null when there's no history.
+export interface MaintenanceCostSuggestion {
+  suggested_cost: number | null;
+  low_cost: number | null;
+  high_cost: number | null;
+  sample_size: number;
+  basis: "ASSET" | "ASSET_TYPE" | "CATEGORY" | "ORGANIZATION" | "NONE";
+  basis_label: string;
+  priority_matched: boolean;
+  confidence: "HIGH" | "MEDIUM" | "LOW" | "NONE";
+  method: string;
+}
+
 export interface ApproveMaintenanceRequest {
   estimated_cost: number;
   assignee_id: string;

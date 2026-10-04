@@ -602,6 +602,7 @@ public class CoreGridDbContext(
             entity.HasQueryFilter(w => currentOrganizationProvider.OrganizationId == null || w.OrganizationId == currentOrganizationProvider.OrganizationId);
 
             entity.HasIndex(w => w.OrganizationId);
+            entity.HasIndex(w => w.AssetTypeId);
             entity.HasIndex(w => w.AssetId);
             entity.HasIndex(w => w.Status);
             entity.HasIndex(w => w.CorrelationId);
@@ -619,9 +620,15 @@ public class CoreGridDbContext(
                 .HasForeignKey(w => w.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(w => w.AssetType)
+                .WithMany()
+                .HasForeignKey(w => w.AssetTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne(w => w.Asset)
                 .WithMany()
                 .HasForeignKey(w => w.AssetId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(w => w.InitiatedByUser)

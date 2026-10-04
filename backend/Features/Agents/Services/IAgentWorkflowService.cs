@@ -9,11 +9,21 @@ public interface IAgentWorkflowService
 
     Task<AgentWorkflowDto?> GetWorkflowByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
 
-   
-    // tool calls, validation, decision — for one workflow.
+    // Full auditable trace (SRS §9.6): plan, agent outputs, tool calls,
+    // validation, decision — for one workflow.
     Task<WorkflowExecutionSummaryDto?> GetExecutionSummaryAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
 
+    // Creates the workflow and runs the Planner's plan end to end, so it
+    // returns already routed: awaiting approval, advisory, or safely failed.
     Task<AgentWorkflowDto> CreateWorkflowAsync(Guid organizationId, Guid userId, CreateAgentWorkflowRequest request, CancellationToken cancellationToken);
+
+    // Runs whatever the plan still has left for a workflow stuck in
+    // PLANNING/ANALYZING/VALIDATING (e.g. created before the pipeline ran
+    // end to end, or interrupted).
+    Task<AgentWorkflowDto?> ResumeAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
+
+    // Re-runs one analysis node (Maintenance or Budget) and records it, without routing.
+    Task<AgentWorkflowDto?> RerunNodeAsync(Guid organizationId, Guid id, string agent, CancellationToken cancellationToken);
 
     Task<AgentWorkflowDto?> EvaluatePolicyAsync(Guid organizationId, Guid id, EvaluatePolicyRequest request, CancellationToken cancellationToken);
 
