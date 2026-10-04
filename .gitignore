@@ -89,3 +89,6 @@ coverage/
 
 # Local database dumps from 'make db-backup'
 backups/
+
+# Performance-test output (scripts/perf/run-perf.sh)
+scripts/perf/results/

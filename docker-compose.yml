@@ -3,9 +3,8 @@ name: coregrid
 # Local development infrastructure only — ThunderID (identity) and PostgreSQL
 # (CoreGrid's own application database, SRS §3.6/§8). The backend API — which
 # hosts the whole agent subsystem in-process under the target architecture,
-# SRS §7.2.1/ADR-010 — is not containerised here yet; see docs/setup/thunderid.md.
-# The Planner Agent still runs as its own standalone process pending migration
-# in-process (SRS §7.2.1); see planner-agent/README.md to run it separately.
+# SRS §7.2.1/ADR-010 — runs with `make backend` (or its own image via
+# `make docker-build-backend`); see docs/setup/thunderid.md.
 
 include:
   - oci://ghcr.io/thunder-id/thunderid-quick-start:latest
@@ -20,6 +19,8 @@ services:
     image: postgres:16
     container_name: coregrid-postgres
     restart: unless-stopped
+    # pg_stat_statements lets scripts/perf/run-perf.sh report the slowest queries.
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=all"]
     environment:
       POSTGRES_DB: coregrid
       POSTGRES_USER: coregrid
