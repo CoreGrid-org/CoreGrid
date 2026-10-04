@@ -27,6 +27,11 @@ public class CoreGridWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // The app reads its environment-specific settings from backend/.env, which the
+        // test host doesn't load; supply the one value a service needs at construction.
+        // Nothing in these tests calls ThunderID.
+        builder.UseSetting("ThunderID:Issuer", "https://thunderid.test");
+
         builder.ConfigureServices(services =>
         {
             // AddDbContext merges multiple configuration calls for the same
