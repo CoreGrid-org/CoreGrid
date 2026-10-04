@@ -1,12 +1,17 @@
 using CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.Agents.DTOs;
-using CoreGrid.Api.Features.Agents.Services;
+using CoreGrid.Api.Features.Agents.Services.Budget;
 using Xunit;
 
 namespace backend.Tests.Features.Agents;
 
-public class BudgetScopeGuardTests
+public class BudgetAssessmentTests
 {
+    private static FinancialAssessmentResultDto Assess(
+        AssetFinancialsDto financials, FailureStatisticsDto stats, decimal? policyRepairToReplaceThreshold = null) =>
+        BudgetTriage.DeterministicAssessment(
+            [BudgetTriage.TriageAsset(financials, stats, policyRepairToReplaceThreshold)], policyRepairToReplaceThreshold);
+
     private static FinancialAssessmentResultDto CreateValidAssessment() => new()
     {
         ResidualValue = 5000m,
@@ -27,14 +32,14 @@ public class BudgetScopeGuardTests
     public void ValidateAssessment_WhenValid_ReturnsResult()
     {
         var assessment = CreateValidAssessment();
-        var result = BudgetScopeGuard.ValidateAssessment(assessment);
+        var result = BudgetAssessmentValidator.Validate(assessment);
         Assert.Same(assessment, result);
     }
 
     [Fact]
     public void ValidateAssessment_WhenNull_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => BudgetScopeGuard.ValidateAssessment(null!));
+        Assert.Throws<ArgumentNullException>(() => BudgetAssessmentValidator.Validate(null!));
     }
 
     [Fact]
@@ -43,7 +48,7 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.ResidualValue = -100m;
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("Residual value must be greater than or equal to 0", ex.Message);
     }
 
@@ -63,7 +68,7 @@ public class BudgetScopeGuardTests
             assessment.RankedOptions.Add(new RankedOptionDto { Action = "REPAIR", Score = 0.5m, Rationale = "Extra" });
         }
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("4 or 5 ranked lifecycle options", ex.Message);
     }
 
@@ -73,13 +78,13 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.RankedOptions.Add(new RankedOptionDto { Action = "RETAIN", Score = 0.2m, Rationale = "No spend projected." });
 
-        Assert.Same(assessment, BudgetScopeGuard.ValidateAssessment(assessment));
+        Assert.Same(assessment, BudgetAssessmentValidator.Validate(assessment));
     }
 
     [Fact]
     public void TriageAsset_WithNoProjectedSpend_Retains()
     {
-        var triage = BudgetScopeGuard.TriageAsset(
+        var triage = BudgetTriage.TriageAsset(
             new AssetFinancialsDto { AssetId = Guid.NewGuid(), ResidualBookValue = 5000m },
             new FailureStatisticsDto { ProjectedNextTwelveMonthsCost = 0m });
 
@@ -92,7 +97,7 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.RankedOptions[1].Action = "REPAIR"; // duplicate REPAIR instead of TRANSFER
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("duplicated in ranked options", ex.Message);
     }
 
@@ -102,7 +107,7 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.RankedOptions[0].Action = "SELL"; // invalid action
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("not an allowed lifecycle action", ex.Message);
     }
 
@@ -114,7 +119,7 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.RankedOptions[0].Score = score;
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("must be within the normalized range [0.0, 1.0]", ex.Message);
     }
 
@@ -126,7 +131,7 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.RankedOptions[0].Rationale = rationale;
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("must include an evidence-based rationale", ex.Message);
     }
 
@@ -138,7 +143,7 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.ProposedRecommendation = proposed;
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("proposed recommendation is required", ex.Message);
     }
 
@@ -148,7 +153,7 @@ public class BudgetScopeGuardTests
         var assessment = CreateValidAssessment();
         assessment.ProposedRecommendation = "AUCTION";
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("not an allowed lifecycle action", ex.Message);
     }
 
@@ -159,12 +164,12 @@ public class BudgetScopeGuardTests
         // REPAIR has highest score 0.85m, but propose DISPOSE (score 0.10m)
         assessment.ProposedRecommendation = "DISPOSE";
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BudgetScopeGuard.ValidateAssessment(assessment));
+        var ex = Assert.Throws<InvalidOperationException>(() => BudgetAssessmentValidator.Validate(assessment));
         Assert.Contains("does not match the highest-scoring ranked option", ex.Message);
     }
 
     [Fact]
-    public void FallbackAssessment_WhenRatioBelowThreshold_RecommendsRepair()
+    public void DeterministicAssessment_WhenRatioBelowThreshold_RecommendsRepair()
     {
         // Projected repair = $1,500; Residual = $5,000 -> Ratio = 0.30 (< 0.70 default threshold)
         var financials = new AssetFinancialsDto
@@ -183,7 +188,7 @@ public class BudgetScopeGuardTests
             CostTrend = "STABLE"
         };
 
-        var result = BudgetScopeGuard.FallbackAssessment(financials, stats);
+        var result = Assess(financials, stats);
 
         Assert.Equal("REPAIR", result.ProposedRecommendation);
         Assert.Equal(5000m, result.ResidualValue);
@@ -195,11 +200,11 @@ public class BudgetScopeGuardTests
         Assert.Equal("REPAIR", topOption.Action);
 
         // Verify that the fallback output itself passes ValidateAssessment!
-        BudgetScopeGuard.ValidateAssessment(result);
+        BudgetAssessmentValidator.Validate(result);
     }
 
     [Fact]
-    public void FallbackAssessment_WhenRatioAboveThresholdAndHasResidual_RecommendsReplace()
+    public void DeterministicAssessment_WhenRatioAboveThresholdAndHasResidual_RecommendsReplace()
     {
         // Projected repair = $4,000; Residual = $5,000 -> Ratio = 0.80 (>= 0.70 threshold)
         var financials = new AssetFinancialsDto
@@ -218,7 +223,7 @@ public class BudgetScopeGuardTests
             CostTrend = "INCREASING"
         };
 
-        var result = BudgetScopeGuard.FallbackAssessment(financials, stats);
+        var result = Assess(financials, stats);
 
         Assert.Equal("REPLACE", result.ProposedRecommendation);
         Assert.Equal(0.80m, result.RepairToReplaceRatio);
@@ -227,11 +232,11 @@ public class BudgetScopeGuardTests
         Assert.NotNull(topOption);
         Assert.Equal("REPLACE", topOption.Action);
 
-        BudgetScopeGuard.ValidateAssessment(result);
+        BudgetAssessmentValidator.Validate(result);
     }
 
     [Fact]
-    public void FallbackAssessment_WhenRatioAboveThresholdAndZeroResidual_RecommendsDispose()
+    public void DeterministicAssessment_WhenRatioAboveThresholdAndZeroResidual_RecommendsDispose()
     {
         // Fully depreciated asset: Residual = $0; Projected repair = $2,000 -> Ratio = 2000.0 (>= 0.70 threshold)
         var financials = new AssetFinancialsDto
@@ -250,7 +255,7 @@ public class BudgetScopeGuardTests
             CostTrend = "INCREASING"
         };
 
-        var result = BudgetScopeGuard.FallbackAssessment(financials, stats);
+        var result = Assess(financials, stats);
 
         Assert.Equal("DISPOSE", result.ProposedRecommendation);
         Assert.Equal(0m, result.ResidualValue);
@@ -259,11 +264,11 @@ public class BudgetScopeGuardTests
         Assert.NotNull(topOption);
         Assert.Equal("DISPOSE", topOption.Action);
 
-        BudgetScopeGuard.ValidateAssessment(result);
+        BudgetAssessmentValidator.Validate(result);
     }
 
     [Fact]
-    public void FallbackAssessment_CustomPolicyThreshold_IsRespected()
+    public void DeterministicAssessment_CustomPolicyThreshold_IsRespected()
     {
         // Ratio = 0.50. With default threshold (0.70), this would be REPAIR.
         // With a strict policy threshold of 0.40, ratio 0.50 >= 0.40 -> REPLACE.
@@ -280,11 +285,11 @@ public class BudgetScopeGuardTests
             ProjectedNextTwelveMonthsCost = 2000m
         };
 
-        var result = BudgetScopeGuard.FallbackAssessment(financials, stats, policyRepairToReplaceThreshold: 0.40m);
+        var result = Assess(financials, stats, policyRepairToReplaceThreshold: 0.40m);
 
         Assert.Equal("REPLACE", result.ProposedRecommendation);
         Assert.Equal(0.50m, result.RepairToReplaceRatio);
 
-        BudgetScopeGuard.ValidateAssessment(result);
+        BudgetAssessmentValidator.Validate(result);
     }
 }

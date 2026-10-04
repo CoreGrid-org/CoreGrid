@@ -4,7 +4,7 @@ namespace backend.Tests.Features.Shared;
 
 // Phase 6 (§8): pins the numbers StraightLineDepreciation produces, so a
 // future change to its arithmetic is caught here first rather than as a
-// silent drift in AssetService's residual value, AgentToolsService's
+// silent drift in AssetService's residual value, BudgetTools'
 // compute-depreciation response, or DisposalPreconditionService's P3 check
 // — the three call sites this one implementation replaced (§6.1's B22).
 public class StraightLineDepreciationTests

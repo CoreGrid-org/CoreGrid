@@ -3,7 +3,10 @@ using CoreGrid.Api.Domain;
 using CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.AgentTools.Services;
 using CoreGrid.Api.Features.Agents.DTOs;
-using CoreGrid.Api.Features.Agents.Services;
+using CoreGrid.Api.Features.Agents.Services.Budget;
+using CoreGrid.Api.Features.Agents.Services.Orchestration;
+using CoreGrid.Api.Features.Agents.Services.Planner;
+using CoreGrid.Api.Features.Agents.Services.Policy;
 using CoreGrid.Api.Features.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -21,10 +24,10 @@ public class AgentWorkflowServiceTests
     private readonly AssetCategory _category;
     private readonly AssetType _type;
     private readonly User _initiator;
-    private readonly Mock<IAgentToolsService> _tools = new();
-    private readonly Mock<IMaintenanceAnalysisToolsService> _maintenance = new();
-    private readonly Mock<IBudgetAgentClient> _budget = new();
-    private readonly Mock<IPlannerAgentClient> _planner = new();
+    private readonly Mock<IPolicyTools> _policyTools = new();
+    private readonly Mock<IMaintenanceTools> _maintenance = new();
+    private readonly Mock<IBudgetAgent> _budget = new();
+    private readonly Mock<IPlannerAgent> _planner = new();
 
     private static readonly OrganizationPolicyFactsDto Policy = new()
     {
@@ -37,10 +40,10 @@ public class AgentWorkflowServiceTests
         _type = new AssetType { Id = Guid.NewGuid(), OrganizationId = _orgId, AssetCategoryId = _category.Id, Code = "LAP", Name = "Laptop", UsefulLifeYears = 5 };
         _initiator = new User { Id = Guid.NewGuid(), OrganizationId = _orgId, ExternalSubjectId = "sub-init", Email = "init@test.com", GivenName = "I", FamilyName = "N", Role = CoreGridRole.InventoryOfficer };
 
-        _planner.Setup(p => p.CreatePlanAsync(It.IsAny<EvaluationScope>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        _planner.Setup(p => p.CreatePlanAsync(It.IsAny<EvaluationScope>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FullPlan());
-        _tools.Setup(t => t.GetOrganizationPoliciesAsync(_orgId, _type.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Policy);
-        _maintenance.Setup(m => m.ComputeFleetFailureStatisticsAsync(_orgId, _type.Id, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _policyTools.Setup(t => t.GetOrganizationPoliciesAsync(_orgId, _type.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Policy);
+        _maintenance.Setup(m => m.GetFailureStatisticsAsync(It.IsAny<AssetSelection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
     }
 
@@ -83,18 +86,21 @@ public class AgentWorkflowServiceTests
 
     private AgentWorkflowService CreateService(CoreGridDbContext db) => new(
         db,
-        _planner.Object,
-        _maintenance.Object,
-        _budget.Object,
-        new PolicyComplianceEvaluator(_tools.Object, new AssetActionRecommendationEngine(), new PolicyRuleEngine()));
+        new WorkflowPipeline(
+            db,
+            _planner.Object,
+            _maintenance.Object,
+            _budget.Object,
+            new PolicyComplianceEvaluator(_policyTools.Object, new AssetActionRecommendationEngine(), new PolicyRuleEngine())));
 
     private void SetupCompliance(params AssetComplianceStateDto[] states) =>
-        _tools.Setup(t => t.GetFleetComplianceStateAsync(_orgId, _type.Id, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _policyTools.Setup(t => t.GetComplianceStateAsync(
+                It.Is<AssetSelection>(s => s.OrganizationId == _orgId && s.AssetTypeId == _type.Id), It.IsAny<CancellationToken>()))
             .ReturnsAsync(states);
 
     private void SetupBudget(params AssetFinancialTriageDto[] triage) =>
         _budget.Setup(b => b.RunAssessmentAsync(It.IsAny<EvaluationScope>(), It.IsAny<IReadOnlyList<FailureStatisticsDto>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => BudgetScopeGuard.DeterministicAssessment(triage, Policy.RepairToReplaceCostThreshold));
+            .ReturnsAsync(() => BudgetTriage.DeterministicAssessment(triage, Policy.RepairToReplaceCostThreshold));
 
     private static AssetComplianceStateDto State(Asset asset, string condition = AssetConditions.Good, decimal age = 2, int openMaintenance = 0) => new()
     {
@@ -287,7 +293,7 @@ public class AgentWorkflowServiceTests
     public async Task CreateWorkflowAsync_PlannerRejectsObjective_FailsSafeWithoutRunningNodes()
     {
         await using var db = CreateDb();
-        _planner.Setup(p => p.CreatePlanAsync(It.IsAny<EvaluationScope>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        _planner.Setup(p => p.CreatePlanAsync(It.IsAny<EvaluationScope>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PlannerExecutionPlan { InScope = false, RejectionReason = "Out of scope." });
 
         var result = await CreateService(db).CreateWorkflowAsync(
@@ -331,11 +337,10 @@ public class AgentWorkflowServiceTests
         db.AgentWorkflows.Add(workflow);
         await db.SaveChangesAsync();
 
-        var policyAgent = new PolicyComplianceAgentService(CreateService(db));
-        var result = await policyAgent.RunAsync(_orgId, workflow.Id, CancellationToken.None);
+        var result = await CreateService(db).ResumeAsync(_orgId, workflow.Id, CancellationToken.None);
 
         Assert.Equal("COMPLETED_ADVISORY", result!.Status);
-        _planner.Verify(p => p.CreatePlanAsync(It.IsAny<EvaluationScope>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _planner.Verify(p => p.CreatePlanAsync(It.IsAny<EvaluationScope>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -353,7 +358,7 @@ public class AgentWorkflowServiceTests
         db.AgentWorkflows.Add(workflow);
         await db.SaveChangesAsync();
 
-        var updated = await CreateService(db).RunBudgetAnalysisAsync(_orgId, workflow.Id, CancellationToken.None);
+        var updated = await CreateService(db).RerunNodeAsync(_orgId, workflow.Id, AgentNames.BudgetAnalysis, CancellationToken.None);
 
         Assert.Equal("REPAIR", updated!.BudgetAnalysis!.ProposedRecommendation);
         Assert.Null(updated.BudgetAnalysis.Assets); // per-asset rows aren't sent to clients

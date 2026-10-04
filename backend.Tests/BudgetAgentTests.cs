@@ -4,7 +4,8 @@ using System.Text.Json;
 using CoreGrid.Api.Features.AgentTools.DTOs;
 using CoreGrid.Api.Features.AgentTools.Services;
 using CoreGrid.Api.Features.Agents.DTOs;
-using CoreGrid.Api.Features.Agents.Services;
+using CoreGrid.Api.Features.Agents.Services.Budget;
+using CoreGrid.Api.Features.Agents.Services.Llm;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -13,11 +14,12 @@ using Xunit;
 
 namespace backend.Tests.Features.Agents;
 
-public class BudgetAgentServiceTests
+public class BudgetAgentTests
 {
-    private readonly Mock<IAgentToolsService> _mockAgentTools = new();
+    private readonly Mock<IBudgetTools> _mockBudgetTools = new();
+    private readonly Mock<IPolicyTools> _mockPolicyTools = new();
     private readonly Mock<IHttpClientFactory> _mockHttpClientFactory = new();
-    private readonly Mock<ILogger<BudgetAgentService>> _mockLogger = new();
+    private readonly Mock<ILogger<LlmClient>> _mockLogger = new();
 
     private static readonly Guid OrgId = Guid.NewGuid();
     private static readonly Guid TypeId = Guid.NewGuid();
@@ -50,8 +52,12 @@ public class BudgetAgentServiceTests
     };
 
     private void SetupFinancials(params AssetFinancialsDto[] financials) =>
-        _mockAgentTools.Setup(t => t.GetFleetFinancialsAsync(OrgId, TypeId, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+        _mockBudgetTools.Setup(t => t.GetFinancialsAsync(
+                It.Is<AssetSelection>(s => s.OrganizationId == OrgId && s.AssetTypeId == TypeId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(financials);
+
+    private BudgetAgent CreateAgent(IConfiguration config) =>
+        new(_mockBudgetTools.Object, _mockPolicyTools.Object, new LlmClient(config, _mockHttpClientFactory.Object, _mockLogger.Object));
 
     private static object ChatResponse(object reply) => new
     {
@@ -72,7 +78,7 @@ public class BudgetAgentServiceTests
         SetupFinancials(CreateSampleFinancials(assetId));
 
         var config = CreateConfiguration(new Dictionary<string, string?> { ["Budget:ApiKey"] = null, ["Planner:OpenAiApiKey"] = null });
-        var service = new BudgetAgentService(_mockAgentTools.Object, config, _mockHttpClientFactory.Object, _mockLogger.Object);
+        var service = CreateAgent(config);
 
         var result = await service.RunAssessmentAsync(SingleAssetScope(assetId), [CreateSampleStats(assetId)]);
 
@@ -93,7 +99,7 @@ public class BudgetAgentServiceTests
         SetupFinancials(CreateSampleFinancials(repairing), CreateSampleFinancials(idle), CreateSampleFinancials(worn, residual: 0m));
 
         var config = CreateConfiguration([]);
-        var service = new BudgetAgentService(_mockAgentTools.Object, config, _mockHttpClientFactory.Object, _mockLogger.Object);
+        var service = CreateAgent(config);
 
         var result = await service.RunAssessmentAsync(FleetScope(),
             [CreateSampleStats(repairing), CreateSampleStats(idle, projected: 0m), CreateSampleStats(worn, projected: 500m)]);
@@ -105,7 +111,7 @@ public class BudgetAgentServiceTests
         Assert.Equal("REPAIR", actions[repairing]);
         Assert.Equal("RETAIN", actions[idle]);
         Assert.Equal("DISPOSE", actions[worn]);
-        BudgetScopeGuard.ValidateAssessment(result);
+        BudgetAssessmentValidator.Validate(result);
     }
 
     [Fact]
@@ -118,14 +124,14 @@ public class BudgetAgentServiceTests
         mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage { StatusCode = HttpStatusCode.InternalServerError, Content = new StringContent("{\"error\":\"Model overloaded\"}") });
-        _mockHttpClientFactory.Setup(f => f.CreateClient(CoreGrid.Api.Features.Agents.AgentsModule.LlmHttpClient)).Returns(new HttpClient(mockHandler.Object));
+        _mockHttpClientFactory.Setup(f => f.CreateClient(LlmClient.HttpClientName)).Returns(new HttpClient(mockHandler.Object));
 
         var config = CreateConfiguration(new Dictionary<string, string?>
         {
             ["Budget:ApiKey"] = "sk-test-key",
             ["Budget:Endpoint"] = "https://api.openai.com/v1/chat/completions"
         });
-        var service = new BudgetAgentService(_mockAgentTools.Object, config, _mockHttpClientFactory.Object, _mockLogger.Object);
+        var service = CreateAgent(config);
 
         var result = await service.RunAssessmentAsync(SingleAssetScope(assetId), [CreateSampleStats(assetId)]);
 
@@ -152,14 +158,14 @@ public class BudgetAgentServiceTests
                     Content = new StringContent(JsonSerializer.Serialize(ChatResponse(ModelReply("REPAIR", "Ratio 0.20 is well under the 0.70 threshold."))), Encoding.UTF8, "application/json")
                 };
             });
-        _mockHttpClientFactory.Setup(f => f.CreateClient(CoreGrid.Api.Features.Agents.AgentsModule.LlmHttpClient)).Returns(new HttpClient(mockHandler.Object));
+        _mockHttpClientFactory.Setup(f => f.CreateClient(LlmClient.HttpClientName)).Returns(new HttpClient(mockHandler.Object));
 
         var config = CreateConfiguration(new Dictionary<string, string?>
         {
             ["Budget:ApiKey"] = "sk-test-key",
             ["Budget:Model"] = "gemini-2.0-flash"
         });
-        var service = new BudgetAgentService(_mockAgentTools.Object, config, _mockHttpClientFactory.Object, _mockLogger.Object);
+        var service = CreateAgent(config);
 
         var result = await service.RunAssessmentAsync(SingleAssetScope(assetId), [CreateSampleStats(assetId)]);
 
@@ -190,10 +196,10 @@ public class BudgetAgentServiceTests
             {
                 Content = new StringContent(JsonSerializer.Serialize(ChatResponse(ModelReply("DISPOSE", "Inconsistent."))), Encoding.UTF8, "application/json")
             });
-        _mockHttpClientFactory.Setup(f => f.CreateClient(CoreGrid.Api.Features.Agents.AgentsModule.LlmHttpClient)).Returns(new HttpClient(mockHandler.Object));
+        _mockHttpClientFactory.Setup(f => f.CreateClient(LlmClient.HttpClientName)).Returns(new HttpClient(mockHandler.Object));
 
         var config = CreateConfiguration(new Dictionary<string, string?> { ["Budget:ApiKey"] = "sk-test-key" });
-        var service = new BudgetAgentService(_mockAgentTools.Object, config, _mockHttpClientFactory.Object, _mockLogger.Object);
+        var service = CreateAgent(config);
 
         var result = await service.RunAssessmentAsync(SingleAssetScope(assetId), [CreateSampleStats(assetId)]);
 
@@ -222,7 +228,7 @@ public class BudgetAgentServiceTests
                     }
                     : new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("{\"error\":\"quota\"}") };
             });
-        _mockHttpClientFactory.Setup(f => f.CreateClient(CoreGrid.Api.Features.Agents.AgentsModule.LlmHttpClient))
+        _mockHttpClientFactory.Setup(f => f.CreateClient(LlmClient.HttpClientName))
             .Returns(new HttpClient(mockHandler.Object));
 
         var config = CreateConfiguration(new Dictionary<string, string?>
@@ -230,7 +236,7 @@ public class BudgetAgentServiceTests
             ["Llm:ApiKey"] = "gemini-key",
             ["LlmFallback:ApiKey"] = "groq-key"
         });
-        var service = new BudgetAgentService(_mockAgentTools.Object, config, _mockHttpClientFactory.Object, _mockLogger.Object);
+        var service = CreateAgent(config);
 
         var result = await service.RunAssessmentAsync(SingleAssetScope(assetId), [CreateSampleStats(assetId)]);
 

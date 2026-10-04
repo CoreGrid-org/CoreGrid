@@ -10,7 +10,7 @@ using CoreGrid.Api.Features.AgentTools.Services;
 
 namespace backend.Tests.Features.AgentTools;
 
-public class AgentToolsServiceTests
+public class BudgetToolsTests
 {
     private CoreGridDbContext CreateInMemoryDbContext()
     {
@@ -26,7 +26,7 @@ public class AgentToolsServiceTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var service = new AgentToolsService(dbContext);
+        var service = new BudgetTools(dbContext);
 
         var request = new ComputeDepreciationRequest
         {
@@ -51,7 +51,7 @@ public class AgentToolsServiceTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var service = new AgentToolsService(dbContext);
+        var service = new BudgetTools(dbContext);
 
         var request = new ComputeDepreciationRequest
         {
@@ -75,7 +75,7 @@ public class AgentToolsServiceTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var service = new AgentToolsService(dbContext);
+        var service = new BudgetTools(dbContext);
 
         var request = new ComputeDepreciationRequest
         {
@@ -99,7 +99,7 @@ public class AgentToolsServiceTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var service = new AgentToolsService(dbContext);
+        var service = new BudgetTools(dbContext);
 
         var request = new ComputeDepreciationRequest
         {
@@ -123,7 +123,7 @@ public class AgentToolsServiceTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var service = new AgentToolsService(dbContext);
+        var service = new BudgetTools(dbContext);
 
         var request = new ComputeDepreciationRequest
         {
@@ -176,10 +176,10 @@ public class AgentToolsServiceTests
         dbContext.Assets.Add(asset);
         await dbContext.SaveChangesAsync();
 
-        var service = new AgentToolsService(dbContext);
+        var service = new BudgetTools(dbContext);
 
         // Act
-        var result = await service.GetAssetFinancialsAsync(orgId, asset.Id);
+        var result = (await service.GetFinancialsAsync(AssetSelection.Single(orgId, asset.Id))).Single();
 
         // Assert
         Assert.NotNull(result);
@@ -211,7 +211,7 @@ public class AgentToolsServiceTests
         dbContext.Departments.Add(department);
         await dbContext.SaveChangesAsync();
 
-        var service = new AgentToolsService(dbContext);
+        var service = new BudgetTools(dbContext);
 
         // Act
         var result = await service.GetDepartmentBudgetSummaryAsync(orgId, department.Id, 2026);
