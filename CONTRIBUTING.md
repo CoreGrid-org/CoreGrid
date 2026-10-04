@@ -143,7 +143,7 @@ The frontend runs on `http://localhost:5173`.
 1. Go to `http://localhost:5173`.
 2. On a fresh database, you'll be redirected through sign-in straight to `/setup` — `GET /api/setup/status` genuinely checks whether any organisation exists yet.
 3. Fill in the admin account and organisation details and submit. This provisions a real ThunderID account (`Identity/ThunderIdIdentityDirectory.cs`) and creates the matching `Organizations`/`Users` rows locally.
-4. Sign in with that account. `/` resolves your role from the `roles` claim and sends you to the matching dashboard — an Administrator lands on `/admin`. Other roles aren't provisionable through the UI yet (see [`docs/progress.md`](./docs/progress.md)), so `/admin` is the only one worth exercising today.
+4. Sign in with that account. `/` resolves your role from the `roles` claim and sends you to the matching dashboard — an Administrator lands on `/admin`. Create accounts for the other roles from **Users & Roles**; each role lands on its own dashboard (`/inventory`, `/audit`; Staff use the mobile app).
 5. From `/admin` → **Users & Roles**, an Administrator can invite further users by email and role (FR-013) — everything else on the Admin Dashboard is a mock/placeholder page; see [Project Structure](#project-structure) below for which parts are real.
 
 ---
@@ -152,7 +152,7 @@ The frontend runs on `http://localhost:5173`.
 
 ### Backend (`backend/`)
 
-Modular monolith: one `Features/<Name>/` folder per SRS component/owner (a component and its owner in [SRS §18](./docs/srs/18-team-roster-and-work-allocation.md)), not per technically-related entity group — that's why `Departments`/`Locations`/`OrganizationPolicies` live in `Features/OrgConfig/` (Component D) rather than `Features/Assets/` (Component A), even though Assets needs Department/Location as reference data. Every feature registers itself with one `AddXxxFeature()` extension method (its `Module.cs`), so `Program.cs` reads as a manifest — platform setup (JSON, Swagger, auth, rate limiting, health, CORS, DB), one `Add…Feature()` call per module, then the middleware pipeline — instead of a 30-line block of fully-qualified `AddScoped<>()` calls.
+Modular monolith: one `Features/<Name>/` folder per SRS component/owner (components and their maintainers are listed in [SRS §12](./docs/srs/12-component-ownership.md)), not per technically-related entity group — that's why `Departments`/`Locations`/`OrganizationPolicies` live in `Features/OrgConfig/` (Component D) rather than `Features/Assets/` (Component A), even though Assets needs Department/Location as reference data. Every feature registers itself with one `AddXxxFeature()` extension method (its `Module.cs`), so `Program.cs` reads as a manifest — platform setup (JSON, Swagger, auth, rate limiting, health, CORS, DB), one `Add…Feature()` call per module, then the middleware pipeline — instead of a 30-line block of fully-qualified `AddScoped<>()` calls.
 
 ```
 backend/
@@ -288,15 +288,15 @@ All of these should pass before you open or update a PR — none of them are opt
 2. `npx tsc -b --force` from `frontend/` — zero errors.
 3. `npm run build` from `frontend/` — the production build has to actually succeed, not just type-check.
 4. **Exercise the change in a real browser** against a running backend + ThunderID. A green build proves the code compiles, not that the feature works — click through the actual flow you changed.
-5. If your change completes or advances an item in [`docs/progress.md`](./docs/progress.md), tick it in the same PR.
-6. Reference the requirement ID (e.g. `FR-013`) your change implements in the commit message or PR description, per [SRS §12.1](./docs/srs/12-individual-contribution-and-work-allocation.md#121-contribution-evidence-requirements) — that's what lets a requirement be traced to code, tests and a reviewer.
+5. Link the GitHub issue your change resolves (`Closes #123`) so its status updates when the PR merges.
+6. Reference the requirement ID (e.g. `FR-013`) your change implements in the commit message or PR description, per [SRS §18.2](./docs/srs/18-development-workflow-and-change-control.md#182-requirement-traceability) — that's what lets a requirement be traced to code, tests and a reviewer.
 
 ### Branch and PR conventions
 
 - Create a feature branch from `development`, named for your component: `feature/<component>-<short-description>` (e.g. `feature/assets-qr-generation`).
 - All PRs target the `development` branch.
 - Use the PR template ([`.github/pull_request_template.md`](./.github/pull_request_template.md)) — it's applied automatically when you open a PR on GitHub.
-- Every PR needs at least one review from another member before merge (SRS §12.1) — no self-merging.
+- Every PR needs at least one review from a maintainer other than its author before merge ([SRS §18.1](./docs/srs/18-development-workflow-and-change-control.md#181-branches-and-pull-requests)). No self-merging.
 
 ---
 
@@ -304,4 +304,4 @@ All of these should pass before you open or update a PR — none of them are opt
 
 - Open an [issue](https://github.com/CoreGrid-org/CoreGrid/issues)
 - See the full [SRS](./docs/srs/00-front-matter.md) for the system's requirements and architecture
-- See [`docs/progress.md`](./docs/progress.md) for what's actually built versus still planned
+- See the [issue tracker](https://github.com/CoreGrid-org/CoreGrid/issues) for what's planned and in progress

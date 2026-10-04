@@ -131,9 +131,9 @@ The frontend application itself never gets a role — only the users who sign in
 
 **Only create a custom resource server** if you deliberately want the backend's permissions scoped away from ThunderID's built-in semantics: **Resource Servers** → new → **Type: Custom** → Name + Identifier (any absolute URI, e.g. `https://api.coregrid.local/backend`) → define permissions in its **Resources** tab. Then point the backend application's Default Audience (or the `resource` it requests) and `ThunderID__Resource` at the new Identifier instead. More setup for no functional gain in the current single-tenant M0 deployment — stick with the default.
 
-### The Agent Service Doesn't Register With ThunderID
+### The Agents Don't Register With ThunderID
 
-It authenticates via a shared secret instead — `AgentService__SharedSecret` ([SRS §14.2](../srs/14-deployment-and-operations.md)). ThunderID plays no part in it.
+The four agents run in-process inside the API (ADR-010) and call their tools directly through `IAgentToolsService`, so they need no ThunderID application, client credentials or shared secret. Only the model key (`Llm__ApiKey`) is configured — see [`ai-agents.md`](ai-agents.md).
 
 ### 8. Enable Password Recovery ("Forgot password?" and "Change password")
 

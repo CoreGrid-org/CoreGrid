@@ -411,7 +411,7 @@ Result:
 
 ## 6.4 Scanner Test Source
 
-[`scan_asset_screen_test.dart`](../../test/features/scan/scan_asset_screen_test.dart)
+[`scan_asset_screen_test.dart`](https://github.com/CoreGrid-org/coregrid-mobile/blob/development/test/features/scan/scan_asset_screen_test.dart)
 
 ## 6.5 Scanner Test Execution Evidence
 

@@ -28,13 +28,13 @@ Non-functional requirements are stated so that each is verifiable. Where a thres
 | NFR-15 | Secrets shall be supplied exclusively through environment variables; a repository scan for committed secrets shall run in CI and shall fail the build on detection. | Must |
 | NFR-16 | Rate limiting shall be applied to authentication-adjacent endpoints, workflow initiation and report export. | Should |
 | NFR-17 | Dependencies shall be scanned for known vulnerabilities in CI, and any critical advisory shall be resolved before the baseline is submitted. | Should |
-| NFR-18 | The system shall be assessed against the OWASP Top 10 and the LLM-specific risks of prompt injection, insecure output handling and excessive agency, with findings recorded in the security section of the consolidated report. | Must |
+| NFR-18 | The system shall be assessed against the OWASP Top 10 and the LLM-specific risks of prompt injection, insecure output handling and excessive agency, with findings tracked as GitHub issues labelled `security`. | Must |
 
 ## 10.3 Availability and Reliability
 
 | ID | Requirement | Priority |
 |---|---|---|
-| NFR-19 | All deployed components shall be available throughout the evaluation period, and all evaluator-facing URLs shall remain accessible for at least three weeks after submission. | Must |
+| NFR-19 | A production deployment shall be operable for continuous availability: the API exposes `/health` for load-balancer and orchestrator probes, and every component can be restarted independently without data loss. | Must |
 | NFR-20 | The `/health` endpoint shall report the reachability of the database, the agent service and the identity provider individually, so that a partial outage is diagnosable. | Must |
 | NFR-21 | Failure of the agent service shall degrade the system gracefully: every non-agentic function shall remain fully operable and the unavailability shall be surfaced to the user. | Must |
 | NFR-22 | Failure of the email provider shall never roll back or block a business transaction. | Must |

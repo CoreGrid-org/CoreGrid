@@ -1,15 +1,15 @@
 # 6. Functional Requirements
 
-This section specifies the behaviour CoreGrid shall exhibit. Requirements are grouped by the business component that owns them, so that each of the four component owners can read a contiguous specification of their accountability. Requirements marked API are enforced by the backend irrespective of which client issues the request; where a capability is exposed through a particular client, that client is named.
+This section specifies the behaviour CoreGrid shall exhibit. Requirements are grouped by the business component that owns them, so that each of the four component maintainers (Section 12) can read a contiguous specification of their accountability. Requirements marked API are enforced by the backend irrespective of which client issues the request; where a capability is exposed through a particular client, that client is named.
 
-Each business component satisfies the assignment's individual-component minimum: at least four meaningful API endpoints and at least one business-specific operation beyond basic create, read, update and delete. The business-specific operations are, respectively, asset verification, maintenance completion with cost reconciliation, disposal approval with evidence checks, and discrepancy resolution.
+Each business component exposes at least four meaningful API endpoints and at least one business-specific operation beyond basic create, read, update and delete. The business-specific operations are, respectively, asset verification, maintenance completion with cost reconciliation, disposal approval with evidence checks, and discrepancy resolution.
 
-| Component | Owner | Requirement range | Business-specific operation beyond CRUD |
-|---|---|---|---|
-| A — Asset Registry & QR Identification | Student 1 | FR-021 to FR-032 | `POST /api/assets/{id}/verify` — records a physical verification event with condition and location assertion, and reconciles it against the register. |
-| B — Maintenance Management | Student 2 | FR-033 to FR-042 | `POST /api/maintenance/{id}/complete` — closes a maintenance record with actual cost and resulting condition, and returns the asset to service. |
-| C — Transfer & Disposal | Student 3 | FR-043 to FR-055 | `POST /api/disposals/{id}/approve` — validates evidence preconditions, authorises the irreversible disposal and transitions the asset to DISPOSED. |
-| D — Audit & Compliance | Student 4 | FR-056 to FR-066 | `POST /api/discrepancies/{id}/resolve` — classifies, evidences and closes a discrepancy, updating the register where the resolution requires it. |
+| Component (Section 12) | Requirement range | Business-specific operation beyond CRUD |
+|---|---|---|
+| A — Asset Registry & QR Identification | FR-021 to FR-032 | `POST /api/assets/{id}/verify` — records a physical verification event with condition and location assertion, and reconciles it against the register. |
+| B — Maintenance Management | FR-033 to FR-042 | `POST /api/maintenance/{id}/complete` — closes a maintenance record with actual cost and resulting condition, and returns the asset to service. |
+| C — Transfer & Disposal | FR-043 to FR-055 | `POST /api/disposals/{id}/approve` — validates evidence preconditions, authorises the irreversible disposal and transitions the asset to DISPOSED. |
+| D — Audit & Compliance | FR-056 to FR-066 | `POST /api/discrepancies/{id}/resolve` — classifies, evidences and closes a discrepancy, updating the register where the resolution requires it. |
 
 ## 6.1 Identity, Access and Session (FR-001 – FR-009)
 
@@ -40,7 +40,7 @@ These requirements are cross-cutting: they are implemented once in the API and i
 
 ## 6.3 Asset Type and Attribute Configuration (FR-016 – FR-020)
 
-These requirements implement the configurable platform model described in Section 3.5. They are the reason CoreGrid can serve a transport fleet and a hospital inventory from one codebase, and they are among the strongest engineering arguments the group has at the viva.
+These requirements implement the configurable platform model described in Section 3.5. They are the reason CoreGrid can serve a transport fleet and a hospital inventory from one codebase, and they carry the platform's central engineering argument.
 
 | ID | Requirement | Primary actor | Client | Priority |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@ These requirements implement the configurable platform model described in Sectio
 | FR-019 | The API shall validate every asset's custom attribute values against the attribute definitions of its asset type on create and on update, rejecting missing required values, wrong data types and values failing the declared validation rule. | System | API | Must |
 | FR-020 | Both clients shall render the asset detail form dynamically from the attribute definitions of the selected asset type, without any client-side knowledge of specific domains. | Officer | React, Flutter | Must |
 
-**Why this matters at the viva**
+**Why this matters**
 
 FR-019 is the requirement that keeps configurability honest. If validation of custom attributes lived in the client, a new asset type would be a code change and the platform claim would be false. Because validation is derived at runtime from the attribute definitions in the database and enforced in the API, an administrator can introduce "Locomotive" with seven new attributes on a Tuesday afternoon and both clients handle it correctly without a deployment.
 

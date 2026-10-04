@@ -6,7 +6,7 @@ Chapter 17 established that CoreGrid is built in two architectural stages — M0
 per customer, the current baseline) and M1 (shared multi-tenant SaaS) — and that the codebase is already
 shaped to make the second stage additive rather than a rewrite (every entity is organisation-scoped; see
 §19.10). This chapter turns that staged architecture into a staged commercial plan: who the buyer is, how
-the product is licensed and packaged, how revenue is sequenced so the group is never funding infrastructure
+the product is licensed and packaged, how revenue is sequenced so the project is never funding infrastructure
 it cannot afford ahead of revenue, and what changes in the architecture before each stage can be sold. It
 adds no functional or non-functional requirement — nothing here carries an FR/NFR ID — and does not alter
 the scope defined in §6–§10. It is the commercialisation narrative the rest of the SRS supports.
@@ -192,7 +192,7 @@ pie showData title Illustrative revenue mix once all three phases are mature
 
 ## 19.9 Illustrative Cost and Revenue Trajectory
 
-Relative, illustrative figures only — a planning shape for the group's own commercial reasoning, not an
+Relative, illustrative figures only — a planning shape for the maintainers' own commercial reasoning, not an
 audited or committed financial forecast. Units are relative, not currency, since Phase-3 pricing (§19.8) is
 not yet fixed.
 
@@ -223,12 +223,11 @@ justifies it.
 
 ## 19.10 Architecture Readiness and Gaps
 
-Two facts from elsewhere in the codebase and this SRS bound what Phase 3 can promise before engineering work
-closes the gap:
+Two facts from elsewhere in the codebase and this SRS bound what Phase 3 can promise:
 
 | Requirement | Current state | Implication for this plan |
 |---|---|---|
-| Organisation scoping (relevant to FR-006) | Every entity carries an `OrganizationId`, but it is enforced manually per query rather than via an EF Core global query filter (tracked ❌ in `docs/progress.md` for exactly this reason) | Safe for Phase 1–2, where each deployment serves exactly one organisation. **Must be hardened to a global filter before Phase 3** — a missed manual filter in a shared multi-tenant database is a cross-tenant data leak, not a cosmetic bug. This is a Phase-3 entry criterion, not a nice-to-have. |
+| Organisation scoping (relevant to FR-006) | Every tenant-scoped entity is filtered by an EF Core global query filter on `OrganizationId` (implemented; covered by `QueryFilterTests`) | Phase 3 can host several organisations in one deployment without per-query changes; the remaining Phase-3 work is lifting Setup's single-organisation restriction and per-tenant billing |
 | M1 lift described in §17 | "Lifting `SetupController`'s restriction to exactly one `Organizations` row... and adding per-tenant billing" | Confirms Phase 3 is bounded, additive engineering work, not a rewrite — supports the cost shape in §19.9 |
 
 ## 19.11 Risk Register
@@ -237,7 +236,7 @@ closes the gap:
 |---|---|---|---|---|
 | BR-01 | Phase 1 support is sold ad hoc instead of as a retainer, producing no recurring revenue to fund Phase 2. | M | H | §19.8 fixes support as a retainer product from the first Community-edition sale, not an afterthought. |
 | BR-02 | A third party forks the Apache-2.0 codebase and resells it as a competing hosted service. | M | M | Accepted risk of the licence choice (§19.3) — mitigated by being the vendor of record for support, compliance evidence, and managed/SaaS convenience, which a fork cannot trivially replicate. |
-| BR-03 | Phase 3 (multi-tenant SaaS) is sold before the organisation-scoping gap in §19.10 is closed. | L | H | Treated as a hard Phase-3 entry criterion, not a parallel workstream — no SaaS tenant onboarding until the global query filter lands and is tested. |
+| BR-03 | Phase 3 (multi-tenant SaaS) is sold before cross-organisation isolation is proven at multi-tenant scale. | L | H | The global query filter (FR-006, §19.10) is in place and tested; a hard Phase-3 entry criterion remains a multi-organisation isolation and penetration test before any SaaS tenant is onboarded. |
 | BR-04 | A data-residency buyer is routed to Managed or SaaS by mistake, losing the sale or breaching their procurement policy. | L | H | §19.6's routing puts the residency question first, before operations capacity, so it can never be skipped by a keen-to-close conversation. |
 | BR-05 | Phase 2 management-fee pricing is set too low to cover the operational overhead of running five services (§3.2) per customer. | M | M | Managed-hosting pricing is scoped per deployment at quote time (§19.8), not fixed as a flat rate, until real operating cost data exists from the first few Phase 2 customers. |
 
@@ -250,5 +249,5 @@ This chapter does not introduce FR/NFR identifiers; it depends on and extends th
 | §2.3 (User Classes) | Defines the operators; §19.2 defines the buyer, a distinct role |
 | §3.2, §3.5 | Five cooperating services and the configurable platform model — what Managed and SaaS editions actually operate |
 | §17 (Future Enhancements) | Source of the M0/M1 staging this chapter turns into Phase 1–3, and the direct source of every SaaS-exclusive addition listed in §19.4.1 |
-| FR-006 / `docs/progress.md` | Source of the Phase-3 entry criterion in §19.10 |
+| FR-006 | Source of the Phase-3 entry criterion in §19.10 |
 | `LICENSE`, `NOTICE` | The Apache 2.0 licensing decision underwriting §19.4 |

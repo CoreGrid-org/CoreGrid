@@ -64,7 +64,7 @@ At the highest level of abstraction CoreGrid provides nine function groups. Each
 
 ## 2.3 User Classes and Characteristics
 
-CoreGrid recognises four human user classes. The assignment requires at least three roles with genuinely different responsibilities and permissions; CoreGrid defines four because the separation between the officer who records physical facts and the auditor who independently verifies them is the control that makes the audit trail meaningful.
+CoreGrid recognises four human user classes with genuinely different responsibilities and permissions. Four, rather than three, because the separation between the officer who records physical facts and the auditor who independently verifies them is the control that makes the audit trail meaningful.
 
 | User class | Characteristics and context of use | Primary client | Representative privileges |
 |---|---|---|---|
@@ -93,7 +93,7 @@ The table above states each role's primary client(s); the two tables below state
 | Administrator | Agentic workflow approval | Review a high-impact AI recommendation and approve, reject or request revision before any business state changes — the agent advises, a human decides. | FR-071, FR-072 |
 | Administrator | Agentic workflow initiation and monitoring | Kick off a lifecycle evaluation from the desk, and see the agent's full reasoning trace, not just a status. | FR-067, FR-069, FR-070 |
 | Administrator | Audit log access | Read every state-changing event across the organisation, filterable, to answer "who did this and when" without asking anyone. | FR-064 |
-| Administrator | Dashboard, reports and analytics | See system-wide KPIs and export whatever report proves compliance to an evaluator or a regulator. | FR-081, FR-082, FR-084, FR-085 |
+| Administrator | Dashboard, reports and analytics | See system-wide KPIs and export whatever report proves compliance to an external auditor or a regulator. | FR-081, FR-082, FR-084, FR-085 |
 | Auditor | Verification campaign management | Define a scope and period and launch an independent check that the register matches physical reality. | FR-056 |
 | Auditor | Discrepancy resolution | Convert an audit finding into either a corrected register or a justified, recorded acceptance — the only place an Auditor's write access to asset data exists, and only through this path. | FR-062 |
 | Auditor | Audit log access | Read the immutable trail of every change to build a case or catch a pattern, never trusting anyone's memory. | FR-064 |
@@ -140,19 +140,19 @@ The table above states each role's primary client(s); the two tables below state
 
 | ID | Constraint | Origin |
 |---|---|---|
-| C-01 | The public backend shall be implemented in C# with ASP.NET Core Web API. No alternative public backend is permitted. | SE3090 §2 |
-| C-02 | Data access shall use Entity Framework Core with the PostgreSQL provider; the relational store shall be PostgreSQL. | SE3090 §2 |
-| C-03 | The web client shall be React using functional components, hooks and routing, with a justified state-management approach. | SE3090 §2, §7 |
-| C-04 | The mobile client shall be Flutter and Dart with a justified state-management approach and at least one meaningful device feature. | SE3090 §2, §8 |
-| C-05 | React and Flutter shall communicate only with the ASP.NET Core Web API. Neither client may call the agentic-AI service, the database or a third-party service directly. | SE3090 §2 mandatory backend rule |
-| C-06 | The agentic-AI service shall run as an internal service invoked by ASP.NET Core, and shall implement at least four distinct agents with controlled tools, persisted state, deterministic validation and human approval. | SE3090 §9 |
-| C-07 | Both clients shall share one user identity, one permission model and one set of business rules. | SE3090 §1 integrated-system rule |
+| C-01 | The public backend shall be implemented in C# with ASP.NET Core Web API. No alternative public backend is permitted. | Architecture rule AR-1, ADR-001 |
+| C-02 | Data access shall use Entity Framework Core with the PostgreSQL provider; the relational store shall be PostgreSQL. | Technology baseline (Section 3.6) |
+| C-03 | The web client shall be React using functional components, hooks and routing, with a documented state-management approach. | Technology baseline, ADR-003 |
+| C-04 | The mobile client shall be Flutter and Dart with a documented state-management approach and device features for field work (camera QR scanning, photo capture). | Technology baseline, ADR-004 |
+| C-05 | React and Flutter shall communicate only with the ASP.NET Core Web API. Neither client may call the agentic-AI service, the database or a third-party service directly. | Architecture rule AR-2, ADR-001 |
+| C-06 | The agentic-AI subsystem shall run inside the ASP.NET Core API, never reachable by a client directly, and shall implement four distinct agents with controlled tools, persisted state, deterministic validation and human approval. | Architecture rule AR-4, ADR-010 |
+| C-07 | Both clients shall share one user identity, one permission model and one set of business rules. | Architecture rule AR-1 |
 | C-08 | Authentication and user management shall be delegated to ThunderID using OpenID Connect; CoreGrid shall not store user passwords or password hashes. | Project decision ADR-002 |
-| C-09 | The system shall be deliverable using institution-provided or no-cost services; no paid subscription may be required to build, deploy or evaluate it. | SE3090 §14 |
+| C-09 | The system shall be buildable, deployable and runnable using open-source or no-cost services; no paid subscription may be required to self-host it. | Open-source distribution (Apache 2.0) |
 | C-10 | The database schema shall be created and evolved only through EF Core migrations committed to the repository; no manual schema change is permitted in any environment. | Project decision |
-| C-11 | Secrets — client secrets, database credentials, email API keys, agent-service shared secrets — shall never be committed to the repository and shall be supplied through environment variables. | SE3090 §18.2, OWASP |
-| C-12 | The implementation window is seven development weeks plus one stabilisation week. Any requirement that cannot be completed and evidenced within that window shall be descoped to Section 17 rather than partially delivered. | R3 delivery plan |
-| C-13 | Every submitted artefact must be explainable, modifiable and debuggable by its named owner; AI-assisted generation is permitted only under the disclosure regime of SE3090 §18. | SE3090 §3, §18 |
+| C-11 | Secrets — client secrets, database credentials, email API keys, agent-service shared secrets — shall never be committed to the repository and shall be supplied through environment variables. | OWASP ASVS |
+| C-12 | The implementation window is seven development weeks plus one stabilisation week. Any requirement that cannot be completed and evidenced within that window shall be descoped to Section 17 rather than partially delivered. | R2 delivery plan |
+| C-13 | Every change must be explainable, modifiable and debuggable by its author; AI-assisted generation is permitted only under the review rule in Section 18.6. | Section 18 |
 
 ## 2.6 User Documentation
 
@@ -200,7 +200,7 @@ The agentic-AI subsystem provides decision support and workflow orchestration. I
 
 | Excluded capability | Rationale |
 |---|---|
-| Autonomous execution of high-impact actions by the AI | Contradicts the human-approval control that is central to the system's trustworthiness and to the assignment's acceptance criteria. |
+| Autonomous execution of high-impact actions by the AI | Contradicts the human-approval control that is central to the system's trustworthiness and to the subsystem's acceptance criteria (Section 7). |
 | Shared multi-tenant SaaS delivery and billing | This is M1 of the product's planned two-stage delivery (Section 17), not the M0 baseline this SRS specifies. CoreGrid's M0 deployment model is one self-hosted instance per customer organisation (Section 2.4) — there is no cross-tenant boundary to bill or manage yet because `Organizations` is currently restricted to one row per deployment and there is no self-service signup or billing flow. Unlike an earlier assumption, M1 does *not* require reintroducing per-tenant identity-provider organisations: ThunderID has no organisation construct in either stage (Section 4.2), and the existing `OrganizationId` global query filter (Section 4.5) already isolates any number of tenants — M1 only needs the row-count restriction lifted and a signup/billing layer added. |
 | Integration with enterprise resource-planning or national financial systems | Requires credentials, contracts and interface specifications that cannot be obtained within the delivery window; introduces unbounded schedule risk. |
 | Trained predictive machine-learning models for failure forecasting | The Maintenance Analysis Agent derives its projections from recorded history using deterministic statistics; model training and validation is a separate research effort. |

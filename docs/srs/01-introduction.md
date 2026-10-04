@@ -4,13 +4,13 @@
 
 This document specifies the complete functional and non-functional requirements of CoreGrid, a configurable asset lifecycle management platform that enables an organisation to register, identify, maintain, transfer, verify, audit and dispose of physical assets, and that uses a controlled agentic-AI workflow to support complex lifecycle decisions under authorised human approval.
 
-The specification defines what CoreGrid must do and the quality attributes it must exhibit; it deliberately does not prescribe implementation detail beyond the constraints imposed by the mandated technology stack and by the identity architecture. It is intended to be sufficient for a four-person engineering team to implement, test, deploy and defend the system, and sufficient for an independent evaluator to verify that the delivered software satisfies the stated requirements.
+The specification defines what CoreGrid must do and the quality attributes it must exhibit; it deliberately does not prescribe implementation detail beyond the constraints imposed by the mandated technology stack and by the identity architecture. It is intended to be sufficient for the engineering team to implement, test and deploy the system, and for an independent reviewer to verify that the delivered software satisfies the stated requirements.
 
 ## 1.2 Document Conventions
 
 - Functional requirements are identified as FR-nnn and are grouped by business component. Non-functional requirements are identified as NFR-nn. Agentic-AI requirements carry the prefix AI-nn. Interface requirements carry the prefix IF-nn. Data requirements carry the prefix DR-nn.
 - The key words shall, should and may are used in the RFC 2119 sense. "Shall" denotes a mandatory requirement whose absence constitutes a defect. "Should" denotes a strongly recommended requirement that may be traded off against schedule with recorded justification. "May" denotes an optional capability.
-- Every requirement carries a priority: Must (required for the baseline release and for the assignment demonstration), Should (planned for the baseline release but may be descoped with a recorded decision), or Could (deferred to the future-enhancement roadmap in Section 17).
+- Every requirement carries a priority: Must (required for the baseline release), Should (planned for the baseline release but may be descoped with a recorded decision), or Could (deferred to the future-enhancement roadmap in Section 17).
 - Identifiers written in a monospaced font — for example `/api/assets/{id}/verify` or `OrganizationId` — denote literal API routes, database columns, token claims or configuration keys.
 - Where a requirement is satisfied differently by the web client and the mobile client, the responsible client is stated explicitly. Where a requirement is enforced by the backend regardless of client, it is marked "API".
 
@@ -18,9 +18,8 @@ The specification defines what CoreGrid must do and the quality attributes it mu
 
 | Audience | Purpose | Suggested reading order |
 |---|---|---|
-| Development team (four component owners) | Implementation contract; defines the scope each owner is accountable for. | Sections 3, 4, 6, 7, 8, 9, then the traceability matrices in Section 16. |
-| Module evaluator / lecturer-in-charge | Verification that the system meets the assignment specification and the marking rubric. | Sections 1.4, 2.8, 3, 7, 16.2, then Section 13 (verification) and Section 14 (deployment). |
-| Test engineer role (shared across owners) | Derivation of test cases and acceptance evidence. | Sections 6, 7, 10, 13 and the FR-to-test traceability table in Section 16.3. |
+| Development team (four component maintainers, Section 12) | Implementation contract; defines the scope each owner is accountable for. | Sections 3, 4, 6, 7, 8, 9, then the traceability matrices in Section 16. |
+| Test engineer role (shared across owners) | Derivation of test cases and acceptance evidence. | Sections 6, 7, 10, 13 and the FR-to-test traceability table in Section 16.2. |
 | Prospective institutional stakeholder | Understanding of the business problem, scope boundary and roadmap. | Sections 1.4, 2, 2.8, 17. |
 | Security and identity reviewer | Assessment of the ThunderID-based identity architecture and access controls. | Sections 4, 5.3, 10.2, Appendix B and Appendix D. |
 
@@ -55,8 +54,8 @@ The initial release configures and demonstrates a single departmental domain end
 | IdP | Identity provider. In CoreGrid this is ThunderID. |
 | JWKS | JSON Web Key Set — the public keys published by the IdP and used by the API to verify token signatures. |
 | Agent Orchestrator | `AgentWorkflowService` — the in-process, control-plane component that sequences the four agent nodes, enforces timeouts, runs the deterministic gate and drives the human-approval interrupt (Section 7.2.1). |
-| `IAgentNode` | The common contract each of the four agents implements: one typed input, one typed output, its own tool allow-list (Section 7.2.1). |
-| `IModelClient` | The provider-agnostic interface through which the one node that needs one (Planner) calls a language model; the concrete provider (Azure OpenAI, OpenAI, Anthropic, or an on-prem model) is a deployment-time configuration choice, not a code dependency (Section 7.2.1). |
+| Agent service | One of the four agents (Planner, Maintenance Analysis, Budget Analysis, Policy Compliance): an in-process service behind its own interface, with one typed input, one typed output and its own tool allow-list (Section 7.2.1). |
+| `LlmSettings` | The configuration (`Llm:Endpoint`, `Llm:Model`, `Llm:ApiKey`, with per-agent overrides) through which the agents that need a language model reach any OpenAI-compatible chat-completions endpoint. The provider is a deployment-time choice, not a code dependency (Section 7.2.1). |
 | LangGraph | Historical Python framework used during early agent prototyping. The checked implementation now uses the in-process .NET orchestration described by ADR-010; retained only as historical context. |
 | Organisation | The customer a CoreGrid deployment serves (Section 4.2). Held only in CoreGrid's own database — in M0 one deployment has exactly one; every user, department and asset within it belongs to it. |
 | PKCE | Proof Key for Code Exchange — the OAuth 2.0 extension required for public clients (the React SPA and the Flutter application). |
@@ -70,15 +69,13 @@ The initial release configures and demonstrates a single departmental domain end
 
 | Ref | Source |
 |---|---|
-| R1 | SE3090 — Software Engineering Frameworks, Assignment 1 Specification, Year 3 Semester 1, 2026. SLIIT Faculty of Computing, Department of Software Engineering. |
-| R2 | CoreGrid Strategic Architecture and Feasibility Report — Intelligent Asset Lifecycle Management System (internal project document). |
-| R3 | CoreGrid Delivery Plan — seven-week implementation plus one-week stabilisation schedule (internal project document). |
-| R4 | CoreGrid Application Boundary Analysis — React management layer versus Flutter field layer (internal project document). |
-| R5 | CoreGrid Platform Configurability Analysis — configurable asset types, attributes and workflows (internal project document). |
-| R6 | ISO/IEC/IEEE 29148:2018 — Systems and software engineering: life-cycle processes, requirements engineering. |
-| R7 | IEEE Std 830-1998 — Recommended Practice for Software Requirements Specifications (structural guidance). |
-| R8 | OpenID Connect Core 1.0 and OAuth 2.0 (RFC 6749), OAuth 2.0 for Native Apps (RFC 8252), PKCE (RFC 7636), JSON Web Token (RFC 7519). |
-| R9 | ThunderID product documentation — organisations, application onboarding, roles and SCIM 2.0 user management. |
-| R10 | OWASP Application Security Verification Standard and OWASP Top 10 for Large Language Model Applications. |
-| R11 | Personal Data Protection Act No. 9 of 2022 (Sri Lanka) — the data-protection law applicable to the current baseline/demonstration deployment's jurisdiction; a deployment for a different customer complies with whatever law applies in its own jurisdiction under the same architecture. |
-| R12 | Perkins, Furze, Roe & MacVaugh (2024) — The AI Assessment Scale and the CLEAR Framework, as applied by the SE3090 module. |
+| R1 | CoreGrid Strategic Architecture and Feasibility Report — Intelligent Asset Lifecycle Management System (internal project document). |
+| R2 | CoreGrid Delivery Plan — seven-week implementation plus one-week stabilisation schedule (internal project document). |
+| R3 | CoreGrid Application Boundary Analysis — React management layer versus Flutter field layer (internal project document). |
+| R4 | CoreGrid Platform Configurability Analysis — configurable asset types, attributes and workflows (internal project document). |
+| R5 | ISO/IEC/IEEE 29148:2018 — Systems and software engineering: life-cycle processes, requirements engineering. |
+| R6 | IEEE Std 830-1998 — Recommended Practice for Software Requirements Specifications (structural guidance). |
+| R7 | OpenID Connect Core 1.0 and OAuth 2.0 (RFC 6749), OAuth 2.0 for Native Apps (RFC 8252), PKCE (RFC 7636), JSON Web Token (RFC 7519). |
+| R8 | ThunderID product documentation — organisations, application onboarding, roles and SCIM 2.0 user management. |
+| R9 | OWASP Application Security Verification Standard and OWASP Top 10 for Large Language Model Applications. |
+| R10 | Personal Data Protection Act No. 9 of 2022 (Sri Lanka) — the data-protection law applicable to the current baseline/demonstration deployment's jurisdiction; a deployment for a different customer complies with whatever law applies in its own jurisdiction under the same architecture. |

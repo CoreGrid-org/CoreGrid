@@ -48,35 +48,35 @@
         OrganizationPolicies (thresholds consumed by rules and the Policy Agent)
 ```
 
-Figure 9 — Conceptual entity relationships. The full physical design — every table, column, type, constraint and index for every entity below — is [Appendix F](appendix-f-physical-database-schema.md).
+Figure 9 — Conceptual entity relationships. The full physical design — every table, column, type, constraint and index for every entity below — is [Appendix E](appendix-e-physical-database-schema.md).
 
 ## 8.2 Entity Inventory
 
-| Entity | Purpose | Key relationships | Owner |
+| Entity | Purpose | Key relationships | Component (§12) |
 |---|---|---|---|
 | Organizations | This deployment's own department record (Section 4.2) — one row per self-hosted deployment, no ThunderID counterpart; the root of every query filter. | 1:N Departments, Users, AssetCategories, OrganizationPolicies | Shared |
 | Users | Local mirror of an ThunderID identity; holds no credentials. | N:1 Organization, N:1 Department; referenced by every lifecycle record | Shared |
 | Departments | Business unit that owns assets and holds budget. | N:1 Organization; 1:N Locations, Assets, Users | Shared |
-| Locations | Physical place where an asset is held. | N:1 Department; 1:N Assets | Student 1 |
-| AssetCategories | Top-level grouping for reporting. | N:1 Organization; 1:N AssetTypes | Student 1 |
-| AssetTypes | Configurable classification carrying useful life and maintenance interval. | N:1 AssetCategory; 1:N AssetAttributeDefinitions, Assets | Student 1 |
-| AssetAttributeDefinitions | Declares a custom field for an asset type. | N:1 AssetType; 1:N AssetAttributeValues | Student 1 |
-| Assets | The asset master record and lifecycle status. | N:1 AssetType, Department, Location; 1:N all lifecycle entities | Student 1 |
-| AssetAttributeValues | The value an asset holds for one attribute definition. | N:1 Asset, N:1 AssetAttributeDefinition | Student 1 |
-| AssetHistory | Append-only chronology of everything that happened to an asset. | N:1 Asset, N:1 User | Student 1 |
-| MaintenanceRecords | A unit of maintenance work with status, cost and outcome. | N:1 Asset, N:1 User (reporter, assignee) | Student 2 |
-| MaintenanceAttachments | Photographic evidence attached to a maintenance record. | N:1 MaintenanceRecord | Student 2 |
-| AssetTransfers | A movement of an asset between departments or locations. | N:1 Asset, Department (from, to), User (requester, approver, receiver) | Student 3 |
-| DisposalRequests | A proposal to remove an asset from the register. | N:1 Asset, N:1 User (requester, approver) | Student 3 |
-| VerificationCampaigns | A scoped, time-bound verification exercise. | N:1 Organization; 1:N AuditVerifications | Student 4 |
-| AuditVerifications | One officer's assertion about one asset during a campaign. | N:1 Campaign, Asset, User | Student 4 |
-| Discrepancies | A recorded divergence between register and reality. | N:1 AuditVerification, Asset, User (raiser, resolver) | Student 4 |
-| AuditLogs | Append-only record of every state-changing operation. | N:1 Organization, User; polymorphic entity reference | Student 4 |
-| OrganizationPolicies | Configured thresholds consumed by rules and by the Policy Agent. | N:1 Organization, optional N:1 AssetType | Student 4 |
+| Locations | Physical place where an asset is held. | N:1 Department; 1:N Assets | A |
+| AssetCategories | Top-level grouping for reporting. | N:1 Organization; 1:N AssetTypes | A |
+| AssetTypes | Configurable classification carrying useful life and maintenance interval. | N:1 AssetCategory; 1:N AssetAttributeDefinitions, Assets | A |
+| AssetAttributeDefinitions | Declares a custom field for an asset type. | N:1 AssetType; 1:N AssetAttributeValues | A |
+| Assets | The asset master record and lifecycle status. | N:1 AssetType, Department, Location; 1:N all lifecycle entities | A |
+| AssetAttributeValues | The value an asset holds for one attribute definition. | N:1 Asset, N:1 AssetAttributeDefinition | A |
+| AssetHistory | Append-only chronology of everything that happened to an asset. | N:1 Asset, N:1 User | A |
+| MaintenanceRecords | A unit of maintenance work with status, cost and outcome. | N:1 Asset, N:1 User (reporter, assignee) | B |
+| MaintenanceAttachments | Photographic evidence attached to a maintenance record. | N:1 MaintenanceRecord | B |
+| AssetTransfers | A movement of an asset between departments or locations. | N:1 Asset, Department (from, to), User (requester, approver, receiver) | C |
+| DisposalRequests | A proposal to remove an asset from the register. | N:1 Asset, N:1 User (requester, approver) | C |
+| VerificationCampaigns | A scoped, time-bound verification exercise. | N:1 Organization; 1:N AuditVerifications | D |
+| AuditVerifications | One officer's assertion about one asset during a campaign. | N:1 Campaign, Asset, User | D |
+| Discrepancies | A recorded divergence between register and reality. | N:1 AuditVerification, Asset, User (raiser, resolver) | D |
+| AuditLogs | Append-only record of every state-changing operation. | N:1 Organization, User; polymorphic entity reference | D |
+| OrganizationPolicies | Configured thresholds consumed by rules and by the Policy Agent. | N:1 Organization, optional N:1 AssetType | D |
 | AgentWorkflows | Durable workflow state. | N:1 Asset, User; 1:N AgentExecutionSteps, AgentApprovals | Shared |
 | AgentExecutionSteps | One node execution within a workflow. | N:1 AgentWorkflow | Shared |
-| AgentApprovals | A human decision on a paused workflow. | N:1 AgentWorkflow, N:1 User | Student 4 |
-| Notifications | A queued or dispatched notification. | N:1 Organization, N:1 User | Student 2 |
+| AgentApprovals | A human decision on a paused workflow. | N:1 AgentWorkflow, N:1 User | D |
+| Notifications | A queued or dispatched notification. | N:1 Organization, N:1 User | B |
 
 ## 8.3 Data Requirements
 

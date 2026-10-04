@@ -16,7 +16,7 @@
 
 ## Component
 
-<!-- Which of the five cooperating parts does this touch? SRS §18 / component ownership. -->
+<!-- Which of the five cooperating parts does this touch? SRS §12, Component Ownership. -->
 
 - [ ] Backend (ASP.NET Core API)
 - [ ] Frontend (React)
