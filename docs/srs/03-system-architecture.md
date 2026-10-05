@@ -21,24 +21,6 @@ Four architectural rules govern every design decision that follows. They are sta
 
 ![CoreGrid logical layering](../diagrams/logical-layering.png)
 
-<details>
-<summary>Text version</summary>
-
-```mermaid
-flowchart TD
-    P["PRESENTATION\nReact SPA · Flutter mobile application\nrouting · state · forms · protected views"]
-    A["API / INTERFACE\nControllers · DTOs · model binding · versioning\nJWT validation · policy authorisation · CORS\nFluentValidation · global exception handling"]
-    U["APPLICATION\nUse-case services · orchestration · transactions\nstate-machine guards · audit-event emission\nAgent Orchestrator (§7.2.1) · notification dispatch"]
-    D["DOMAIN\nEntities · value objects · enumerations\ninvariants · lifecycle state machines · policies"]
-    I["INFRASTRUCTURE\nEF Core DbContext · repositories · migrations\nThunderID SCIM client · email client · QR service\nLLM HTTP client (LlmSettings, §7.2.1) · structured logging"]
-
-    P -->|"HTTPS · REST · JSON · Bearer JWT"| A --> U --> D
-    U --> I
-    D --> I
-```
-
-</details>
-
 Figure 2 — Logical layering of the ASP.NET Core backend. Dependencies point inward; the domain layer references nothing outside itself. The Agent Orchestrator and all four agent nodes (§7.2.1) live in the Application layer like any other use-case service; only the outbound model call crosses into Infrastructure, via the `Llm` HTTP client.
 
 Dependency inversion is applied between the application and infrastructure layers: the application layer declares interfaces (`INotificationService`, `IAgentGateway`, `IQrCodeService`, `IIdentityDirectory`) and the infrastructure layer supplies implementations that are registered in the dependency-injection container at startup. This is what makes the email provider replaceable, the agent service mockable in tests, and the identity directory substitutable if the contingency in Section 4.10 is ever invoked.
@@ -170,34 +152,6 @@ CoreGrid is specified as a platform rather than as a single-domain application. 
 
 ![CoreGrid configurable platform model](../diagrams/platform-model.png)
 
-<details>
-<summary>Text version</summary>
-
-```
-                         COREGRID PLATFORM
-                                │
-           ┌────────────────────┴────────────────────┐
-           │                                         │
-     FIXED IN CODE                            CONFIGURED BY ADMIN
-           │                                         │
-   ┌───────┼────────┬──────────┐          ┌──────────┼──────────┬────────────┐
-   │       │        │          │          │          │          │            │
- Identity Asset  Lifecycle  Agent      Departments Asset     Attribute   Organisation
- & access engine states     graph     & locations  types     definitions   policies
-   │       │        │          │          │          │          │            │
-   └───────┴────────┴──────────┘          └──────────┴──────────┴────────────┘
-           │                                         │
-           └────────────────────┬────────────────────┘
-                                ▼
-                    One deployment serves:
-        Transport (Bus · Truck · Workshop equipment)
-        Healthcare (MRI · Ventilator · Ambulance)
-        Railway (Locomotive · Coach · Track equipment)
-        — through configuration, without a new build
-```
-
-</details>
-
 Figure 3 — Fixed engine, configured domain. Adding an asset domain requires configuration only.
 
 Three levels of change are recognised, and the boundary between them is a security control as much as a design convenience.
@@ -227,36 +181,6 @@ What is deliberately not configurable is as important as what is. An administrat
 ## 3.7 Deployment View
 
 ![CoreGrid deployment topology](../diagrams/deployment-topology.png)
-
-<details>
-<summary>Text version</summary>
-
-```mermaid
-flowchart LR
-    subgraph INTERNET[" INTERNET "]
-        Browser["Browser"]
-        Android["Android device"]
-    end
-
-    subgraph INTERNAL[" PRIVATE / INTERNAL "]
-        Static["Static host\n(React build)"]
-        API["ASP.NET Core API\ncontainer / app service\nHTTPS · health · Swagger\nhosts Orchestrator +\nall four agent nodes"]
-        PG[("PostgreSQL (managed)\nrestricted network")]
-        Model["Model provider\nOpenAI-compatible endpoint\nvia LlmSettings (§7.2.1)"]
-        ThunderID["ThunderID\nOIDC / JWKS / SCIM"]
-        Email["Email API\nbackend-mediated only"]
-    end
-
-    Browser --> Static
-    Android --> API
-    Static --> API
-    API --> PG
-    API -->|"outbound HTTPS,\nPlanner and Budget nodes"| Model
-    API --> ThunderID
-    API --> Email
-```
-
-</details>
 
 Figure 4 — Deployment topology. Only the static host and the API are publicly addressable (solid internet-facing edges above); everything inside the private/internal boundary is reached only from the API. The API is the only backend deployable: it hosts the Agent Orchestrator and all four agent nodes in-process, and makes outbound HTTPS calls to the configured model provider only from the Planner and Budget Analysis nodes, each with a deterministic fallback (§7.2.1) — there is no separate agent container to secure, patch or take an ingress rule for.
 

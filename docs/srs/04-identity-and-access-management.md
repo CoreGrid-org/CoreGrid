@@ -16,35 +16,6 @@ In M0, CoreGrid is deployed once per customer organisation (Section 2.4): each c
 
 ![CoreGrid organisation and user model](../diagrams/org-user-model.png)
 
-<details>
-<summary>Text version</summary>
-
-```
-   ONE DEPLOYMENT (M0) — self-hosted per customer organisation: its own
-   API, its own PostgreSQL, its own ThunderID instance, never shared
-   with another customer.
-
-   THUNDERID ORGANISATION UNIT  (single — this customer only)
-   │   application registrations · shared branding
-   │
-   └── Users:  a.silva · j.fernando · n.perera · …
-         Role assignments (Section 4.6): Administrator · InventoryOfficer · Auditor · Staff
-
-   COREGRID DATABASE
-   Organizations  (exactly one row — this customer)
-        │
-        ├──1:N── Departments ──1:N── Locations
-        └──1:N── Users   (Users.ExternalSubjectId = ThunderID "sub")
-                   │
-                   └── UserRoles (effective role snapshot, refreshed at sign-in)
-
-   A second customer organisation ("Acme Logistics Pte Ltd", "Northern
-   Fleet Services", …) is a second, independent deployment of this same
-   diagram — not a second Organizations row inside this one.
-```
-
-</details>
-
 Figure 5 — One self-hosted deployment per customer organisation (M0); each has exactly one `Organizations` row and one ThunderID organisation unit. A second customer means a second deployment, not a second row.
 
 Departments (the business unit — owns assets, holds budgets, appears in transfer and approval rules) are deliberately not modelled as organisation structure inside ThunderID; they change far more often than a deployment's single tenant does, and keeping them as CoreGrid data lets an Administrator reconfigure them without any identity-provider operation. `Organizations` itself is not a mechanism for separating this customer's data from another's — no other customer's data is ever in this database. It exists so the schema has a stable root for the global query filter (Section 4.5, step 9), and so a customer could model internal sub-units under it later if it ever wanted to — the same root that lets M1 (Section 17) hold many customers' rows side by side without changing this filter at all.

@@ -77,39 +77,6 @@ Component A owns the asset master record and the physical identification mechani
 
 ![CoreGrid asset lifecycle state machine](../diagrams/asset-lifecycle.png)
 
-<details>
-<summary>Text version</summary>
-
-```
-                              ┌──────────────┐
-        register ────────────▶│    ACTIVE    │◀──────────┐
-                              └──┬───┬───┬───┘           │
-                                 │   │   │               │ complete
-            transfer requested   │   │   │ maintenance   │
-                    ┌────────────┘   │   └───────────┐   │
-                    ▼                │               ▼   │
-         ┌────────────────────┐      │      ┌──────────────────┐
-         │ TRANSFER_REQUESTED │      │      │ UNDER_MAINTENANCE│
-         └─────────┬──────────┘      │      └──────────────────┘
-            approve│  reject         │ condemn
-                   ▼                 ▼
-         ┌────────────────────┐   ┌──────────────┐
-         │  IN_TRANSIT        │   │  CONDEMNED   │
-         └─────────┬──────────┘   └──────┬───────┘
-           confirm │                     │ disposal requested
-            receipt│                     ▼
-                   │            ┌─────────────────────┐
-                   └───────────▶│ DISPOSAL_REQUESTED  │
-                     back to    └──────┬──────────┬───┘
-                      ACTIVE    approve│          │reject
-                                       ▼          └────▶ back to CONDEMNED
-                                ┌──────────────┐
-                                │   DISPOSED   │   terminal — no further
-                                └──────────────┘   transition permitted
-```
-
-</details>
-
 Figure 6 — Asset lifecycle states. Every transition is guarded in the application layer; an invalid transition returns 409 and is never silently ignored.
 
 ### FR-024 — QR scan and asset lookup

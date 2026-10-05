@@ -4,57 +4,6 @@
 
 ![CoreGrid conceptual data model](../diagrams/data-model.png)
 
-<details>
-<summary>Text version</summary>
-
-```
-                        ┌───────────────┐
-                        │ Organizations │  (exactly one row per deployment —
-                        └───┬───────┬───┘   no ThunderID counterpart, §4.2)
-           ┌────────────────┘       └────────────────┐
-           ▼                                         ▼
-    ┌─────────────┐                            ┌───────────┐
-    │ Departments │───────────┐                │   Users   │ (mirror; no
-    └──────┬──────┘           │                └─────┬─────┘  credentials)
-           ▼                  │                      │
-    ┌─────────────┐           │                      │ actor on every
-    │  Locations  │           │                      │ lifecycle record
-    └──────┬──────┘           │                      │
-           │   ┌──────────────────────┐              │
-           │   │   AssetCategories    │              │
-           │   └──────────┬───────────┘              │
-           │              ▼                          │
-           │   ┌──────────────────────┐              │
-           │   │     AssetTypes       │              │
-           │   └──────────┬───────────┘              │
-           │              ▼                          │
-           │   ┌────────────────────────────────┐    │
-           │   │  AssetAttributeDefinitions     │    │
-           │   └────────────────┬───────────────┘    │
-           │                    │                    │
-           └────────┬───────────┘                    │
-                    ▼                                │
-            ┌───────────────┐   1:N   ┌──────────────────────────┐
-            │    Assets     │────────▶│  AssetAttributeValues    │
-            └───┬─┬─┬─┬─┬─┬─┘         └──────────────────────────┘
-                │ │ │ │ │ │
-   ┌────────────┘ │ │ │ │ └──────────────┐
-   ▼              ▼ │ │ ▼                ▼
- Maintenance  Transfers│ AssetHistory  AgentWorkflows
- Records          │    │        │              │
-                  │    ▼        │              ├──▶ AgentExecutionSteps
-                  │ Disposals   │              └──▶ AgentApprovals
-                  │             │
-                  ▼             ▼
-        AuditVerifications   Discrepancies ◀── VerificationCampaigns
-
-        AuditLogs   (append-only; references organisation, user, entity)
-        Notifications (queued dispatch records)
-        OrganizationPolicies (thresholds consumed by rules and the Policy Agent)
-```
-
-</details>
-
 Figure 9 — Conceptual entity relationships. The full physical design — every table, column, type, constraint and index for every entity below — is [Appendix E](appendix-e-physical-database-schema.md).
 
 ## 8.2 Entity Inventory
