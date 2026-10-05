@@ -41,6 +41,12 @@ Next time, just run `make infra-up && make dev`.
 | [Scripts](scripts/README.md) | Helper scripts and performance tests |
 | [Deployment](docs/srs/14-deployment-and-operations.md) | Running CoreGrid on a server |
 
+## Architecture
+
+![CoreGrid integrated architecture](docs/diagrams/integrated-architecture.png)
+
+The web and mobile apps sign in through ThunderID and call one ASP.NET Core API. The API runs the AI agents itself and is the only part that talks to PostgreSQL, photo storage and the AI provider. More diagrams are in [System Architecture](docs/srs/03-system-architecture.md).
+
 ## What's in this repository
 
 | Folder | Contents |

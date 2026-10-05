@@ -4,6 +4,10 @@
 
 CoreGrid follows a layered, service-oriented architecture with a single authoritative backend. The arrangement is deliberately conventional: the value of the system lies in its domain model, its configurability and its controlled use of agents, not in architectural novelty, and a conventional structure is one that four engineers can each fully understand and defend.
 
+![CoreGrid integrated architecture](../diagrams/integrated-architecture.png)
+
+Integrated architecture — both clients sign in through ThunderID and call the one ASP.NET Core API, which hosts the agent orchestrator in-process and is the only component that reaches PostgreSQL, Cloudflare R2 and the LLM provider.
+
 Four architectural rules govern every design decision that follows. They are stated here once and are assumed throughout the remainder of this document.
 
 | Rule | Statement | Consequence |
@@ -14,6 +18,11 @@ Four architectural rules govern every design decision that follows. They are sta
 | AR-4 | The agent subsystem advises; the API decides. | No agent writes to the database. Every state change originates from an API endpoint executing a validated, authorised command. |
 
 ## 3.2 Logical Layering
+
+![CoreGrid logical layering](../diagrams/logical-layering.png)
+
+<details>
+<summary>Text version</summary>
 
 ```mermaid
 flowchart TD
@@ -28,9 +37,15 @@ flowchart TD
     D --> I
 ```
 
+</details>
+
 Figure 2 — Logical layering of the ASP.NET Core backend. Dependencies point inward; the domain layer references nothing outside itself. The Agent Orchestrator and all four agent nodes (§7.2.1) live in the Application layer like any other use-case service; only the outbound model call crosses into Infrastructure, via the `Llm` HTTP client.
 
 Dependency inversion is applied between the application and infrastructure layers: the application layer declares interfaces (`INotificationService`, `IAgentGateway`, `IQrCodeService`, `IIdentityDirectory`) and the infrastructure layer supplies implementations that are registered in the dependency-injection container at startup. This is what makes the email provider replaceable, the agent service mockable in tests, and the identity directory substitutable if the contingency in Section 4.10 is ever invoked.
+
+![CoreGrid backend layering](../diagrams/backend-layering.png)
+
+Backend layering as implemented — the middleware pipeline in `Program.cs` order, one `Features/<Name>/` folder per feature, cross-cutting concerns in `Features/Shared/`, and EF Core with the organisation query filter and audit interceptor beneath them.
 
 ## 3.3 Component Responsibilities
 
@@ -79,6 +94,14 @@ The web and mobile applications serve deliberately different purposes. CoreGrid 
 React is the management and control interface; Flutter is the field operations interface. They optimise different workflows for different users at different moments, but they consume the same ASP.NET Core API, the same identity, the same permission model and the same business rules. The mobile application exists because verification is a physical act performed away from a desk; the web application exists because approval and analysis are deliberative acts performed at one.
 
 This table states which *capability* exists per client, not which *role* uses which client for it. Following this same principle, Auditor and Administrator — management/control roles with no field task — are web-console-only; Inventory Officer uses both clients (office and field work); Staff is mobile-only. FR-059, FR-067 and FR-069 record the resulting per-role client split explicitly where a capability's client differs by role.
+
+![CoreGrid React frontend architecture](../diagrams/frontend-architecture.png)
+
+React frontend architecture — role-specific layouts guarded by `RoleRoute`, one `features/<name>/` folder per feature, and a shared API client that attaches the ThunderID bearer token.
+
+![CoreGrid Flutter mobile architecture](../diagrams/mobile-architecture.png)
+
+Flutter mobile architecture — feature-first presentation, go_router and Riverpod for navigation and state, a Dio client with a bearer-token interceptor, and the device plugins behind QR scanning and photo capture.
 
 ### 3.4.1 Users by Role and Platform
 
@@ -145,6 +168,11 @@ enforce the platform restriction ThunderID itself has no mechanism to express.
 
 CoreGrid is specified as a platform rather than as a single-domain application. The distinction matters architecturally: a transport department and a hospital hold entirely different asset attributes, but they perform the same lifecycle operations — register, identify, maintain, transfer, verify, condemn, dispose. CoreGrid therefore fixes the lifecycle engine in code and expresses the domain in configuration.
 
+![CoreGrid configurable platform model](../diagrams/platform-model.png)
+
+<details>
+<summary>Text version</summary>
+
 ```
                          COREGRID PLATFORM
                                 │
@@ -167,6 +195,8 @@ CoreGrid is specified as a platform rather than as a single-domain application. 
         Railway (Locomotive · Coach · Track equipment)
         — through configuration, without a new build
 ```
+
+</details>
 
 Figure 3 — Fixed engine, configured domain. Adding an asset domain requires configuration only.
 
@@ -196,6 +226,11 @@ What is deliberately not configurable is as important as what is. An administrat
 
 ## 3.7 Deployment View
 
+![CoreGrid deployment topology](../diagrams/deployment-topology.png)
+
+<details>
+<summary>Text version</summary>
+
 ```mermaid
 flowchart LR
     subgraph INTERNET[" INTERNET "]
@@ -220,6 +255,8 @@ flowchart LR
     API --> ThunderID
     API --> Email
 ```
+
+</details>
 
 Figure 4 — Deployment topology. Only the static host and the API are publicly addressable (solid internet-facing edges above); everything inside the private/internal boundary is reached only from the API. The API is the only backend deployable: it hosts the Agent Orchestrator and all four agent nodes in-process, and makes outbound HTTPS calls to the configured model provider only from the Planner and Budget Analysis nodes, each with a deterministic fallback (§7.2.1) — there is no separate agent container to secure, patch or take an ingress rule for.
 

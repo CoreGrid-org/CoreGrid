@@ -2,6 +2,11 @@
 
 ## 8.1 Conceptual Data Model
 
+![CoreGrid conceptual data model](../diagrams/data-model.png)
+
+<details>
+<summary>Text version</summary>
+
 ```
                         ┌───────────────┐
                         │ Organizations │  (exactly one row per deployment —
@@ -47,6 +52,8 @@
         Notifications (queued dispatch records)
         OrganizationPolicies (thresholds consumed by rules and the Policy Agent)
 ```
+
+</details>
 
 Figure 9 — Conceptual entity relationships. The full physical design — every table, column, type, constraint and index for every entity below — is [Appendix E](appendix-e-physical-database-schema.md).
 

@@ -19,6 +19,11 @@ The subsystem is deliberately not a chatbot, not a question-answering interface 
 
 One workflow, the asset lifecycle evaluation, exercises every element of the subsystem: objective, plan, delegation, controlled tools, persisted state, deterministic validation, human approval, and an auditable result or safe failure. It is initiated from either client, executes through the four agents, validates deterministically, pauses for approval, and returns an updated status to the user who started it.
 
+![CoreGrid asset lifecycle decision workflow](../diagrams/agent-workflow.png)
+
+<details>
+<summary>Text version</summary>
+
 ```mermaid
 flowchart TD
     ENTRY["ENTRY\nOfficer scans AST-00042 in Flutter, taps Evaluate\nPOST /api/agent-workflows {assetId, objective}\nAPI validates authorisation, asset state, no run in flight\npersists AgentWorkflow (status=PLANNING), returns id"]
@@ -51,11 +56,18 @@ flowchart TD
     REACT -->|"REVISE\n(max 2 revisions)"| N2
 ```
 
+</details>
+
 Figure 8 — The assessed Asset Lifecycle Decision workflow, satisfying the minimum acceptance rule end to end.
 
 ## 7.2.1 Orchestrator, Agent Nodes, and When a Node May Call a Model
 
 **Target architecture, decided 2026-09-15, superseding ADR-005's original "Python LangGraph" scope (appendix D):** the entire agent subsystem — the Orchestrator and all four agent nodes — runs in-process inside the single ASP.NET Core API deployable. There is no separate agent runtime, container or network hop. This follows directly from CoreGrid's M0 deployment model (§4.1, §19.10): one deployment per customer, so the fewer independently-deployed services a customer has to install, patch and secure, the better — an enterprise buyer's security review has one process boundary to evaluate, not several, and AI-21's "private network path" requirement becomes structurally true rather than something to configure.
+
+![CoreGrid agent architecture](../diagrams/agent-architecture.png)
+
+<details>
+<summary>Text version</summary>
 
 ```mermaid
 flowchart TD
@@ -95,6 +107,8 @@ flowchart TD
 
     IMC -->|"outbound HTTPS,\nprovider chosen by config"| MODEL["OpenAI-compatible\nchat-completions endpoint\n(Gemini primary,\noptional Groq fallback)"]
 ```
+
+</details>
 
 Each agent's tool box is that agent's own allow-list (§7.4) — disjoint from every other agent's, and never touched by the Orchestrator directly.
 
