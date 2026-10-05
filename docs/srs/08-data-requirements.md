@@ -6,6 +6,10 @@
 
 Figure 9 — Conceptual entity relationships. The full physical design — every table, column, type, constraint and index for every entity below — is [Appendix E](appendix-e-physical-database-schema.md).
 
+![CoreGrid entity-relationship diagram](../diagrams/er.png)
+
+Figure 12 — Entity-relationship diagram in Chen notation: entities (rectangles), relationships (diamonds) with 1 / N cardinalities, and each entity's main attributes (ovals, with the primary key `Id` underlined). The table-level design that implements it is the relational schema in [Appendix E](appendix-e-physical-database-schema.md#e11-relational-schema-as-implemented) (Figure 13).
+
 ## 8.2 Entity Inventory
 
 | Entity | Purpose | Key relationships | Component (§12) |

@@ -25,6 +25,8 @@ The Render free tier sleeps after about 15 minutes without traffic. The first re
 
 ## Topology
 
+![CoreGrid live demo deployment topology](../diagrams/deployment%20topology.png)
+
 | Part | Platform | Notes |
 |---|---|---|
 | React web app | Vercel | Static Vite build of `frontend/`. `VITE_*` values are read at build time, so redeploy after changing them. |

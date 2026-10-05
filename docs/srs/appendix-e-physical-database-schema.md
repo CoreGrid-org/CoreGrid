@@ -10,6 +10,12 @@
 
 **This is not `backend/db/schema.sql`.** That file is explained in [`backend/db/README.md`](../../backend/db/README.md): it is a **generated export** of whatever EF Core migrations actually exist, produced by `dotnet ef migrations script`, and it is overwritten every time a migration is added — hand-editing it is pointless. It reflects exactly the migrations that exist at any moment. This document covers all twenty-four entities across all four components and the agentic subsystem; as each is implemented, the corresponding EF Core migration should produce SQL matching what is here, and `backend/db/schema.sql` will grow to match this document one migration at a time. Nobody should ever paste this file's SQL directly into `backend/db/schema.sql` — DR-13 requires schema evolution to happen only through committed EF Core migrations.
 
+### E.1.1 Relational Schema as Implemented
+
+![CoreGrid relational schema](../diagrams/relation.png)
+
+Figure 13 — Relational schema as implemented: the 22 tables and 66 foreign keys in `backend/db/schema.sql`, with every column and its primary key (PK) and foreign keys (FK). Arrows point from a foreign key to the primary key it references. Unlike the reference design below, it shows only what the committed migrations have created so far.
+
 ## E.2 How to Use This Document
 
 1. Find your component's section (§E.6–E.11).
