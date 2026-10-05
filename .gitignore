@@ -95,3 +95,6 @@ scripts/perf/results/
 
 # setup.sh scratch output
 .setup/
+
+# Local-only deployment secrets (demo hosting keys, passwords) — never commit
+/secrets/
