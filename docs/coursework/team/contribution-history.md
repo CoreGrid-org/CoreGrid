@@ -83,7 +83,7 @@ Repository: `CoreGrid-org/CoreGrid`. All entries were reported as closed.
 |---|---|---|---|
 | Jayashan Guruge (`jguruge`) | A — Asset Registry & QR Identification | Assets, QR scan, search/detail, condition, verification UI | Planner Agent and Component A integration. |
 | Seneja Ramanayaka (`seneja`) | B — Maintenance Management | Fault reports, maintenance records, notifications | Maintenance Analysis Agent and notification integration. |
-| Nipuna Bhanuka / Bhanuka (`NipunaBhanuka18`) | C — Transfer & Disposal | Transfer request and receipt confirmation; condemnation reported but not verified in current mobile code | Budget Analysis Agent. |
+| Nipuna Bhanuka Samarasinghe (`NipunaBhanuka18`) | C — Transfer & Disposal | Transfer request and receipt confirmation; condemnation reported but not verified in current mobile code | Budget Analysis Agent. |
 | Hasitha Erandika (`HasithaErandika`) | D — Audit, compliance, organisation configuration, and user administration | Authentication, app shell, dashboards, verification/workflows, CI and mobile integration | Policy Compliance Agent, human-approval checkpoint, release and consolidated documentation. |
 
 Student IDs and email addresses still need to be supplied in the SRS roster. The handles above are the

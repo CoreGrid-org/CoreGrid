@@ -10,7 +10,7 @@ The single-line team-members field above names who is on the group; this table i
 |---|---|---|---|---|---|---|
 | Student 1 | Jayashan Guruge | `<ID>` | `jguruge` | `<email>` | A — Asset Registry & QR Identification | Member |
 | Student 2 | Seneja Ramanayaka | `<ID>` | `seneja` | `<email>` | B — Maintenance Management | Member |
-| Student 3 | Nipuna Bhanuka (Bhanuka) | `<ID>` | `NipunaBhanuka18` | `<email>` | C — Transfer & Disposal | Member |
+| Student 3 | Nipuna Bhanuka Samarasinghe | `<ID>` | `NipunaBhanuka18` | `<email>` | C — Transfer & Disposal | Member |
 | Student 4 | Hasitha Erandika | `<ID>` | `HasithaErandika` | `<email>` | D — Audit & Compliance, org configuration, user administration | Group Leader |
 
 Placeholders (`<ID>`, `<github-handle>`, `<email>`) are left for the named student to fill in — they are not invented here. See [Team roster §18.2](team-roster-and-work-allocation.md#182-roster) for what a complete roster row must capture and why each field is required, and [Team roster §18.11](team-roster-and-work-allocation.md#1811-keeping-the-roster-current) for how this table is kept in sync as the project proceeds.
@@ -161,9 +161,9 @@ Seneja Thehansi's work covers Component B — Maintenance Management and the Mai
 | 2026-08-17 | `9b3f8c3` | Implemented the fault-reporting API. |
 | 2026-08-17 | `29e2505` | Added the `MaintenanceRecords` table and EF Core mappings. |
 
-### Individual Contribution Log — Nipuna Bhanuka (Bhanuka)
+### Individual Contribution Log — Nipuna Bhanuka Samarasinghe
 
-Nipuna Bhanuka's work covers Component C — Transfer & Disposal and the Budget Analysis Agent. The Git history uses the author name `NipunaBhanuka18`.
+Nipuna Bhanuka Samarasinghe's work covers Component C — Transfer & Disposal and the Budget Analysis Agent. The Git history uses the author name `NipunaBhanuka18`.
 
 | Date | Task area | Contribution summary | Commit evidence |
 |---|---|---|---|
@@ -172,7 +172,7 @@ Nipuna Bhanuka's work covers Component C — Transfer & Disposal and the Budget 
 | 2026-09-18 | Transfer/disposal quality | Added pagination to transfers/disposals, fixed test compilation and merged development into the feature branch; migrated the Budget Analysis Agent to in-process C#. | `c92a52f`, `6be2a49`, `b6fbf83` |
 | 2026-09-24 | Agent orchestration and frontend quality | Wired the Budget Analysis Agent into the multi-agent pipeline and fixed a frontend build-breaking duplicate property and stale test assertion. | `d44a11b`, `4793dc0` |
 
-#### Complete Git-history contribution index — Nipuna Bhanuka (Bhanuka)
+#### Complete Git-history contribution index — Nipuna Bhanuka Samarasinghe
 
 | Date | Commit | Recorded contribution |
 |---|---|---|

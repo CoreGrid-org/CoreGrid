@@ -8,7 +8,7 @@ Moved from `coregrid-mobile/doc/software-requirements-specification.md` (v1.0, s
 |---|---|---|
 | Student 1 | Jayashan Guruge | Asset registry, QR identification, verification, and mobile asset UI. |
 | Student 2 | Seneja Ramanayaka | Maintenance, notifications, and related mobile integration. |
-| Student 3 | Bhanuka Samarasinghe | Transfer/disposal domain and transfer mobile implementation. |
+| Student 3 | Nipuna Bhanuka Samarasinghe | Transfer/disposal domain and transfer mobile implementation. |
 | Student 4 | Hasitha Erandika | Authentication, organisation configuration, integration, dashboards, documentation, and release support. |
 
 Student IDs, GitHub handles, and emails remain placeholders until supplied by the named members.

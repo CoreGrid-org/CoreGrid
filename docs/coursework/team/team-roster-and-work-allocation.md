@@ -12,7 +12,7 @@ Component A (Asset Registry & QR Identification) was claimed first and is fixed 
 |---|---|---|---|---|---|---|---|
 | Student 1 | **Jayashan Guruge** | `jguruge` | `feature/asset-*` | A — Asset Registry & QR Identification | FR-016 to FR-032 | Planner Agent | `POST /api/assets/{id}/verify` (FR-031) |
 | Student 2 | **Seneja Ramanayaka** | `seneja` | `feature/maintenance-*` | B — Maintenance Management | FR-033 to FR-042, FR-077 to FR-080 | Maintenance Analysis Agent | `POST /api/maintenance/{id}/complete` (FR-038) |
-| Student 3 | **Nipuna Bhanuka (Bhanuka)** | `NipunaBhanuka18` | `feature/transfer-*`, `feature/disposal-*` | C — Transfer & Disposal | FR-043 to FR-055 | Budget Analysis Agent | `POST /api/disposals/{id}/approve` (FR-051) |
+| Student 3 | **Nipuna Bhanuka Samarasinghe** | `NipunaBhanuka18` | `feature/transfer-*`, `feature/disposal-*` | C — Transfer & Disposal | FR-043 to FR-055 | Budget Analysis Agent | `POST /api/disposals/{id}/approve` (FR-051) |
 | Student 4 | **Hasitha Erandika** (Group Leader) | `HasithaErandika` | `feature/audit-*`, `feature/config-*`, `feature/ci-*` | D — Audit & Compliance, plus organisation configuration and user administration | FR-010 to FR-015, FR-056 to FR-066 | Policy Compliance Agent + human-approval checkpoint | `POST /api/discrepancies/{id}/resolve` (FR-062) |
 
 Component D absorbs organisation configuration (departments, locations, users, policy parameters — FR-010 to FR-015) in addition to audit and compliance, exactly as allocated in §12. Giving this range to the Group Leader is a deliberate, not incidental, choice: the leader already carries the CI pipeline, the consolidated submission and cross-cutting authorisation testing (§18.5 below), and organisation configuration is the one component every other owner's demonstration data depends on, so it benefits from being built and stabilised early by whoever is coordinating the schedule.
@@ -73,7 +73,7 @@ A roster row missing any of these is not "mostly done" — from a marking-eviden
 
 **Documentation** — README section for Component B; AI usage log; notes on the notification-provider choice (this decision is Component B's to write up even though it is not one of the seven indexed ADRs in Appendix D — record it as a supporting design note referenced from the group report).
 
-## 18.5 Required Individual Evidence — Bhanuka Samarasinghe (Component C)
+## 18.5 Required Individual Evidence — Nipuna Bhanuka Samarasinghe (Component C)
 
 **Backend** — Transfer request/approve/reject/confirm-receipt (FR-043 to FR-047); outstanding-transfer flag job (FR-048, Should); condemnation (FR-049); disposal request (FR-050); the approval operation `POST /api/disposals/{id}/approve` (FR-051) checking preconditions P1–P6 in one transaction, with separation of duties (approver ≠ requester); disposal-revision path (FR-053); disposal outcome recording and the DISPOSED terminal-state guard (FR-054, FR-055).
 
@@ -109,7 +109,7 @@ not present in the checked mobile tree and must be reconciled before it can be m
 
 **Git evidence** — Branch prefixes `feature/audit-*`, `feature/config-*`, `feature/ci-*`; also responsible for week-one repository setup, the project board, the issue-labelling scheme, and confirming every teammate's pull requests are reviewed before merge (§12.1, R-06).
 
-**Documentation** — Consolidated assembly of the Group Report from the four Individual Report sections; coordinates the ADR set in Appendix D (each owner drafts the decision in their own domain — ADR-006 with Jayashan, notification and concurrency notes with Seneja and Bhanuka — the leader checks the set is complete, not that it is correct); owns the final README and the demonstration script; opens every submission link in an incognito browser before the deadline, per SE3090 §15.
+**Documentation** — Consolidated assembly of the Group Report from the four Individual Report sections; coordinates the ADR set in Appendix D (each owner drafts the decision in their own domain — ADR-006 with Jayashan, notification and concurrency notes with Seneja and Nipuna Bhanuka Samarasinghe — the leader checks the set is complete, not that it is correct); owns the final README and the demonstration script; opens every submission link in an incognito browser before the deadline, per SE3090 §15.
 
 ### 18.6.1 Need to Assign — Additional Work Items (not yet baselined)
 
@@ -126,8 +126,8 @@ Section 13.4 fixes twelve golden cases but does not name an owner for each — i
 
 | Case | Mechanism under test | Primary owner | Reviewer |
 |---|---|---|---|
-| GC-01 Correct disposal recommendation | Full pipeline; deterministic gate PASS; interrupt to AWAITING_APPROVAL | Hasitha (gate/checkpoint) | Jayashan, Seneja, Bhanuka (each agent's leg) |
-| GC-02 Correct repair recommendation | Budget Agent ranking, `isHighImpact = false` | Bhanuka | — |
+| GC-01 Correct disposal recommendation | Full pipeline; deterministic gate PASS; interrupt to AWAITING_APPROVAL | Hasitha (gate/checkpoint) | Jayashan, Seneja, Nipuna Bhanuka Samarasinghe (each agent's leg) |
+| GC-02 Correct repair recommendation | Budget Agent ranking, `isHighImpact = false` | Nipuna Bhanuka Samarasinghe | — |
 | GC-03 Policy blocks disposal (PR-01) | Rule engine | Hasitha | — |
 | GC-04 Revision path (PR-03, missing valuation) | Rule engine returns NEEDS_REVISION; revision cap AI-20 | Hasitha | Seneja (re-entry to the Maintenance node) |
 | GC-05 Insufficient data | Maintenance Agent `dataQuality` | Seneja | — |
@@ -136,7 +136,7 @@ Section 13.4 fixes twelve golden cases but does not name an owner for each — i
 | GC-08 Schema violation | Deterministic gate stage 1 | Hasitha | — |
 | GC-09 Tool timeout | `get_maintenance_history` timeout/retry (AI-06) | Seneja | — |
 | GC-10 Approval authorisation | `workflow:approve` enforcement (AI-14) | Hasitha | — |
-| GC-11 Approval executes correctly | Checkpoint resume; disposal executed through the Component C business service (AI-17) | Hasitha | Bhanuka (P1–P6 re-checked at execution) |
+| GC-11 Approval executes correctly | Checkpoint resume; disposal executed through the Component C business service (AI-17) | Hasitha | Nipuna Bhanuka Samarasinghe (P1–P6 re-checked at execution) |
 | GC-12 Rejection changes nothing | Rejection path (FR-074) | Hasitha | — |
 
 ## 18.8 Shared Agent Contract Freeze

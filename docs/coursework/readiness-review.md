@@ -24,7 +24,7 @@ Internal checklist. **Do not include this file in the submitted PDF.**
 | B5 | ~~ADR-004 missing~~ **Fixed:** full Riverpod ADR added. ADR-011 stays platform-neutral; the Vercel/Render/Neon/GitHub Pages rationale is in group report §12.1. | | |
 | B6 | **Performance test not yet run.** Scripts now exist (`scripts/perf/`, `make perf`): seed, k6 50-VU load test, agent latency, slow queries; they produce the §11 table. | §12 | Get an Administrator token, run `make perf` against the deployed or local API, paste `results/<ts>/report.md` into group report §11 |
 | B7 | **No recorded end-to-end / golden-case run.** Agent evaluation report has no PASS evidence. | §9, §12 | Record the §7.7 flow (Flutter → API → agents → React approve → Flutter status) with DB rows; fill GC-01…GC-12 |
-| B8 | **Missing identity data:** group number, student IDs, names inconsistent (Seneja *Ramanayaka* vs *Thehansi*; *Nipuna Bhanuka* vs *Bhanuka Samarasinghe*). | §15 | Fix in all docs |
+| B8 | **Missing identity data:** group number, student IDs, names inconsistent (Seneja *Ramanayaka* vs *Thehansi*; resolved as *Nipuna Bhanuka Samarasinghe*). | §15 | Fix in all docs |
 | B9 | **Reflections not written.** They must be the students' own words. | §18.3 | Each member writes ~1 page |
 | B10 | **`main` is behind `development`** (5 commits on CoreGrid, 1 on mobile). CI is required on `main`. | §13 | Merge via PR; confirm green CI on `main`; save run links |
 | B11 | **Demo video, test accounts, private-browser link check.** | §15 | Record a 10-min video; create 4 role accounts |

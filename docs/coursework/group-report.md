@@ -16,7 +16,7 @@
 |---|---|---|---|---|---|
 | 1 | Jayashan Guruge | ⟦ID⟧ | `jguruge` | A — Asset Registry & QR Identification | Planner Agent |
 | 2 | Seneja ⟦Ramanayaka / Thehansi — use one name consistently⟧ | ⟦ID⟧ | `seneja` | B — Maintenance Management & Notifications | Maintenance Analysis Agent |
-| 3 | Nipuna Bhanuka | ⟦ID⟧ | `NipunaBhanuka18` | C — Transfer & Disposal | Budget Analysis Agent |
+| 3 | Nipuna Bhanuka Samarasinghe | IT24101261 | `NipunaBhanuka18` | C — Transfer & Disposal | Budget Analysis Agent |
 | 4 | Hasitha Erandika (Group Leader) | ⟦ID⟧ | `HasithaErandika` | D — Audit & Compliance, Org Configuration, User Administration | Policy Compliance Agent + human-approval checkpoint |
 
 ### Submission links
@@ -76,7 +76,7 @@ The full allocation and required evidence per member are in [`team/team-roster-a
 
 Each member owns one SRS component end to end (backend, database, React, Flutter, agent, tests, documentation), as required by SE3090 §3. The Group Leader additionally owns organisation configuration, user administration, the cross-cutting platform, CI and the consolidated submission (Team Roster §18.2, §18.6).
 
-| | **Jayashan Guruge** (Student 1) | **Seneja** (Student 2) | **Nipuna Bhanuka** (Student 3) | **Hasitha Erandika** (Student 4, Leader) |
+| | **Jayashan Guruge** (Student 1) | **Seneja** (Student 2) | **Nipuna Bhanuka Samarasinghe** (Student 3) | **Hasitha Erandika** (Student 4, Leader) |
 |---|---|---|---|---|
 | Component | A — Asset Registry & QR Identification | B — Maintenance Management | C — Transfer & Disposal | D — Audit & Compliance + Org Configuration + User Administration |
 | Requirements | FR-016–032 | FR-033–042, FR-077–080 | FR-043–055 | FR-001–015, FR-056–066, FR-081–086 |
@@ -360,7 +360,7 @@ flowchart LR
 |---|---|---|---|---|---|---|---|
 | 1 | Planner | Jayashan | Reject out-of-scope objectives; produce an ordered, typed execution plan | `EvaluationScope` (asset type, optional asset) + objective text | `ExecutionPlan { steps[], inScope, rejectionReason? }` | `get_asset_type_summary` | Gemini, then the optional Groq fallback; deterministic fallback plan if both fail (error, 429, timeout, invalid JSON) or no key is set |
 | 2 | Maintenance Analysis | Seneja | Quantify reliability per asset: repair count, MTBF, cost trend, 12-month projection; roll a fleet up into one figure | `EvaluationScope` | `FailureStatistics` per asset + aggregate (jsonb) | `get_maintenance_history`, `compute_failure_statistics` | None (deterministic) |
-| 3 | Budget Analysis | Nipuna | Triage each asset (projected 12-month repair cost against residual value and the policy threshold) and rank the lifecycle options | `EvaluationScope` + Node 2 per-asset statistics | `FinancialAssessmentResult { rankedOptions[], proposedRecommendation, assets[], source }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation`; reads the policy threshold through `get_organization_policies` | All figures are deterministic (`BudgetTriage`); Gemini, then the optional Groq fallback, only re-scores the options, and `BudgetAssessmentValidator` rejects an invalid reply; deterministic ranking if both fail or no key is set |
+| 3 | Budget Analysis | Nipuna Bhanuka Samarasinghe | Triage each asset (projected 12-month repair cost against residual value and the policy threshold) and rank the lifecycle options | `EvaluationScope` + Node 2 per-asset statistics | `FinancialAssessmentResult { rankedOptions[], proposedRecommendation, assets[], source }` | `get_asset_financials`, `get_department_budget_summary`, `compute_depreciation`; reads the policy threshold through `get_organization_policies` | All figures are deterministic (`BudgetTriage`); Gemini, then the optional Groq fallback, only re-scores the options, and `BudgetAssessmentValidator` rejects an invalid reply; deterministic ranking if both fail or no key is set |
 | 4 | Policy Compliance | Hasitha | For each asset, try candidate actions in order and keep the first one the rule engine passes; decide whether approval is required | `EvaluationScope` + Node 2/3 outputs | `PolicyValidation { verdict, ruleResults[], blockingReasons[], isHighImpact }` + per-asset fleet result | `get_asset_compliance_state`, `get_organization_policies` | None (deterministic rule engine, by design) |
 
 The code is in `backend/Features/Agents/Services/`, one folder per agent: `Planner/` (`IPlannerAgent`), `Maintenance/` (`MaintenanceAggregation` over `IMaintenanceTools`), `Budget/` (`IBudgetAgent`) and `Policy/` (`IPolicyComplianceEvaluator`, `PolicyRuleEngine`). `Orchestration/` holds `AgentWorkflowService` (the API-facing service), `WorkflowPipeline` (runs the nodes in plan order) and `WorkflowRouting` (the gate and the approval decisions). Every node writes its own `AgentExecutionStep` row. `run-maintenance-agent` and `run-budget-agent` re-run one analysis node; `run-policy-agent` resumes the remaining plan (Policy Compliance, then the gate).
@@ -701,5 +701,5 @@ We, the members of SE3090_G⟦NN⟧, declare that:
 |---|---|---|---|
 | Jayashan Guruge | ⟦⟧ | | |
 | Seneja ⟦⟧ | ⟦⟧ | | |
-| Nipuna Bhanuka | ⟦⟧ | | |
+| Nipuna Bhanuka Samarasinghe | IT24101261 | | 2026-10-05 |
 | Hasitha Erandika | ⟦⟧ | | |
