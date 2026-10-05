@@ -19,37 +19,7 @@ The subsystem is deliberately not a chatbot, not a question-answering interface 
 
 One workflow, the asset lifecycle evaluation, exercises every element of the subsystem: objective, plan, delegation, controlled tools, persisted state, deterministic validation, human approval, and an auditable result or safe failure. It is initiated from either client, executes through the four agents, validates deterministically, pauses for approval, and returns an updated status to the user who started it.
 
-```mermaid
-flowchart TD
-    ENTRY["ENTRY\nOfficer scans AST-00042 in Flutter, taps Evaluate\nPOST /api/agent-workflows {assetId, objective}\nAPI validates authorisation, asset state, no run in flight\npersists AgentWorkflow (status=PLANNING), returns id"]
-
-    N1["NODE 1 · PLANNER AGENT\nin: objective + asset summary → out: ordered plan, 4-6 typed steps\ntools: get_asset_type_summary (read-only)\npersists: plan[] to workflow state"]
-
-    N2["NODE 2 · MAINTENANCE ANALYSIS AGENT\nin: assetId + plan step → out: MaintenanceAnalysis (typed)\ntools: get_maintenance_history, compute_failure_statistics\nproduces: repair count, cumulative cost, MTBF, cost trend,\nprojected 12-month repair cost, confidence"]
-
-    N3["NODE 3 · BUDGET ANALYSIS AGENT\nin: MaintenanceAnalysis → out: FinancialAssessment (typed)\ntools: get_asset_financials, get_department_budget_summary,\ncompute_depreciation\nproduces: residual value, replacement estimate,\nrepair:replace ratio, budget headroom, ranked options"]
-
-    N4["NODE 4 · POLICY COMPLIANCE AGENT\nin: proposed recommendation → out: PolicyValidation (typed)\ntools: get_organization_policies, get_asset_compliance_state\nverdict is a DETERMINISTIC RULE ENGINE, not the model"]
-
-    GATE{{"DETERMINISTIC GATE\nschema + rules + auth"}}
-    SAFE["SAFE FAILURE\nno state change"]
-    IMPACT{"is action\nhigh-impact?"}
-    ADVISORY["COMPLETED_ADVISORY\nrecommendation stored, no state change"]
-    INTERRUPT["INTERRUPT — HITL PAUSE\nstatus AWAITING_APPROVAL, checkpoint persisted"]
-    REACT["Administrator reviews in REACT\nAPPROVE / REJECT / REVISE"]
-    APPROVED["APPROVED\nAPI resumes from checkpoint, executes the action through\nthe ordinary business service, writes audit entry, notifies,\nreturns updated status to FLUTTER — cross-platform loop closed"]
-    REJECTED["REJECTED\nterminal, reason recorded, no state change"]
-
-    ENTRY --> N1 --> N2 --> N3 --> N4 --> GATE
-    GATE -->|"FAIL (fatal)"| SAFE
-    GATE -->|"NEEDS_REVISION\n(max 2 revisions)"| N2
-    GATE -->|PASS| IMPACT
-    IMPACT -->|No| ADVISORY
-    IMPACT -->|Yes| INTERRUPT --> REACT
-    REACT -->|APPROVE| APPROVED
-    REACT -->|REJECT| REJECTED
-    REACT -->|"REVISE\n(max 2 revisions)"| N2
-```
+![CoreGrid asset lifecycle decision workflow](../diagrams/agent-workflow.png)
 
 Figure 8 — The assessed Asset Lifecycle Decision workflow, satisfying the minimum acceptance rule end to end.
 
@@ -57,44 +27,7 @@ Figure 8 — The assessed Asset Lifecycle Decision workflow, satisfying the mini
 
 **Target architecture, decided 2026-09-15, superseding ADR-005's original "Python LangGraph" scope (appendix D):** the entire agent subsystem — the Orchestrator and all four agent nodes — runs in-process inside the single ASP.NET Core API deployable. There is no separate agent runtime, container or network hop. This follows directly from CoreGrid's M0 deployment model (§4.1, §19.10): one deployment per customer, so the fewer independently-deployed services a customer has to install, patch and secure, the better — an enterprise buyer's security review has one process boundary to evaluate, not several, and AI-21's "private network path" requirement becomes structurally true rather than something to configure.
 
-```mermaid
-flowchart TD
-    subgraph API["ASP.NET Core API — the only deployable"]
-        ORCH["Agent Orchestrator\nAgentWorkflowService + WorkflowPipeline\ncontrol-plane only"]
-
-        subgraph TOOLS_O["Orchestrator tools (control-plane)"]
-            direction LR
-            T1[persist_workflow_state]
-            T2[checkpoint / resume]
-            T3[enforce_timeout]
-            T4[run_deterministic_gate]
-            T5[request_human_approval]
-        end
-
-        N1["Planner\nIPlannerAgent\nmodel call + fallback"]
-        N2["Maintenance Analysis\nIMaintenanceTools + MaintenanceAggregation\nno model call"]
-        N3["Budget Analysis\nIBudgetAgent\nmodel call + fallback"]
-        N4["Policy Compliance\nIPolicyComplianceEvaluator\nno model call"]
-
-        TOOL1["get_asset_type_summary\nget_asset_summary"]
-        TOOL2["get_maintenance_history\ncompute_failure_statistics"]
-        TOOL3["get_asset_financials\nget_department_budget_summary\ncompute_depreciation"]
-        TOOL4["get_organization_policies\nget_asset_compliance_state"]
-
-        IMC["LLM client\nLlmSettings + HttpClient \"Llm\""]
-
-        ORCH --- TOOLS_O
-        ORCH -->|sequences, typed handoff| N1 & N2 & N3 & N4
-        N1 --> TOOL1
-        N2 --> TOOL2
-        N3 --> TOOL3
-        N4 --> TOOL4
-        N1 --> IMC
-        N3 --> IMC
-    end
-
-    IMC -->|"outbound HTTPS,\nprovider chosen by config"| MODEL["OpenAI-compatible\nchat-completions endpoint\n(Gemini primary,\noptional Groq fallback)"]
-```
+![CoreGrid agent architecture](../diagrams/agent-architecture.png)
 
 Each agent's tool box is that agent's own allow-list (§7.4) — disjoint from every other agent's, and never touched by the Orchestrator directly.
 

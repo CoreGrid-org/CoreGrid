@@ -75,33 +75,7 @@ Component A owns the asset master record and the physical identification mechani
 
 ### Asset lifecycle state machine
 
-```
-                              ┌──────────────┐
-        register ────────────▶│    ACTIVE    │◀──────────┐
-                              └──┬───┬───┬───┘           │
-                                 │   │   │               │ complete
-            transfer requested   │   │   │ maintenance   │
-                    ┌────────────┘   │   └───────────┐   │
-                    ▼                │               ▼   │
-         ┌────────────────────┐      │      ┌──────────────────┐
-         │ TRANSFER_REQUESTED │      │      │ UNDER_MAINTENANCE│
-         └─────────┬──────────┘      │      └──────────────────┘
-            approve│  reject         │ condemn
-                   ▼                 ▼
-         ┌────────────────────┐   ┌──────────────┐
-         │  IN_TRANSIT        │   │  CONDEMNED   │
-         └─────────┬──────────┘   └──────┬───────┘
-           confirm │                     │ disposal requested
-            receipt│                     ▼
-                   │            ┌─────────────────────┐
-                   └───────────▶│ DISPOSAL_REQUESTED  │
-                     back to    └──────┬──────────┬───┘
-                      ACTIVE    approve│          │reject
-                                       ▼          └────▶ back to CONDEMNED
-                                ┌──────────────┐
-                                │   DISPOSED   │   terminal — no further
-                                └──────────────┘   transition permitted
-```
+![CoreGrid asset lifecycle state machine](../diagrams/asset-lifecycle.png)
 
 Figure 6 — Asset lifecycle states. Every transition is guarded in the application layer; an invalid transition returns 409 and is never silently ignored.
 

@@ -14,29 +14,7 @@ CoreGrid delegates authentication and user directory management to ThunderID and
 
 In M0, CoreGrid is deployed once per customer organisation (Section 2.4): each customer's ThunderID instance, PostgreSQL database and API instance are its own, self-hosted, and never shared with any other customer. A customer receives the code, deploys their own stack, and runs Setup themselves to create their own `Organizations` row and Administrator account. Within one deployment there is exactly one CoreGrid `Organizations` row — Setup creates it once and refuses to create a second (Section 4.7) — and one ThunderID organisation unit. Every user who ever signs into a given deployment belongs to that one customer, so there is nothing for either ThunderID or CoreGrid's database to isolate *between* — isolation between customers is a property of them never sharing a running system, not of a boundary enforced within one. Section 17 describes M1, where a single shared deployment serves many customer organisations instead.
 
-```
-   ONE DEPLOYMENT (M0) — self-hosted per customer organisation: its own
-   API, its own PostgreSQL, its own ThunderID instance, never shared
-   with another customer.
-
-   THUNDERID ORGANISATION UNIT  (single — this customer only)
-   │   application registrations · shared branding
-   │
-   └── Users:  a.silva · j.fernando · n.perera · …
-         Role assignments (Section 4.6): Administrator · InventoryOfficer · Auditor · Staff
-
-   COREGRID DATABASE
-   Organizations  (exactly one row — this customer)
-        │
-        ├──1:N── Departments ──1:N── Locations
-        └──1:N── Users   (Users.ExternalSubjectId = ThunderID "sub")
-                   │
-                   └── UserRoles (effective role snapshot, refreshed at sign-in)
-
-   A second customer organisation ("Acme Logistics Pte Ltd", "Northern
-   Fleet Services", …) is a second, independent deployment of this same
-   diagram — not a second Organizations row inside this one.
-```
+![CoreGrid organisation and user model](../diagrams/org-user-model.png)
 
 Figure 5 — One self-hosted deployment per customer organisation (M0); each has exactly one `Organizations` row and one ThunderID organisation unit. A second customer means a second deployment, not a second row.
 
