@@ -179,12 +179,16 @@ var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
-if (app.Environment.IsDevelopment())
+// OPS-02: /swagger is part of the deployment evidence (SRS §3.7), so it is
+// on in every environment unless Swagger:Enabled=false. It only describes
+// the API — every operation still requires a ThunderID bearer token.
+if (app.Configuration.GetValue("Swagger:Enabled", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-else
+
+if (!app.Environment.IsDevelopment())
 {
     // In dev the frontend talks to the plain-HTTP endpoint (VITE_API_URL,
     // Cors:AllowedOrigins are both http://localhost:5173/:5083). Redirecting
