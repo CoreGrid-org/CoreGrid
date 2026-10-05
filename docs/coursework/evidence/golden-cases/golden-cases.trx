@@ -1,0 +1,213 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="24a0bb9f-a91c-4124-9e96-a56657d90cce" name="@ASUS-Q533MJ 2026-10-05 15:03:28" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-05T15:03:28.8583053+05:30" queuing="2026-10-05T15:03:28.8583053+05:30" start="2026-10-05T15:03:28.1575048+05:30" finish="2026-10-05T15:03:29.9119172+05:30" />
+  <TestSettings name="default" id="c02b736e-e317-41e1-bd9f-6195b959c9a9">
+    <Deployment runDeploymentRoot="_ASUS-Q533MJ_2026-10-05_15_03_28" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="62b73d5b-8a0c-4637-8a53-ca9234da49d9" testId="b06ca9a8-bba7-0c79-41d3-d41d94ba6f6f" testName="backend.Tests.Features.Agents.AssetActionRecommendationEngineTests.DegradedButNotUnserviceable_ProposesRepair(condition: &quot;FAIR&quot;)" computerName="ASUS-Q533MJ" duration="00:00:00.0002125" startTime="2026-10-05T15:03:28.7608286+05:30" endTime="2026-10-05T15:03:28.7608735+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="62b73d5b-8a0c-4637-8a53-ca9234da49d9" />
+    <UnitTestResult executionId="d4ac4197-9a1f-4c28-aeea-96a68279cecb" testId="a058e737-fe8f-4c64-4f52-861b40728573" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: PLANNING)" computerName="ASUS-Q533MJ" duration="00:00:00.0007203" startTime="2026-10-05T15:03:29.5336611+05:30" endTime="2026-10-05T15:03:29.5340699+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d4ac4197-9a1f-4c28-aeea-96a68279cecb" />
+    <UnitTestResult executionId="010e1309-d139-4638-acc2-c31066519628" testId="37b6862d-dfbd-7750-0a18-a77410bfb15f" testName="backend.Tests.Features.Agents.BudgetAgentTests.RunAssessmentAsync_WhenHttpCallFails_ReturnsDeterministicFallback" computerName="ASUS-Q533MJ" duration="00:00:00.1545037" startTime="2026-10-05T15:03:28.7321650+05:30" endTime="2026-10-05T15:03:28.8908842+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="010e1309-d139-4638-acc2-c31066519628" />
+    <UnitTestResult executionId="5341f421-a3a6-4650-af79-90c1f2ea734e" testId="13023bd1-6779-ffeb-0263-8b7cc2919722" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: REJECTED)" computerName="ASUS-Q533MJ" duration="00:00:00.0003365" startTime="2026-10-05T15:03:29.5349764+05:30" endTime="2026-10-05T15:03:29.5352381+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5341f421-a3a6-4650-af79-90c1f2ea734e" />
+    <UnitTestResult executionId="92e39e4f-b878-4fc4-96af-b0bf8f9d4aa0" testId="1c149511-3ec5-0d35-1ea1-c329ebb7ed4c" testName="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Staff, expected: Forbidden)" computerName="ASUS-Q533MJ" duration="00:00:00.0047961" startTime="2026-10-05T15:03:29.7916410+05:30" endTime="2026-10-05T15:03:29.7981960+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="92e39e4f-b878-4fc4-96af-b0bf8f9d4aa0" />
+    <UnitTestResult executionId="756199bf-6d8d-441c-b51e-1c4d841dca7b" testId="684af7dd-81d8-7819-66b8-63e09f02cbec" testName="backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_WithGoodCondition_FailsPR01" computerName="ASUS-Q533MJ" duration="00:00:00.0006313" startTime="2026-10-05T15:03:28.7619019+05:30" endTime="2026-10-05T15:03:28.7624884+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="756199bf-6d8d-441c-b51e-1c4d841dca7b" />
+    <UnitTestResult executionId="2624130b-7544-422c-b5b6-c0928880bc15" testId="19792288-3275-1f42-dfe1-1c1dbf621e74" testName="backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_WithoutValuation_NeedsRevisionOnPR03" computerName="ASUS-Q533MJ" duration="00:00:00.0003190" startTime="2026-10-05T15:03:28.7868331+05:30" endTime="2026-10-05T15:03:28.7868796+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2624130b-7544-422c-b5b6-c0928880bc15" />
+    <UnitTestResult executionId="132a823a-ccc0-4bca-a206-948ba310887d" testId="212d4a8f-febb-d864-c31b-4ff977f2b6d2" testName="backend.Tests.Features.Agents.AgentWorkflowServiceTests.DecideAsync_Revise_RerunsAnalysisWithoutReproposingTheRejectedAction" computerName="ASUS-Q533MJ" duration="00:00:00.0664914" startTime="2026-10-05T15:03:29.7443029+05:30" endTime="2026-10-05T15:03:29.8103332+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="132a823a-ccc0-4bca-a206-948ba310887d" />
+    <UnitTestResult executionId="5b50ff48-146a-436d-a76a-6c29925e6c0c" testId="eab7091e-7a80-142a-5fd8-16d437402677" testName="backend.Tests.Features.Agents.BudgetAgentTests.RunAssessmentAsync_WhenModelPickIsNotTheTopScore_FallsBackToDeterministic" computerName="ASUS-Q533MJ" duration="00:00:00.0209741" startTime="2026-10-05T15:03:28.8911403+05:30" endTime="2026-10-05T15:03:28.9119271+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5b50ff48-146a-436d-a76a-6c29925e6c0c" />
+    <UnitTestResult executionId="1c15ac9e-2f53-4884-9976-e256cca4d9e9" testId="d40711c5-4d41-36ed-0717-57a0700d1e05" testName="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Administrator, expected: NotFound)" computerName="ASUS-Q533MJ" duration="00:00:00.0974463" startTime="2026-10-05T15:03:29.6916435+05:30" endTime="2026-10-05T15:03:29.7913917+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1c15ac9e-2f53-4884-9976-e256cca4d9e9" />
+    <UnitTestResult executionId="5a12bbee-d58d-455d-9af1-f386353bc819" testId="6e57ee99-8077-1da8-e012-fd65e9a3ea4a" testName="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Auditor, expected: Forbidden)" computerName="ASUS-Q533MJ" duration="00:00:00.3199239" startTime="2026-10-05T15:03:28.7333209+05:30" endTime="2026-10-05T15:03:29.6907319+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5a12bbee-d58d-455d-9af1-f386353bc819" />
+    <UnitTestResult executionId="a3b506d3-22ee-43fb-a21d-29642c3cab74" testId="6b073f3e-9003-fc4d-8234-c48ac8556d53" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenNoWorkflowExists_ReturnsPassed" computerName="ASUS-Q533MJ" duration="00:00:00.0008051" startTime="2026-10-05T15:03:29.5387969+05:30" endTime="2026-10-05T15:03:29.5388230+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a3b506d3-22ee-43fb-a21d-29642c3cab74" />
+    <UnitTestResult executionId="ed444cd5-6350-42a1-81c9-ca3ad7e7f199" testId="c8583999-5d95-0a2e-1060-fe258ce40d4b" testName="backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_PlannerRejectsObjective_FailsSafeWithoutRunningNodes" computerName="ASUS-Q533MJ" duration="00:00:00.0084509" startTime="2026-10-05T15:03:29.7355241+05:30" endTime="2026-10-05T15:03:29.7438494+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ed444cd5-6350-42a1-81c9-ca3ad7e7f199" />
+    <UnitTestResult executionId="b1631d8b-54f0-40cf-aa24-b02434e8552f" testId="bbcadcba-9dda-7caf-65d4-52fa7fd8bfb3" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowInAwaitingApproval_ReturnsPassed" computerName="ASUS-Q533MJ" duration="00:00:00.0009268" startTime="2026-10-05T15:03:29.5388837+05:30" endTime="2026-10-05T15:03:29.5389069+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b1631d8b-54f0-40cf-aa24-b02434e8552f" />
+    <UnitTestResult executionId="698e2434-ffb6-497f-9147-7310a8cc8fa6" testId="6cc6c87b-ff74-072a-79b4-f98c2c7463c4" testName="backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_AssetTypeFleet_EvaluatesEveryAssetAndPausesForHighImpact" computerName="ASUS-Q533MJ" duration="00:00:00.0302547" startTime="2026-10-05T15:03:29.8105794+05:30" endTime="2026-10-05T15:03:29.8407077+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="698e2434-ffb6-497f-9147-7310a8cc8fa6" />
+    <UnitTestResult executionId="c3b35744-7d79-4da4-876a-af051ba653b4" testId="18d17f55-6d42-09ac-c542-4f57c3af929c" testName="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: InventoryOfficer, expected: Forbidden)" computerName="ASUS-Q533MJ" duration="00:00:00.0016306" startTime="2026-10-05T15:03:29.7995257+05:30" endTime="2026-10-05T15:03:29.8011092+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c3b35744-7d79-4da4-876a-af051ba653b4" />
+    <UnitTestResult executionId="63f801a7-ba52-413a-806a-f5d7cdf60336" testId="d7eba297-af8d-9426-f0d6-d54721c4c939" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: REVISION_REQUESTED)" computerName="ASUS-Q533MJ" duration="00:00:00.0003309" startTime="2026-10-05T15:03:29.5346249+05:30" endTime="2026-10-05T15:03:29.5348662+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="63f801a7-ba52-413a-806a-f5d7cdf60336" />
+    <UnitTestResult executionId="0ddf8bdb-8c4e-45a1-8828-1db847852e76" testId="ab8ca830-03bc-ed7e-6959-d22792e32041" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: VALIDATING)" computerName="ASUS-Q533MJ" duration="00:00:00.0517517" startTime="2026-10-05T15:03:29.4818061+05:30" endTime="2026-10-05T15:03:29.5334121+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0ddf8bdb-8c4e-45a1-8828-1db847852e76" />
+    <UnitTestResult executionId="e9a6a44f-54b8-4e61-b27d-9a58b7e1832a" testId="cf0cce9d-cf91-c0b1-175d-03528fce35bc" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenWorkflowRecommendsOtherThanDispose_ReturnsPassed" computerName="ASUS-Q533MJ" duration="00:00:00.7407089" startTime="2026-10-05T15:03:28.7332823+05:30" endTime="2026-10-05T15:03:29.4815089+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e9a6a44f-54b8-4e61-b27d-9a58b7e1832a" />
+    <UnitTestResult executionId="820b73be-4593-4e3b-a334-0b1c12f8e9b3" testId="347a6b5d-1a1e-4a1e-5283-5ed75bdca8b0" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: ANALYZING)" computerName="ASUS-Q533MJ" duration="00:00:00.0004003" startTime="2026-10-05T15:03:29.5342334+05:30" endTime="2026-10-05T15:03:29.5345067+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="820b73be-4593-4e3b-a334-0b1c12f8e9b3" />
+    <UnitTestResult executionId="33a8b85b-94c6-4c3e-ba8f-61a3dbd6a71d" testId="3e0e4770-138f-48d0-363c-93ddd243a2f8" testName="backend.Tests.Features.Agents.AssetActionRecommendationEngineTests.DegradedButNotUnserviceable_ProposesRepair(condition: &quot;POOR&quot;)" computerName="ASUS-Q533MJ" duration="00:00:00.0080727" startTime="2026-10-05T15:03:28.7332968+05:30" endTime="2026-10-05T15:03:28.7524197+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="33a8b85b-94c6-4c3e-ba8f-61a3dbd6a71d" />
+    <UnitTestResult executionId="8676321b-20c6-4f18-a3cb-567a8fdb92b5" testId="3a533258-6659-4eb3-c938-b3257dd3cc3d" testName="backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_SingleHealthyAsset_RetainsAndCompletesAdvisory" computerName="ASUS-Q533MJ" duration="00:00:00.9988830" startTime="2026-10-05T15:03:28.7333093+05:30" endTime="2026-10-05T15:03:29.7353431+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8676321b-20c6-4f18-a3cb-567a8fdb92b5" />
+    <UnitTestResult executionId="fce4e57e-d476-445c-b6df-60949cf8ca45" testId="28c9b259-70b7-150e-58cc-12e9e9053dbf" testName="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: FAILED_SAFE)" computerName="ASUS-Q533MJ" duration="00:00:00.0003490" startTime="2026-10-05T15:03:29.5386478+05:30" endTime="2026-10-05T15:03:29.5386912+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fce4e57e-d476-445c-b6df-60949cf8ca45" />
+    <UnitTestResult executionId="abf3acfe-fc25-429b-8ff1-d3bce132a73b" testId="aed4f547-ba2a-508c-4d09-9b16cb37302f" testName="backend.Tests.Features.Agents.PolicyRuleEngineTests.Repair_WithCostWithinBudget_PassesPR05" computerName="ASUS-Q533MJ" duration="00:00:00.0135685" startTime="2026-10-05T15:03:28.7332540+05:30" endTime="2026-10-05T15:03:28.7617955+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="abf3acfe-fc25-429b-8ff1-d3bce132a73b" />
+    <UnitTestResult executionId="aedd59c0-0a06-4bbc-8b14-155d855b8f91" testId="86d84af7-20a3-9a8a-faff-f3266c7e7648" testName="backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_AlwaysSetsHighImpact" computerName="ASUS-Q533MJ" duration="00:00:00.0011766" startTime="2026-10-05T15:03:28.7625804+05:30" endTime="2026-10-05T15:03:28.7631041+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="aedd59c0-0a06-4bbc-8b14-155d855b8f91" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="backend.Tests.Features.Agents.BudgetAgentTests.RunAssessmentAsync_WhenModelPickIsNotTheTopScore_FallsBackToDeterministic" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="eab7091e-7a80-142a-5fd8-16d437402677">
+      <Execution id="5b50ff48-146a-436d-a76a-6c29925e6c0c" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.BudgetAgentTests" name="RunAssessmentAsync_WhenModelPickIsNotTheTopScore_FallsBackToDeterministic" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_AssetTypeFleet_EvaluatesEveryAssetAndPausesForHighImpact" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="6cc6c87b-ff74-072a-79b4-f98c2c7463c4">
+      <Execution id="698e2434-ffb6-497f-9147-7310a8cc8fa6" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.AgentWorkflowServiceTests" name="CreateWorkflowAsync_AssetTypeFleet_EvaluatesEveryAssetAndPausesForHighImpact" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_WithoutValuation_NeedsRevisionOnPR03" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="19792288-3275-1f42-dfe1-1c1dbf621e74">
+      <Execution id="2624130b-7544-422c-b5b6-c0928880bc15" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.PolicyRuleEngineTests" name="Dispose_WithoutValuation_NeedsRevisionOnPR03" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_AlwaysSetsHighImpact" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="86d84af7-20a3-9a8a-faff-f3266c7e7648">
+      <Execution id="aedd59c0-0a06-4bbc-8b14-155d855b8f91" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.PolicyRuleEngineTests" name="Dispose_AlwaysSetsHighImpact" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_SingleHealthyAsset_RetainsAndCompletesAdvisory" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="3a533258-6659-4eb3-c938-b3257dd3cc3d">
+      <Execution id="8676321b-20c6-4f18-a3cb-567a8fdb92b5" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.AgentWorkflowServiceTests" name="CreateWorkflowAsync_SingleHealthyAsset_RetainsAndCompletesAdvisory" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: FAILED_SAFE)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="28c9b259-70b7-150e-58cc-12e9e9053dbf">
+      <Execution id="fce4e57e-d476-445c-b6df-60949cf8ca45" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Administrator, expected: NotFound)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="d40711c5-4d41-36ed-0717-57a0700d1e05">
+      <Execution id="1c15ac9e-2f53-4884-9976-e256cca4d9e9" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Authorization.AuthorizationMatrixTests" name="DecideAgentWorkflow_EnforcesAI14_AdministratorOnly" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: ANALYZING)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="347a6b5d-1a1e-4a1e-5283-5ed75bdca8b0">
+      <Execution id="820b73be-4593-4e3b-a334-0b1c12f8e9b3" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.AssetActionRecommendationEngineTests.DegradedButNotUnserviceable_ProposesRepair(condition: &quot;FAIR&quot;)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="b06ca9a8-bba7-0c79-41d3-d41d94ba6f6f">
+      <Execution id="62b73d5b-8a0c-4637-8a53-ca9234da49d9" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.AssetActionRecommendationEngineTests" name="DegradedButNotUnserviceable_ProposesRepair" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.AgentWorkflowServiceTests.DecideAsync_Revise_RerunsAnalysisWithoutReproposingTheRejectedAction" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="212d4a8f-febb-d864-c31b-4ff977f2b6d2">
+      <Execution id="132a823a-ccc0-4bca-a206-948ba310887d" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.AgentWorkflowServiceTests" name="DecideAsync_Revise_RerunsAnalysisWithoutReproposingTheRejectedAction" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.AssetActionRecommendationEngineTests.DegradedButNotUnserviceable_ProposesRepair(condition: &quot;POOR&quot;)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="3e0e4770-138f-48d0-363c-93ddd243a2f8">
+      <Execution id="33a8b85b-94c6-4c3e-ba8f-61a3dbd6a71d" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.AssetActionRecommendationEngineTests" name="DegradedButNotUnserviceable_ProposesRepair" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Auditor, expected: Forbidden)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="6e57ee99-8077-1da8-e012-fd65e9a3ea4a">
+      <Execution id="5a12bbee-d58d-455d-9af1-f386353bc819" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Authorization.AuthorizationMatrixTests" name="DecideAgentWorkflow_EnforcesAI14_AdministratorOnly" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_WithGoodCondition_FailsPR01" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="684af7dd-81d8-7819-66b8-63e09f02cbec">
+      <Execution id="756199bf-6d8d-441c-b51e-1c4d841dca7b" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.PolicyRuleEngineTests" name="Dispose_WithGoodCondition_FailsPR01" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowInAwaitingApproval_ReturnsPassed" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="bbcadcba-9dda-7caf-65d4-52fa7fd8bfb3">
+      <Execution id="b1631d8b-54f0-40cf-aa24-b02434e8552f" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenDisposeWorkflowInAwaitingApproval_ReturnsPassed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenWorkflowRecommendsOtherThanDispose_ReturnsPassed" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="cf0cce9d-cf91-c0b1-175d-03528fce35bc">
+      <Execution id="e9a6a44f-54b8-4e61-b27d-9a58b7e1832a" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenWorkflowRecommendsOtherThanDispose_ReturnsPassed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: PLANNING)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="a058e737-fe8f-4c64-4f52-861b40728573">
+      <Execution id="d4ac4197-9a1f-4c28-aeea-96a68279cecb" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_PlannerRejectsObjective_FailsSafeWithoutRunningNodes" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="c8583999-5d95-0a2e-1060-fe258ce40d4b">
+      <Execution id="ed444cd5-6350-42a1-81c9-ca3ad7e7f199" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.AgentWorkflowServiceTests" name="CreateWorkflowAsync_PlannerRejectsObjective_FailsSafeWithoutRunningNodes" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.BudgetAgentTests.RunAssessmentAsync_WhenHttpCallFails_ReturnsDeterministicFallback" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="37b6862d-dfbd-7750-0a18-a77410bfb15f">
+      <Execution id="010e1309-d139-4638-acc2-c31066519628" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.BudgetAgentTests" name="RunAssessmentAsync_WhenHttpCallFails_ReturnsDeterministicFallback" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Staff, expected: Forbidden)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="1c149511-3ec5-0d35-1ea1-c329ebb7ed4c">
+      <Execution id="92e39e4f-b878-4fc4-96af-b0bf8f9d4aa0" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Authorization.AuthorizationMatrixTests" name="DecideAgentWorkflow_EnforcesAI14_AdministratorOnly" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: REJECTED)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="13023bd1-6779-ffeb-0263-8b7cc2919722">
+      <Execution id="5341f421-a3a6-4650-af79-90c1f2ea734e" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: VALIDATING)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="ab8ca830-03bc-ed7e-6959-d22792e32041">
+      <Execution id="0ddf8bdb-8c4e-45a1-8828-1db847852e76" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: InventoryOfficer, expected: Forbidden)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="18d17f55-6d42-09ac-c542-4f57c3af929c">
+      <Execution id="c3b35744-7d79-4da4-876a-af051ba653b4" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Authorization.AuthorizationMatrixTests" name="DecideAgentWorkflow_EnforcesAI14_AdministratorOnly" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: REVISION_REQUESTED)" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="d7eba297-af8d-9426-f0d6-d54721c4c939">
+      <Execution id="63f801a7-ba52-413a-806a-f5d7cdf60336" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Agents.PolicyRuleEngineTests.Repair_WithCostWithinBudget_PassesPR05" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="aed4f547-ba2a-508c-4d09-9b16cb37302f">
+      <Execution id="abf3acfe-fc25-429b-8ff1-d3bce132a73b" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Agents.PolicyRuleEngineTests" name="Repair_WithCostWithinBudget_PassesPR05" />
+    </UnitTest>
+    <UnitTest name="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenNoWorkflowExists_ReturnsPassed" storage="/home/hasitha-erandika/documents/projects/coregrid/backend.tests/bin/debug/net10.0/backend.tests.dll" id="6b073f3e-9003-fc4d-8234-c48ac8556d53">
+      <Execution id="a3b506d3-22ee-43fb-a21d-29642c3cab74" />
+      <TestMethod codeBase="/home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="backend.Tests.Features.Disposals.DisposalPreconditionServiceTests" name="CheckP6_WhenNoWorkflowExists_ReturnsPassed" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="b06ca9a8-bba7-0c79-41d3-d41d94ba6f6f" executionId="62b73d5b-8a0c-4637-8a53-ca9234da49d9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a058e737-fe8f-4c64-4f52-861b40728573" executionId="d4ac4197-9a1f-4c28-aeea-96a68279cecb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="37b6862d-dfbd-7750-0a18-a77410bfb15f" executionId="010e1309-d139-4638-acc2-c31066519628" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="13023bd1-6779-ffeb-0263-8b7cc2919722" executionId="5341f421-a3a6-4650-af79-90c1f2ea734e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1c149511-3ec5-0d35-1ea1-c329ebb7ed4c" executionId="92e39e4f-b878-4fc4-96af-b0bf8f9d4aa0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="684af7dd-81d8-7819-66b8-63e09f02cbec" executionId="756199bf-6d8d-441c-b51e-1c4d841dca7b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="19792288-3275-1f42-dfe1-1c1dbf621e74" executionId="2624130b-7544-422c-b5b6-c0928880bc15" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="212d4a8f-febb-d864-c31b-4ff977f2b6d2" executionId="132a823a-ccc0-4bca-a206-948ba310887d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="eab7091e-7a80-142a-5fd8-16d437402677" executionId="5b50ff48-146a-436d-a76a-6c29925e6c0c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d40711c5-4d41-36ed-0717-57a0700d1e05" executionId="1c15ac9e-2f53-4884-9976-e256cca4d9e9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e57ee99-8077-1da8-e012-fd65e9a3ea4a" executionId="5a12bbee-d58d-455d-9af1-f386353bc819" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6b073f3e-9003-fc4d-8234-c48ac8556d53" executionId="a3b506d3-22ee-43fb-a21d-29642c3cab74" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c8583999-5d95-0a2e-1060-fe258ce40d4b" executionId="ed444cd5-6350-42a1-81c9-ca3ad7e7f199" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bbcadcba-9dda-7caf-65d4-52fa7fd8bfb3" executionId="b1631d8b-54f0-40cf-aa24-b02434e8552f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6cc6c87b-ff74-072a-79b4-f98c2c7463c4" executionId="698e2434-ffb6-497f-9147-7310a8cc8fa6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="18d17f55-6d42-09ac-c542-4f57c3af929c" executionId="c3b35744-7d79-4da4-876a-af051ba653b4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d7eba297-af8d-9426-f0d6-d54721c4c939" executionId="63f801a7-ba52-413a-806a-f5d7cdf60336" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ab8ca830-03bc-ed7e-6959-d22792e32041" executionId="0ddf8bdb-8c4e-45a1-8828-1db847852e76" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cf0cce9d-cf91-c0b1-175d-03528fce35bc" executionId="e9a6a44f-54b8-4e61-b27d-9a58b7e1832a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="347a6b5d-1a1e-4a1e-5283-5ed75bdca8b0" executionId="820b73be-4593-4e3b-a334-0b1c12f8e9b3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3e0e4770-138f-48d0-363c-93ddd243a2f8" executionId="33a8b85b-94c6-4c3e-ba8f-61a3dbd6a71d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3a533258-6659-4eb3-c938-b3257dd3cc3d" executionId="8676321b-20c6-4f18-a3cb-567a8fdb92b5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="28c9b259-70b7-150e-58cc-12e9e9053dbf" executionId="fce4e57e-d476-445c-b6df-60949cf8ca45" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="aed4f547-ba2a-508c-4d09-9b16cb37302f" executionId="abf3acfe-fc25-429b-8ff1-d3bce132a73b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="86d84af7-20a3-9a8a-faff-f3266c7e7648" executionId="aedd59c0-0a06-4bbc-8b14-155d855b8f91" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="25" executed="25" passed="25" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.12)
+[xUnit.net 00:00:00.08]   Discovering: backend.Tests
+[xUnit.net 00:00:00.20]   Discovered:  backend.Tests
+[xUnit.net 00:00:00.23]   Starting:    backend.Tests
+info: CoreGrid.Api.Features.Maintenance.Services.PreventiveMaintenanceBackgroundService[0]
+      Preventive Maintenance Background Service is starting.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /home/hasitha-erandika/Documents/Projects/CoreGrid/backend
+info: backend.Tests.Features.Authorization.TestAuthHandler[13]
+      AuthenticationScheme: Test was forbidden.
+warn: CoreGrid.Api.Features.Shared.Auth.AuthorizationOutcomeLoggingMiddleware[0]
+      Authorization outcome 403 for authz-test-Auditor-543fc7352a384b629afac576ee9a5d68 (org 6d9cda53-c4f4-4dae-acf6-f3cff1ddda92) on PATCH /api/agent-workflows/018be1a8-d597-4128-92e2-fddde1b85d80/decide at 2026-10-05T09:33:29.6745692+00:00
+warn: CoreGrid.Api.Features.Shared.Api.ApiExceptionFilter[0]
+      NotFoundException mapped to 404. CorrelationId=ce146783-786c-4d85-a72d-4c81f76ee935
+      CoreGrid.Api.Features.Shared.Exceptions.NotFoundException: AgentWorkflow '7666135f-c9a5-4e74-a5fc-fcd793b3fa0a' was not found.
+         at CoreGrid.Api.Features.Agents.Controllers.AgentWorkflowsController.ForWorkflowAsync[T](Guid id, Func`3 action, CancellationToken cancellationToken) in /home/hasitha-erandika/Documents/Projects/CoreGrid/backend/Features/Agents/Controllers/AgentWorkflowsController.cs:line 98
+         at lambda_method1457(Closure, Object)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.&lt;InvokeActionMethodAsync&gt;g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.&lt;InvokeNextActionFilterAsync&gt;g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State&amp; next, Scope&amp; scope, Object&amp; state, Boolean&amp; isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+      --- End of stack trace from previous location ---
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.&lt;InvokeNextExceptionFilterAsync&gt;g__Awaited|26_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+info: backend.Tests.Features.Authorization.TestAuthHandler[13]
+      AuthenticationScheme: Test was forbidden.
+warn: CoreGrid.Api.Features.Shared.Auth.AuthorizationOutcomeLoggingMiddleware[0]
+      Authorization outcome 403 for authz-test-Staff-f97a31bc459f4a2fa0511e2617c2b03c (org 3b117828-18e8-4d0d-976d-e4484ec80659) on PATCH /api/agent-workflows/b0bb4f28-113b-4acb-95fe-398f8bef2a60/decide at 2026-10-05T09:33:29.7962681+00:00
+info: backend.Tests.Features.Authorization.TestAuthHandler[13]
+      AuthenticationScheme: Test was forbidden.
+warn: CoreGrid.Api.Features.Shared.Auth.AuthorizationOutcomeLoggingMiddleware[0]
+      Authorization outcome 403 for authz-test-InventoryOfficer-c62e099013aa4ce28a0ed2d82acf9533 (org 3b891c63-1f80-4631-93d7-8440b771abc0) on PATCH /api/agent-workflows/75f41026-dd5e-4de2-9110-a6a5e38a6838/decide at 2026-10-05T09:33:29.7998971+00:00
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+[xUnit.net 00:00:01.36]   Finished:    backend.Tests
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

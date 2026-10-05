@@ -184,6 +184,8 @@ What is deliberately not configurable is as important as what is. An administrat
 
 Figure 4 — Deployment topology. Only the static host and the API are publicly addressable (solid internet-facing edges above); everything inside the private/internal boundary is reached only from the API. The API is the only backend deployable: it hosts the Agent Orchestrator and all four agent nodes in-process, and makes outbound HTTPS calls to the configured model provider only from the Planner and Budget Analysis nodes, each with a deterministic fallback (§7.2.1) — there is no separate agent container to secure, patch or take an ingress rule for.
 
+The public demo deployment is this same topology on free tiers (Vercel, Render and Neon); its diagram is Figure 11 in [§14.3](14-deployment-and-operations.md#143-reference-demo-deployment).
+
 | Deployment requirement | Evidence to be produced |
 |---|---|
 | API deployed to a cloud platform with HTTPS. | Live base URL, `/health` returning 200 with dependency status, and `/swagger` rendering the full operation set. |

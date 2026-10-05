@@ -39,6 +39,10 @@
 
 The public demo runs entirely on free tiers: the React build on Vercel (https://demo-coregrid.vercel.app); the API and ThunderID as two Render web services; and two separate Neon PostgreSQL databases, one for CoreGrid and one for ThunderID. ThunderID runs statelessly, with its data in PostgreSQL and its keys supplied as secret files. The full configuration and its known limits are in [`docs/setup/deployment.md`](../setup/deployment.md).
 
+![CoreGrid live demo deployment topology](../diagrams/deployment%20topology.png)
+
+Figure 11 — Live demo deployment topology. It is the platform-neutral topology of [§3.7](03-system-architecture.md#37-deployment-view) (Figure 4) mapped onto free tiers: Vercel for the React build, two Render web services for the API and ThunderID, a separate Neon PostgreSQL database for each, Cloudflare R2 for photo evidence, and GitHub Pages for the public site. Clients reach only the API and ThunderID; the databases, storage and model credentials are reached only from the services.
+
 ## 14.4 Operational Requirements
 
 | ID | Requirement |

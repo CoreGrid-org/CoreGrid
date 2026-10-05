@@ -1,0 +1,82 @@
+$ dotnet test backend.Tests --filter <golden-case tests> --logger "console;verbosity=normal"
+# run 2026-10-05 15:03:26 +0530 on ASUS-Q533MJ, commit 6c3adb4
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  CoreGrid.Api -> /home/hasitha-erandika/Documents/Projects/CoreGrid/backend/bin/Debug/net10.0/CoreGrid.Api.dll
+  backend.Tests -> /home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll
+Test run for /home/hasitha-erandika/Documents/Projects/CoreGrid/backend.Tests/bin/Debug/net10.0/backend.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.2 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.12)
+[xUnit.net 00:00:00.08]   Discovering: backend.Tests
+[xUnit.net 00:00:00.20]   Discovered:  backend.Tests
+[xUnit.net 00:00:00.23]   Starting:    backend.Tests
+  Passed backend.Tests.Features.Agents.AssetActionRecommendationEngineTests.DegradedButNotUnserviceable_ProposesRepair(condition: "POOR") [8 ms]
+  Passed backend.Tests.Features.Agents.AssetActionRecommendationEngineTests.DegradedButNotUnserviceable_ProposesRepair(condition: "FAIR") [< 1 ms]
+  Passed backend.Tests.Features.Agents.PolicyRuleEngineTests.Repair_WithCostWithinBudget_PassesPR05 [13 ms]
+  Passed backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_WithGoodCondition_FailsPR01 [< 1 ms]
+  Passed backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_AlwaysSetsHighImpact [1 ms]
+  Passed backend.Tests.Features.Agents.PolicyRuleEngineTests.Dispose_WithoutValuation_NeedsRevisionOnPR03 [< 1 ms]
+  Passed backend.Tests.Features.Agents.BudgetAgentTests.RunAssessmentAsync_WhenHttpCallFails_ReturnsDeterministicFallback [154 ms]
+  Passed backend.Tests.Features.Agents.BudgetAgentTests.RunAssessmentAsync_WhenModelPickIsNotTheTopScore_FallsBackToDeterministic [20 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenWorkflowRecommendsOtherThanDispose_ReturnsPassed [740 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: VALIDATING) [51 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: PLANNING) [< 1 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: ANALYZING) [< 1 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: REVISION_REQUESTED) [< 1 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: REJECTED) [< 1 ms]
+info: CoreGrid.Api.Features.Maintenance.Services.PreventiveMaintenanceBackgroundService[0]
+      Preventive Maintenance Background Service is starting.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /home/hasitha-erandika/Documents/Projects/CoreGrid/backend
+info: backend.Tests.Features.Authorization.TestAuthHandler[13]
+      AuthenticationScheme: Test was forbidden.
+warn: CoreGrid.Api.Features.Shared.Auth.AuthorizationOutcomeLoggingMiddleware[0]
+      Authorization outcome 403 for authz-test-Auditor-543fc7352a384b629afac576ee9a5d68 (org 6d9cda53-c4f4-4dae-acf6-f3cff1ddda92) on PATCH /api/agent-workflows/018be1a8-d597-4128-92e2-fddde1b85d80/decide at 2026-10-05T09:33:29.6745692+00:00
+warn: CoreGrid.Api.Features.Shared.Api.ApiExceptionFilter[0]
+      NotFoundException mapped to 404. CorrelationId=ce146783-786c-4d85-a72d-4c81f76ee935
+      CoreGrid.Api.Features.Shared.Exceptions.NotFoundException: AgentWorkflow '7666135f-c9a5-4e74-a5fc-fcd793b3fa0a' was not found.
+         at CoreGrid.Api.Features.Agents.Controllers.AgentWorkflowsController.ForWorkflowAsync[T](Guid id, Func`3 action, CancellationToken cancellationToken) in /home/hasitha-erandika/Documents/Projects/CoreGrid/backend/Features/Agents/Controllers/AgentWorkflowsController.cs:line 98
+         at lambda_method1457(Closure, Object)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+      --- End of stack trace from previous location ---
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextExceptionFilterAsync>g__Awaited|26_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+info: backend.Tests.Features.Authorization.TestAuthHandler[13]
+      AuthenticationScheme: Test was forbidden.
+warn: CoreGrid.Api.Features.Shared.Auth.AuthorizationOutcomeLoggingMiddleware[0]
+      Authorization outcome 403 for authz-test-Staff-f97a31bc459f4a2fa0511e2617c2b03c (org 3b117828-18e8-4d0d-976d-e4484ec80659) on PATCH /api/agent-workflows/b0bb4f28-113b-4acb-95fe-398f8bef2a60/decide at 2026-10-05T09:33:29.7962681+00:00
+info: backend.Tests.Features.Authorization.TestAuthHandler[13]
+      AuthenticationScheme: Test was forbidden.
+warn: CoreGrid.Api.Features.Shared.Auth.AuthorizationOutcomeLoggingMiddleware[0]
+      Authorization outcome 403 for authz-test-InventoryOfficer-c62e099013aa4ce28a0ed2d82acf9533 (org 3b891c63-1f80-4631-93d7-8440b771abc0) on PATCH /api/agent-workflows/75f41026-dd5e-4de2-9110-a6a5e38a6838/decide at 2026-10-05T09:33:29.7998971+00:00
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowNotInAwaitingApproval_ReturnsFailed(status: FAILED_SAFE) [< 1 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenNoWorkflowExists_ReturnsPassed [< 1 ms]
+  Passed backend.Tests.Features.Disposals.DisposalPreconditionServiceTests.CheckP6_WhenDisposeWorkflowInAwaitingApproval_ReturnsPassed [< 1 ms]
+  Passed backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Auditor, expected: Forbidden) [319 ms]
+  Passed backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_SingleHealthyAsset_RetainsAndCompletesAdvisory [998 ms]
+  Passed backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_PlannerRejectsObjective_FailsSafeWithoutRunningNodes [8 ms]
+  Passed backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Administrator, expected: NotFound) [97 ms]
+  Passed backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: Staff, expected: Forbidden) [4 ms]
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+[xUnit.net 00:00:01.36]   Finished:    backend.Tests
+  Passed backend.Tests.Features.Authorization.AuthorizationMatrixTests.DecideAgentWorkflow_EnforcesAI14_AdministratorOnly(role: InventoryOfficer, expected: Forbidden) [1 ms]
+  Passed backend.Tests.Features.Agents.AgentWorkflowServiceTests.DecideAsync_Revise_RerunsAnalysisWithoutReproposingTheRejectedAction [66 ms]
+  Passed backend.Tests.Features.Agents.AgentWorkflowServiceTests.CreateWorkflowAsync_AssetTypeFleet_EvaluatesEveryAssetAndPausesForHighImpact [30 ms]
+
+Test Run Successful.
+Total tests: 25
+     Passed: 25
+ Total time: 1.7417 Seconds
+Results File: /tmp/claude-1000/-home-hasitha-erandika-Documents-Projects-CoreGrid/5b218060-ae13-40e9-b3ec-9aa09b390fb4/scratchpad/golden-cases.trx
