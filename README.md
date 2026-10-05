@@ -10,6 +10,19 @@
 
 CoreGrid helps an organisation register, track, maintain, transfer, verify and dispose of its physical assets. AI agents suggest what to do with an asset, and a person approves anything important. Each organisation runs its own copy.
 
+## Live demo
+
+Try it at **https://demo-coregrid.vercel.app**. The API reference is live at https://coregrid-v7jn.onrender.com/swagger. The password for every account is `Login@123456`.
+
+| Account | Role |
+|---|---|
+| `admin@coregrid.test` | Administrator |
+| `officer@coregrid.test` | Inventory Officer (web and mobile) |
+| `auditor@coregrid.test` | Auditor |
+| `staff@coregrid.test` | Department Staff (mobile app only) |
+
+The demo runs on free hosting that sleeps when idle, so the first sign-in can take about a minute. See [Deployment](docs/setup/deployment.md) for how it is hosted.
+
 ## Quick start
 
 You need: .NET 10 SDK, Node 20+, Docker, `make`, `curl` and `jq`.
@@ -39,7 +52,7 @@ Next time, just run `make infra-up && make dev`.
 | [Backend settings](backend/.env.example) | Every backend setting, with examples |
 | [Web app](frontend/README.md) | Web app settings and commands |
 | [Scripts](scripts/README.md) | Helper scripts and performance tests |
-| [Deployment](docs/srs/14-deployment-and-operations.md) | Running CoreGrid on a server |
+| [Deployment](docs/setup/deployment.md) | The live demo on Vercel, Render and Neon, and how to reproduce it |
 
 ## Architecture
 

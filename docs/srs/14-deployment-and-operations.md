@@ -35,7 +35,11 @@
     CloudflareR2__SecretAccessKey     CloudflareR2__BucketName
 ```
 
-## 14.3 Operational Requirements
+## 14.3 Reference Demo Deployment
+
+The public demo runs entirely on free tiers: the React build on Vercel (https://demo-coregrid.vercel.app); the API and ThunderID as two Render web services; and two separate Neon PostgreSQL databases, one for CoreGrid and one for ThunderID. ThunderID runs statelessly, with its data in PostgreSQL and its keys supplied as secret files. The full configuration and its known limits are in [`docs/setup/deployment.md`](../setup/deployment.md).
+
+## 14.4 Operational Requirements
 
 | ID | Requirement |
 |---|---|
@@ -43,6 +47,6 @@
 | OPS-02 | The API shall expose `/swagger` with the complete operation set, request and response schemas, and security definitions. |
 | OPS-03 | Structured logs shall be emitted with correlation identifiers, and shall never contain tokens, credentials or personal data beyond a subject identifier. |
 | OPS-04 | Migrations shall be applied automatically on start-up in staging environments, and the seeder shall be idempotent so that a restart does not duplicate data. |
-| OPS-05 | Staging shall provide a documented test account for each of the four roles; credentials are distributed out of band and never stored in the repository. |
+| OPS-05 | Staging shall provide a documented test account for each of the four roles. The public demo's shared accounts are listed in the README; a real customer deployment distributes credentials out of band and never stores them in the repository. |
 | OPS-06 | Every public URL of a release (web application, API health and Swagger) shall be verified in a private browsing session before the release is announced. |
 | OPS-07 | A rollback path shall exist: the previous container image and the corresponding migration state shall be identified in the deployment report. |

@@ -14,6 +14,7 @@ Use it to check a console setup field by field, or to see the exact IDs and toke
 | File | Purpose |
 |---|---|
 | `coregrid.yaml` | ThunderID declarative-resource export. Personal user accounts were removed before committing; only ThunderID's default `admin@example.com` console user remains |
+| `render/` | Image and start script for running ThunderID as a Render web service (PostgreSQL storage, keys from Secret Files) — see [`docs/setup/deployment.md`](../../docs/setup/deployment.md) |
 | `environment.env.example` | Values for the `{{.CONSOLE_*}}` and `{{.CORE_GRID_*}}` placeholders (client IDs, redirect URIs). The backend client secret is left blank |
 
 ## Not loaded automatically

@@ -26,14 +26,15 @@
 | GitHub — API, database, React | GitHub | ⟦https://github.com/CoreGrid-org/CoreGrid⟧ |
 | GitHub — Flutter | GitHub | ⟦https://github.com/CoreGrid-org/coregrid-mobile⟧ |
 | Public static site (features, user manual, changelog) | GitHub Pages | ⟦https://coregrid-org.github.io/…⟧ |
-| React management application | Vercel | ⟦https://….vercel.app⟧ |
-| ASP.NET Core API — health | Microsoft Azure | ⟦https://….azurewebsites.net/health⟧ |
-| ASP.NET Core API — Swagger | Microsoft Azure | ⟦https://….azurewebsites.net/swagger⟧ |
-| PostgreSQL | Microsoft Azure | ⟦server name + screenshot reference (Appendix)⟧ |
+| React management application | Vercel | https://demo-coregrid.vercel.app |
+| ASP.NET Core API — health | Render | https://coregrid-v7jn.onrender.com/health |
+| ASP.NET Core API — Swagger | Render | https://coregrid-v7jn.onrender.com/swagger |
+| ThunderID (identity provider) | Render | https://coregrid-1.onrender.com |
+| PostgreSQL | Neon | Two databases: `coregrid-backend` (API) and a separate ThunderID database ⟦screenshot reference (Appendix)⟧ |
 | Flutter APK | ⟦Drive / GitHub Release⟧ | ⟦link⟧ (`SE3090_G⟦NN⟧.apk`) |
 | Demonstration video (10 min) | ⟦⟧ | ⟦link — "anyone with the link can view"⟧ |
 | CI runs | GitHub Actions | ⟦main repo run⟧ · ⟦mobile repo run⟧ |
-| Test accounts | — | §12.5 (credentials in this PDF only, never in a repository) |
+| Test accounts | — | §12.5 (shared demo accounts, also listed in the README) |
 
 ---
 
@@ -136,7 +137,7 @@ The SRS (`docs/srs/`) defines 86 functional requirements.
 | ≥ 4 business components | Components A–D, one per student |
 | CRUD + status workflows + search/filter/sort/pagination + reporting | All list endpoints are server-side paged/sorted/filtered (`PagedResult`), five status machines (§2.3), Reports page with Inventory / Maintenance / Disposal / Audit tabs and PDF/CSV export |
 | Distinct React vs Flutter purpose | §1.4 |
-| ≥ 1 third-party integration | ThunderID, Cloudflare R2, Google Gemini with an optional Groq fallback (§8); hosting on Azure, Vercel, GitHub Pages (§12) |
+| ≥ 1 third-party integration | ThunderID, Cloudflare R2, Google Gemini with an optional Groq fallback (§8); hosting on Vercel, Render, Neon and GitHub Pages (§12) |
 | Cross-platform workflow | Flutter initiates evaluation → API + PostgreSQL + agents → React Administrator approves → Flutter shows final status (§7.7) |
 
 ---
@@ -410,7 +411,7 @@ High-impact recommendations — DISPOSE always, or any action whose model confid
 |---|---|---|
 | **ThunderID** (OIDC/OAuth 2.0, SCIM) | Single sign-on for web and mobile; admin-driven user provisioning and password reset | PKCE public clients; API validates issuer, audience, lifetime and RS256 signature via JWKS; SCIM client secret server-side only; health check probes issuer reachability |
 | **Cloudflare R2** (S3 API) | Store fault and verification photo evidence outside the database | Backend-only access via `IFileStorageService`; MIME/size checks; private objects; fresh short-lived signed URL minted only on an authorised read; rate-limited upload |
-| **Google Gemini** (OpenAI-compatible chat completions) | Planner plan generation, Budget option reasoning | Server-side key; only asset facts, no personal data; 60 s timeout per call. On 4xx/5xx/429, timeout or invalid JSON the agent moves to the fallback provider |
+| **Google Gemini** (OpenAI-compatible chat completions) | Planner plan generation, Budget option reasoning | Server-side key; only asset facts, no personal data; 30 s timeout per call. On 4xx/5xx/429, timeout or invalid JSON the agent moves to the fallback provider |
 | **Groq** (optional fallback, `openai/gpt-oss-120b`) | Keeps model-backed planning available when Gemini is rate-limited or unavailable | Same OpenAI-compatible call and safeguards; enabled only when `LlmFallback__ApiKey` is set. If it also fails, the deterministic fallback is used, so a provider outage degrades rather than breaks the workflow |
 
 ---
@@ -510,8 +511,8 @@ k6 thresholds encode the targets, so a missed target fails the run.
 
 | Item | Value |
 |---|---|
-| API under test | ⟦Azure API URL or local⟧ |
-| Database | ⟦Azure Database for PostgreSQL tier / local Docker⟧ |
+| API under test | ⟦https://coregrid-v7jn.onrender.com (Render free tier) or local⟧ |
+| Database | ⟦Neon free tier / local Docker⟧ |
 | Load generator | ⟦machine, region⟧ |
 | Command | `API_URL=… PG_URL=… CG_TOKEN=… make perf` |
 
@@ -545,27 +546,29 @@ CoreGrid is open-source and self-hostable on any container host. For this assign
 flowchart LR
   U[Users] --> GP[GitHub Pages<br/>coregrid-web: features, manual, changelog]
   U --> V[Vercel<br/>React management app]
-  M[Android APK<br/>Flutter] -- HTTPS + JWT --> AZ
-  V -- HTTPS + JWT --> AZ[Microsoft Azure<br/>ASP.NET Core API container]
-  AZ --> PG[(Azure Database for<br/>PostgreSQL)]
-  AZ --> IDP[ThunderID]
-  AZ --> R2[Cloudflare R2]
-  AZ --> LLM[Gemini API<br/>Groq fallback]
+  M[Android APK<br/>Flutter] -- HTTPS + JWT --> API
+  V -- HTTPS + JWT --> API[Render<br/>ASP.NET Core API container]
+  API --> PG[(Neon PostgreSQL<br/>coregrid-backend)]
+  API --> IDP[Render<br/>ThunderID container]
+  IDP --> TPG[(Neon PostgreSQL<br/>ThunderID database)]
+  API --> R2[Cloudflare R2]
+  API --> LLM[Gemini API<br/>Groq fallback]
   V -. OIDC PKCE .-> IDP
   M -. OIDC PKCE .-> IDP
 ```
 
 | Component | Platform | Configuration |
 |---|---|---|
-| ASP.NET Core API | **Microsoft Azure** ⟦App Service for Containers / Container Apps — confirm⟧ | Image built from `backend/Dockerfile` (port 8080); all secrets in Azure application settings; `/health` used as the health probe |
-| PostgreSQL | **Microsoft Azure** ⟦Azure Database for PostgreSQL — Flexible Server — confirm⟧ | TLS required; firewall restricted to the API; migrations applied with `dotnet ef database update --connection …` |
+| ASP.NET Core API | **Render** web service (Docker, free tier) | Image built from `backend/Dockerfile` (port 8080); all secrets in Render environment variables; `/health` reports PostgreSQL, ThunderID and R2 |
+| PostgreSQL | **Neon** (free tier), two databases | `coregrid-backend` for the API; a separate database for ThunderID. TLS required; the schema is applied from `dotnet ef migrations script --idempotent` |
 | React | **Vercel** | Vite static build from `frontend/`; `VITE_API_URL` and `VITE_THUNDERID_*` set as Vercel environment variables; SPA rewrite to `index.html` |
 | Public static site | **GitHub Pages** | Docusaurus build of `coregrid-web` (features, user manual, changelog) |
-| ThunderID | ⟦host⟧ | Vercel origin and the mobile custom-scheme redirect registered; Azure API origin in CORS |
-| Flutter | Release APK | `flutter build apk --release --dart-define=API_BASE_URL=<Azure API>/api --dart-define=THUNDERID_CLIENT_ID=…` |
+| ThunderID | **Render** web service (Docker, free tier) | `infra/thunderid/render/`: data in Neon PostgreSQL, `http_only` behind Render's TLS, signing keys and config as Render Secret Files; CoreGrid configuration imported from `infra/thunderid/coregrid.yaml`; Vercel origin in CORS, mobile custom-scheme redirect registered |
+| Flutter | Release APK | `flutter build apk --release --dart-define-from-file=<env>.json` with `API_BASE_URL=https://coregrid-v7jn.onrender.com` and the ThunderID issuer and client id |
 
 **Platform rationale (coursework addendum to ADR-011).** The product ADR keeps CoreGrid platform-neutral, because customers self-host it. For the evaluation deployment the group chose:
-- **Azure** for the API and database: the API ships as a container, Azure Database for PostgreSQL is a managed PostgreSQL with automated backups, and both are covered by Azure for Students credit at no cost.
+- **Render** for the API and ThunderID: both ship as containers, and Render builds them from the repository with HTTPS included on the free tier. The free tier has no persistent disk, so ThunderID stores its data in PostgreSQL rather than its default SQLite files.
+- **Neon** for PostgreSQL: managed, free, TLS-only PostgreSQL. CoreGrid and ThunderID each get their own database, as in a self-hosted install.
 - **Vercel** for the React build: free static hosting with HTTPS, preview deployments per pull request, and simple environment-variable injection at build time.
 - **GitHub Pages** for the public static site (features, user manual, changelog): free and versioned with its repository.
 
@@ -573,10 +576,10 @@ None of these choices required code changes, which confirms ADR-011's portabilit
 
 ### 12.2 Startup order
 
-1. Azure PostgreSQL
-2. `dotnet ef database update`
-3. ThunderID (with `scripts/thunderid/*` configuration)
-4. Azure API, then check `/health`
+1. Neon PostgreSQL (both databases)
+2. CoreGrid schema from `dotnet ef migrations script --idempotent`; ThunderID schema from its `dbscripts`
+3. ThunderID on Render (one-time `setup.sh`, then the `coregrid.yaml` import)
+4. API on Render, then check `/health`
 5. `POST /api/setup/complete`: first organisation and Administrator
 6. Vercel React build
 7. Install the APK
@@ -585,13 +588,14 @@ Local alternative: `./setup.sh` (dependencies, `.env` files, Docker, migrations,
 
 ### 12.3 Environment variables (names only)
 
-- **API (Azure application settings):**
+- **API (Render environment variables):**
   - `ConnectionStrings__CoreGrid`, `Cors__AllowedOrigins__0` (the Vercel URL)
   - `ThunderID__Issuer`, `ThunderID__Resource`, `ThunderID__OuId`, `ThunderID__ScimClientId`, `ThunderID__ScimClientSecret`, `ThunderID__RoleIds__<Role>`
   - `Llm__ApiKey`, optional `LlmFallback__ApiKey` (Groq)
   - `CloudflareR2__AccountId`, `CloudflareR2__AccessKeyId`, `CloudflareR2__SecretAccessKey`, `CloudflareR2__BucketName`
 - **React (Vercel):** `VITE_API_URL`, `VITE_THUNDERID_BASE_URL`, `VITE_THUNDERID_CLIENT_ID`, `VITE_THUNDERID_APPLICATION_ID`, `VITE_THUNDERID_AFTER_SIGN_IN_URL`, `VITE_THUNDERID_AFTER_SIGN_OUT_URL`
-- **Mobile (build-time):** `API_BASE_URL`, `THUNDERID_CLIENT_ID`
+- **ThunderID (Render Secret Files):** `deployment.yaml` plus its signing, TLS and encryption keys (`docs/setup/deployment.md`)
+- **Mobile (build-time):** `API_BASE_URL`, `THUNDERID_ISSUER`, `THUNDERID_CLIENT_ID`, `THUNDERID_APPLICATION_ID`
 
 ### 12.4 CI/CD
 
@@ -605,14 +609,14 @@ Local alternative: `./setup.sh` (dependencies, `.env` files, Docker, migrations,
 
 | Role | Username | Password |
 |---|---|---|
-| Administrator | ⟦⟧ | ⟦⟧ |
-| Auditor | ⟦⟧ | ⟦⟧ |
-| Inventory Officer | ⟦⟧ | ⟦⟧ |
-| Department Staff (mobile) | ⟦⟧ | ⟦⟧ |
+| Administrator | `admin@coregrid.test` | `Login@123456` |
+| Auditor | `auditor@coregrid.test` | `Login@123456` |
+| Inventory Officer | `officer@coregrid.test` | `Login@123456` |
+| Department Staff (mobile) | `staff@coregrid.test` | `Login@123456` |
 
 ### 12.6 Rollback
 
-The API is redeployed from the previous container image tag. Migrations are additive, so the previous image runs against the current schema. Vercel keeps every previous deployment and can promote any of them instantly.
+Render keeps previous deploys, and the API can be rolled back to any of them from its dashboard. Migrations are additive, so the previous image runs against the current schema. Vercel keeps every previous deployment and can promote any of them instantly.
 
 ---
 
@@ -632,7 +636,7 @@ Full records: [`docs/architecture/decision-records.md`](../architecture/decision
 | ADR-008 | IBM Carbon Design System for the React client | Hasitha |
 | ADR-009 | S3-compatible object storage (Cloudflare R2 by default) behind `IFileStorageService` for photo evidence | Seneja |
 | ADR-010 | **Agentic framework:** in-process .NET orchestrator with four agent services; model access through `LlmSettings` to any OpenAI-compatible endpoint (supersedes ADR-005) | Hasitha |
-| ADR-011 | **Deployment:** container-friendly, platform-neutral product; evaluation deployment on Azure + Vercel + GitHub Pages (§12.1) | Hasitha |
+| ADR-011 | **Deployment:** container-friendly, platform-neutral product; evaluation deployment on Vercel + Render + Neon + GitHub Pages (§12.1) | Hasitha |
 
 This covers all four decisions the specification requires (§14.2): React and Flutter state management, the agentic framework, the agent-state schema, and the deployment platform.
 

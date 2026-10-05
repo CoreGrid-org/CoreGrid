@@ -17,11 +17,11 @@ Internal checklist. **Do not include this file in the submitted PDF.**
 
 | # | Gap | Spec ref | Fix |
 |---|---|---|---|
-| B1 | **Deployment not live yet.** Platforms are chosen (API + PostgreSQL on Azure, React on Vercel, `coregrid-web` on GitHub Pages); links still need to be added. | §14, §15 | Deploy; paste URLs into group report "Submission links" and §12 |
-| B2 | **Swagger is only mapped in Development** (`Program.cs:177`). The Azure API will have no `/swagger`. | §5, §14 | Map Swagger outside Development too (code change; not done) |
-| B3 | **No current release APK.** `app-release.apk` is from 2026-08-18. | §14, §15 | `flutter build apk --release --dart-define=API_BASE_URL=<Azure>/api --dart-define=THUNDERID_CLIENT_ID=…` |
+| B1 | ~~Deployment not live~~ **Fixed:** live on Vercel (React), Render (API, ThunderID) and Neon (two PostgreSQL databases); URLs and demo accounts are in group report "Submission links" and §12. | | |
+| B2 | ~~Swagger only mapped in Development~~ **Fixed:** `/swagger` is on in every environment (`Swagger:Enabled`, default true) and live at https://coregrid-v7jn.onrender.com/swagger. | | |
+| B3 | **No current release APK.** `app-release.apk` is from 2026-08-18. | §14, §15 | `flutter build apk --release --dart-define-from-file=<env>.json` against the Render API (`docs/setup/deployment.md`) |
 | B4 | ~~ADR-003 wrong~~ **Fixed:** rewritten to match the code (custom hooks + ThunderID context); SRS §3 and Appendix D updated. | | |
-| B5 | ~~ADR-004 missing~~ **Fixed:** full Riverpod ADR added. ADR-011 stays platform-neutral; the Azure/Vercel/GitHub Pages rationale is in group report §12.1. | | |
+| B5 | ~~ADR-004 missing~~ **Fixed:** full Riverpod ADR added. ADR-011 stays platform-neutral; the Vercel/Render/Neon/GitHub Pages rationale is in group report §12.1. | | |
 | B6 | **Performance test not yet run.** Scripts now exist (`scripts/perf/`, `make perf`): seed, k6 50-VU load test, agent latency, slow queries; they produce the §11 table. | §12 | Get an Administrator token, run `make perf` against the deployed or local API, paste `results/<ts>/report.md` into group report §11 |
 | B7 | **No recorded end-to-end / golden-case run.** Agent evaluation report has no PASS evidence. | §9, §12 | Record the §7.7 flow (Flutter → API → agents → React approve → Flutter status) with DB rows; fill GC-01…GC-12 |
 | B8 | **Missing identity data:** group number, student IDs, names inconsistent (Seneja *Ramanayaka* vs *Thehansi*; *Nipuna Bhanuka* vs *Bhanuka Samarasinghe*). | §15 | Fix in all docs |
@@ -52,7 +52,7 @@ Internal checklist. **Do not include this file in the submitted PDF.**
 - ~~Test counts in `docs/coursework/progress.md` / `docs/mobile/progress.md`~~ updated to 115 / 69.
 - `diagrams/relational-schema.png`: the `VerificationCampaigns` header is garbled ("VerificaanceRecoigns"), and `AgentWorkflows.BudgetAnalysis` is missing. Regenerate before the PDF.
 - `diagrams/er-diagram.html` loads an icon font from a CDN; export it to PNG for the PDF.
-- ~~README minimal~~ rewritten (open-source, single-tenant, setup, configuration, components A–D). Live URLs and test accounts stay out of the repository; they go in the PDF.
+- ~~README minimal~~ rewritten (open-source, single-tenant, setup, configuration, components A–D). The live demo URL and its shared demo accounts are in the README and `docs/setup/deployment.md`.
 
 ## Individual-mark risks (Git evidence)
 

@@ -28,7 +28,7 @@ As Group Leader I set up the CoreGrid repositories and engineering foundations o
    - Repository structure, CI for both repositories, and Docker images.
    - Integration merges of teammates' branches, and the backend modularisation refactor.
    - The SRS, ADR set, setup guides and mobile documentation, and the consolidated report.
-   - Evaluation deployment on Azure, Vercel and GitHub Pages.
+   - Evaluation deployment on Vercel, Render, Neon and GitHub Pages.
 
 ## 2. Owned Work (Team Roster §18.6)
 
@@ -165,7 +165,7 @@ Run of 2026-10-04: backend **452/452**, React **115/115**, Flutter **69/69**, `f
 
 ### 2.9 Deployment (coursework)
 
-API container on Microsoft Azure; PostgreSQL on Azure; React on Vercel; `coregrid-web` (features, user manual, changelog) on GitHub Pages; release APK. ⟦Add URLs and screenshots⟧.
+React on Vercel (https://demo-coregrid.vercel.app); the API (https://coregrid-v7jn.onrender.com) and ThunderID (https://coregrid-1.onrender.com) as Render web services; two Neon PostgreSQL databases, one for CoreGrid and one for ThunderID; `coregrid-web` (features, user manual, changelog, live-demo page) on GitHub Pages; release APK. ThunderID runs statelessly on Render's free tier: its data is in PostgreSQL, it uses `http_only` behind Render's TLS, and its keys are Render Secret Files (`infra/thunderid/render/`, `docs/setup/deployment.md`). ⟦Add screenshots⟧.
 
 ### 2.10 Developer tooling, configuration and resilience
 
