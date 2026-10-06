@@ -40,7 +40,7 @@ export default function AdminDashboard() {
 
   const statTiles = summary.data
     ? [
-        { label: "Total assets", value: summary.data.total_assets },
+        { label: "Total assetss", value: summary.data.total_assets },
         { label: "Active assets", value: summary.data.active_assets },
         { label: "Under maintenance", value: summary.data.assets_under_maintenance },
         { label: "Pending transfers", value: summary.data.pending_transfers },
