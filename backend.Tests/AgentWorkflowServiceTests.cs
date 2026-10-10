@@ -18,6 +18,7 @@ namespace backend.Tests.Features.Agents;
 // the human decision. Policy Compliance runs for real (rule engine and
 // recommendation engine included); only the tool reads and model-backed
 // nodes are mocked.
+[Trait("Component", "D")]
 public class AgentWorkflowServiceTests
 {
     private readonly Guid _orgId = Guid.NewGuid();

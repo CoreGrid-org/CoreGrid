@@ -70,18 +70,20 @@ public class DisposalPreconditionService : IDisposalPreconditionService
     }
 
     /// <summary>
-    /// P1 — Asset status is CONDEMNED.
+    /// P1 — Asset has been condemned. Submitting the request itself moves the
+    /// asset from CONDEMNED to DISPOSAL_REQUESTED (FR-050), so a pending
+    /// request's asset is in that hold state when the approver evaluates it.
     /// </summary>
     public PreconditionCheck CheckP1AssetCondemned(Asset asset)
     {
-        bool passed = asset.Status == AssetStatuses.Condemned;
+        bool passed = asset.Status is AssetStatuses.Condemned or AssetStatuses.DisposalRequested;
 
         return new PreconditionCheck
         {
             Code = "P1",
-            Description = "Asset status must be CONDEMNED",
+            Description = "Asset must be condemned",
             Passed = passed,
-            FailureReason = passed ? null : $"Asset status is '{asset.Status}', but must be '{AssetStatuses.Condemned}'."
+            FailureReason = passed ? null : $"Asset status is '{asset.Status}', but must be '{AssetStatuses.Condemned}' (or '{AssetStatuses.DisposalRequested}' while held for this request)."
         };
     }
 

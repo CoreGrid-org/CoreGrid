@@ -9,6 +9,7 @@ namespace backend.Tests.Features.Shared;
 // (NFR-07, §4.3) — the one implementation every list endpoint's paging
 // now goes through — rather than trusting each controller's own query
 // parameters to already be well-formed.
+[Trait("Component", "Platform")]
 public class PagingTests
 {
     private static async Task<CoreGridDbContext> SeedAsync(int rowCount)

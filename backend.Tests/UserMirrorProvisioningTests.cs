@@ -10,6 +10,7 @@ namespace backend.Tests.Features.Authorization;
 // (real RoleEnrichmentMiddleware) via GET /api/me, which is [Authorize]-only
 // (no role requirement) and returns exactly the mirrored fields this exists
 // to keep in sync.
+[Trait("Component", "D")]
 public class UserMirrorProvisioningTests : IClassFixture<CoreGridWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CoreGridWebApplicationFactory _factory;

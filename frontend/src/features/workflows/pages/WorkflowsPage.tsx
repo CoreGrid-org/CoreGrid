@@ -12,7 +12,8 @@ import EvaluatePolicyModal from "../components/EvaluatePolicyModal";
 import DecideWorkflowModal from "../components/DecideWorkflowModal";
 import AgentsOverview from "../components/AgentsOverview";
 import WorkflowCard, { KeyFact } from "../components/WorkflowCard";
-import { ActionMix, ActionTag, FleetTable, formatLkr, PolicyRules } from "../components/AgentOutputs";
+import { ActionMix, ActionTag, FleetTable, PolicyRules } from "../components/AgentOutputs";
+import { formatLkr } from "../lib/format";
 import { workflowTitle } from "../api/workflows";
 import type { AgentWorkflow, WorkflowStatus } from "../api/workflows";
 

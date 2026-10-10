@@ -25,6 +25,7 @@ export function useDisposalsList(params?: DisposalQueryParameters) {
   const [error, setError] = useState<unknown>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
+  const { status, method, page, pageSize } = params ?? {};
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +33,7 @@ export function useDisposalsList(params?: DisposalQueryParameters) {
     setError(undefined);
 
     getAccessToken()
-      .then((token) => listDisposals(params, token))
+      .then((token) => listDisposals({ status, method, page, pageSize }, token))
       .then((result) => {
         if (!cancelled) {
           setData(result);
@@ -49,7 +50,7 @@ export function useDisposalsList(params?: DisposalQueryParameters) {
     return () => {
       cancelled = true;
     };
-  }, [attempt, getAccessToken, params?.status, params?.method, params?.page, params?.pageSize]);
+  }, [attempt, getAccessToken, status, method, page, pageSize]);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 

@@ -94,7 +94,7 @@ I confirm that AI-assisted development was disclosed, suggestions were reviewed 
 **Module:** SE3090
 **Assigned Areas:** Maintenance Management and Maintenance Analysis Agent
 
-## Individual AI Usage Record — Nipuna Bhanuka (Bhanuka)
+## Individual AI Usage Record — Nipuna Bhanuka Samarasinghe
 
 **Assigned Areas:**
 Component C — Transfer & Disposal and Budget Analysis Agent.
@@ -120,7 +120,7 @@ AI assistance supported my work on transfer and disposal state machines, busines
 
 I confirm that AI-assisted development was disclosed, suggestions were reviewed before implementation, relevant changes were tested, and I understand and remain responsible for the work submitted under my name. No external AI assistant was used during the demonstration or viva.
 
-**Student:** Nipuna Bhanuka (Bhanuka)
+**Student:** Nipuna Bhanuka Samarasinghe
 **Project:** CoreGrid
 **Module:** SE3090
 **Assigned Areas:** Transfer & Disposal and Budget Analysis Agent

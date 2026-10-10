@@ -10,6 +10,7 @@ using CoreGrid.Api.Features.AgentTools.Services;
 
 namespace backend.Tests.Features.AgentTools;
 
+[Trait("Component", "C")]
 public class BudgetToolsTests
 {
     private CoreGridDbContext CreateInMemoryDbContext()

@@ -5,7 +5,7 @@ CoreGrid is split into four business components plus a shared platform. Each com
 | | Component A | Component B | Component C | Component D |
 |---|---|---|---|---|
 | Name | Asset Registry & QR Identification | Maintenance Management | Transfer & Disposal | Audit & Compliance, Organisation Configuration, User Administration |
-| Maintainer | Jayashan Guruge (`jguruge`) | Seneja (`seneja`) | Nipuna Bhanuka (`NipunaBhanuka18`) | Hasitha Erandika (`HasithaErandika`), project lead |
+| Maintainer | Jayashan Guruge (`jguruge`) | Seneja (`seneja`) | Nipuna Bhanuka Samarasinghe (`NipunaBhanuka18`) | Hasitha Erandika (`HasithaErandika`), project lead |
 | Requirements | FR-016 – FR-032 | FR-033 – FR-042, FR-077 – FR-080 | FR-043 – FR-055 | FR-010 – FR-015, FR-056 – FR-066, FR-081 – FR-086 |
 | API | Asset categories, asset types and attribute definitions, assets, QR lookup, history, condition, verification | Maintenance lifecycle, fault reports, photos, preventive scheduling, notifications | Transfers, condemnation, disposal requests, precondition engine | Setup, users (SCIM), departments, locations, policies, verification campaigns and tasks, discrepancies, audit log, dashboards, reports |
 | Entities (§8.2) | `AssetCategories`, `AssetTypes`, `AssetAttributeDefinitions`, `AssetAttributeValues`, `Assets`, `AssetHistory` | `MaintenanceRecords`, `Notifications` | `AssetTransfers`, `DisposalRequests` | `Organizations`, `Users`, `Departments`, `Locations`, `OrganizationPolicies`, `VerificationCampaigns`, `VerificationTasks`, `Discrepancies`, `AuditLogEntries`, `AgentWorkflows`, `AgentExecutionSteps`, `AgentApprovals` |

@@ -15,7 +15,7 @@ the group can ratify or reassign it rather than mistake it for something already
 |---|---|---|---|---|
 | Student 1 — **Jayashan Guruge** | A — Asset Registry & QR Identification | `features/scan/`, `features/assets/` | `feature/asset-*` | FR-016–FR-032 |
 | Student 2 — **Seneja Ramanayaka** | B — Maintenance Management | `features/maintenance/`, `features/notifications/` | `feature/maintenance-*` | FR-033–FR-042, FR-077–FR-080 |
-| Student 3 — **Bhanuka Samarasinghe** | C — Transfer & Disposal | `features/transfers/` | `feature/transfer-*` | FR-043–FR-055 |
+| Student 3 — **Nipuna Bhanuka Samarasinghe** | C — Transfer & Disposal | `features/transfers/` | `feature/transfer-*` | FR-043–FR-055 |
 | Student 4 — **Hasitha Erandika** (Group Leader) | D — Audit & Compliance, org config, user admin | `features/verification/`, `features/workflows/`, plus the app shell (below) | `feature/audit-*` | FR-056–FR-066, FR-067–FR-069/FR-076 |
 
 Branch prefixes reuse the exact ones already assigned in the main repo (§18.2) — same owner, same naming,
@@ -53,7 +53,7 @@ this same owner already does in the main repo). Photo upload depends on the obje
 the main SRS §11.3 (`IBlobStorageService`, Cloudflare R2 / any S3-compatible endpoint) — check that's wired
 up backend-side before building the upload UI, not after.
 
-### Student 3 — Bhanuka Samarasinghe — `features/transfers/`
+### Student 3 — Nipuna Bhanuka Samarasinghe — `features/transfers/`
 
 Transfer request creation (FR-043) and scan-based receipt confirmation (FR-046, reusing
 `features/scan/`). Disposal has no Flutter surface — it's React/Administrator-only per the responsibility
@@ -97,7 +97,7 @@ outstanding piece, not its status):
   role-gate gap on the "Update Condition" button (currently shown to Staff, who'll get a 403).
 - **Student 2 (Seneja)** — `features/maintenance/` and `features/notifications/` are both still to build;
   the dashboard's "Maintenance Assigned to Me" section stays mock until the former exists to back it.
-- **Student 3 (Bhanuka)** — `features/transfers/` is still to build; the dashboard's "Transfers Awaiting My
+- **Student 3 (Nipuna Bhanuka Samarasinghe)** — `features/transfers/` is still to build; the dashboard's "Transfers Awaiting My
   Confirmation" section stays mock until it exists.
 - **Student 4 (Hasitha, Group Leader)** — Flutter scope (auth, dashboard, verification, workflows) is
   feature-complete against the real backend. The dev ThunderID mobile-client registration

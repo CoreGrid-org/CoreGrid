@@ -7,6 +7,7 @@ namespace backend.Tests.Features.Agents;
 // Deterministic recommendation heuristic feeding the Policy Compliance
 // Agent (SRS §7.3, node 4) — no LLM, no database. Same-inputs-same-output
 // unit tests, same convention as PolicyRuleEngineTests.
+[Trait("Component", "D")]
 public class AssetActionRecommendationEngineTests
 {
     private readonly AssetActionRecommendationEngine _engine = new();

@@ -108,7 +108,7 @@ Tracks what's actually built against the requirements in the [SRS](../srs/00-fro
 | FR-077–079: Email/SMS delivery | Deliberately out of scope for this phase — no email code exists |
 | AC4: Notification failure isolation | Blocked on FR-077–079 |
 
-## Component C — Transfer & Disposal (Nipuna Bhanuka / Bhanuka)
+## Component C — Transfer & Disposal (Nipuna Bhanuka Samarasinghe)
 
 **✅ Completed**
 

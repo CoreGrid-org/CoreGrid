@@ -44,7 +44,7 @@ Prepared in accordance with IEEE 830 / ISO-IEC-IEEE 29148 requirements-specifica
 | Project lead | Hasitha Erandika | Baseline control, shared platform, release management. | |
 | Component A maintainer | Jayashan Guruge | Asset Registry & QR Identification; Planner Agent. | |
 | Component B maintainer | Seneja | Maintenance Management; Maintenance Analysis Agent. | |
-| Component C maintainer | Nipuna Bhanuka | Transfer & Disposal; Budget Analysis Agent. | |
+| Component C maintainer | Nipuna Bhanuka Samarasinghe | Transfer & Disposal; Budget Analysis Agent. | |
 | Component D maintainer | Hasitha Erandika | Audit & Compliance, organisation configuration, user administration; Policy Compliance Agent and human-approval checkpoint. | |
 
 ### Purpose of Baselining

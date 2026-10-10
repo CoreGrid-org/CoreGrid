@@ -12,9 +12,12 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 async function handle<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) {
-    let detail = "";
+    // Read the body once: after a failed response.json() the stream is
+    // spent, so a later response.text() could never recover a plain-text error.
+    const body = await response.text().catch(() => "");
+    let detail = body;
     try {
-      const errJson = await response.json();
+      const errJson = JSON.parse(body);
       if (errJson.preconditions?.checks) {
         const failedChecks = errJson.preconditions.checks
           .filter((c: { passed: boolean }) => !c.passed)
@@ -27,7 +30,7 @@ async function handle<T>(response: Response, fallback: string): Promise<T> {
         detail = errJson.message || errJson.title || JSON.stringify(errJson);
       }
     } catch {
-      detail = await response.text().catch(() => "");
+      // Not JSON: keep the plain-text body as the message.
     }
     throw new Error(detail || fallback);
   }

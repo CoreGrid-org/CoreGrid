@@ -18,6 +18,7 @@ namespace backend.Tests.Features.Shared;
 // 400 with a field-level error, not a silent default) and NFR-14/§5.4
 // (every 4xx/5xx shares one error envelope, and a 500 never leaks the
 // underlying exception's own message to the client).
+[Trait("Component", "Platform")]
 public class ValidationAndErrorEnvelopeTests : IClassFixture<CoreGridWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CoreGridWebApplicationFactory _factory;

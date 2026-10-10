@@ -11,6 +11,7 @@ namespace backend.Tests.Features.Shared;
 // organization's rows. Each test here seeds two organizations, opens a
 // DbContext scoped to one of them, and proves a query starting directly
 // from the child DbSet still excludes the other organization's rows.
+[Trait("Component", "Platform")]
 public class QueryFilterTests
 {
     private static CoreGridDbContext CreateDbContext(string databaseName, Guid organizationId)

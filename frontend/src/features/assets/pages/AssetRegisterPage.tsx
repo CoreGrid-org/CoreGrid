@@ -129,7 +129,7 @@ export default function AssetRegisterPage() {
       return;
     }
     setLocationId("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only department changes should trigger this reset
+    // Only department changes should trigger this reset.
   }, [departmentId]);
 
   // Asset type changed: previous attribute values belonged to a different type's fields.
@@ -140,7 +140,7 @@ export default function AssetRegisterPage() {
       return;
     }
     setAttributeValues({});
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only asset type changes should trigger this reset
+    // Only asset type changes should trigger this reset.
   }, [assetTypeId]);
 
   const requiredAttributesFilled = visibleAttributeDefs.every((def) => {

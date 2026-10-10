@@ -23,5 +23,5 @@ The assignment requires that each student take primary ownership of one business
 
 The current member handles, PR evidence, and the distinction between submitted work and code retained in the
 checked trees are recorded in [`contribution-history.md`](contribution-history.md). In particular,
-Nipuna Bhanuka (`NipunaBhanuka18`) is the GitHub identity used for Component C; the mobile FR-049 condemnation
+Nipuna Bhanuka Samarasinghe (`NipunaBhanuka18`) is the GitHub identity used for Component C; the mobile FR-049 condemnation
 PR is reported but is not yet verified in the checked mobile tree.

@@ -18,7 +18,7 @@
 |---|---|---|
 | Jayashan Guruge | `<ID>` | Asset Registry and QR Identification; Planner Agent |
 | Seneja Ramanayaka | `<ID>` | Maintenance Management; Maintenance Analysis Agent |
-| Bhanuka Samarasinghe | `<ID>` | Transfer and Disposal; Budget Analysis Agent |
+| Nipuna Bhanuka Samarasinghe | IT24101261 | Transfer and Disposal; Budget Analysis Agent |
 | Hasitha Erandika | `<ID>` | Audit and Compliance, configuration and user administration; Policy Agent; group leader |
 
 > **Completion note:** Replace the group number and student-ID placeholders before export. This report intentionally excludes the Flutter mobile-application section, as requested. References to mobile workflows remain only where they are necessary to explain the overall system scope described in the SRS.
@@ -433,7 +433,7 @@ The SRS assigns Component A (Asset Registry and QR Identification) and the Plann
 
 The SRS assigns Component B (Maintenance Management) and the Maintenance Analysis Agent. Individual commit/PR, test, challenge, reflection, and AI-usage evidence is not provided.
 
-#### 2.17.3 Bhanuka Samarasinghe
+#### 2.17.3 Nipuna Bhanuka Samarasinghe
 
 The SRS assigns Component C (Transfer and Disposal) and the Budget Analysis Agent. Individual commit/PR, test, challenge, reflection, and AI-usage evidence is not provided.
 

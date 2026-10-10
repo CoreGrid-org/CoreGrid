@@ -19,6 +19,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // New in eslint-plugin-react-hooks v7's recommended set. Every
+      // hand-rolled data hook here resets its loading/error state at the top
+      // of its fetch effect, which this rule flags. The real fix is moving
+      // those hooks to a data-fetching library, not rewriting each by hand.
+      "react-hooks/set-state-in-effect": "off",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // Interceptor-style catch blocks and mock scaffolding legitimately
       // need this — tsc's own noUnusedLocals/noUnusedParameters already

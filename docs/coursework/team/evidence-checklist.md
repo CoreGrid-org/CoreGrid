@@ -34,7 +34,7 @@ An item is complete only when the artefact is linked or attached, not merely whe
   flows.
 - [ ] Complete Seneja's Appendix E AI log with tool/model, dates, accepted/rejected output, and verification.
 
-### Student 3 — Nipuna Bhanuka (Bhanuka) — Component C
+### Student 3 — Nipuna Bhanuka Samarasinghe — Component C
 
 **Current assessment:** 🟡 Web/API and Budget Agent implementation present; mobile FR-049 and formal evidence incomplete.
 

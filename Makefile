@@ -180,6 +180,44 @@ lint: ## Lint the frontend
 .PHONY: check
 check: build test ## Everything CI checks: build (zero warnings) and tests
 
+##@ Tests by component (SRS §12 component ownership)
+
+# Backend test classes carry [Trait("Component", "A|B|C|D|Platform")];
+# frontend tests are picked by the feature folders each component owns.
+# The shared platform is owned by Component D's maintainer, so test-D runs it too.
+FE_TESTS_A        := src/features/assets
+FE_TESTS_B        := src/features/maintenance src/features/notifications
+FE_TESTS_C        := src/features/transfers
+FE_TESTS_D        := src/features/audit src/features/dashboard src/features/reports src/features/settings \
+                     src/features/setup src/features/users src/features/workflows src/features/profile
+FE_TESTS_Platform := src/features/auth src/shared src/app
+
+COMPONENTS     := A B C D
+TRAITS_A       := A
+TRAITS_B       := B
+TRAITS_C       := C
+TRAITS_D       := D Platform
+
+empty :=
+space := $(empty) $(empty)
+
+.PHONY: test-A test-B test-C test-D
+test-A: ## Component A (assets), backend + frontend
+test-B: ## Component B (maintenance, notifications), backend + frontend
+test-C: ## Component C (transfers, disposals, budget agent), backend + frontend
+test-D: ## Component D + shared platform, backend + frontend
+# Each component also gets test-<X>-backend and test-<X>-frontend.
+$(COMPONENTS:%=test-%): test-%: test-%-backend test-%-frontend
+
+.PHONY: $(COMPONENTS:%=test-%-backend) $(COMPONENTS:%=test-%-frontend)
+# Only Component D's append-only suite needs PostgreSQL, so only it migrates first.
+test-D-backend: db-update
+$(COMPONENTS:%=test-%-backend): test-%-backend:
+	TEST_DB_CONNECTION="$(DB_CONNECTION)" dotnet test $(TESTS) \
+		--filter "$(subst $(space),|,$(TRAITS_$*:%=Component=%))"
+$(COMPONENTS:%=test-%-frontend): test-%-frontend:
+	cd $(FRONTEND) && npm test -- --passWithNoTests $(foreach t,$(TRAITS_$*),$(FE_TESTS_$(t)))
+
 ##@ Performance (scripts/perf/, needs CG_TOKEN — see scripts/perf/README.md)
 
 .PHONY: perf
