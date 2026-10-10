@@ -22,6 +22,7 @@ export function useTransfersList(params?: TransferQueryParameters) {
   const [error, setError] = useState<unknown>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
+  const { status, departmentId, page, pageSize } = params ?? {};
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +30,7 @@ export function useTransfersList(params?: TransferQueryParameters) {
     setError(undefined);
 
     getAccessToken()
-      .then((token) => listTransfers(params, token))
+      .then((token) => listTransfers({ status, departmentId, page, pageSize }, token))
       .then((result) => {
         if (!cancelled) {
           setData(result);
@@ -46,7 +47,7 @@ export function useTransfersList(params?: TransferQueryParameters) {
     return () => {
       cancelled = true;
     };
-  }, [attempt, getAccessToken, params?.status, params?.departmentId, params?.page, params?.pageSize]);
+  }, [attempt, getAccessToken, status, departmentId, page, pageSize]);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 

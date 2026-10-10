@@ -12,7 +12,7 @@ export function useAuditReport(query: AuditReportQuery, enabled = true) {
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by value, see useAssetsList
+  // Keyed by value, see useAssetsList.
   const queryKey = JSON.stringify(query);
 
   useEffect(() => {

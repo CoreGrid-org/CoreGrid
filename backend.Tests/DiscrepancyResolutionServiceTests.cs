@@ -12,6 +12,7 @@ namespace backend.Tests.Features.Verification;
 // FR-062 (§6.7 acceptance criteria). AC1 (403 for an Inventory Officer) is
 // an authorization concern, covered in AuthorizationMatrixTests; these are
 // the service-level business rules.
+[Trait("Component", "D")]
 public class DiscrepancyResolutionServiceTests
 {
     private CoreGridDbContext CreateInMemoryDbContext()

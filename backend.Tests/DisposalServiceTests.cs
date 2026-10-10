@@ -14,6 +14,7 @@ using CoreGrid.Api.Features.Shared.Scoping;
 
 namespace backend.Tests.Features.Disposals;
 
+[Trait("Component", "C")]
 public class DisposalServiceTests
 {
     private CoreGridDbContext CreateInMemoryDbContext()

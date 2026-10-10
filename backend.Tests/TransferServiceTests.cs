@@ -15,6 +15,7 @@ using CoreGrid.Api.Features.Transfers.Services;
 
 namespace backend.Tests.Features.Transfers;
 
+[Trait("Component", "C")]
 public class TransferServiceTests
 {
     private CoreGridDbContext CreateInMemoryDbContext()

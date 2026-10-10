@@ -11,6 +11,7 @@ namespace backend.Tests.Features.Authorization;
 // detecting the service principal via ServicePrincipal.Is) — only the JWT
 // *identity* verification step is swapped for a test double
 // (TestAuthHandler); everything downstream of "who is this" is untouched.
+[Trait("Component", "Platform")]
 public class AuthorizationMatrixTests : IClassFixture<CoreGridWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CoreGridWebApplicationFactory _factory;

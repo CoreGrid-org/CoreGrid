@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace backend.Tests.Features.Agents;
 
+[Trait("Component", "Platform")]
 public class LlmSettingsTests
 {
     private static IConfiguration Config(Dictionary<string, string?> values) =>

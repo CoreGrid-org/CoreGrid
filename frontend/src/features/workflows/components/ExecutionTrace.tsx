@@ -5,7 +5,7 @@ import { CheckmarkFilled, ErrorFilled, ChevronDown, ChevronUp, Time } from "@car
 import { getErrorMessage } from "@/shared/lib/errorMessage";
 import { getExecutionSummary } from "../api/workflows";
 import type { AgentExecutionStep, AgentWorkflow, WorkflowExecutionSummary } from "../api/workflows";
-import { agentDisplay } from "./agentDisplay";
+import { agentDisplay } from "../lib/agentDisplay";
 import { ActionMix, ActionTag, BudgetFacts, FleetTable, MaintenanceFacts, PlanSteps, PolicyRules } from "./AgentOutputs";
 
 function formatDuration(ms: number | null) {

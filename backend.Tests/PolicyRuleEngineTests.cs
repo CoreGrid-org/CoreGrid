@@ -6,6 +6,7 @@ namespace backend.Tests.Features.Agents;
 // SRS §7.6, PR-01 to PR-09. Pure unit tests — no database, no HTTP — proving
 // exactly what §7.3 promises: the same inputs always produce the same
 // verdict, deterministically.
+[Trait("Component", "D")]
 public class PolicyRuleEngineTests
 {
     private readonly PolicyRuleEngine _engine = new();

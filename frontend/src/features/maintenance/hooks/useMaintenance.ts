@@ -34,6 +34,8 @@ export function useMaintenanceList(params: MaintenanceQueryParameters) {
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
 
+  // params is rebuilt every render by the caller; key the effect on its
+  // values and read them back from the key, so the effect has one dependency.
   const paramsKey = JSON.stringify(params);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export function useMaintenanceList(params: MaintenanceQueryParameters) {
     setError(undefined);
 
     getAccessToken()
-      .then((token) => listMaintenanceRecords(params, token))
+      .then((token) => listMaintenanceRecords(JSON.parse(paramsKey) as MaintenanceQueryParameters, token))
       .then((result) => {
         if (!cancelled) {
           setData(result);

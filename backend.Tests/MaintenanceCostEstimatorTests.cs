@@ -7,6 +7,7 @@ namespace backend.Tests.Features.Maintenance;
 
 // GET /api/maintenance/{id}/cost-suggestion: most specific history slice with
 // enough samples wins; outliers are trimmed; no history → no suggestion.
+[Trait("Component", "B")]
 public class MaintenanceCostEstimatorTests
 {
     private readonly Guid _orgId = Guid.NewGuid();

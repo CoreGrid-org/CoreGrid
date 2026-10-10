@@ -14,6 +14,7 @@ namespace backend.Tests.Features.Maintenance;
 // CK_AssetHistory_EventType's allowed values — a real Postgres check
 // constraint InMemory can't reproduce, so this pins the actual value
 // written instead of relying on the (InMemory-invisible) DB error.
+[Trait("Component", "B")]
 public class MaintenanceServiceTests
 {
     private static CoreGridDbContext CreateInMemoryDbContext()

@@ -8,6 +8,7 @@ namespace backend.Tests.Features.Verification;
 
 // The campaign report compares each completed verification with the register
 // and classifies the outcome; the summary counts and value-at-risk build on it.
+[Trait("Component", "D")]
 public class CampaignReportServiceTests
 {
     private static CoreGridDbContext CreateDb() =>

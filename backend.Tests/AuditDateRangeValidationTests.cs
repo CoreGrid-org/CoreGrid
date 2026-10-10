@@ -9,6 +9,7 @@ namespace backend.Tests.Features.Audit;
 
 // An inverted from/to range on the audit report or audit log is a 400, not
 // a silently empty result that looks like "nothing happened in this period".
+[Trait("Component", "D")]
 public class AuditDateRangeValidationTests
 {
     private static CoreGridDbContext CreateInMemoryDbContext()

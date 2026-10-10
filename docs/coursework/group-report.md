@@ -265,7 +265,27 @@ erDiagram
 
 ### 4.5 Seed data
 
-⟦Describe how the demonstration organisation is created. The current tree has no `HasData`/seeder; first-run provisioning goes through `POST /api/setup/complete` (creates the organisation, the first Administrator in ThunderID and in CoreGrid). If a seed script or SQL fixture is added for the evaluation dataset, document it here.⟧
+CoreGrid has no EF Core `HasData` seeding and the API does not seed on start-up, because the organisation's first user must also exist in ThunderID, and a migration cannot create that. The demonstration organisation is built in three steps.
+
+**1. Schema.** The API does not migrate on start-up. Locally, `dotnet ef database update` applies the migrations to the docker-compose Postgres. For the demo, `dotnet ef migrations script --idempotent` produces a script that is run once against Neon (`docs/setup/deployment.md`).
+
+**2. First-run Setup: organisation and first Administrator.** A fresh database has zero rows in `Organizations`. On `/sign-in`, the web app calls `GET /api/setup/status`. While `needs_setup` is `true`, it redirects to `/setup` (`SignIn.tsx`, `features/setup/`). That page collects the organisation name and the Administrator's name, email and password, then calls `POST /api/setup/complete`. `SetupController.Complete`:
+
+1. Returns `409 already_set_up` if any organisation already exists. The endpoint can therefore run only once per deployment, which matches the M0 one-organisation-per-deployment model (SRS §2.4).
+2. Calls `IIdentityDirectory.ProvisionUserAsync` (`ThunderIdIdentityDirectory`). This uses a client-credentials token to create the user in the configured ThunderID OU and user type, assigns the ThunderID `Administrator` role (`ThunderID:RoleIds:Administrator`), and returns the ThunderID user ID.
+3. Inserts the `Organization` row and an Administrator `User` row with `ExternalSubjectId` set to that ThunderID ID. Both go in one `SaveChangesAsync`. Because `RoleEnrichmentMiddleware` maps the token's `sub` claim to `Users.ExternalSubjectId`, the Administrator can sign in straight away and is resolved to the new organisation.
+
+This is the only unauthenticated write endpoint (`[AllowAnonymous]`). It is rate-limited to 5 requests per minute per client IP (`RateLimitPolicies.SetupComplete`) and validated by DataAnnotations (email format, password at least 8 characters). The same call can be made directly instead of through the UI:
+
+```http
+POST /api/setup/complete
+{ "admin": { "email": "…", "given_name": "…", "family_name": "…", "password": "…" },
+  "organisation": { "name": "…" } }
+```
+
+**3. Populating the organisation.** After Setup, the Administrator uses the normal authenticated API and UI. `POST /api/users` provisions each further user in ThunderID and CoreGrid the same way. Departments, locations, categories, asset types (with attribute definitions), assets and maintenance records are then created through their own endpoints, so every row passes through the same validation, FR-006 tenant filter and audit interceptor as live data.
+
+For volume, `scripts/perf/seed-perf-data.sql` (`make perf-seed`) bulk-inserts a dataset into the existing organisation. It refuses to run if Setup has not been completed, and it is idempotent. The dataset is one department, two locations, a `PERF` category with three asset types, a default `OrganizationPolicies` row if none exists, 600 assets and 1,800 maintenance records with consistent cumulative-cost and repair-count aggregates. The row counts can be changed with `-v assets=… -v records=…`. Every row has a `PERF` prefix, and the script is intended for local or staging databases only. It meets the SRS §13.5 performance-dataset requirement. It does **not** cover DR-14 in full: it creates no additional users, no custom attribute definitions or values, and only one department. A fixture for the DR-14 evaluation dataset (four users covering all roles, three departments, six locations, five asset types with populated attributes) has not been added yet. Until it is, that data is entered through the API after Setup.
 
 ---
 

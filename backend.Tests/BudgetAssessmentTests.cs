@@ -5,6 +5,7 @@ using Xunit;
 
 namespace backend.Tests.Features.Agents;
 
+[Trait("Component", "C")]
 public class BudgetAssessmentTests
 {
     private static FinancialAssessmentResultDto Assess(

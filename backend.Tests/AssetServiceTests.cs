@@ -10,6 +10,7 @@ namespace backend.Tests.Features.Assets;
 // SRS §9.2 / FR-031: standalone physical verification. No AssetServiceTests
 // existed before this (docs/progress.md's own Component A section flagged
 // the gap) — scoped here to VerifyAssetAsync only.
+[Trait("Component", "A")]
 public class AssetServiceTests
 {
     private static CoreGridDbContext CreateInMemoryDbContext()

@@ -7,6 +7,7 @@ namespace backend.Tests.Features.Shared;
 // silent drift in AssetService's residual value, BudgetTools'
 // compute-depreciation response, or DisposalPreconditionService's P3 check
 // — the three call sites this one implementation replaced (§6.1's B22).
+[Trait("Component", "A")]
 public class StraightLineDepreciationTests
 {
     [Fact]

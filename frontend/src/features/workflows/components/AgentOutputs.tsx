@@ -3,6 +3,7 @@ import { Button, Tag } from "@carbon/react";
 import { CheckmarkFilled, CloseFilled, WarningAltFilled, ArrowRight } from "@carbon/icons-react";
 import { formatStatusLabel, statusTagColor } from "@/shared/lib/statusTag";
 import { AgentDisplay } from "./agentDisplay";
+import { formatLkr } from "../lib/format";
 import type {
   FailureStatistics,
   FinancialAssessment,
@@ -15,7 +16,7 @@ import type {
 // Structured renderings of each agent's output, shared by the workflow
 // cards and the execution trace so a fact always looks the same.
 
-export const ACTION_ORDER: LifecycleAction[] = ["DISPOSE", "REPLACE", "REPAIR", "TRANSFER", "RETAIN"];
+const ACTION_ORDER: LifecycleAction[] = ["DISPOSE", "REPLACE", "REPAIR", "TRANSFER", "RETAIN"];
 
 const ACTION_TAG: Record<LifecycleAction, "red" | "magenta" | "blue" | "cyan" | "green"> = {
   DISPOSE: "red",
@@ -30,8 +31,6 @@ const OUTCOME_ICON: Record<string, typeof CheckmarkFilled> = {
   FAIL: CloseFilled,
   NEEDS_REVISION: WarningAltFilled,
 };
-
-export const formatLkr = (value: number) => `LKR ${Math.round(value).toLocaleString()}`;
 
 export function ActionTag({ action, size = "md" }: { action: string; size?: "sm" | "md" }) {
   return (

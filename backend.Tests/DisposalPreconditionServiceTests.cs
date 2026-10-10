@@ -10,6 +10,7 @@ using CoreGrid.Api.Features.Disposals.Services;
 
 namespace backend.Tests.Features.Disposals;
 
+[Trait("Component", "C")]
 public class DisposalPreconditionServiceTests
 {
     private CoreGridDbContext CreateInMemoryDbContext()

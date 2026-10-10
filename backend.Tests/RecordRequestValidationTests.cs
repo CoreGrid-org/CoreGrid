@@ -14,6 +14,7 @@ namespace backend.Tests.Features.Authorization;
 // that will be ignored" on every request, which surfaced as a 500 "An
 // unexpected error occurred" when creating a user. These go through the
 // real pipeline so model validation actually runs.
+[Trait("Component", "Platform")]
 public class RecordRequestValidationTests(CoreGridWebApplicationFactory factory) : IClassFixture<CoreGridWebApplicationFactory>, IAsyncLifetime
 {
     private readonly Guid _orgId = Guid.NewGuid();

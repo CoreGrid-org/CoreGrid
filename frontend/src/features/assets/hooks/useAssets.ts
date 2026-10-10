@@ -58,7 +58,7 @@ export function useAssetsList(params: AssetQueryParameters) {
   const [isLoading, setIsLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- params is a plain
+  // params is a plain
   // object rebuilt each render by the caller; stringify to keep the effect
   // keyed to its actual values instead of refetching on every render.
   const paramsKey = JSON.stringify(params);

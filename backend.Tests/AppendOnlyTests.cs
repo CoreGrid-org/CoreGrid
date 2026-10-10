@@ -24,6 +24,7 @@ namespace backend.Tests.Features.Audit;
 // migration-owner connection from a restricted runtime connection — a
 // connection-string/config change, not a test, and out of scope here;
 // tracked as a follow-up rather than silently left unverified.
+[Trait("Component", "D")]
 public class AppendOnlyTests : IAsyncLifetime
 {
     private static string OwnerConnectionString =>

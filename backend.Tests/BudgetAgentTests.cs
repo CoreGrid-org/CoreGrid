@@ -14,6 +14,7 @@ using Xunit;
 
 namespace backend.Tests.Features.Agents;
 
+[Trait("Component", "C")]
 public class BudgetAgentTests
 {
     private readonly Mock<IBudgetTools> _mockBudgetTools = new();

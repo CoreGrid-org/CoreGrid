@@ -20,6 +20,7 @@ namespace backend.Tests.Features.Shared;
 // services call through, so it's pinned here once; AssetService.GetAssetsAsync
 // then proves a real call site actually wires it in, rather than just
 // existing unused.
+[Trait("Component", "Platform")]
 public class DepartmentScopeTests
 {
     [Fact]
