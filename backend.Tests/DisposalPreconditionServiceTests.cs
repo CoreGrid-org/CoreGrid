@@ -46,6 +46,40 @@ public class DisposalPreconditionServiceTests
         Assert.Equal("P1", result.Code);
     }
 
+    // Submitting the request moves the asset to DISPOSAL_REQUESTED (FR-050);
+    // that is the state the approver evaluates, so it must pass.
+    [Fact]
+    public void CheckP1_WhenAssetIsHeldForThePendingRequest_ReturnsPassed()
+    {
+        var service = new DisposalPreconditionService(CreateInMemoryDbContext());
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(),
+            AssetCode = "AST-003",
+            Name = "Desktop",
+            Status = AssetStatuses.DisposalRequested,
+            Condition = AssetConditions.Unserviceable,
+            QrPayload = "payload"
+        };
+
+        var result = service.CheckP1AssetCondemned(asset);
+
+        Assert.True(result.Passed);
+        Assert.Null(result.FailureReason);
+    }
+
+    [Theory]
+    [InlineData(AssetStatuses.Active)]
+    [InlineData(AssetStatuses.UnderMaintenance)]
+    [InlineData(AssetStatuses.Disposed)]
+    public void CheckP1_WhenAssetWasNeverCondemned_ReturnsFailed(string status)
+    {
+        var service = new DisposalPreconditionService(CreateInMemoryDbContext());
+        var asset = new Asset { Id = Guid.NewGuid(), AssetCode = "AST-004", Name = "Pump", Status = status, Condition = AssetConditions.Good, QrPayload = "payload" };
+
+        Assert.False(service.CheckP1AssetCondemned(asset).Passed);
+    }
+
     [Fact]
     public void CheckP1_WhenAssetStatusIsNotCondemned_ReturnsFailed()
     {

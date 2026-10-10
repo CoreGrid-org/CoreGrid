@@ -459,11 +459,8 @@ public class DisposalServiceTests
         Assert.Equal(DisposalStatus.PENDING, submitResult.Status);
         Assert.Equal(AssetStatuses.DisposalRequested, submitResult.AssetStatus);
 
-        // Step 3: Approve Disposal (by Administrator different from Requester)
-        // Note: CheckP1 tests Asset.Status == CONDEMNED. We set Asset.Status = CONDEMNED so P1 passes when evaluated during approval.
-        asset.Status = AssetStatuses.Condemned;
-        await dbContext.SaveChangesAsync();
-
+        // Step 3: Approve Disposal (by Administrator different from Requester).
+        // The asset is still DISPOSAL_REQUESTED from step 2; P1 must accept that.
         var approveResult = await service.ApproveDisposalAsync(orgId, submitResult.Id, approverId, CancellationToken.None);
 
         Assert.Equal(DisposalStatus.APPROVED, approveResult.Status);
@@ -637,7 +634,7 @@ public class DisposalServiceTests
             AssetTypeId = assetType.Id,
             AssetCode = "AST-REV-1",
             Name = "Van",
-            Status = AssetStatuses.Condemned,
+            Status = AssetStatuses.DisposalRequested,
             Condition = AssetConditions.Poor,
             AcquisitionDate = new DateOnly(2020, 1, 1),
             QrPayload = "qr"
@@ -687,6 +684,53 @@ public class DisposalServiceTests
         var dbRequest = await dbContext.DisposalRequests.FindAsync(disposalRequest.Id);
         Assert.NotNull(dbRequest);
         Assert.Equal(DisposalStatus.REVISION_REQUESTED, dbRequest.Status);
+
+        // The DISPOSAL_REQUESTED hold is released so a corrected request can be raised.
+        var dbAsset = await dbContext.Assets.FindAsync(asset.Id);
+        Assert.Equal(AssetStatuses.Condemned, dbAsset!.Status);
+        Assert.Equal(adminId, dbAsset.UpdatedBy);
+        var history = await dbContext.AssetHistoryEntries.SingleAsync(h => h.AssetId == asset.Id);
+        Assert.Equal(AssetHistoryEventTypes.Disposal, history.EventType);
+        Assert.Contains(comments, history.Description);
+    }
+
+    // FR-053: a returned request must not strand the asset — the requester
+    // can submit a corrected request, and that one can be approved.
+    [Fact]
+    public async Task RequestDisposalRevision_ThenResubmit_TheCorrectedRequestCanBeApproved()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var orgId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        var assetType = new AssetType { Id = Guid.NewGuid(), OrganizationId = orgId, Code = "DSK", Name = "Desktop", UsefulLifeYears = 5 };
+        var asset = new Asset
+        {
+            Id = Guid.NewGuid(), OrganizationId = orgId, AssetTypeId = assetType.Id, AssetCode = "AST-REV-2", Name = "Desktop",
+            Status = AssetStatuses.Condemned, Condition = AssetConditions.Unserviceable, AcquisitionDate = new DateOnly(2015, 1, 1), QrPayload = "qr"
+        };
+        var requester = new User { Id = requesterId, OrganizationId = orgId, ExternalSubjectId = "sub-requester-rev2", Email = "requester-rev2@example.com", GivenName = "Req", FamilyName = "Uester" };
+        dbContext.AddRange(assetType, asset, requester);
+        await dbContext.SaveChangesAsync();
+        var service = new DisposalService(dbContext, new DisposalPreconditionService(dbContext));
+
+        var first = await service.SubmitDisposalRequestAsync(orgId, new SubmitDisposalRequest
+        {
+            AssetId = asset.Id, DisposalMethod = DisposalMethod.SCRAP, EstimatedResidualValue = 0m, ValuationDate = null
+        }, requesterId, CancellationToken.None);
+        await service.RequestDisposalRevisionAsync(orgId, first.Id, adminId, "Record a valuation date.", CancellationToken.None);
+
+        var corrected = await service.SubmitDisposalRequestAsync(orgId, new SubmitDisposalRequest
+        {
+            AssetId = asset.Id, DisposalMethod = DisposalMethod.SCRAP, EstimatedResidualValue = 0m,
+            ValuationDate = DateOnly.FromDateTime(DateTime.UtcNow)
+        }, requesterId, CancellationToken.None);
+        var approved = await service.ApproveDisposalAsync(orgId, corrected.Id, adminId, CancellationToken.None);
+
+        Assert.Equal(DisposalStatus.APPROVED, approved.Status);
+        Assert.Equal(AssetStatuses.Disposed, approved.AssetStatus);
+        Assert.Equal(DisposalStatus.REVISION_REQUESTED, (await dbContext.DisposalRequests.FindAsync(first.Id))!.Status);
     }
 
     // =========================================================================

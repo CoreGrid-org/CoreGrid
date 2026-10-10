@@ -317,14 +317,42 @@ public class DisposalService : IDisposalService
                 "invalid_status_transition");
         }
 
+        if (disposalRequest.Asset == null)
+        {
+            throw new InvalidOperationException($"Associated Asset with ID {disposalRequest.AssetId} not found.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var previousStatus = disposalRequest.Asset.Status;
+
         disposalRequest.Status = DisposalStatus.REVISION_REQUESTED;
 
         // Preserve any prior notes and append revision comments with timestamp/actor
-        var timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'");
+        var timestamp = now.ToString("yyyy-MM-dd HH:mm:ss 'UTC'");
         var revisionEntry = $"[Revision Requested - {timestamp}]: {comments.Trim()}";
         disposalRequest.Notes = string.IsNullOrWhiteSpace(disposalRequest.Notes)
             ? revisionEntry
             : $"{disposalRequest.Notes}\n{revisionEntry}";
+
+        // There is no resubmit on a returned request: release the
+        // DISPOSAL_REQUESTED hold back to CONDEMNED, as rejection does, so the
+        // requester can raise a corrected request for the same asset (FR-053).
+        disposalRequest.Asset.Status = AssetStatuses.Condemned;
+        disposalRequest.Asset.UpdatedAt = now;
+        disposalRequest.Asset.UpdatedBy = requestedByUserId;
+
+        _dbContext.AssetHistoryEntries.Add(new AssetHistory
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            AssetId = disposalRequest.Asset.Id,
+            ActorUserId = requestedByUserId,
+            EventType = AssetHistoryEventTypes.Disposal,
+            Description = $"Disposal request returned for revision: {comments.Trim()}",
+            PreviousValue = JsonSerializer.Serialize(new { status = previousStatus }),
+            NewValue = JsonSerializer.Serialize(new { status = disposalRequest.Asset.Status }),
+            CreatedAt = now
+        });
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
