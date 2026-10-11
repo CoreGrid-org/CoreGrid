@@ -48,9 +48,7 @@ export default function AssetRegisterPage() {
   const { id: assetId } = useParams<{ id: string }>();
   const isEditMode = Boolean(assetId);
 
-  // Mounted under both /admin/assets/... and /inventory/assets/... (App.tsx)
-  // — derive the list path from the current role prefix rather than
-  // hardcoding one, so Cancel/Save stay within the current role's routes.
+ 
   const assetsListPath = `/${location.pathname.split("/")[1]}/assets`;
 
   const { data: assetTypes } = useAssetTypes();
